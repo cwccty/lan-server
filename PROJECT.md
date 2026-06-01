@@ -574,3 +574,16 @@ stopServerSession()
 src-tauri/src/core/server_session.rs
 src-tauri/src/models/server_session.rs
 ```
+
+
+## 26. 后台控制台隐藏与向导等待反馈（2026-06-01 补充）
+
+针对用户反馈“打开后持续出现空白白色命令框、按钮点击后卡顿/无等待提示”，本轮调整：
+
+- Terraria 服务端不再通过 PowerShell `Start-Process` 中转启动，改为 Windows `CreateProcessW`。
+- 启动时创建一个隐藏的新控制台：既给 Terraria Server 有效 Console 句柄，避免 `Console.Title` 句柄无效；又通过 `STARTF_USESHOWWINDOW + SW_HIDE` 隐藏窗口。
+- `read_server_session` 的 PID 检测在 Windows 下改用 `OpenProcess + GetExitCodeProcess`，避免每次轮询都执行 `tasklist`，减少卡顿来源。
+- 联机向导增加全局 `busyAction`：执行保存 n2n、启动/停止服务端、复制邀请、发送命令时显示“正在处理，请稍等”，并临时禁用关键按钮，避免重复点击。
+- 服务端状态轮询从 1.5 秒调整到 3 秒，并在操作进行中暂停轮询，减少前端和后端请求堆积。
+
+说明：当前隐藏模式仍不是完整 ConPTY 伪终端，第一版主要保证“后台启动、PID 管理、端口就绪判断”。后续如果需要真正实时日志和可交互命令，再进入 Windows ConPTY 方案。

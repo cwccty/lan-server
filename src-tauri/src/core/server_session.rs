@@ -18,6 +18,12 @@ use std::os::windows::process::CommandExt;
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
+#[cfg(windows)]
+const PROCESS_QUERY_LIMITED_INFORMATION: u32 = 0x1000;
+
+#[cfg(windows)]
+const STILL_ACTIVE: u32 = 259;
+
 #[derive(Clone)]
 struct ServerSession {
     pid: u32,
@@ -138,6 +144,121 @@ pub fn stop_server_session() -> Result<ServerSessionStatus, String> {
 }
 
 fn start_hidden_process(executable: &PathBuf, working_dir: &PathBuf, args: &[String]) -> Result<u32, String> {
+    #[cfg(windows)]
+    {
+        return start_hidden_windows_console_process(executable, working_dir, args);
+    }
+
+    #[cfg(not(windows))]
+    {
+        let child = Command::new(executable)
+            .args(args)
+            .current_dir(working_dir)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .map_err(|err| format!("启动后台服务端失败：{err}"))?;
+        return Ok(child.id());
+    }
+}
+
+#[cfg(windows)]
+fn start_hidden_windows_console_process(
+    executable: &PathBuf,
+    working_dir: &PathBuf,
+    args: &[String],
+) -> Result<u32, String> {
+    use std::mem::size_of;
+    use std::ptr::null;
+    use windows_sys::Win32::Foundation::{CloseHandle, GetLastError};
+    use windows_sys::Win32::System::Threading::{
+        CreateProcessW, CREATE_NEW_CONSOLE, PROCESS_INFORMATION, STARTUPINFOW, STARTF_USESHOWWINDOW,
+    };
+    use windows_sys::Win32::UI::WindowsAndMessaging::SW_HIDE;
+
+    let command_line = std::iter::once(executable.to_string_lossy().to_string())
+        .chain(args.iter().cloned())
+        .map(|item| quote_windows_arg(&item))
+        .collect::<Vec<_>>()
+        .join(" ");
+    let mut command_line_w = to_wide_null(&command_line);
+    let application_name_w = to_wide_null(&executable.to_string_lossy());
+    let current_dir_w = to_wide_null(&working_dir.to_string_lossy());
+
+    let mut startup_info = STARTUPINFOW {
+        cb: size_of::<STARTUPINFOW>() as u32,
+        dwFlags: STARTF_USESHOWWINDOW,
+        wShowWindow: SW_HIDE as u16,
+        ..unsafe { std::mem::zeroed() }
+    };
+    let mut process_info: PROCESS_INFORMATION = unsafe { std::mem::zeroed() };
+
+    let created = unsafe {
+        CreateProcessW(
+            application_name_w.as_ptr(),
+            command_line_w.as_mut_ptr(),
+            null(),
+            null(),
+            0,
+            CREATE_NEW_CONSOLE,
+            null(),
+            current_dir_w.as_ptr(),
+            &mut startup_info,
+            &mut process_info,
+        )
+    };
+
+    if created == 0 {
+        let code = unsafe { GetLastError() };
+        return Err(format!("启动隐藏控制台服务端失败，Windows 错误码：{code}"));
+    }
+
+    let pid = process_info.dwProcessId;
+    unsafe {
+        CloseHandle(process_info.hThread);
+        CloseHandle(process_info.hProcess);
+    }
+    Ok(pid)
+}
+
+#[cfg(windows)]
+fn to_wide_null(input: &str) -> Vec<u16> {
+    input.encode_utf16().chain(std::iter::once(0)).collect()
+}
+
+#[cfg(windows)]
+fn quote_windows_arg(input: &str) -> String {
+    if input.is_empty() {
+        return "\"\"".to_string();
+    }
+    if !input.chars().any(|item| item.is_whitespace() || item == '"') {
+        return input.to_string();
+    }
+    let mut quoted = String::from("\"");
+    let mut backslashes = 0;
+    for ch in input.chars() {
+        match ch {
+            '\\' => backslashes += 1,
+            '"' => {
+                quoted.push_str(&"\\".repeat(backslashes * 2 + 1));
+                quoted.push('"');
+                backslashes = 0;
+            }
+            _ => {
+                quoted.push_str(&"\\".repeat(backslashes));
+                backslashes = 0;
+                quoted.push(ch);
+            }
+        }
+    }
+    quoted.push_str(&"\\".repeat(backslashes * 2));
+    quoted.push('"');
+    quoted
+}
+
+#[allow(dead_code)]
+fn start_hidden_process_via_powershell(executable: &PathBuf, working_dir: &PathBuf, args: &[String]) -> Result<u32, String> {
     let script = format!(
         "$p = Start-Process -FilePath '{}' -ArgumentList @({}) -WorkingDirectory '{}' -WindowStyle Hidden -PassThru; Write-Output $p.Id",
         ps_escape(&executable.to_string_lossy()),
@@ -212,6 +333,37 @@ fn empty_status(message: &str) -> ServerSessionStatus {
 }
 
 fn is_pid_running(pid: u32) -> bool {
+    #[cfg(windows)]
+    {
+        return is_pid_running_windows(pid);
+    }
+
+    #[cfg(not(windows))]
+    {
+        return is_pid_running_tasklist(pid);
+    }
+}
+
+#[cfg(windows)]
+fn is_pid_running_windows(pid: u32) -> bool {
+    use windows_sys::Win32::Foundation::CloseHandle;
+    use windows_sys::Win32::System::Threading::{GetExitCodeProcess, OpenProcess};
+
+    let handle = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
+    if handle.is_null() {
+        return false;
+    }
+
+    let mut exit_code = 0;
+    let ok = unsafe { GetExitCodeProcess(handle, &mut exit_code) };
+    unsafe {
+        CloseHandle(handle);
+    }
+    ok != 0 && exit_code == STILL_ACTIVE
+}
+
+#[allow(dead_code)]
+fn is_pid_running_tasklist(pid: u32) -> bool {
     let output = Command::new("tasklist")
         .args(["/FI", &format!("PID eq {pid}"), "/FO", "CSV", "/NH"])
         .output();

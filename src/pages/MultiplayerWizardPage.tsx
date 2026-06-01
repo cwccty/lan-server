@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   readServerSession,
   sendServerCommand,
@@ -27,17 +27,40 @@ export function MultiplayerWizardPage() {
   const [autoForward, setAutoForward] = useState('n');
   const [serverCommand, setServerCommand] = useState('help');
   const [statusMessage, setStatusMessage] = useState('');
+  const [busyAction, setBusyAction] = useState<string | null>(null);
+  const pollingRef = useRef(false);
   const [session, setSession] = useState<ServerSessionStatus | null>(null);
 
   const localIp = role === 'host' ? hostIp : joinerIp;
+  const isBusy = busyAction !== null;
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      readServerSession().then(setSession).catch(() => undefined);
-    }, 1500);
-    readServerSession().then(setSession).catch(() => undefined);
-    return () => window.clearInterval(timer);
-  }, []);
+    let disposed = false;
+
+    const poll = async () => {
+      if (disposed || busyAction || pollingRef.current) {
+        return;
+      }
+      pollingRef.current = true;
+      try {
+        const next = await readServerSession();
+        if (!disposed) {
+          setSession(next);
+        }
+      } catch {
+        // Keep the current panel stable when a transient backend query fails.
+      } finally {
+        pollingRef.current = false;
+      }
+    };
+
+    void poll();
+    const timer = window.setInterval(poll, 3000);
+    return () => {
+      disposed = true;
+      window.clearInterval(timer);
+    };
+  }, [busyAction]);
 
   const serverConfig: LaunchConfig = useMemo(
     () => ({
@@ -52,30 +75,38 @@ export function MultiplayerWizardPage() {
   );
 
   const inviteText = [
-    '【联机助手邀请】',
-    '游戏：Terraria',
-    '身份：你是加入者',
-    `community：${roomName}`,
-    `secret：${secret}`,
-    `supernode：${supernode || '待填写'}`,
-    `你的本机虚拟 IP：${joinerIp}`,
-    `房主虚拟 IP：${hostIp}`,
-    `游戏端口：${gamePort}`,
-    `Terraria 加入地址：${hostIp}:${gamePort}`,
-    '操作：打开联机助手 → 联机向导 → 我是加入者 → 按上面信息填写 → 启动 n2n edge → Terraria 里 Join via IP。'
+    '[Lan Helper Invite]',
+    'Game: Terraria',
+    'Role: joiner',
+    `community: ${roomName}`,
+    `secret: ${secret}`,
+    `supernode: ${supernode || 'TODO'}`,
+    `your virtual IP: ${joinerIp}`,
+    `host virtual IP: ${hostIp}`,
+    `game port: ${gamePort}`,
+    `Terraria join address: ${hostIp}:${gamePort}`,
+    'Steps: open Lan Helper -> Multiplayer Wizard -> Joiner -> fill this info -> start n2n edge -> Terraria Join via IP.'
   ].join('\n');
 
   const runAction = async (label: string, action: () => Promise<unknown>) => {
+    if (busyAction) {
+      setStatusMessage(`Processing: ${busyAction}. Please wait...`);
+      return;
+    }
+
     try {
-      setStatusMessage(`${label}...`);
+      setBusyAction(label);
+      setStatusMessage(`Processing: ${label}. Please wait...`);
       await action();
     } catch (error) {
-      setStatusMessage(`${label}失败：${String(error)}`);
+      setStatusMessage(`${label} failed: ${String(error)}`);
+    } finally {
+      setBusyAction(null);
     }
   };
 
   const saveAndStartN2n = () =>
-    runAction('正在保存 n2n 配置并启动 edge', async () => {
+    runAction('save n2n config and start edge', async () => {
       const setup = await setupNetwork('n2n', {
         room_name: roomName,
         secret,
@@ -87,21 +118,21 @@ export function MultiplayerWizardPage() {
     });
 
   const startEmbeddedServer = () =>
-    runAction('正在启动内嵌 Terraria 服务端', async () => {
+    runAction('start embedded Terraria server', async () => {
       const next = await startGameServerSession('terraria', 'server', serverConfig);
       setSession(next);
       setStatusMessage(next.message);
     });
 
   const stopEmbeddedServer = () =>
-    runAction('正在停止内嵌服务端', async () => {
+    runAction('stop embedded server', async () => {
       const next = await stopServerSession();
       setSession(next);
       setStatusMessage(next.message);
     });
 
   const sendCommand = (command = serverCommand) =>
-    runAction(`正在发送命令：${command}`, async () => {
+    runAction(`send command: ${command}`, async () => {
       const next = await sendServerCommand(command);
       setSession(next);
       setStatusMessage(next.message);
@@ -109,144 +140,146 @@ export function MultiplayerWizardPage() {
     });
 
   const copyInvite = () =>
-    runAction('正在复制邀请信息', async () => {
+    runAction('copy invite info', async () => {
       await navigator.clipboard?.writeText(inviteText);
-      setStatusMessage('邀请信息已复制。');
+      setStatusMessage('Invite copied.');
     });
 
   return (
     <section>
-      <h2>联机向导</h2>
-      <p className="muted">第一版先围绕 Terraria + n2n，把房主和加入者流程串成一条龙。</p>
+      <h2>&#32852;&#26426;&#21521;&#23548;</h2>
+      <p className="muted">Terraria + n2n one-click host/join flow.</p>
+
+      {busyAction && <div className="busy-banner">Processing: {busyAction}. Please wait and do not click repeatedly.</div>}
 
       <article className="card">
-        <h3>1. 选择身份</h3>
+        <h3>1. &#36873;&#25321;&#36523;&#20221;</h3>
         <div className="actions">
-          <button className={role === 'host' ? 'active' : ''} onClick={() => setRole('host')}>
-            我是房主
+          <button className={role === 'host' ? 'active' : ''} onClick={() => setRole('host')} disabled={isBusy}>
+            &#25105;&#26159;&#25151;&#20027;
           </button>
-          <button className={role === 'joiner' ? 'active' : ''} onClick={() => setRole('joiner')}>
-            我是加入者
+          <button className={role === 'joiner' ? 'active' : ''} onClick={() => setRole('joiner')} disabled={isBusy}>
+            &#25105;&#26159;&#21152;&#20837;&#32773;
           </button>
         </div>
       </article>
 
       <article className="card">
-        <h3>2. n2n 房间配置</h3>
+        <h3>2. n2n &#25151;&#38388;&#37197;&#32622;</h3>
         <label>
-          房间名 / community
-          <input value={roomName} onChange={(event) => setRoomName(event.target.value)} />
+          &#25151;&#38388;&#21517; / community
+          <input value={roomName} onChange={(event) => setRoomName(event.target.value)} disabled={isBusy} />
         </label>
         <label>
-          密钥
-          <input value={secret} onChange={(event) => setSecret(event.target.value)} />
+          &#23494;&#38053;
+          <input value={secret} onChange={(event) => setSecret(event.target.value)} disabled={isBusy} />
         </label>
         <label>
           supernode
-          <input value={supernode} onChange={(event) => setSupernode(event.target.value)} placeholder="VPS_IP:7777" />
+          <input value={supernode} onChange={(event) => setSupernode(event.target.value)} placeholder="VPS_IP:7777" disabled={isBusy} />
         </label>
         <label>
-          房主虚拟 IP
-          <input value={hostIp} onChange={(event) => setHostIp(event.target.value)} />
+          &#25151;&#20027;&#34394;&#25311; IP
+          <input value={hostIp} onChange={(event) => setHostIp(event.target.value)} disabled={isBusy} />
         </label>
         <label>
-          加入者虚拟 IP
-          <input value={joinerIp} onChange={(event) => setJoinerIp(event.target.value)} />
+          &#21152;&#20837;&#32773;&#34394;&#25311; IP
+          <input value={joinerIp} onChange={(event) => setJoinerIp(event.target.value)} disabled={isBusy} />
         </label>
-        <button onClick={saveAndStartN2n}>保存配置并启动 n2n edge</button>
+        <button onClick={saveAndStartN2n} disabled={isBusy}>&#20445;&#23384;&#37197;&#32622;&#24182;&#21551;&#21160; n2n edge</button>
       </article>
 
       {role === 'host' && (
         <article className="card">
-          <h3>3. 启动 Terraria 服务端</h3>
+          <h3>3. &#21551;&#21160; Terraria &#26381;&#21153;&#31471;</h3>
           <label>
-            世界编号
-            <input value={worldChoice} onChange={(event) => setWorldChoice(event.target.value)} />
+            &#19990;&#30028;&#32534;&#21495;
+            <input value={worldChoice} onChange={(event) => setWorldChoice(event.target.value)} disabled={isBusy} />
           </label>
           <label>
-            世界文件路径，可选
-            <input value={worldPath} onChange={(event) => setWorldPath(event.target.value)} />
+            &#19990;&#30028;&#25991;&#20214;&#36335;&#24452;&#65292;&#21487;&#36873;
+            <input value={worldPath} onChange={(event) => setWorldPath(event.target.value)} disabled={isBusy} />
           </label>
           <label>
-            最大人数
-            <input value={maxPlayers} onChange={(event) => setMaxPlayers(event.target.value)} />
+            &#26368;&#22823;&#20154;&#25968;
+            <input value={maxPlayers} onChange={(event) => setMaxPlayers(event.target.value)} disabled={isBusy} />
           </label>
           <label>
-            游戏端口
-            <input value={gamePort} onChange={(event) => setGamePort(event.target.value)} />
+            &#28216;&#25103;&#31471;&#21475;
+            <input value={gamePort} onChange={(event) => setGamePort(event.target.value)} disabled={isBusy} />
           </label>
           <label>
-            服务端密码，可空
-            <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
+            &#26381;&#21153;&#31471;&#23494;&#30721;&#65292;&#21487;&#31354;
+            <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={isBusy} />
           </label>
           <label>
-            自动端口转发 y/n
-            <select value={autoForward} onChange={(event) => setAutoForward(event.target.value)}>
+            &#33258;&#21160;&#31471;&#21475;&#36716;&#21457; y/n
+            <select value={autoForward} onChange={(event) => setAutoForward(event.target.value)} disabled={isBusy}>
               <option value="n">n</option>
               <option value="y">y</option>
             </select>
           </label>
           <div className="actions">
-            <button onClick={startEmbeddedServer}>在程序内启动服务端</button>
-            <button onClick={stopEmbeddedServer}>停止内嵌服务端</button>
+            <button onClick={startEmbeddedServer} disabled={isBusy}>&#22312;&#31243;&#24207;&#20869;&#21551;&#21160;&#26381;&#21153;&#31471;</button>
+            <button onClick={stopEmbeddedServer} disabled={isBusy}>&#20572;&#27490;&#20869;&#23884;&#26381;&#21153;&#31471;</button>
           </div>
         </article>
       )}
 
       <article className="card">
-        <h3>{role === 'host' ? '4. 复制给朋友' : '3. 加入游戏'}</h3>
+        <h3>{role === 'host' ? '4. Copy invite' : '3. Join game'}</h3>
         {role === 'host' ? (
           <>
-            <p className="muted">把下面内容发给朋友。</p>
+            <p className="muted">Send this to your friend.</p>
             <pre>{inviteText}</pre>
-            <button onClick={copyInvite}>复制邀请信息</button>
+            <button onClick={copyInvite} disabled={isBusy}>&#22797;&#21046;&#36992;&#35831;&#20449;&#24687;</button>
           </>
         ) : (
           <p>
-            启动 n2n 后，打开 Terraria → Multiplayer → Join via IP，输入房主虚拟 IP：
-            <strong>{hostIp}</strong>，端口：<strong>{gamePort}</strong>。
+            Start n2n, then open Terraria - Multiplayer - Join via IP. Host IP:
+            <strong>{hostIp}</strong>, port: <strong>{gamePort}</strong>.
           </p>
         )}
       </article>
 
       <article className="card">
-        <h3>内嵌服务端控制台</h3>
+        <h3>&#20869;&#23884;&#26381;&#21153;&#31471;&#25511;&#21046;&#21488;</h3>
         <p className="muted">
-          这里不是嵌入系统白色命令框，而是由程序托管服务端进程并显示日志。正常情况下不会再弹出第二个 Terraria Server 窗口；
-          如果仍弹出，请确认没有使用旧的“推荐方案启动项”或旧版本客户端。
+          This is managed by the app instead of a separate white command window. The new build starts Terraria Server with a hidden Windows console.
         </p>
         {statusMessage && <pre>{statusMessage}</pre>}
         <div className={session?.ready || session?.running ? 'result-ok' : 'result-idle'}>
           <p>
-            状态：
+            &#29366;&#24577;:
             {session?.ready
-              ? `已就绪${session.pid ? `，PID ${session.pid}` : ''}`
+              ? `Ready${session.pid ? `, PID ${session.pid}` : ''}`
               : session?.running
-                ? `运行中，PID ${session.pid}`
-                : '未运行'}
+                ? `Running, PID ${session.pid}`
+                : 'Stopped'}
           </p>
-          <p>就绪：{session?.ready ? '已监听端口，可以邀请朋友加入' : '尚未识别到 Listening/Server started'}</p>
+          <p>Ready: {session?.ready ? 'Port is listening. You can invite friends.' : 'Port is not listening yet.'}</p>
         </div>
         <div className="actions">
           <input
             value={serverCommand}
             onChange={(event) => setServerCommand(event.target.value)}
-            placeholder="输入服务端命令，例如 help / save / exit"
+            placeholder="help / save / exit"
+            disabled={isBusy}
           />
-          <button onClick={() => sendCommand()} disabled={!session?.running || !serverCommand.trim()}>
-            发送命令
+          <button onClick={() => sendCommand()} disabled={isBusy || !session?.running || !serverCommand.trim()}>
+            send
           </button>
-          <button onClick={() => sendCommand('help')} disabled={!session?.running}>
+          <button onClick={() => sendCommand('help')} disabled={isBusy || !session?.running}>
             help
           </button>
-          <button onClick={() => sendCommand('save')} disabled={!session?.running}>
+          <button onClick={() => sendCommand('save')} disabled={isBusy || !session?.running}>
             save
           </button>
-          <button onClick={() => sendCommand('exit')} disabled={!session?.running}>
+          <button onClick={() => sendCommand('exit')} disabled={isBusy || !session?.running}>
             exit
           </button>
         </div>
-        <pre className="console-panel">{session?.logs?.join('\n') || '暂无服务端日志。'}</pre>
+        <pre className="console-panel">{session?.logs?.join('\n') || 'No server logs yet.'}</pre>
       </article>
     </section>
   );

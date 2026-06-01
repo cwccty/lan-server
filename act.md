@@ -520,3 +520,40 @@ tools/n2n/
 - 重新打开新版 release 客户端。
 - 从“联机向导 → 在程序内启动服务端”启动。
 - 等待状态从“尚未监听”变为“已监听端口，可以邀请朋友加入”。
+
+
+## 2026-06-01 空白白色命令框与按钮卡顿优化
+
+### 问题
+- 用户反馈打开后持续存在一个无内容白色命令框，标题类似项目 `src-tauri` 路径。
+- 点击联机向导内多个按钮时存在卡顿，且缺少“正在处理/请稍等”的明确反馈。
+
+### 判断
+- 持续空白窗口大概率来自 PowerShell 中转启动 Terraria Server 的隐藏窗口策略不够彻底。
+- 直接 `CREATE_NO_WINDOW/DETACHED_PROCESS` 会导致 Terraria Server 没有有效 Console 句柄并报 `System.IO.IOException: 句柄无效`，因此需要“有控制台但隐藏”的启动方式。
+- 按钮卡顿主要来自异步操作期间仍可重复点击，以及状态轮询频率较高、可能与手动操作叠加。
+
+### 已完成
+- `src-tauri/src/core/server_session.rs`
+  - Windows 下改用 `CreateProcessW` 启动 Terraria Server。
+  - 使用 `CREATE_NEW_CONSOLE` 给 Terraria Server 有效控制台环境。
+  - 使用 `STARTF_USESHOWWINDOW + SW_HIDE` 隐藏控制台窗口，目标是消除持续白色空窗口。
+  - Windows PID 检测改用 `OpenProcess + GetExitCodeProcess`，减少 `tasklist` 子进程开销。
+- `src/pages/MultiplayerWizardPage.tsx`
+  - 增加 `busyAction`，执行中显示“正在处理：xxx，请稍等”。
+  - 操作期间禁用关键按钮，避免重复点击。
+  - 轮询间隔从 1500ms 放宽到 3000ms，且操作执行中暂停轮询。
+- `src/styles/globals.css`
+  - 增加 `.busy-banner` 和轻量 loading 动画。
+- `src-tauri/Cargo.toml`
+  - 增加 `windows-sys` 直接依赖，用于 Windows 进程创建与状态检测 API。
+
+### 验证
+- `cargo check` 通过。
+- `npm run build` 通过。
+
+### 下一步测试
+- 关闭旧的 `lan-helper.exe`、`TerrariaServer.exe`、`edge.exe` 和残留白色命令框。
+- 重新构建/打开 release 客户端。
+- 在“联机向导”里点击“在程序内启动服务端”，确认不再出现持续空白白色命令框。
+- 如果仍出现，需要记录该窗口对应进程 PID/标题，再针对具体进程继续处理。
