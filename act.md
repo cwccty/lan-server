@@ -235,3 +235,25 @@ tools/n2n/
 - 默认世界编号 1；如果仍找不到世界，填写完整 `.wld` 路径。
 - 启动后确认服务端不再停留在世界选择界面，并等待出现监听端口信息。
 - 再进行 `127.0.0.1:7777` 或虚拟 IP:7777 的 TCP 测试。
+
+## 2026-06-01 n2n 说明与客户端整理
+
+### 本轮目标
+- 按“n2n 作为核心内置组网方案，Radmin 作为辅助检测”继续整理。
+- 给用户解释 edge 和 supernode 是什么，以及如何配置。
+
+### 已完成
+- 新增 `docs/N2N_GUIDE.md`：完整说明 n2n、edge、supernode、community、secret、local_ip、Terraria 示例和常见失败原因。
+- 重写 `tools/n2n/README.md`：说明 edge.exe/n2n.exe 放置方式和最小配置规则。
+- 优化 `src/pages/NetworkSetupPage.tsx`：
+  - 把乱码/不清晰文案改成正常中文。
+  - 明确 n2n 参数含义。
+  - 增加“复制给朋友的 n2n 配置”。
+  - 说明房主和朋友 local_ip 必须不同。
+- 更新 `PROJECT.md`：明确 Radmin/n2n/Manual LAN 的职责边界。
+
+### 下一步
+- 获取可信 Windows 版 n2n edge，放入 `tools/n2n/edge.exe`。
+- 准备一个可用 supernode。
+- 两台电脑分别配置不同 local_ip，做真实 n2n 互通测试。
+- 验证记录：`npm run build` 通过；随后在仓库根目录直接运行 `cargo check` 失败，因为 `Cargo.toml` 位于 `src-tauri/`；切换到 `src-tauri` 后 `cargo check` 通过。
