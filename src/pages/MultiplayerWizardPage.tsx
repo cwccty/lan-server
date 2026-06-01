@@ -253,6 +253,7 @@ export function MultiplayerWizardPage() {
     const virtualIp = n2n?.virtual_ip || '';
     const expectedLocalIp = currentRole === 'host' ? hostIp : joinerIp;
     const virtualIpOk = virtualIp === expectedLocalIp;
+    const hostServerReady = Boolean(latestSession.ready || localReport?.reachable || virtualReport.reachable);
     const items: SelfCheckItem[] = [
       {
         label: 'supernode',
@@ -275,8 +276,10 @@ export function MultiplayerWizardPage() {
       items.push(
         {
           label: 'Terraria \u670d\u52a1\u7aef',
-          ok: Boolean(latestSession.ready),
-          detail: latestSession.ready ? `\u5df2\u5c31\u7eea\uff0cPID ${latestSession.pid || '-'}` : '\u670d\u52a1\u7aef\u5c1a\u672a\u5c31\u7eea\u3002'
+          ok: hostServerReady,
+          detail: hostServerReady
+            ? `已就绪，PID ${latestSession.pid || '-'}，端口 ${portNumber} 可连接。`
+            : '服务端尚未就绪。'
         },
         {
           label: `127.0.0.1:${portNumber}`,
@@ -335,7 +338,7 @@ export function MultiplayerWizardPage() {
       <h2>{t.title}</h2>
       <p className="muted">{t.intro}</p>
 
-      {busyAction && <div className="busy-banner">{t.busy}\uff1a{busyAction}\uff0c{t.wait}</div>}
+      {busyAction && <div className="busy-banner">{t.busy}：{busyAction}，{t.wait}</div>}
 
       <article className="card">
         <h3>1. {t.role}</h3>
@@ -424,7 +427,7 @@ export function MultiplayerWizardPage() {
           <ul>
             {selfCheck.items.map((item) => (
               <li key={item.label}>
-                <strong>{item.ok ? '\u2705' : '\u274c'} {item.label}</strong>\uff1a{item.detail}
+                <strong>{item.ok ? '\u2705' : '\u274c'} {item.label}</strong>：{item.detail}
               </li>
             ))}
           </ul>
@@ -454,14 +457,14 @@ export function MultiplayerWizardPage() {
         {statusMessage && <pre>{statusMessage}</pre>}
         <div className={session?.ready || session?.running ? 'result-ok' : 'result-idle'}>
           <p>
-            {t.status}\uff1a
+            {t.status}：
             {session?.ready
               ? `${t.readyState}${session.pid ? `\uff0cPID ${session.pid}` : ''}`
               : session?.running
                 ? `${t.running}\uff0cPID ${session.pid}`
                 : t.stopped}
           </p>
-          <p>{t.ready}\uff1a{session?.ready ? t.readyText : t.notReadyText}</p>
+          <p>{t.ready}：{session?.ready ? t.readyText : t.notReadyText}</p>
         </div>
         <div className="actions">
           <input
@@ -482,3 +485,5 @@ export function MultiplayerWizardPage() {
     </section>
   );
 }
+
+
