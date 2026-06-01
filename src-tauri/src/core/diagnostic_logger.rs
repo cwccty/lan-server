@@ -33,10 +33,11 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
     ));
     if let Some(server) = &server {
         release_checks.push(format!(
-            "内嵌服务端：running={} ready={} ever_ready={} exit_code={}",
+            "内嵌服务端：running={} ready={} ever_ready={} uptime={}s exit_code={}",
             server.running,
             server.ready,
             server.ever_ready,
+            server.uptime_seconds.unwrap_or(0),
             server
                 .exit_code
                 .map(|code| code.to_string())
@@ -45,6 +46,19 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
     } else {
         release_checks.push("内嵌服务端：未读取到会话".to_string());
     }
+
+    let terraria_stable = server
+        .as_ref()
+        .map(|item| item.running && item.ready && item.uptime_seconds.unwrap_or(0) >= 30)
+        .unwrap_or(false);
+    release_checks.push(format!(
+        "Terraria 30 秒稳定性：{}",
+        if terraria_stable {
+            "通过"
+        } else {
+            "未通过或尚未验证"
+        }
+    ));
 
     Ok(DiagnosticReport {
         generated_at: Utc::now().to_rfc3339(),

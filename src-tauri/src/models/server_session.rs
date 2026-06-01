@@ -12,4 +12,6 @@ pub struct ServerSessionStatus {
     pub exit_code: Option<i32>,
     pub exited_at: Option<String>,
     pub ever_ready: bool,
+    pub started_at: Option<String>,
+    pub uptime_seconds: Option<u64>,
 }

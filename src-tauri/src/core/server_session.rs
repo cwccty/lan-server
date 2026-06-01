@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use chrono::Utc;
 use serde_json::Value;
@@ -33,6 +33,8 @@ struct ServerSession {
     exit_code: Option<i32>,
     exited_at: Option<String>,
     ever_ready: bool,
+    started_at: String,
+    started_instant: Instant,
 }
 
 struct ManagedProcess {
@@ -118,6 +120,8 @@ pub fn start_game_server_session(
         exit_code: None,
         exited_at: None,
         ever_ready: false,
+        started_at: Utc::now().to_rfc3339(),
+        started_instant: Instant::now(),
     };
     let status = status_from_session(&mut session, "Terraria 服务端已在后台启动。");
     *current = Some(session);
@@ -308,16 +312,18 @@ fn status_from_session(session: &mut ServerSession, message: &str) -> ServerSess
         session.ever_ready = true;
     }
 
+    let uptime_seconds = session.started_instant.elapsed().as_secs();
     let mut logs = snapshot_logs(&session.logs);
     logs.push(format!(
-        "当前状态：{}；端口 {} {}。",
+        "当前状态：{}；端口 {} {}；运行时长 {} 秒。",
         if running {
             "进程运行中"
         } else {
             "进程已退出"
         },
         session.port,
-        if ready { "已监听" } else { "尚未监听" }
+        if ready { "已监听" } else { "尚未监听" },
+        uptime_seconds
     ));
     if !running {
         logs.push(format!(
@@ -342,6 +348,8 @@ fn status_from_session(session: &mut ServerSession, message: &str) -> ServerSess
         exit_code: session.exit_code,
         exited_at: session.exited_at.clone(),
         ever_ready: session.ever_ready,
+        started_at: Some(session.started_at.clone()),
+        uptime_seconds: Some(uptime_seconds),
     }
 }
 
@@ -357,6 +365,8 @@ fn empty_status(message: &str) -> ServerSessionStatus {
         exit_code: None,
         exited_at: None,
         ever_ready: false,
+        started_at: None,
+        uptime_seconds: None,
     }
 }
 

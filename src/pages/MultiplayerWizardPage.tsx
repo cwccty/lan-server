@@ -467,6 +467,7 @@ export function MultiplayerWizardPage() {
                 : t.stopped}
           </p>
           <p>{t.ready}：{session?.ready ? t.readyText : t.notReadyText}</p>
+          {session?.running && <p>运行时长：{session.uptime_seconds ?? 0} 秒{session.ready && (session.uptime_seconds ?? 0) >= 30 ? '，30 秒稳定性已通过' : ''}</p>}
           {session && !session.running && (session.ever_ready || session.exit_code != null) && (
             <p>退出诊断：退出码 {session.exit_code ?? '未知'}，曾经监听端口：{session.ever_ready ? '是' : '否'}。</p>
           )}

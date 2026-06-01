@@ -693,3 +693,12 @@ tools/n2n/
 - 新增 `docs/MVP_RELEASE_CHECKLIST.md`，明确 MVP 发布前必须验证的通用组网、Terraria 服务端、房主/加入者、自检和诊断报告项目。
 
 注意：目标尚未完成，因为仍缺少 release 客户端真实运行 30 秒稳定性验证和朋友侧加入验证。
+
+## 2026-06-02 30 秒稳定性门禁
+
+为了让“监听后几秒变灰”这个发布阻断项可验证，本轮加入了服务端运行时长字段：
+
+- 后端 `ServerSessionStatus` 新增 `started_at` 和 `uptime_seconds`。
+- 联机向导显示服务端运行时长；当服务端已监听且运行超过 30 秒时，显示“30 秒稳定性已通过”。
+- 诊断报告会输出 `uptime_seconds`，并给出 `Terraria 30 秒稳定性：通过/未通过或尚未验证`。
+- `docs/MVP_RELEASE_CHECKLIST.md` 同步更新 30 秒稳定性门禁。

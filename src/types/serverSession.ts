@@ -1,4 +1,4 @@
-﻿import type { LaunchConfig } from './recommendation';
+import type { LaunchConfig } from './recommendation';
 
 export interface ServerSessionStatus {
   running: boolean;
@@ -11,7 +11,8 @@ export interface ServerSessionStatus {
   exit_code?: number | null;
   exited_at?: string | null;
   ever_ready: boolean;
+  started_at?: string | null;
+  uptime_seconds?: number | null;
 }
 
 export type ServerLaunchConfig = LaunchConfig;
-

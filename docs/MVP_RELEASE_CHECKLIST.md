@@ -16,7 +16,7 @@
 ## B. Terraria 向导发布阻断项
 
 - [ ] 点击“在程序内启动服务端”后，不弹出额外命令框。
-- [ ] 服务端显示 `Listening on port 7777` 后，等待 30 秒仍保持运行。
+- [ ] 服务端显示 `Listening on port 7777` 后，等待 30 秒仍保持运行；界面显示“30 秒稳定性已通过”。
 - [ ] 若服务端退出，内嵌控制台必须显示：最后日志、exit_code、退出时间、是否曾经监听端口。
 - [ ] 服务端退出后，自检不能显示通过。
 - [ ] `help` / `save` / `exit` 按钮能发送命令；`exit` 后状态应变为已退出，并保留诊断。
@@ -38,7 +38,8 @@
 ## E. 诊断报告
 
 - [ ] “诊断报告”页可生成报告。
-- [ ] 报告包含 n2n edge、虚拟 IP、网络后端、内嵌服务端 running/ready/ever_ready/exit_code。
+- [ ] 报告包含 n2n edge、虚拟 IP、网络后端、内嵌服务端 running/ready/ever_ready/uptime_seconds/exit_code，并给出 Terraria 30 秒稳定性结论。
 - [ ] 报告不包含 Cookie、SSH Key、系统凭据或无关用户目录内容。
 
 只有以上项目通过，才能认为 MVP 达到可发布标准。
+
