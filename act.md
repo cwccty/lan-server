@@ -661,3 +661,25 @@ tools/n2n/
 - `NetworkSetupPage` 改为“通用组网中心”，强调组网能力不绑定具体游戏。
 - `Layout` 导航改为：首页、通用组网中心、Terraria 向导、游戏扫描、推荐方案、诊断报告。
 - `HomePage` 默认引导用户先进入通用组网中心，再按需进入 Terraria 向导。
+
+## 2026-06-02 MVP 发布阻断项推进：服务端退出诊断与 n2n 状态闭环
+
+本轮继续围绕“先完全解决发布阻断项，再完成 MVP”推进。
+
+已完成：
+
+- `server_session` 不再只依赖 PID/端口快照判断服务端状态，改为持有 `Child` 并通过 `try_wait()` 获取真实退出状态。
+- 服务端状态新增 `exit_code`、`exited_at`、`ever_ready`，用于诊断“曾经监听 7777 后几秒退出”的发布阻断项。
+- 内嵌控制台会保留最后日志，并在退出后显示退出码、退出时间、是否曾经监听端口。
+- 房主自检不再把“端口短暂可达”当作通过；必须服务端进程仍在运行且端口可达，Terraria 服务端项才通过。
+- n2n 后端检测结果新增运行态说明：edge 路径、记录 PID 是否仍在运行、当前虚拟 IP、最近一次 supernode。
+
+验证：
+
+- `cargo check --manifest-path src-tauri/Cargo.toml` 通过。
+- `npm run build` 通过。
+
+仍需真实运行验证：
+
+- 使用 release `lan-helper.exe` 启动 Terraria 服务端，观察 15-30 秒是否仍会退出。
+- 若退出，使用新增退出诊断继续定位根因。

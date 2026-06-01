@@ -17,24 +17,47 @@ const PID_PATH: &str = "tools/n2n/n2n.pid";
 
 pub fn detect() -> BackendSummary {
     let executable = find_n2n_executable();
+    let virtual_ip = find_n2n_virtual_ip();
+    let mut notes = Vec::new();
+
+    if let Some(path) = &executable {
+        notes.push(format!("检测到 n2n edge: {}", path.to_string_lossy()));
+    } else {
+        notes.push(format!(
+            "未检测到 n2n edge。请将 edge.exe 或 n2n.exe 放入以下任一目录：{}",
+            candidate_n2n_dirs()
+                .iter()
+                .map(|path| path.to_string_lossy().to_string())
+                .collect::<Vec<_>>()
+                .join("；")
+        ));
+    }
+
+    if let Some(pid) = read_recorded_pid() {
+        if is_pid_running(pid) {
+            notes.push(format!("n2n edge 正在运行，PID: {pid}"));
+        } else {
+            notes.push(format!("记录的 n2n PID {pid} 已失效，下次启动会自动清理。"));
+        }
+    }
+
+    if let Some(ip) = &virtual_ip {
+        notes.push(format!("当前检测到虚拟 IP: {ip}"));
+    }
+
+    if let Ok(config) = load_config() {
+        if let Some(supernode) = config.supernode {
+            notes.push(format!("最近一次 supernode: {supernode}"));
+        }
+    }
+
     BackendSummary {
         id: "n2n".to_string(),
         name: "EasyN2N / n2n".to_string(),
         installed: executable.is_some(),
         available: executable.is_some(),
-        virtual_ip: find_n2n_virtual_ip(),
-        notes: if let Some(path) = executable {
-            vec![format!("检测到 n2n edge: {}", path.to_string_lossy())]
-        } else {
-            vec![format!(
-                "未检测到 n2n edge。请将 edge.exe 或 n2n.exe 放入以下任一目录：{}",
-                candidate_n2n_dirs()
-                    .iter()
-                    .map(|path| path.to_string_lossy().to_string())
-                    .collect::<Vec<_>>()
-                    .join("；")
-            )]
-        },
+        virtual_ip,
+        notes,
     }
 }
 

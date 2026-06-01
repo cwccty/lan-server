@@ -279,7 +279,7 @@ export function MultiplayerWizardPage() {
           ok: hostServerReady,
           detail: hostServerReady
             ? `已就绪，PID ${latestSession.pid || '-'}，端口 ${portNumber} 可连接。`
-            : latestSession.exit_code !== undefined || latestSession.ever_ready
+            : latestSession.exit_code != null || latestSession.ever_ready
               ? `服务端已退出，退出码 ${latestSession.exit_code ?? '未知'}，曾经监听端口：${latestSession.ever_ready ? '是' : '否'}。`
               : '服务端尚未就绪。'
         },
@@ -457,7 +457,7 @@ export function MultiplayerWizardPage() {
         <h3>{t.console}</h3>
         <p className="muted">{t.consoleDesc}</p>
         {statusMessage && <pre>{statusMessage}</pre>}
-        <div className={session?.ready || session?.running ? 'result-ok' : session?.ever_ready || session?.exit_code !== undefined ? 'result-bad' : 'result-idle'}>
+        <div className={session?.ready || session?.running ? 'result-ok' : session?.ever_ready || session?.exit_code != null ? 'result-bad' : 'result-idle'}>
           <p>
             {t.status}：
             {session?.ready
@@ -467,7 +467,7 @@ export function MultiplayerWizardPage() {
                 : t.stopped}
           </p>
           <p>{t.ready}：{session?.ready ? t.readyText : t.notReadyText}</p>
-          {session && !session.running && (session.ever_ready || session.exit_code !== undefined) && (
+          {session && !session.running && (session.ever_ready || session.exit_code != null) && (
             <p>退出诊断：退出码 {session.exit_code ?? '未知'}，曾经监听端口：{session.ever_ready ? '是' : '否'}。</p>
           )}
         </div>
@@ -490,5 +490,6 @@ export function MultiplayerWizardPage() {
     </section>
   );
 }
+
 
 
