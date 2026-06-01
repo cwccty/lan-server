@@ -12,3 +12,4 @@ tools/n2n/*.exe
 tools/n2n/last_config.json
 tools/n2n/n2n.pid
 heic_preview.png
+tools/n2n/source/

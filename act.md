@@ -311,3 +311,25 @@ tools/n2n/
 
 ### 验证
 - `cargo check` 通过。
+
+## 2026-06-01 Windows edge.exe 官方源码构建记录
+
+### 本轮目标
+- 采用 A 方案，从 `ntop/n2n` 官方源码构建 Windows 版 `edge.exe`。
+
+### 已完成
+- 克隆官方源码到 `tools/n2n/source/n2n`。
+- 当前源码提交：`31936c8`。
+- 本机使用 MinGW/Git Unix 工具链构建成功：
+  - `D:\Git\usr\bin`
+  - `C:\mingw64\bin`
+  - `mingw32-make edge.exe -j4`
+- 已复制产物到：`tools/n2n/edge.exe`。
+- 产物 SHA256：`E4AFEFFA39A6DA6A120A4EF9EEE80B7184EA8AE6EF32DED06E960BC54BE9115D`。
+- `edge.exe --help` 可正常输出帮助信息。
+- `.gitignore` 已忽略 `tools/n2n/source/`；`tools/n2n/*.exe` 已保持忽略，避免把本机二进制直接提交到仓库。
+
+### 说明
+- 当前环境没有 autoconf，因此构建时手动生成 `config.mak` 和 `include/config.h`。
+- 构建日志中存在 n2n 上游源码的格式化 warning，但最终链接成功。
+- 下一步打开客户端网络配置页，确认 n2n edge 检测状态变为可用。
