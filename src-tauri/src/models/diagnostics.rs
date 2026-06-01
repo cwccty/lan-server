@@ -6,6 +6,10 @@ pub struct DiagnosticReport {
     pub app_version: String,
     pub os: String,
     pub summary: String,
+    pub release_ready: bool,
+    pub required_passed: usize,
+    pub required_total: usize,
+    pub next_actions: Vec<String>,
     pub release_checks: Vec<ReleaseCheck>,
     pub details: Vec<String>,
 }

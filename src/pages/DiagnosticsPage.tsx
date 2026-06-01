@@ -8,7 +8,7 @@ export function DiagnosticsPage() {
   const reportText = report ? JSON.stringify(report, null, 2) : '';
   const requiredChecks = report?.release_checks.filter((item) => item.required_for_mvp) ?? [];
   const passedRequiredChecks = requiredChecks.filter((item) => item.ok).length;
-  const mvpReady = requiredChecks.length > 0 && passedRequiredChecks === requiredChecks.length;
+  const mvpReady = report?.release_ready ?? (requiredChecks.length > 0 && passedRequiredChecks === requiredChecks.length);
 
   const createReport = async () => {
     if (busy) return;
@@ -34,8 +34,18 @@ export function DiagnosticsPage() {
         <article className="card">
           <h3>发布前检查</h3>
           <div className={mvpReady ? 'result-ok' : 'result-bad'}>
-            <p>{mvpReady ? 'MVP 必需项已全部通过。' : `MVP 必需项 ${passedRequiredChecks} / ${requiredChecks.length} 通过。`}</p>
+            <p>{mvpReady ? 'MVP 必需项已全部通过。' : `MVP 必需项 ${report.required_passed ?? passedRequiredChecks} / ${report.required_total ?? requiredChecks.length} 通过。`}</p>
           </div>
+          {!mvpReady && report.next_actions.length > 0 && (
+            <>
+              <h4>下一步处理</h4>
+              <ol>
+                {report.next_actions.map((action) => (
+                  <li key={action}>{action}</li>
+                ))}
+              </ol>
+            </>
+          )}
           <ul>
             {report.release_checks.map((item) => (
               <li key={item.id}>

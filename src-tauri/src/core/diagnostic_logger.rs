@@ -142,6 +142,16 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
         },
     ];
 
+    let required_total = release_checks
+        .iter()
+        .filter(|item| item.required_for_mvp)
+        .count();
+    let required_passed = release_checks
+        .iter()
+        .filter(|item| item.required_for_mvp && item.ok)
+        .count();
+    let mvp_ready = required_total > 0 && required_passed == required_total;
+
     let mut release_lines = release_checks
         .iter()
         .map(|item| {
@@ -155,15 +165,14 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
         .collect::<Vec<_>>();
     release_lines.push(format!(
         "MVP 必需项：{} / {} 通过。",
-        release_checks
-            .iter()
-            .filter(|item| item.required_for_mvp && item.ok)
-            .count(),
-        release_checks
-            .iter()
-            .filter(|item| item.required_for_mvp)
-            .count()
+        required_passed, required_total
     ));
+
+    let next_actions = release_checks
+        .iter()
+        .filter(|item| item.required_for_mvp && !item.ok)
+        .map(|item| format!("处理 {}：{}", item.label, item.detail))
+        .collect::<Vec<_>>();
 
     Ok(DiagnosticReport {
         generated_at: Utc::now().to_rfc3339(),
@@ -175,9 +184,20 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
             games.len(),
             backends.len()
         ),
+        release_ready: mvp_ready,
+        required_passed,
+        required_total,
+        next_actions,
         release_checks,
         details: vec![
-            format!("发布前关键检查：\n{}", release_lines.join("\n")),
+            format!(
+                "发布前关键检查：
+{}",
+                release_lines.join(
+                    "
+"
+                )
+            ),
             format!(
                 "Steam 库路径：{}",
                 serde_json::to_string_pretty(

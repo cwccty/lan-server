@@ -124,3 +124,7 @@ CreateProcessW
 通用组网中心已把 n2n 操作结果从原始 JSON 展示改为状态面板，直接展示 edge 检测、虚拟 IP、PID、supernode、保存/启动/停止结果，并提供复制给朋友的通用组网配置按钮。
 
 这符合“组网层独立于游戏层”的产品结构，也让发布前验证不依赖开发者阅读 JSON。
+
+## 2026-06-02 发布前一键汇总
+
+诊断报告模型新增 `release_ready`、`required_passed`、`required_total`、`next_actions`。发布页会根据真实检查项自动生成下一步处理列表。MVP 是否可发布仍以 release 客户端生成的结构化诊断为准，不以口头判断为准。

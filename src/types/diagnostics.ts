@@ -11,6 +11,10 @@ export interface DiagnosticReport {
   app_version: string;
   os: string;
   summary: string;
+  release_ready: boolean;
+  required_passed: number;
+  required_total: number;
+  next_actions: string[];
   release_checks: ReleaseCheck[];
   details: string[];
 }
