@@ -81,6 +81,11 @@ main {
   padding-left: 12px;
 }
 
+.result-idle {
+  border-left: 4px solid #8d9ab7;
+  padding-left: 12px;
+}
+
 .muted {
   color: #8d9ab7;
 }

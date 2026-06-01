@@ -216,8 +216,15 @@ export function MultiplayerWizardPage() {
           如果仍弹出，请确认没有使用旧的“推荐方案启动项”或旧版本客户端。
         </p>
         {statusMessage && <pre>{statusMessage}</pre>}
-        <div className={session?.running ? 'result-ok' : 'result-bad'}>
-          <p>状态：{session?.running ? `运行中，PID ${session.pid}` : '未运行'}</p>
+        <div className={session?.ready || session?.running ? 'result-ok' : 'result-idle'}>
+          <p>
+            状态：
+            {session?.ready
+              ? `已就绪${session.pid ? `，PID ${session.pid}` : ''}`
+              : session?.running
+                ? `运行中，PID ${session.pid}`
+                : '未运行'}
+          </p>
           <p>就绪：{session?.ready ? '已监听端口，可以邀请朋友加入' : '尚未识别到 Listening/Server started'}</p>
         </div>
         <div className="actions">

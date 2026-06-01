@@ -471,3 +471,25 @@ tools/n2n/
 ### 下一步
 - 用户重新打开新版 `src-tauri/target/release/lan-helper.exe` 测试联机向导按钮反馈。
 - 如果“在程序内启动服务端”仍弹出白色命令框，记录具体点击入口和是否有旧 TerrariaServer 进程残留，再考虑更强的 Windows 进程创建策略或改用服务端配置文件模式。
+
+## 2026-06-01 就绪状态样式与后台进程优化
+
+### 用户反馈
+- Terraria 日志已显示 `Listening on port 7777`，说明服务端已监听端口，理论上可以联机；但 UI 仍显示红色“未运行”，观感突兀。
+- n2n / Terraria Server 外部白色命令窗口仍存在，希望后台运行，不单独出现窗口。
+
+### 已完成
+- 联机向导状态显示改为：只要 `ready` 或 `running` 为真，就使用绿色状态样式。
+- 增加 `result-idle` 样式，未运行但非错误状态不再使用红色。
+- n2n edge 启动时增加 Windows 后台进程 flags：`CREATE_NO_WINDOW | DETACHED_PROCESS`。
+- 内嵌 Terraria Server 启动时也增加 `CREATE_NO_WINDOW | DETACHED_PROCESS`。
+- 已停止旧 release 客户端并重新构建。
+
+### 说明
+- 页面出现 `Listening on port 7777` / `Server started` 时，说明房主本机服务端已就绪；朋友是否能加入还取决于 n2n/Radmin/局域网和防火墙是否互通。
+- 如果仍有白色窗口，优先确认是否是旧的 TerrariaServer/n2n 进程残留，或是否从旧“推荐方案启动项”启动，而不是“联机向导 → 在程序内启动服务端”。
+
+### 验证
+- `npm run build` 通过。
+- `cargo check` 通过。
+- `npm run tauri:build` 通过。

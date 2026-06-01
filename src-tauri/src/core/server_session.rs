@@ -18,6 +18,9 @@ use std::os::windows::process::CommandExt;
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
+#[cfg(windows)]
+const DETACHED_PROCESS: u32 = 0x00000008;
+
 struct ServerSession {
     child: Child,
     stdin: Option<ChildStdin>,
@@ -89,7 +92,7 @@ pub fn start_game_server_session(
         .stderr(Stdio::piped());
 
     #[cfg(windows)]
-    command.creation_flags(CREATE_NO_WINDOW);
+    command.creation_flags(CREATE_NO_WINDOW | DETACHED_PROCESS);
 
     let mut child = command.spawn().map_err(|err| format!("启动 Terraria 服务端失败：{err}"))?;
     let stdin = child.stdin.take();
