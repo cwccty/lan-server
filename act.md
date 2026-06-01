@@ -683,3 +683,13 @@ tools/n2n/
 
 - 使用 release `lan-helper.exe` 启动 Terraria 服务端，观察 15-30 秒是否仍会退出。
 - 若退出，使用新增退出诊断继续定位根因。
+
+## 2026-06-02 MVP 诊断报告与发布验证清单
+
+本轮补齐发布级诊断闭环：
+
+- 诊断报告现在汇总 n2n edge、虚拟 IP、网络后端、内嵌服务端 running/ready/ever_ready/exit_code。
+- 诊断报告页面恢复中文，并增加等待态和摘要展示。
+- 新增 `docs/MVP_RELEASE_CHECKLIST.md`，明确 MVP 发布前必须验证的通用组网、Terraria 服务端、房主/加入者、自检和诊断报告项目。
+
+注意：目标尚未完成，因为仍缺少 release 客户端真实运行 30 秒稳定性验证和朋友侧加入验证。
