@@ -1,16 +1,77 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  listNetworkBackends,
   readServerSession,
   sendServerCommand,
   setupNetwork,
   startGameServerSession,
   startNetwork,
-  stopServerSession
+  stopServerSession,
+  testConnectivity
 } from '../api/tauri';
+import type { BackendSummary, ConnectivityReport } from '../types/network';
 import type { LaunchConfig } from '../types/recommendation';
 import type { ServerSessionStatus } from '../types/serverSession';
 
 type Role = 'host' | 'joiner';
+
+type SelfCheckItem = {
+  label: string;
+  ok: boolean;
+  detail: string;
+};
+
+type SelfCheckResult = {
+  title: string;
+  ok: boolean;
+  items: SelfCheckItem[];
+  notes: string[];
+};
+
+const t = {
+  title: '\u8054\u673a\u5411\u5bfc',
+  intro: '\u7b2c\u4e00\u7248\u5148\u56f4\u7ed5 Terraria + n2n\uff0c\u628a\u623f\u4e3b\u548c\u52a0\u5165\u8005\u6d41\u7a0b\u4e32\u6210\u4e00\u6761\u9f99\u3002',
+  busy: '\u6b63\u5728\u5904\u7406',
+  wait: '\u8bf7\u7a0d\u7b49\uff0c\u4e0d\u8981\u91cd\u590d\u70b9\u51fb\u3002',
+  role: '\u9009\u62e9\u8eab\u4efd',
+  host: '\u6211\u662f\u623f\u4e3b',
+  joiner: '\u6211\u662f\u52a0\u5165\u8005',
+  roomConfig: 'n2n \u623f\u95f4\u914d\u7f6e',
+  roomName: '\u623f\u95f4\u540d / community',
+  secret: '\u5bc6\u94a5',
+  hostIp: '\u623f\u4e3b\u865a\u62df IP',
+  joinerIp: '\u52a0\u5165\u8005\u865a\u62df IP',
+  saveStartN2n: '\u4fdd\u5b58\u914d\u7f6e\u5e76\u542f\u52a8 n2n edge',
+  startServer: '\u542f\u52a8 Terraria \u670d\u52a1\u7aef',
+  worldChoice: '\u4e16\u754c\u7f16\u53f7',
+  worldPath: '\u4e16\u754c\u6587\u4ef6\u8def\u5f84\uff0c\u53ef\u9009',
+  maxPlayers: '\u6700\u5927\u4eba\u6570',
+  gamePort: '\u6e38\u620f\u7aef\u53e3',
+  password: '\u670d\u52a1\u7aef\u5bc6\u7801\uff0c\u53ef\u7a7a',
+  autoForward: '\u81ea\u52a8\u7aef\u53e3\u8f6c\u53d1 y/n',
+  startInApp: '\u5728\u7a0b\u5e8f\u5185\u542f\u52a8\u670d\u52a1\u7aef',
+  stopInApp: '\u505c\u6b62\u5185\u5d4c\u670d\u52a1\u7aef',
+  copyToFriend: '\u590d\u5236\u7ed9\u670b\u53cb',
+  joinGame: '\u52a0\u5165\u6e38\u620f',
+  sendToFriend: '\u628a\u4e0b\u9762\u5185\u5bb9\u53d1\u7ed9\u670b\u53cb\u3002',
+  copyInvite: '\u590d\u5236\u9080\u8bf7\u4fe1\u606f',
+  console: '\u5185\u5d4c\u670d\u52a1\u7aef\u63a7\u5236\u53f0',
+  consoleDesc: '\u8fd9\u91cc\u4e0d\u662f\u5355\u72ec\u7684\u767d\u8272\u547d\u4ee4\u6846\uff0c\u800c\u662f\u7531\u7a0b\u5e8f\u6258\u7ba1\u670d\u52a1\u7aef\u8fdb\u7a0b\u5e76\u663e\u793a\u72b6\u6001\u3002\u6b63\u5e38\u60c5\u51b5\u4e0b\u4e0d\u4f1a\u518d\u5f39\u51fa\u547d\u4ee4\u7a97\u53e3\u3002',
+  status: '\u72b6\u6001',
+  ready: '\u5c31\u7eea',
+  readyText: '\u5df2\u76d1\u542c\u7aef\u53e3\uff0c\u53ef\u4ee5\u9080\u8bf7\u670b\u53cb\u52a0\u5165',
+  notReadyText: '\u5c1a\u672a\u76d1\u542c\u7aef\u53e3',
+  stopped: '\u672a\u8fd0\u884c',
+  running: '\u8fd0\u884c\u4e2d',
+  readyState: '\u5df2\u5c31\u7eea',
+  sendCommand: '\u53d1\u9001\u547d\u4ee4',
+  commandPlaceholder: '\u8f93\u5165\u670d\u52a1\u7aef\u547d\u4ee4\uff0c\u4f8b\u5982 help / save / exit',
+  noLogs: '\u6682\u65e0\u670d\u52a1\u7aef\u65e5\u5fd7\u3002',
+  selfCheck: '\u4e00\u952e\u81ea\u68c0',
+  copyCheck: '\u590d\u5236\u81ea\u68c0\u7ed3\u679c',
+  selfCheckTitle: '\u623f\u4e3b\u4fa7\u81ea\u68c0',
+  joinerCheckTitle: '\u52a0\u5165\u8005\u81ea\u68c0'
+};
 
 export function MultiplayerWizardPage() {
   const [role, setRole] = useState<Role>('host');
@@ -28,10 +89,12 @@ export function MultiplayerWizardPage() {
   const [serverCommand, setServerCommand] = useState('help');
   const [statusMessage, setStatusMessage] = useState('');
   const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [selfCheck, setSelfCheck] = useState<SelfCheckResult | null>(null);
   const pollingRef = useRef(false);
   const [session, setSession] = useState<ServerSessionStatus | null>(null);
 
   const localIp = role === 'host' ? hostIp : joinerIp;
+  const portNumber = Number.parseInt(gamePort, 10) || 7777;
   const isBusy = busyAction !== null;
 
   useEffect(() => {
@@ -76,27 +139,36 @@ export function MultiplayerWizardPage() {
 
   const inviteText = [
     '\u3010\u8054\u673a\u52a9\u624b\u9080\u8bf7\u3011',
+    '',
     '\u6e38\u620f\uff1aTerraria',
-    '\u8eab\u4efd\uff1a\u4f60\u662f\u52a0\u5165\u8005',
+    '\u4f60\u9009\u62e9\uff1a\u6211\u662f\u52a0\u5165\u8005',
+    '',
+    '\u8bf7\u586b\u5199\uff1a',
     `community\uff1a${roomName}`,
     `secret\uff1a${secret}`,
     `supernode\uff1a${supernode || '\u5f85\u586b\u5199'}`,
-    `\u4f60\u7684\u672c\u673a\u865a\u62df IP\uff1a${joinerIp}`,
+    `\u4f60\u7684\u865a\u62df IP\uff1a${joinerIp}`,
     `\u623f\u4e3b\u865a\u62df IP\uff1a${hostIp}`,
-    `\u6e38\u620f\u7aef\u53e3\uff1a${gamePort}`,
-    `Terraria \u52a0\u5165\u5730\u5740\uff1a${hostIp}:${gamePort}`,
-    '\u64cd\u4f5c\uff1a\u6253\u5f00\u8054\u673a\u52a9\u624b -> \u8054\u673a\u5411\u5bfc -> \u6211\u662f\u52a0\u5165\u8005 -> \u6309\u4e0a\u9762\u4fe1\u606f\u586b\u5199 -> \u542f\u52a8 n2n edge -> Terraria \u91cc Join via IP\u3002'
+    `\u7aef\u53e3\uff1a${gamePort}`,
+    '',
+    '\u64cd\u4f5c\uff1a',
+    '1. \u6253\u5f00\u8054\u673a\u52a9\u624b',
+    '2. \u8fdb\u5165\u8054\u673a\u5411\u5bfc',
+    '3. \u9009\u62e9\u201c\u6211\u662f\u52a0\u5165\u8005\u201d',
+    '4. \u6309\u4e0a\u9762\u4fe1\u606f\u586b\u5199',
+    '5. \u70b9\u51fb\u201c\u4fdd\u5b58\u914d\u7f6e\u5e76\u542f\u52a8 n2n edge\u201d',
+    `6. Terraria \u9009\u62e9 Join via IP\uff0cIP \u586b ${hostIp}\uff0c\u7aef\u53e3\u586b ${gamePort}`
   ].join('\n');
 
   const runAction = async (label: string, action: () => Promise<unknown>) => {
     if (busyAction) {
-      setStatusMessage(`\u6b63\u5728\u5904\u7406\uff1a${busyAction}\uff0c\u8bf7\u7a0d\u7b49...`);
+      setStatusMessage(`${t.busy}\uff1a${busyAction}\uff0c\u8bf7\u7a0d\u7b49...`);
       return;
     }
 
     try {
       setBusyAction(label);
-      setStatusMessage(`\u6b63\u5728\u5904\u7406\uff1a${label}\uff0c\u8bf7\u7a0d\u7b49...`);
+      setStatusMessage(`${t.busy}\uff1a${label}\uff0c\u8bf7\u7a0d\u7b49...`);
       await action();
     } catch (error) {
       setStatusMessage(`${label}\u5931\u8d25\uff1a${String(error)}`);
@@ -145,33 +217,146 @@ export function MultiplayerWizardPage() {
       setStatusMessage('\u9080\u8bf7\u4fe1\u606f\u5df2\u590d\u5236\u3002');
     });
 
+  const runSelfCheck = () =>
+    runAction(t.selfCheck, async () => {
+      const [latestSession, backends] = await Promise.all([readServerSession(), listNetworkBackends()]);
+      const n2n = backends.find((item) => item.id === 'n2n');
+      const localReport = role === 'host' ? await safeConnectivity('127.0.0.1', 'local_game_port') : null;
+      const targetHost = role === 'host' ? hostIp : hostIp;
+      const virtualReport = await safeConnectivity(targetHost, 'n2n_game_port');
+      const result = buildSelfCheckResult(role, latestSession, n2n, localReport, virtualReport);
+      setSession(latestSession);
+      setSelfCheck(result);
+      setStatusMessage(result.ok ? '\u81ea\u68c0\u901a\u8fc7\uff1a\u5f53\u524d\u914d\u7f6e\u53ef\u4ee5\u7ee7\u7eed\u9080\u8bf7/\u52a0\u5165\u3002' : '\u81ea\u68c0\u672a\u5b8c\u5168\u901a\u8fc7\uff0c\u8bf7\u6309\u4e0b\u65b9\u63d0\u793a\u5904\u7406\u3002');
+    });
+
+  const safeConnectivity = async (host: string, mode: 'local_game_port' | 'n2n_game_port') => {
+    try {
+      return await testConnectivity({ host, ports: [portNumber], timeout_ms: 1200, mode });
+    } catch (error) {
+      return {
+        target_host: host,
+        reachable: false,
+        ports: [{ port: portNumber, reachable: false, error: String(error) }],
+        notes: [`\u68c0\u6d4b\u5931\u8d25\uff1a${String(error)}`]
+      } as ConnectivityReport;
+    }
+  };
+
+  const buildSelfCheckResult = (
+    currentRole: Role,
+    latestSession: ServerSessionStatus,
+    n2n: BackendSummary | undefined,
+    localReport: ConnectivityReport | null,
+    virtualReport: ConnectivityReport
+  ): SelfCheckResult => {
+    const virtualIp = n2n?.virtual_ip || '';
+    const expectedLocalIp = currentRole === 'host' ? hostIp : joinerIp;
+    const virtualIpOk = virtualIp === expectedLocalIp;
+    const items: SelfCheckItem[] = [
+      {
+        label: 'supernode',
+        ok: Boolean(supernode.trim()),
+        detail: supernode.trim() ? `\u5df2\u586b\u5199\uff1a${supernode}` : '\u8fd8\u6ca1\u6709\u586b\u5199 supernode\u3002'
+      },
+      {
+        label: 'n2n edge',
+        ok: Boolean(n2n?.available),
+        detail: n2n?.available ? '\u5df2\u68c0\u6d4b\u5230 edge.exe\u3002' : '\u672a\u68c0\u6d4b\u5230 edge.exe\u3002'
+      },
+      {
+        label: '\u672c\u673a\u865a\u62df IP',
+        ok: virtualIpOk,
+        detail: virtualIp ? `\u5f53\u524d\u68c0\u6d4b\u5230 ${virtualIp}\uff0c\u671f\u671b ${expectedLocalIp}\u3002` : `\u672a\u68c0\u6d4b\u5230 n2n \u865a\u62df IP\uff0c\u671f\u671b ${expectedLocalIp}\u3002`
+      }
+    ];
+
+    if (currentRole === 'host') {
+      items.push(
+        {
+          label: 'Terraria \u670d\u52a1\u7aef',
+          ok: Boolean(latestSession.ready),
+          detail: latestSession.ready ? `\u5df2\u5c31\u7eea\uff0cPID ${latestSession.pid || '-'}` : '\u670d\u52a1\u7aef\u5c1a\u672a\u5c31\u7eea\u3002'
+        },
+        {
+          label: `127.0.0.1:${portNumber}`,
+          ok: Boolean(localReport?.reachable),
+          detail: localReport?.reachable ? '\u672c\u673a\u7aef\u53e3\u53ef\u8fde\u63a5\u3002' : '\u672c\u673a\u7aef\u53e3\u4e0d\u53ef\u8fde\u63a5\uff0c\u8bf7\u5148\u542f\u52a8\u670d\u52a1\u7aef\u3002'
+        },
+        {
+          label: `${hostIp}:${portNumber}`,
+          ok: virtualReport.reachable,
+          detail: virtualReport.reachable ? '\u865a\u62df IP \u7aef\u53e3\u53ef\u8fde\u63a5\u3002' : '\u865a\u62df IP \u7aef\u53e3\u4e0d\u53ef\u8fde\u63a5\uff0c\u8bf7\u68c0\u67e5 n2n \u6216\u9632\u706b\u5899\u3002'
+        }
+      );
+    } else {
+      items.push({
+        label: `${hostIp}:${portNumber}`,
+        ok: virtualReport.reachable,
+        detail: virtualReport.reachable ? '\u53ef\u4ee5\u8fde\u5230\u623f\u4e3b\u6e38\u620f\u7aef\u53e3\u3002' : '\u8fd8\u4e0d\u80fd\u8fde\u5230\u623f\u4e3b\u6e38\u620f\u7aef\u53e3\u3002'
+      });
+    }
+
+    const ok = items.every((item) => item.ok);
+    const notes = ok
+      ? [currentRole === 'host' ? '\u623f\u4e3b\u4fa7\u5df2\u51c6\u5907\u597d\uff0c\u53ef\u4ee5\u628a\u9080\u8bf7\u4fe1\u606f\u53d1\u7ed9\u670b\u53cb\u3002' : '\u52a0\u5165\u8005\u4fa7\u5df2\u51c6\u5907\u597d\uff0c\u53ef\u4ee5\u6253\u5f00 Terraria \u52a0\u5165\u3002']
+      : [
+          '\u5982\u679c\u53ea\u6709\u4e00\u53f0\u7535\u8111\uff0c\u623f\u4e3b\u81ea\u68c0\u901a\u8fc7\u5c31\u8bf4\u660e\u623f\u4e3b\u4fa7\u57fa\u672c\u53ef\u7528\u3002',
+          '\u670b\u53cb\u662f\u5426\u80fd\u52a0\u5165\uff0c\u8fd8\u9700\u8981\u670b\u53cb\u7535\u8111\u542f\u52a8 n2n \u5e76\u6d4b\u8bd5\u8fde\u63a5\u3002'
+        ];
+
+    return {
+      title: currentRole === 'host' ? t.selfCheckTitle : t.joinerCheckTitle,
+      ok,
+      items,
+      notes
+    };
+  };
+
+  const selfCheckText = selfCheck
+    ? [
+        `\u3010${selfCheck.title}\u3011`,
+        `\u7ed3\u8bba\uff1a${selfCheck.ok ? '\u901a\u8fc7' : '\u672a\u5b8c\u5168\u901a\u8fc7'}`,
+        '',
+        ...selfCheck.items.map((item) => `${item.ok ? '\u2705' : '\u274c'} ${item.label}\uff1a${item.detail}`),
+        '',
+        ...selfCheck.notes
+      ].join('\n')
+    : '';
+
+  const copySelfCheck = () =>
+    runAction(t.copyCheck, async () => {
+      await navigator.clipboard?.writeText(selfCheckText);
+      setStatusMessage('\u81ea\u68c0\u7ed3\u679c\u5df2\u590d\u5236\u3002');
+    });
+
   return (
     <section>
-      <h2>&#32852;&#26426;&#21521;&#23548;</h2>
-      <p className="muted">&#31532;&#19968;&#29256;&#20808;&#22260;&#32469; Terraria + n2n&#65292;&#25226;&#25151;&#20027;&#21644;&#21152;&#20837;&#32773;&#27969;&#31243;&#20018;&#25104;&#19968;&#26465;&#40857;&#12290;</p>
+      <h2>{t.title}</h2>
+      <p className="muted">{t.intro}</p>
 
-      {busyAction && <div className="busy-banner">&#27491;&#22312;&#22788;&#29702;&#65306;{busyAction}&#65292;&#35831;&#31245;&#31561;&#65292;&#19981;&#35201;&#37325;&#22797;&#28857;&#20987;&#12290;</div>}
+      {busyAction && <div className="busy-banner">{t.busy}\uff1a{busyAction}\uff0c{t.wait}</div>}
 
       <article className="card">
-        <h3>1. &#36873;&#25321;&#36523;&#20221;</h3>
+        <h3>1. {t.role}</h3>
         <div className="actions">
           <button className={role === 'host' ? 'active' : ''} onClick={() => setRole('host')} disabled={isBusy}>
-            &#25105;&#26159;&#25151;&#20027;
+            {t.host}
           </button>
           <button className={role === 'joiner' ? 'active' : ''} onClick={() => setRole('joiner')} disabled={isBusy}>
-            &#25105;&#26159;&#21152;&#20837;&#32773;
+            {t.joiner}
           </button>
         </div>
       </article>
 
       <article className="card">
-        <h3>2. n2n &#25151;&#38388;&#37197;&#32622;</h3>
+        <h3>2. {t.roomConfig}</h3>
         <label>
-          &#25151;&#38388;&#21517; / community
+          {t.roomName}
           <input value={roomName} onChange={(event) => setRoomName(event.target.value)} disabled={isBusy} />
         </label>
         <label>
-          &#23494;&#38053;
+          {t.secret}
           <input value={secret} onChange={(event) => setSecret(event.target.value)} disabled={isBusy} />
         </label>
         <label>
@@ -179,107 +364,120 @@ export function MultiplayerWizardPage() {
           <input value={supernode} onChange={(event) => setSupernode(event.target.value)} placeholder="VPS_IP:7777" disabled={isBusy} />
         </label>
         <label>
-          &#25151;&#20027;&#34394;&#25311; IP
+          {t.hostIp}
           <input value={hostIp} onChange={(event) => setHostIp(event.target.value)} disabled={isBusy} />
         </label>
         <label>
-          &#21152;&#20837;&#32773;&#34394;&#25311; IP
+          {t.joinerIp}
           <input value={joinerIp} onChange={(event) => setJoinerIp(event.target.value)} disabled={isBusy} />
         </label>
-        <button onClick={saveAndStartN2n} disabled={isBusy}>&#20445;&#23384;&#37197;&#32622;&#24182;&#21551;&#21160; n2n edge</button>
+        <div className="actions">
+          <button onClick={saveAndStartN2n} disabled={isBusy}>{t.saveStartN2n}</button>
+          <button onClick={runSelfCheck} disabled={isBusy}>{t.selfCheck}</button>
+          <button onClick={copySelfCheck} disabled={isBusy || !selfCheck}>{t.copyCheck}</button>
+        </div>
       </article>
 
       {role === 'host' && (
         <article className="card">
-          <h3>3. &#21551;&#21160; Terraria &#26381;&#21153;&#31471;</h3>
+          <h3>3. {t.startServer}</h3>
           <label>
-            &#19990;&#30028;&#32534;&#21495;
+            {t.worldChoice}
             <input value={worldChoice} onChange={(event) => setWorldChoice(event.target.value)} disabled={isBusy} />
           </label>
           <label>
-            &#19990;&#30028;&#25991;&#20214;&#36335;&#24452;&#65292;&#21487;&#36873;
+            {t.worldPath}
             <input value={worldPath} onChange={(event) => setWorldPath(event.target.value)} disabled={isBusy} />
           </label>
           <label>
-            &#26368;&#22823;&#20154;&#25968;
+            {t.maxPlayers}
             <input value={maxPlayers} onChange={(event) => setMaxPlayers(event.target.value)} disabled={isBusy} />
           </label>
           <label>
-            &#28216;&#25103;&#31471;&#21475;
+            {t.gamePort}
             <input value={gamePort} onChange={(event) => setGamePort(event.target.value)} disabled={isBusy} />
           </label>
           <label>
-            &#26381;&#21153;&#31471;&#23494;&#30721;&#65292;&#21487;&#31354;
+            {t.password}
             <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={isBusy} />
           </label>
           <label>
-            &#33258;&#21160;&#31471;&#21475;&#36716;&#21457; y/n
+            {t.autoForward}
             <select value={autoForward} onChange={(event) => setAutoForward(event.target.value)} disabled={isBusy}>
               <option value="n">n</option>
               <option value="y">y</option>
             </select>
           </label>
           <div className="actions">
-            <button onClick={startEmbeddedServer} disabled={isBusy}>&#22312;&#31243;&#24207;&#20869;&#21551;&#21160;&#26381;&#21153;&#31471;</button>
-            <button onClick={stopEmbeddedServer} disabled={isBusy}>&#20572;&#27490;&#20869;&#23884;&#26381;&#21153;&#31471;</button>
+            <button onClick={startEmbeddedServer} disabled={isBusy}>{t.startInApp}</button>
+            <button onClick={stopEmbeddedServer} disabled={isBusy}>{t.stopInApp}</button>
           </div>
         </article>
       )}
 
+      {selfCheck && (
+        <article className="card">
+          <h3>{selfCheck.title}</h3>
+          <div className={selfCheck.ok ? 'result-ok' : 'result-bad'}>
+            <p>{selfCheck.ok ? '\u7ed3\u8bba\uff1a\u901a\u8fc7' : '\u7ed3\u8bba\uff1a\u672a\u5b8c\u5168\u901a\u8fc7'}</p>
+          </div>
+          <ul>
+            {selfCheck.items.map((item) => (
+              <li key={item.label}>
+                <strong>{item.ok ? '\u2705' : '\u274c'} {item.label}</strong>\uff1a{item.detail}
+              </li>
+            ))}
+          </ul>
+          <pre>{selfCheck.notes.join('\n')}</pre>
+        </article>
+      )}
+
       <article className="card">
-        <h3>{role === 'host' ? '4. \u590d\u5236\u7ed9\u670b\u53cb' : '3. \u52a0\u5165\u6e38\u620f'}</h3>
+        <h3>{role === 'host' ? `4. ${t.copyToFriend}` : `3. ${t.joinGame}`}</h3>
         {role === 'host' ? (
           <>
-            <p className="muted">&#25226;&#19979;&#38754;&#20869;&#23481;&#21457;&#32473;&#26379;&#21451;&#12290;</p>
+            <p className="muted">{t.sendToFriend}</p>
             <pre>{inviteText}</pre>
-            <button onClick={copyInvite} disabled={isBusy}>&#22797;&#21046;&#36992;&#35831;&#20449;&#24687;</button>
+            <button onClick={copyInvite} disabled={isBusy}>{t.copyInvite}</button>
           </>
         ) : (
           <p>
-            &#21551;&#21160; n2n &#21518;&#65292;&#25171;&#24320; Terraria - Multiplayer - Join via IP&#65292;&#36755;&#20837;&#25151;&#20027;&#34394;&#25311; IP&#65306;
-            <strong>{hostIp}</strong>&#65292;&#31471;&#21475;&#65306;<strong>{gamePort}</strong>&#12290;
+            {'\u542f\u52a8 n2n \u540e\uff0c\u6253\u5f00 Terraria - Multiplayer - Join via IP\uff0c\u8f93\u5165\u623f\u4e3b\u865a\u62df IP\uff1a'}
+            <strong>{hostIp}</strong>{'\uff0c\u7aef\u53e3\uff1a'}<strong>{gamePort}</strong>{'\u3002'}
           </p>
         )}
       </article>
 
       <article className="card">
-        <h3>&#20869;&#23884;&#26381;&#21153;&#31471;&#25511;&#21046;&#21488;</h3>
-        <p className="muted">
-          &#36825;&#37324;&#19981;&#26159;&#21333;&#29420;&#30340;&#30333;&#33394;&#21629;&#20196;&#26694;&#65292;&#32780;&#26159;&#30001;&#31243;&#24207;&#25176;&#31649;&#26381;&#21153;&#31471;&#36827;&#31243;&#24182;&#26174;&#31034;&#29366;&#24577;&#12290;&#27491;&#24120;&#24773;&#20917;&#19979;&#19981;&#20250;&#20877;&#24377;&#20986;&#21629;&#20196;&#31383;&#21475;&#12290;
-        </p>
+        <h3>{t.console}</h3>
+        <p className="muted">{t.consoleDesc}</p>
         {statusMessage && <pre>{statusMessage}</pre>}
         <div className={session?.ready || session?.running ? 'result-ok' : 'result-idle'}>
           <p>
-            &#29366;&#24577;:
+            {t.status}\uff1a
             {session?.ready
-              ? `\u5df2\u5c31\u7eea${session.pid ? `\uff0cPID ${session.pid}` : ''}`
+              ? `${t.readyState}${session.pid ? `\uff0cPID ${session.pid}` : ''}`
               : session?.running
-                ? `\u8fd0\u884c\u4e2d\uff0cPID ${session.pid}`
-                : '\u672a\u8fd0\u884c'}
+                ? `${t.running}\uff0cPID ${session.pid}`
+                : t.stopped}
           </p>
-          <p>&#23601;&#32490;&#65306;{session?.ready ? '\u5df2\u76d1\u542c\u7aef\u53e3\uff0c\u53ef\u4ee5\u9080\u8bf7\u670b\u53cb\u52a0\u5165' : '\u5c1a\u672a\u76d1\u542c\u7aef\u53e3'}</p>
+          <p>{t.ready}\uff1a{session?.ready ? t.readyText : t.notReadyText}</p>
         </div>
         <div className="actions">
           <input
             value={serverCommand}
             onChange={(event) => setServerCommand(event.target.value)}
-            placeholder="&#36755;&#20837;&#26381;&#21153;&#31471;&#21629;&#20196;&#65292;&#20363;&#22914; help / save / exit"
+            placeholder={t.commandPlaceholder}
             disabled={isBusy}
           />
           <button onClick={() => sendCommand()} disabled={isBusy || !session?.running || !serverCommand.trim()}>
-            &#21457;&#36865;&#21629;&#20196;
+            {t.sendCommand}
           </button>
-          <button onClick={() => sendCommand('help')} disabled={isBusy || !session?.running}>
-            help
-          </button>
-          <button onClick={() => sendCommand('save')} disabled={isBusy || !session?.running}>
-            save
-          </button>
-          <button onClick={() => sendCommand('exit')} disabled={isBusy || !session?.running}>
-            exit
-          </button>
+          <button onClick={() => sendCommand('help')} disabled={isBusy || !session?.running}>help</button>
+          <button onClick={() => sendCommand('save')} disabled={isBusy || !session?.running}>save</button>
+          <button onClick={() => sendCommand('exit')} disabled={isBusy || !session?.running}>exit</button>
         </div>
-        <pre className="console-panel">{session?.logs?.join('\n') || '\u6682\u65e0\u670d\u52a1\u7aef\u65e5\u5fd7\u3002'}</pre>
+        <pre className="console-panel">{session?.logs?.join('\n') || t.noLogs}</pre>
       </article>
     </section>
   );
