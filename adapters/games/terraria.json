@@ -24,7 +24,15 @@
           "type": "number",
           "default_value": "1",
           "required": true,
-          "help": "对应 Terraria Server 控制台中的世界序号，例如截图里的 1。"
+          "help": "联机助手会按本机 Terraria Worlds 目录中的 .wld 文件排序后选择，默认 1。"
+        },
+        {
+          "id": "world_path",
+          "label": "世界文件路径（可选）",
+          "type": "text",
+          "default_value": "",
+          "required": false,
+          "help": "如果世界编号不准确，可填写完整 .wld 路径，例如 C:\\Users\\你\\Documents\\My Games\\Terraria\\Worlds\\xxx.wld。"
         },
         {
           "id": "max_players",
@@ -57,13 +65,6 @@
           "required": false,
           "help": "留空表示不设置密码。"
         }
-      ],
-      "stdin_templates": [
-        "{{world_choice}}",
-        "{{max_players}}",
-        "{{port}}",
-        "{{auto_forward}}",
-        "{{password}}"
       ]
     },
     {

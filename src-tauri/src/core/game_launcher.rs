@@ -1,5 +1,7 @@
 use std::collections::HashMap;
+use std::fs;
 use std::io::Write;
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
 use serde_json::Value;
@@ -73,6 +75,19 @@ pub fn launch_profile(
         command.args(rendered_args);
     }
 
+    let mut launch_note = String::new();
+    if game_id == "terraria" && profile_id == "server" {
+        match build_terraria_server_args(&values) {
+            Ok((args, note)) => {
+                command.args(args);
+                launch_note = note;
+            }
+            Err(message) => {
+                return Ok(LaunchResult { ok: false, message });
+            }
+        }
+    }
+
     let stdin_lines: Vec<String> = profile
         .stdin_templates
         .clone()
@@ -103,6 +118,9 @@ pub fn launch_profile(
             }
 
             let mut message = format!("已启动 {exe}，PID: {}", child.id());
+            if !launch_note.is_empty() {
+                message.push_str(&format!("。{launch_note}"));
+            }
             if !stdin_lines.is_empty() {
                 message.push_str("。已按当前适配器配置自动写入开服参数。若游戏仍停在控制台提示，请在服务端窗口中手动确认剩余选项。");
             }
@@ -115,6 +133,112 @@ pub fn launch_profile(
             ),
         }),
     }
+}
+
+fn build_terraria_server_args(
+    values: &HashMap<String, String>,
+) -> Result<(Vec<String>, String), String> {
+    let world_path = if let Some(path) = values.get("world_path").filter(|item| !item.trim().is_empty()) {
+        PathBuf::from(path)
+    } else {
+        let world_choice = values
+            .get("world_choice")
+            .and_then(|item| item.trim().parse::<usize>().ok())
+            .unwrap_or(1);
+        let worlds = discover_terraria_worlds();
+        let Some(path) = worlds.get(world_choice.saturating_sub(1)) else {
+            return Err(format!(
+                "未找到 Terraria 世界编号 {world_choice} 对应的 .wld 文件。请确认世界文件位于“文档/My Games/Terraria/Worlds”，或在开服参数里填写完整 world_path。"
+            ));
+        };
+        path.clone()
+    };
+
+    if !world_path.exists() {
+        return Err(format!(
+            "Terraria 世界文件不存在：{}。请检查世界编号或填写完整 world_path。",
+            world_path.to_string_lossy()
+        ));
+    }
+
+    let players = values
+        .get("max_players")
+        .cloned()
+        .unwrap_or_else(|| "8".to_string());
+    let port = values
+        .get("port")
+        .cloned()
+        .unwrap_or_else(|| "7777".to_string());
+    let password = values.get("password").cloned().unwrap_or_default();
+    let auto_forward = values
+        .get("auto_forward")
+        .map(|item| item.trim().eq_ignore_ascii_case("y"))
+        .unwrap_or(false);
+
+    let mut args = vec![
+        "-world".to_string(),
+        world_path.to_string_lossy().to_string(),
+        "-players".to_string(),
+        players,
+        "-port".to_string(),
+        port,
+    ];
+
+    if !password.trim().is_empty() {
+        args.push("-pass".to_string());
+        args.push(password);
+    }
+
+    if !auto_forward {
+        args.push("-noupnp".to_string());
+    }
+
+    Ok((
+        args,
+        format!(
+            "已使用 Terraria 命令行参数指定世界文件：{}，因此不应再停留在世界选择界面",
+            world_path.to_string_lossy()
+        ),
+    ))
+}
+
+fn discover_terraria_worlds() -> Vec<PathBuf> {
+    let mut candidates = Vec::new();
+    if let Ok(user_profile) = std::env::var("USERPROFILE") {
+        candidates.push(
+            PathBuf::from(&user_profile)
+                .join("Documents")
+                .join("My Games")
+                .join("Terraria")
+                .join("Worlds"),
+        );
+    }
+    for env_name in ["OneDrive", "OneDriveConsumer", "OneDriveCommercial"] {
+        if let Ok(one_drive) = std::env::var(env_name) {
+            candidates.push(
+                PathBuf::from(one_drive)
+                    .join("Documents")
+                    .join("My Games")
+                    .join("Terraria")
+                    .join("Worlds"),
+            );
+        }
+    }
+
+    let mut worlds = Vec::new();
+    for dir in candidates {
+        if let Ok(entries) = fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().and_then(|item| item.to_str()) == Some("wld") {
+                    worlds.push(path);
+                }
+            }
+        }
+    }
+    worlds.sort_by_key(|path| path.file_name().map(|item| item.to_os_string()));
+    worlds.dedup();
+    worlds
 }
 
 fn collect_config_values(

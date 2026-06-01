@@ -468,3 +468,23 @@ Steam 游戏检测优先级：
 - Terraria 的服务端启动项已改为适配器驱动的通用开服参数。
 - 推荐方案页会根据当前游戏的 `config_fields` 自动显示表单。
 - `launch_profile` Tauri API 新增 `config` 参数，前端无需为 Terraria 写专用页面。
+
+### Terraria Server 启动补充
+
+Terraria 的服务端属于交互式控制台程序。实践中，直接在进程启动后立即写入 stdin 不稳定，可能导致控制台仍停留在世界选择界面。因此当前 Terraria 适配采用更稳定的命令行参数方式：
+
+- `-world <世界文件路径>`
+- `-players <最大人数>`
+- `-port <端口>`
+- `-pass <密码>`，仅密码非空时传入
+- `-noupnp`，当用户选择不自动端口转发时传入
+
+世界选择策略：
+
+1. 如果用户填写 `world_path`，优先使用该 `.wld` 文件。
+2. 否则扫描：
+   - `%USERPROFILE%\Documents\My Games\Terraria\Worlds`
+   - OneDrive Documents 下的 `My Games\Terraria\Worlds`
+3. 按文件名排序后使用 `world_choice` 选择对应世界。
+
+如果未来要完全匹配 Terraria 控制台中显示的世界顺序，需要增加“读取世界名称/世界元数据”的专用解析能力；第一版先以 `.wld` 文件发现和手动路径兜底保证可用。

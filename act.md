@@ -207,3 +207,31 @@ tools/n2n/
 - 在真实 Terraria Server 窗口中验证 `stdin_templates` 是否能完整走完控制台问答。
 - 如果某些服务端需要持续日志读取，再设计独立的“服务端会话管理”能力，而不是把所有游戏写成专用前端。
 - `npm run tauri:build` 首次失败：旧的 `lan-helper.exe` 正在运行导致 release exe 无法覆盖；已停止旧进程后重新构建通过。
+
+## 2026-06-01 Terraria 开服参数修复
+
+### 问题
+- 用户反馈点击推荐启动后，Terraria Server 仍停留在世界选择界面。
+- 原因判断：上一版使用 `stdin_templates` 在启动后立即写入控制台输入，这类交互式控制台程序可能尚未进入可读输入状态，导致输入被忽略或未完整应用。
+- 后续网络测试返回 false 的直接原因是服务端未真正监听 7777 端口。
+
+### 修复
+- Terraria 服务端启动不再依赖 `stdin_templates`。
+- `game_launcher` 对 `terraria/server` 增加窄范围适配：
+  - 自动发现 `Documents/My Games/Terraria/Worlds` 和 OneDrive Documents 下的 `.wld` 世界文件。
+  - 根据 `world_choice` 解析世界文件；也支持用户填写完整 `world_path`。
+  - 使用 TerrariaServer 命令行参数启动：`-world`、`-players`、`-port`、`-pass`、`-noupnp`。
+- `adapters/games/terraria.json` 新增 `world_path` 可选字段，并移除 Terraria server 的 stdin 自动输入模板。
+
+### 验证
+- `cargo check` 通过。
+- `npm run build` 通过。
+- `npm run tauri:build` 首次因旧 `lan-helper.exe` 运行中无法覆盖失败；停止旧进程后重新构建通过。
+
+### 下一步测试
+- 重新打开 release 客户端。
+- 选择 Terraria。
+- 推荐方案页选择“启动本地服务端”。
+- 默认世界编号 1；如果仍找不到世界，填写完整 `.wld` 路径。
+- 启动后确认服务端不再停留在世界选择界面，并等待出现监听端口信息。
+- 再进行 `127.0.0.1:7777` 或虚拟 IP:7777 的 TCP 测试。
