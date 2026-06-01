@@ -333,3 +333,19 @@ tools/n2n/
 - 当前环境没有 autoconf，因此构建时手动生成 `config.mak` 和 `include/config.h`。
 - 构建日志中存在 n2n 上游源码的格式化 warning，但最终链接成功。
 - 下一步打开客户端网络配置页，确认 n2n edge 检测状态变为可用。
+
+## 2026-06-01 n2n edge 仍未检测到二次排查
+
+### 现象
+- `tools/n2n/edge.exe` 已存在，但正在运行的客户端仍显示未检测到。
+
+### 原因
+- 构建 `edge.exe` 后，release 客户端没有重新构建/重启；正在运行的是旧的 `lan-helper.exe` 进程，仍使用旧检测逻辑。
+
+### 处理
+- 已停止旧进程：`lan-helper.exe`。
+- 重新执行 `npm run tauri:build` 成功，生成新的 release 客户端。
+
+### 下一步
+- 重新打开 `src-tauri/target/release/lan-helper.exe`。
+- 进入网络配置页，n2n 应显示检测到 `tools/n2n/edge.exe`。
