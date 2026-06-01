@@ -32,6 +32,7 @@ export interface ConnectivityTarget {
   host: string;
   ports: number[];
   timeout_ms?: number;
+  mode?: 'generic' | 'local_game_port' | 'n2n_game_port';
 }
 
 export interface PortCheckResult {

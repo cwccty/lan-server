@@ -71,6 +71,16 @@ main {
   border-color: #9a2e2e;
 }
 
+.result-ok {
+  border-left: 4px solid #1d7f56;
+  padding-left: 12px;
+}
+
+.result-bad {
+  border-left: 4px solid #9a2e2e;
+  padding-left: 12px;
+}
+
 .muted {
   color: #8d9ab7;
 }

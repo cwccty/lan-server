@@ -37,6 +37,7 @@ pub struct ConnectivityTarget {
     pub host: String,
     pub ports: Vec<u16>,
     pub timeout_ms: Option<u64>,
+    pub mode: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
