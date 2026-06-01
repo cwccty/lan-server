@@ -28,6 +28,25 @@ function ConnectivityReportView({ report }: { report: ConnectivityReport }) {
   );
 }
 
+function BackendRuntimeStatusView({ status }: { status: BackendRuntimeStatus }) {
+  return (
+    <div className={status.running ? 'result-ok' : 'result-idle'}>
+      <h4>{status.running ? 'n2n edge 正在运行' : 'n2n edge 未运行'}</h4>
+      <p>{status.message}</p>
+      {status.virtual_ip && <p>当前虚拟 IP：{status.virtual_ip}</p>}
+    </div>
+  );
+}
+
+function SetupResultView({ result }: { result: SetupResult }) {
+  return (
+    <div className={result.ok ? 'result-ok' : 'result-bad'}>
+      <h4>{result.ok ? '配置已保存' : '配置未完成'}</h4>
+      <p>{result.message}</p>
+    </div>
+  );
+}
+
 export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
   const [backends, setBackends] = useState<BackendSummary[]>([]);
   const [host, setHost] = useState('127.0.0.1');
@@ -42,6 +61,7 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
   const [localReport, setLocalReport] = useState<ConnectivityReport | null>(null);
   const [peerReport, setPeerReport] = useState<ConnectivityReport | null>(null);
   const [n2nResult, setN2nResult] = useState<SetupResult | BackendRuntimeStatus | null>(null);
+  const [copyMessage, setCopyMessage] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
 
   const refreshBackends = () => listNetworkBackends().then(setBackends).catch(() => setBackends([]));
@@ -84,6 +104,14 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
   ].join('\n');
 
   const parsedGamePort = Number(gamePort.trim()) || 7777;
+  const n2nBackend = backends.find((backend) => backend.id === 'n2n');
+  const n2nRuntimeResult = n2nResult && 'running' in n2nResult ? n2nResult : null;
+  const n2nSetupResult = n2nResult && 'ok' in n2nResult ? n2nResult : null;
+
+  const copyFriendConfig = async () => {
+    await navigator.clipboard?.writeText(friendConfigText);
+    setCopyMessage('通用组网配置已复制，可以发给朋友。');
+  };
 
   return (
     <section>
@@ -173,12 +201,31 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
           </button>
         </div>
 
+        <article className="config-panel">
+          <h4>当前 n2n 状态</h4>
+          {n2nBackend ? (
+            <>
+              <p>{n2nBackend.available ? '已检测到 edge.exe / n2n.exe。' : '尚未检测到 edge.exe / n2n.exe。'}</p>
+              {n2nBackend.virtual_ip && <p>检测到虚拟 IP：{n2nBackend.virtual_ip}</p>}
+              <ul>
+                {n2nBackend.notes.map((note) => (
+                  <li key={note}>{note}</li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className="muted">尚未读取 n2n 状态。</p>
+          )}
+          {n2nSetupResult && <SetupResultView result={n2nSetupResult} />}
+          {n2nRuntimeResult && <BackendRuntimeStatusView status={n2nRuntimeResult} />}
+        </article>
+
         <details>
           <summary>复制给朋友的通用组网配置</summary>
           <pre>{friendConfigText}</pre>
+          <button type="button" onClick={copyFriendConfig} disabled={Boolean(busy)}>复制通用组网配置</button>
+          {copyMessage && <p className="muted">{copyMessage}</p>}
         </details>
-
-        {n2nResult && <pre>{JSON.stringify(n2nResult, null, 2)}</pre>}
       </article>
 
       <article className="card">

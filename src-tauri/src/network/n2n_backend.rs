@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use crate::core::process_util::hide_console_window;
@@ -11,9 +11,6 @@ use std::os::windows::process::CommandExt;
 
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
-
-const CONFIG_PATH: &str = "tools/n2n/last_config.json";
-const PID_PATH: &str = "tools/n2n/n2n.pid";
 
 pub fn detect() -> BackendSummary {
     let executable = find_n2n_executable();
@@ -62,7 +59,8 @@ pub fn detect() -> BackendSummary {
 }
 
 pub fn setup(config: NetworkConfig) -> SetupResult {
-    if let Err(err) = fs::create_dir_all("tools/n2n") {
+    let dir = n2n_storage_dir();
+    if let Err(err) = fs::create_dir_all(&dir) {
         return SetupResult {
             ok: false,
             message: format!("创建 n2n 配置目录失败: {err}"),
@@ -79,7 +77,7 @@ pub fn setup(config: NetworkConfig) -> SetupResult {
         }
     };
 
-    if let Err(err) = fs::write(CONFIG_PATH, content) {
+    if let Err(err) = fs::write(config_path(), content) {
         return SetupResult {
             ok: false,
             message: format!("写入 n2n 配置失败: {err}"),
@@ -89,7 +87,7 @@ pub fn setup(config: NetworkConfig) -> SetupResult {
     SetupResult {
         ok: config.supernode.is_some(),
         message: if config.supernode.is_some() {
-            "n2n 配置已保存。".to_string()
+            format!("n2n 配置已保存：{}", config_path().to_string_lossy())
         } else {
             "n2n 需要 supernode 地址。".to_string()
         },
@@ -106,7 +104,7 @@ pub fn start() -> BackendRuntimeStatus {
                 message: format!("n2n edge 已在运行，PID: {pid}"),
             };
         }
-        let _ = fs::remove_file(PID_PATH);
+        let _ = fs::remove_file(pid_path());
     }
 
     let Some(executable) = find_n2n_executable() else {
@@ -168,7 +166,7 @@ pub fn start() -> BackendRuntimeStatus {
 
     match command.spawn() {
         Ok(child) => {
-            let _ = fs::write(PID_PATH, child.id().to_string());
+            let _ = fs::write(pid_path(), child.id().to_string());
             BackendRuntimeStatus {
                 backend_id: "n2n".to_string(),
                 running: true,
@@ -211,7 +209,7 @@ pub fn stop() -> BackendRuntimeStatus {
     command.args(["/PID", &pid.to_string(), "/F"]);
     let output = hide_console_window(&mut command).output();
 
-    let _ = fs::remove_file(PID_PATH);
+    let _ = fs::remove_file(pid_path());
     match output {
         Ok(result) if result.status.success() => BackendRuntimeStatus {
             backend_id: "n2n".to_string(),
@@ -259,11 +257,26 @@ fn candidate_n2n_dirs() -> Vec<PathBuf> {
     dedup_paths(dirs)
 }
 
-fn n2n_dirs_from_ancestors(start: &std::path::Path) -> Vec<PathBuf> {
+fn n2n_dirs_from_ancestors(start: &Path) -> Vec<PathBuf> {
     start
         .ancestors()
         .map(|ancestor| ancestor.join("tools").join("n2n"))
         .collect()
+}
+
+fn n2n_storage_dir() -> PathBuf {
+    if let Some(dir) = candidate_n2n_dirs().into_iter().find(|dir| dir.exists()) {
+        return dir;
+    }
+    PathBuf::from("tools").join("n2n")
+}
+
+fn config_path() -> PathBuf {
+    n2n_storage_dir().join("last_config.json")
+}
+
+fn pid_path() -> PathBuf {
+    n2n_storage_dir().join("n2n.pid")
 }
 
 fn dedup_paths(paths: Vec<PathBuf>) -> Vec<PathBuf> {
@@ -277,8 +290,13 @@ fn dedup_paths(paths: Vec<PathBuf>) -> Vec<PathBuf> {
 }
 
 fn load_config() -> Result<NetworkConfig, String> {
-    let content = fs::read_to_string(CONFIG_PATH)
-        .map_err(|_| "尚未保存 n2n 配置，请先填写 room、secret 和 supernode。".to_string())?;
+    let path = config_path();
+    let content = fs::read_to_string(&path).map_err(|_| {
+        format!(
+            "尚未保存 n2n 配置，请先填写 room、secret 和 supernode。期望配置文件：{}",
+            path.to_string_lossy()
+        )
+    })?;
     serde_json::from_str(&content).map_err(|err| format!("解析 n2n 配置失败: {err}"))
 }
 
@@ -338,7 +356,7 @@ fn find_preferred_tap_device() -> Option<String> {
 }
 
 fn read_recorded_pid() -> Option<u32> {
-    fs::read_to_string(PID_PATH)
+    fs::read_to_string(pid_path())
         .ok()
         .and_then(|value| value.trim().parse::<u32>().ok())
 }
