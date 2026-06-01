@@ -294,3 +294,20 @@ tools/n2n/
 - 用户在 VPS 上按 `docs/N2N_SUPERNODE_DEPLOY.md` 部署 supernode。
 - 本地准备 Windows 版 `tools/n2n/edge.exe`。
 - 两台电脑用相同 community/secret/supernode，不同 local_ip 做真实互通测试。
+
+## 2026-06-01 n2n edge 未检测到排查
+
+### 现象
+- 客户端显示未检测到 n2n edge。
+
+### 本机确认
+- 当前 `tools/n2n/` 目录下只有 `.gitkeep` 和 `README.md`，没有 `edge.exe` 或 `n2n.exe`，所以未检测到是正常结果。
+
+### 修复/优化
+- 增强 `n2n_backend` 的 edge 查找逻辑：
+  - 不再只依赖当前工作目录。
+  - 会从当前工作目录和 release exe 所在目录开始，沿祖先目录查找 `tools/n2n/edge.exe` 或 `tools/n2n/n2n.exe`。
+  - 未检测到时返回候选目录列表，方便用户放置文件。
+
+### 验证
+- `cargo check` 通过。

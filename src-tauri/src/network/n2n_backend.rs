@@ -17,9 +17,16 @@ pub fn detect() -> BackendSummary {
         available: executable.is_some(),
         virtual_ip: find_n2n_virtual_ip(),
         notes: if let Some(path) = executable {
-            vec![format!("检测到 n2n edge: {}", path.to_string_lossy())]
+            vec![format!("??? n2n edge: {}", path.to_string_lossy())]
         } else {
-            vec!["未检测到 n2n edge，请将 edge.exe 或 n2n.exe 放入 tools/n2n/。".to_string()]
+            vec![format!(
+                "???? n2n edge??? edge.exe ? n2n.exe ?????????{}",
+                candidate_n2n_dirs()
+                    .iter()
+                    .map(|path| path.to_string_lossy().to_string())
+                    .collect::<Vec<_>>()
+                    .join("?")
+            )]
         },
     }
 }
@@ -176,10 +183,42 @@ pub fn stop() -> BackendRuntimeStatus {
 }
 
 fn find_n2n_executable() -> Option<PathBuf> {
-    ["tools/n2n/edge.exe", "tools/n2n/n2n.exe"]
-        .into_iter()
-        .map(PathBuf::from)
-        .find(|path| path.exists())
+    candidate_n2n_dirs().into_iter().find_map(|dir| {
+        ["edge.exe", "n2n.exe"]
+            .into_iter()
+            .map(|name| dir.join(name))
+            .find(|path| path.exists())
+    })
+}
+
+fn candidate_n2n_dirs() -> Vec<PathBuf> {
+    let mut dirs = Vec::new();
+    if let Ok(cwd) = std::env::current_dir() {
+        dirs.extend(n2n_dirs_from_ancestors(&cwd));
+    }
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(parent) = exe.parent() {
+            dirs.extend(n2n_dirs_from_ancestors(parent));
+        }
+    }
+    dedup_paths(dirs)
+}
+
+fn n2n_dirs_from_ancestors(start: &std::path::Path) -> Vec<PathBuf> {
+    start
+        .ancestors()
+        .map(|ancestor| ancestor.join("tools").join("n2n"))
+        .collect()
+}
+
+fn dedup_paths(paths: Vec<PathBuf>) -> Vec<PathBuf> {
+    let mut result = Vec::new();
+    for path in paths {
+        if !result.contains(&path) {
+            result.push(path);
+        }
+    }
+    result
 }
 
 fn load_config() -> Result<NetworkConfig, String> {
