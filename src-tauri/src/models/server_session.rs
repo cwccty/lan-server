@@ -9,4 +9,7 @@ pub struct ServerSessionStatus {
     pub ready: bool,
     pub logs: Vec<String>,
     pub message: String,
+    pub exit_code: Option<i32>,
+    pub exited_at: Option<String>,
+    pub ever_ready: bool,
 }

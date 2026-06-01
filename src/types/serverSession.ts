@@ -8,6 +8,9 @@ export interface ServerSessionStatus {
   ready: boolean;
   logs: string[];
   message: string;
+  exit_code?: number;
+  exited_at?: string;
+  ever_ready: boolean;
 }
 
 export type ServerLaunchConfig = LaunchConfig;

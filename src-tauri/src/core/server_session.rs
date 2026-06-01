@@ -8,6 +8,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
 use std::time::Duration;
 
+use chrono::Utc;
 use serde_json::Value;
 
 use crate::core::game_detector;
@@ -21,12 +22,6 @@ use std::os::windows::process::CommandExt;
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
-#[cfg(windows)]
-const PROCESS_QUERY_LIMITED_INFORMATION: u32 = 0x1000;
-
-#[cfg(windows)]
-const STILL_ACTIVE: u32 = 259;
-
 struct ServerSession {
     pid: u32,
     game_id: String,
@@ -35,6 +30,9 @@ struct ServerSession {
     child: Child,
     stdin: Option<ChildStdin>,
     logs: Arc<Mutex<Vec<String>>>,
+    exit_code: Option<i32>,
+    exited_at: Option<String>,
+    ever_ready: bool,
 }
 
 struct ManagedProcess {
@@ -55,8 +53,9 @@ pub fn start_game_server_session(
         .lock()
         .map_err(|_| "服务端会话锁已损坏。".to_string())?;
 
-    if let Some(session) = current.as_ref() {
-        if is_pid_running(session.pid) {
+    if let Some(session) = current.as_mut() {
+        refresh_process_state(session);
+        if session.exit_code.is_none() {
             return Ok(status_from_session(session, "已有服务端会话正在运行。"));
         }
     }
@@ -69,12 +68,12 @@ pub fn start_game_server_session(
     let adapter = adapter_store::load_game_adapters()?
         .into_iter()
         .find(|item| item.game_id == game_id)
-        .ok_or_else(|| format!("未找到游戏适配: {game_id}"))?;
+        .ok_or_else(|| format!("未找到游戏适配：{game_id}"))?;
     let profile = adapter
         .launch_profiles
         .iter()
         .find(|item| item.id == profile_id)
-        .ok_or_else(|| format!("未找到启动配置: {game_id}/{profile_id}"))?;
+        .ok_or_else(|| format!("未找到启动配置：{game_id}/{profile_id}"))?;
     let exe = profile
         .exe
         .as_ref()
@@ -103,13 +102,12 @@ pub fn start_game_server_session(
             format!("参数：{}", args.join(" ")),
             note,
             format!("PID：{pid}"),
-            "已使用后台托管模式启动：不会弹出白色命令框，并会保持 Terraria 控制台输入流。"
-                .to_string(),
-            "服务端是否可用将通过 127.0.0.1:端口监听状态判断。".to_string(),
+            "已使用后台托管模式启动：不弹出白色命令框，保留 stdin，并捕获 stdout/stderr 到内嵌控制台。".to_string(),
+            "若服务端退出，联机助手会保留最后日志、退出码和曾经监听过端口的信息。".to_string(),
         ],
     );
 
-    let session = ServerSession {
+    let mut session = ServerSession {
         pid,
         game_id: game_id.to_string(),
         profile_id: profile_id.to_string(),
@@ -117,18 +115,21 @@ pub fn start_game_server_session(
         child: managed.child,
         stdin: managed.stdin.take(),
         logs: managed.logs,
+        exit_code: None,
+        exited_at: None,
+        ever_ready: false,
     };
-    let status = status_from_session(&session, "Terraria 服务端已在后台启动。");
+    let status = status_from_session(&mut session, "Terraria 服务端已在后台启动。");
     *current = Some(session);
     Ok(status)
 }
 
 pub fn read_server_session() -> Result<ServerSessionStatus, String> {
     let session_lock = SESSION.get_or_init(|| Mutex::new(None));
-    let current = session_lock
+    let mut current = session_lock
         .lock()
         .map_err(|_| "服务端会话锁已损坏。".to_string())?;
-    let Some(session) = current.as_ref() else {
+    let Some(session) = current.as_mut() else {
         return Ok(empty_status("当前没有运行中的服务端会话。"));
     };
     Ok(status_from_session(session, "服务端状态已刷新。"))
@@ -142,7 +143,8 @@ pub fn send_server_command(command: &str) -> Result<ServerSessionStatus, String>
     let Some(session) = current.as_mut() else {
         return Ok(empty_status("当前没有运行中的服务端会话。"));
     };
-    if !is_pid_running(session.pid) {
+    refresh_process_state(session);
+    if session.exit_code.is_some() {
         return Ok(status_from_session(
             session,
             "服务端进程已经退出，命令未发送。",
@@ -155,10 +157,10 @@ pub fn send_server_command(command: &str) -> Result<ServerSessionStatus, String>
     let Some(stdin) = session.stdin.as_mut() else {
         return Ok(status_from_session(session, "当前服务端没有可用的输入流。"));
     };
-    writeln!(stdin, "{trimmed}").map_err(|err| format!("发送服务端命令失败: {err}"))?;
+    writeln!(stdin, "{trimmed}").map_err(|err| format!("发送服务端命令失败：{err}"))?;
     stdin
         .flush()
-        .map_err(|err| format!("刷新服务端命令失败: {err}"))?;
+        .map_err(|err| format!("刷新服务端命令失败：{err}"))?;
     push_log(&session.logs, format!("> {trimmed}"));
     Ok(status_from_session(session, "命令已发送。"))
 }
@@ -168,24 +170,41 @@ pub fn stop_server_session() -> Result<ServerSessionStatus, String> {
     let mut current = session_lock
         .lock()
         .map_err(|_| "服务端会话锁已损坏。".to_string())?;
-    let Some(session) = current.take() else {
+    let Some(mut session) = current.take() else {
         return Ok(empty_status("当前没有运行中的服务端会话。"));
     };
 
-    let mut command = Command::new("taskkill");
-    command.args(["/PID", &session.pid.to_string(), "/F"]);
-    let output = hide_console_window(&mut command).output();
-    let mut status = status_from_session(&session, "服务端已停止。委托进程即将清理。");
-    status.running = false;
-    status.pid = None;
-    if let Ok(result) = output {
-        if !result.status.success() {
-            status.message = format!(
-                "停止服务端可能失败：{}",
-                String::from_utf8_lossy(&result.stderr)
-            );
+    refresh_process_state(&mut session);
+    if session.exit_code.is_none() {
+        if let Some(stdin) = session.stdin.as_mut() {
+            let _ = writeln!(stdin, "exit");
+            let _ = stdin.flush();
+            thread::sleep(Duration::from_millis(500));
+            refresh_process_state(&mut session);
         }
     }
+    if session.exit_code.is_none() {
+        let mut command = Command::new("taskkill");
+        command.args(["/PID", &session.pid.to_string(), "/F"]);
+        let output = hide_console_window(&mut command).output();
+        if let Ok(result) = output {
+            if !result.status.success() {
+                push_log(
+                    &session.logs,
+                    format!(
+                        "强制停止服务端可能失败：{}",
+                        String::from_utf8_lossy(&result.stderr)
+                    ),
+                );
+            }
+        }
+        refresh_process_state(&mut session);
+    }
+
+    let mut status = status_from_session(&mut session, "服务端已停止。");
+    status.running = false;
+    status.ready = false;
+    status.pid = None;
     Ok(status)
 }
 
@@ -207,7 +226,7 @@ fn start_hidden_process(
 
     let mut child = command
         .spawn()
-        .map_err(|err| format!("启动后台服务端失败: {err}"))?;
+        .map_err(|err| format!("启动后台服务端失败：{err}"))?;
 
     let stdin = child.stdin.take();
     let logs = Arc::new(Mutex::new(Vec::new()));
@@ -234,6 +253,33 @@ where
     });
 }
 
+fn refresh_process_state(session: &mut ServerSession) {
+    if session.exit_code.is_some() {
+        return;
+    }
+    match session.child.try_wait() {
+        Ok(Some(status)) => {
+            session.exit_code = status.code();
+            session.exited_at = Some(Utc::now().to_rfc3339());
+            push_log(
+                &session.logs,
+                format!(
+                    "服务端进程已退出：exit_code={}，曾经监听端口={}。",
+                    session
+                        .exit_code
+                        .map(|code| code.to_string())
+                        .unwrap_or_else(|| "未知/被信号终止".to_string()),
+                    if session.ever_ready { "是" } else { "否" }
+                ),
+            );
+        }
+        Ok(None) => {}
+        Err(err) => {
+            push_log(&session.logs, format!("查询服务端进程状态失败：{err}"));
+        }
+    }
+}
+
 fn push_log(logs: &Arc<Mutex<Vec<String>>>, line: String) {
     if let Ok(mut logs) = logs.lock() {
         logs.push(line);
@@ -254,10 +300,14 @@ fn snapshot_logs(logs: &Arc<Mutex<Vec<String>>>) -> Vec<String> {
     logs.lock().map(|logs| logs.clone()).unwrap_or_default()
 }
 
-fn status_from_session(session: &ServerSession, message: &str) -> ServerSessionStatus {
-    let _ = session.child.id();
-    let running = is_pid_running(session.pid);
+fn status_from_session(session: &mut ServerSession, message: &str) -> ServerSessionStatus {
+    refresh_process_state(session);
+    let running = session.exit_code.is_none();
     let ready = running && is_local_port_open(session.port);
+    if ready {
+        session.ever_ready = true;
+    }
+
     let mut logs = snapshot_logs(&session.logs);
     logs.push(format!(
         "当前状态：{}；端口 {} {}。",
@@ -269,6 +319,18 @@ fn status_from_session(session: &ServerSession, message: &str) -> ServerSessionS
         session.port,
         if ready { "已监听" } else { "尚未监听" }
     ));
+    if !running {
+        logs.push(format!(
+            "退出诊断：exit_code={}；退出时间={}；曾经监听端口={}。",
+            session
+                .exit_code
+                .map(|code| code.to_string())
+                .unwrap_or_else(|| "未知/被强制终止".to_string()),
+            session.exited_at.as_deref().unwrap_or("未知"),
+            if session.ever_ready { "是" } else { "否" }
+        ));
+    }
+
     ServerSessionStatus {
         running,
         pid: if running { Some(session.pid) } else { None },
@@ -277,6 +339,9 @@ fn status_from_session(session: &ServerSession, message: &str) -> ServerSessionS
         ready,
         logs,
         message: message.to_string(),
+        exit_code: session.exit_code,
+        exited_at: session.exited_at.clone(),
+        ever_ready: session.ever_ready,
     }
 }
 
@@ -289,52 +354,10 @@ fn empty_status(message: &str) -> ServerSessionStatus {
         ready: false,
         logs: Vec::new(),
         message: message.to_string(),
+        exit_code: None,
+        exited_at: None,
+        ever_ready: false,
     }
-}
-
-fn is_pid_running(pid: u32) -> bool {
-    #[cfg(windows)]
-    {
-        return is_pid_running_windows(pid);
-    }
-
-    #[cfg(not(windows))]
-    {
-        return is_pid_running_tasklist(pid);
-    }
-}
-
-#[cfg(windows)]
-fn is_pid_running_windows(pid: u32) -> bool {
-    use windows_sys::Win32::Foundation::CloseHandle;
-    use windows_sys::Win32::System::Threading::{GetExitCodeProcess, OpenProcess};
-
-    let handle = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
-    if handle.is_null() {
-        return false;
-    }
-
-    let mut exit_code = 0;
-    let ok = unsafe { GetExitCodeProcess(handle, &mut exit_code) };
-    unsafe {
-        CloseHandle(handle);
-    }
-    ok != 0 && exit_code == STILL_ACTIVE
-}
-
-#[allow(dead_code)]
-fn is_pid_running_tasklist(pid: u32) -> bool {
-    let mut command = Command::new("tasklist");
-    command.args(["/FI", &format!("PID eq {pid}"), "/FO", "CSV", "/NH"]);
-    let output = hide_console_window(&mut command).output();
-    let Ok(output) = output else {
-        return false;
-    };
-    if !output.status.success() {
-        return false;
-    }
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    stdout.contains(&pid.to_string()) && !stdout.to_ascii_lowercase().contains("no tasks")
 }
 
 fn is_local_port_open(port: u16) -> bool {

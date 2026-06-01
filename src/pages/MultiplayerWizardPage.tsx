@@ -253,7 +253,7 @@ export function MultiplayerWizardPage() {
     const virtualIp = n2n?.virtual_ip || '';
     const expectedLocalIp = currentRole === 'host' ? hostIp : joinerIp;
     const virtualIpOk = virtualIp === expectedLocalIp;
-    const hostServerReady = Boolean(latestSession.ready || localReport?.reachable || virtualReport.reachable);
+    const hostServerReady = Boolean(latestSession.running && (latestSession.ready || localReport?.reachable || virtualReport.reachable));
     const items: SelfCheckItem[] = [
       {
         label: 'supernode',
@@ -279,7 +279,9 @@ export function MultiplayerWizardPage() {
           ok: hostServerReady,
           detail: hostServerReady
             ? `已就绪，PID ${latestSession.pid || '-'}，端口 ${portNumber} 可连接。`
-            : '服务端尚未就绪。'
+            : latestSession.exit_code !== undefined || latestSession.ever_ready
+              ? `服务端已退出，退出码 ${latestSession.exit_code ?? '未知'}，曾经监听端口：${latestSession.ever_ready ? '是' : '否'}。`
+              : '服务端尚未就绪。'
         },
         {
           label: `127.0.0.1:${portNumber}`,
@@ -455,16 +457,19 @@ export function MultiplayerWizardPage() {
         <h3>{t.console}</h3>
         <p className="muted">{t.consoleDesc}</p>
         {statusMessage && <pre>{statusMessage}</pre>}
-        <div className={session?.ready || session?.running ? 'result-ok' : 'result-idle'}>
+        <div className={session?.ready || session?.running ? 'result-ok' : session?.ever_ready || session?.exit_code !== undefined ? 'result-bad' : 'result-idle'}>
           <p>
             {t.status}：
             {session?.ready
               ? `${t.readyState}${session.pid ? `\uff0cPID ${session.pid}` : ''}`
               : session?.running
-                ? `${t.running}\uff0cPID ${session.pid}`
+                ? `${t.running}，PID ${session.pid}`
                 : t.stopped}
           </p>
           <p>{t.ready}：{session?.ready ? t.readyText : t.notReadyText}</p>
+          {session && !session.running && (session.ever_ready || session.exit_code !== undefined) && (
+            <p>退出诊断：退出码 {session.exit_code ?? '未知'}，曾经监听端口：{session.ever_ready ? '是' : '否'}。</p>
+          )}
         </div>
         <div className="actions">
           <input
