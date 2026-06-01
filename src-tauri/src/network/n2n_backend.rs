@@ -52,7 +52,7 @@ pub fn setup(config: NetworkConfig) -> SetupResult {
             return SetupResult {
                 ok: false,
                 message: format!("序列化 n2n 配置失败: {err}"),
-            }
+            };
         }
     };
 
@@ -103,7 +103,7 @@ pub fn start() -> BackendRuntimeStatus {
                 running: false,
                 virtual_ip: None,
                 message,
-            }
+            };
         }
     };
 
@@ -116,8 +116,15 @@ pub fn start() -> BackendRuntimeStatus {
         };
     };
 
-    let community = config.room_name.unwrap_or_else(|| "lan-helper-room".to_string());
-    let secret = config.secret.unwrap_or_else(|| "lan-helper-secret".to_string());
+    let community = config
+        .room_name
+        .unwrap_or_else(|| "lan-helper-room".to_string());
+    let secret = config
+        .secret
+        .unwrap_or_else(|| "lan-helper-secret".to_string());
+    let local_ip = config.local_ip.as_deref().and_then(normalize_edge_ip_arg);
+    let tap_device = find_preferred_tap_device();
+
     let mut command = Command::new(executable);
     command
         .args(["-c", &community, "-k", &secret, "-l", &supernode])
@@ -125,12 +132,16 @@ pub fn start() -> BackendRuntimeStatus {
         .stdout(Stdio::null())
         .stderr(Stdio::null());
 
+    if let Some(local_ip) = &local_ip {
+        command.args(["-a", local_ip]);
+    }
+
+    if let Some(device) = &tap_device {
+        command.args(["-d", device]);
+    }
+
     #[cfg(windows)]
     command.creation_flags(CREATE_NO_WINDOW);
-
-    if let Some(local_ip) = config.local_ip {
-        command.args(["-a", &local_ip]);
-    }
 
     match command.spawn() {
         Ok(child) => {
@@ -139,7 +150,18 @@ pub fn start() -> BackendRuntimeStatus {
                 backend_id: "n2n".to_string(),
                 running: true,
                 virtual_ip: find_n2n_virtual_ip(),
-                message: format!("n2n edge 已启动，PID: {}", child.id()),
+                message: format!(
+                    "n2n edge 已启动，PID: {}{}{}",
+                    child.id(),
+                    local_ip
+                        .as_ref()
+                        .map(|ip| format!("，虚拟 IP 参数: {ip}"))
+                        .unwrap_or_default(),
+                    tap_device
+                        .as_ref()
+                        .map(|device| format!("，TAP: {device}"))
+                        .unwrap_or_default()
+                ),
             }
         }
         Err(err) => BackendRuntimeStatus {
@@ -237,8 +259,59 @@ fn load_config() -> Result<NetworkConfig, String> {
     serde_json::from_str(&content).map_err(|err| format!("解析 n2n 配置失败: {err}"))
 }
 
+fn normalize_edge_ip_arg(value: &str) -> Option<String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    if trimmed.starts_with("static:") || trimmed.starts_with("dhcp:") {
+        return Some(trimmed.to_string());
+    }
+    if trimmed.contains('/') {
+        return Some(format!("static:{trimmed}"));
+    }
+    Some(format!("static:{trimmed}/24"))
+}
+
 fn find_n2n_virtual_ip() -> Option<String> {
-    windows_ip::find_ipv4_by_interface_keywords(&["n2n", "edge", "tap"])
+    windows_ip::find_ipv4_by_interface_keywords(&["n2n", "edge", "cfw", "tap"])
+}
+
+#[cfg(windows)]
+fn find_preferred_tap_device() -> Option<String> {
+    let script = r#"
+$adapters = Get-NetAdapter -ErrorAction SilentlyContinue |
+  Where-Object { $_.InterfaceDescription -match 'TAP|Wintun|n2n|VPN' -or $_.Name -match 'cfw|tap|n2n|edge|vpn' } |
+  Select-Object -ExpandProperty Name
+$preferred = @('cfw-tap', 'n2n', 'edge', 'tap', 'SetupVPN')
+foreach ($name in $preferred) {
+  $hit = $adapters | Where-Object { $_ -ieq $name } | Select-Object -First 1
+  if ($hit) { $hit; exit }
+}
+$adapters | Select-Object -First 1
+"#;
+    let mut process = Command::new("powershell");
+    process.args([
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        script,
+    ]);
+    let output = hide_console_window(&mut process).output().ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty())
+        .map(ToString::to_string)
+}
+
+#[cfg(not(windows))]
+fn find_preferred_tap_device() -> Option<String> {
+    None
 }
 
 fn read_recorded_pid() -> Option<u32> {
