@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+﻿import type { ReactNode } from 'react';
 
 type Page = 'home' | 'wizard' | 'scan' | 'detail' | 'network' | 'recommendation' | 'diagnostics';
 
@@ -13,9 +13,9 @@ export function Layout({
 }) {
   const items: Array<[Page, string]> = [
     ['home', '首页'],
-    ['wizard', '联机向导'],
+    ['network', '通用组网中心'],
+    ['wizard', 'Terraria 向导'],
     ['scan', '游戏扫描'],
-    ['network', '网络配置'],
     ['recommendation', '推荐方案'],
     ['diagnostics', '诊断报告']
   ];
