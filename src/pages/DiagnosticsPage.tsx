@@ -6,6 +6,9 @@ export function DiagnosticsPage() {
   const [report, setReport] = useState<DiagnosticReport | null>(null);
   const [busy, setBusy] = useState(false);
   const reportText = report ? JSON.stringify(report, null, 2) : '';
+  const requiredChecks = report?.release_checks.filter((item) => item.required_for_mvp) ?? [];
+  const passedRequiredChecks = requiredChecks.filter((item) => item.ok).length;
+  const mvpReady = requiredChecks.length > 0 && passedRequiredChecks === requiredChecks.length;
 
   const createReport = async () => {
     if (busy) return;
@@ -29,6 +32,19 @@ export function DiagnosticsPage() {
       </div>
       {report && (
         <article className="card">
+          <h3>发布前检查</h3>
+          <div className={mvpReady ? 'result-ok' : 'result-bad'}>
+            <p>{mvpReady ? 'MVP 必需项已全部通过。' : `MVP 必需项 ${passedRequiredChecks} / ${requiredChecks.length} 通过。`}</p>
+          </div>
+          <ul>
+            {report.release_checks.map((item) => (
+              <li key={item.id}>
+                <strong>{item.ok ? '✅' : '❌'} {item.label}</strong>
+                {item.required_for_mvp ? '（MVP 必需）' : ''}：{item.detail}
+              </li>
+            ))}
+          </ul>
+
           <h3>报告摘要</h3>
           <p>生成时间：{report.generated_at}</p>
           <p>版本：{report.app_version}</p>

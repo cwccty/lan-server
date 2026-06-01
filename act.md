@@ -702,3 +702,14 @@ tools/n2n/
 - 联机向导显示服务端运行时长；当服务端已监听且运行超过 30 秒时，显示“30 秒稳定性已通过”。
 - 诊断报告会输出 `uptime_seconds`，并给出 `Terraria 30 秒稳定性：通过/未通过或尚未验证`。
 - `docs/MVP_RELEASE_CHECKLIST.md` 同步更新 30 秒稳定性门禁。
+
+## 2026-06-02 结构化 MVP 发布检查
+
+本轮把诊断报告从纯文本详情升级为结构化发布检查：
+
+- `DiagnosticReport` 新增 `release_checks`。
+- 每个检查项包含 `id`、`label`、`ok`、`detail`、`required_for_mvp`。
+- 诊断报告页面会显示 MVP 必需项通过数量，并逐项显示 ✅/❌。
+- 当前 MVP 必需检查包括：n2n edge、n2n 虚拟 IP、n2n 运行态、Terraria 30 秒稳定性、服务端退出诊断、诊断隐私边界。
+
+这让“是否可以发布”不再依赖口头判断，而是由客户端生成可复制的结构化证据。

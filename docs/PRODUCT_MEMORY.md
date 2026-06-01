@@ -67,3 +67,7 @@ SourceAddress：10.10.10.2
 - TerrariaServer 可能出现“Listening on port 7777 后几秒进程退出”。
 - 内嵌服务端控制台需要保留退出原因、最后日志和 exit code。
 - NetworkSetupPage、Layout、HomePage 已开始转向“通用组网中心”定位；后续要继续统一所有页面命名和状态来源。
+
+## 2026-06-02 结构化诊断要求
+
+诊断报告必须包含 `release_checks`，用于明确 MVP 必需项是否通过。只有所有 `required_for_mvp=true` 的检查项通过，并完成朋友侧真实加入测试，才允许声明 MVP 完成。

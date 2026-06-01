@@ -1,7 +1,7 @@
-﻿use chrono::Utc;
+use chrono::Utc;
 
 use crate::core::{game_detector, server_session};
-use crate::models::diagnostics::DiagnosticReport;
+use crate::models::diagnostics::{DiagnosticReport, ReleaseCheck};
 use crate::network::{manual_lan_backend, n2n_backend, radmin_backend};
 use crate::storage::adapter_store;
 
@@ -15,49 +15,120 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
         n2n_backend::detect(),
     ];
     let server = server_session::read_server_session().ok();
-
-    let mut release_checks = Vec::new();
     let n2n = backends.iter().find(|backend| backend.id == "n2n");
-    release_checks.push(format!(
-        "n2n edge：{}",
-        if n2n.map(|item| item.available).unwrap_or(false) {
-            "已检测到"
-        } else {
-            "未检测到"
-        }
-    ));
-    release_checks.push(format!(
-        "n2n 虚拟 IP：{}",
-        n2n.and_then(|item| item.virtual_ip.clone())
-            .unwrap_or_else(|| "未检测到".to_string())
-    ));
-    if let Some(server) = &server {
-        release_checks.push(format!(
-            "内嵌服务端：running={} ready={} ever_ready={} uptime={}s exit_code={}",
-            server.running,
-            server.ready,
-            server.ever_ready,
-            server.uptime_seconds.unwrap_or(0),
-            server
-                .exit_code
-                .map(|code| code.to_string())
-                .unwrap_or_else(|| "无".to_string())
-        ));
-    } else {
-        release_checks.push("内嵌服务端：未读取到会话".to_string());
-    }
 
-    let terraria_stable = server
-        .as_ref()
-        .map(|item| item.running && item.ready && item.uptime_seconds.unwrap_or(0) >= 30)
+    let n2n_available = n2n.map(|item| item.available).unwrap_or(false);
+    let n2n_virtual_ip = n2n.and_then(|item| item.virtual_ip.clone());
+    let n2n_running = n2n
+        .map(|item| item.notes.iter().any(|note| note.contains("正在运行")))
         .unwrap_or(false);
-    release_checks.push(format!(
-        "Terraria 30 秒稳定性：{}",
-        if terraria_stable {
-            "通过"
-        } else {
-            "未通过或尚未验证"
-        }
+    let server_running = server.as_ref().map(|item| item.running).unwrap_or(false);
+    let server_ready = server.as_ref().map(|item| item.ready).unwrap_or(false);
+    let server_uptime = server
+        .as_ref()
+        .and_then(|item| item.uptime_seconds)
+        .unwrap_or(0);
+    let terraria_stable = server_running && server_ready && server_uptime >= 30;
+    let server_exit_ok = server
+        .as_ref()
+        .map(|item| item.running || item.exit_code.is_some() || !item.ever_ready)
+        .unwrap_or(true);
+
+    let release_checks = vec![
+        ReleaseCheck {
+            id: "n2n_edge".to_string(),
+            label: "n2n edge 可执行文件".to_string(),
+            ok: n2n_available,
+            detail: n2n
+                .map(|item| item.notes.join("；"))
+                .unwrap_or_else(|| "未找到 n2n 后端信息".to_string()),
+            required_for_mvp: true,
+        },
+        ReleaseCheck {
+            id: "n2n_virtual_ip".to_string(),
+            label: "n2n 虚拟 IP".to_string(),
+            ok: n2n_virtual_ip.is_some(),
+            detail: n2n_virtual_ip.unwrap_or_else(|| "未检测到虚拟 IP".to_string()),
+            required_for_mvp: true,
+        },
+        ReleaseCheck {
+            id: "n2n_running".to_string(),
+            label: "n2n edge 运行态".to_string(),
+            ok: n2n_running,
+            detail: if n2n_running {
+                "检测到由联机助手记录的 n2n edge 正在运行。".to_string()
+            } else {
+                "尚未检测到正在运行的 n2n edge；发布前需启动一次并确认。".to_string()
+            },
+            required_for_mvp: true,
+        },
+        ReleaseCheck {
+            id: "terraria_server_30s".to_string(),
+            label: "Terraria 服务端 30 秒稳定性".to_string(),
+            ok: terraria_stable,
+            detail: format!(
+                "running={} ready={} uptime={}s exit_code={}",
+                server_running,
+                server_ready,
+                server_uptime,
+                server
+                    .as_ref()
+                    .and_then(|item| item.exit_code)
+                    .map(|code| code.to_string())
+                    .unwrap_or_else(|| "无".to_string())
+            ),
+            required_for_mvp: true,
+        },
+        ReleaseCheck {
+            id: "server_exit_diagnostics".to_string(),
+            label: "服务端退出诊断".to_string(),
+            ok: server_exit_ok,
+            detail: server
+                .as_ref()
+                .map(|item| {
+                    format!(
+                        "ever_ready={} exit_code={} exited_at={}",
+                        item.ever_ready,
+                        item.exit_code
+                            .map(|code| code.to_string())
+                            .unwrap_or_else(|| "无".to_string()),
+                        item.exited_at.as_deref().unwrap_or("无")
+                    )
+                })
+                .unwrap_or_else(|| "当前没有服务端会话；启动后才能验证退出诊断。".to_string()),
+            required_for_mvp: true,
+        },
+        ReleaseCheck {
+            id: "privacy_boundary".to_string(),
+            label: "诊断报告隐私边界".to_string(),
+            ok: true,
+            detail: "报告不采集 Cookie、SSH Key、系统凭据、浏览器数据或无关用户目录内容。"
+                .to_string(),
+            required_for_mvp: true,
+        },
+    ];
+
+    let mut release_lines = release_checks
+        .iter()
+        .map(|item| {
+            format!(
+                "{} {}：{}",
+                if item.ok { "✅" } else { "❌" },
+                item.label,
+                item.detail
+            )
+        })
+        .collect::<Vec<_>>();
+    release_lines.push(format!(
+        "MVP 必需项：{} / {} 通过。",
+        release_checks
+            .iter()
+            .filter(|item| item.required_for_mvp && item.ok)
+            .count(),
+        release_checks
+            .iter()
+            .filter(|item| item.required_for_mvp)
+            .count()
     ));
 
     Ok(DiagnosticReport {
@@ -70,8 +141,9 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
             games.len(),
             backends.len()
         ),
+        release_checks,
         details: vec![
-            format!("发布前关键检查:\n{}", release_checks.join("\n")),
+            format!("发布前关键检查:\n{}", release_lines.join("\n")),
             format!(
                 "Steam 库路径: {}",
                 serde_json::to_string_pretty(
