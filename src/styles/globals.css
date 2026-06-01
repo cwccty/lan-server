@@ -113,3 +113,9 @@ pre {
   overflow: auto;
   border-radius: 12px;
 }
+
+.console-panel {
+  min-height: 220px;
+  max-height: 420px;
+  white-space: pre-wrap;
+}

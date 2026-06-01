@@ -4,3 +4,4 @@ pub mod diagnostic_logger;
 pub mod game_detector;
 pub mod game_launcher;
 pub mod recommendation_engine;
+pub mod server_session;

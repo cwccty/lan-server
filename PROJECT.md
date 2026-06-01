@@ -539,3 +539,38 @@ supernode 当前推荐：
 - 云厂商安全组放行对应 UDP 端口；
 - 用 systemd 常驻；
 - 客户端填写 `公网IP或域名:端口`。
+
+## 25. 联机向导与内嵌服务端控制台
+
+为降低普通用户使用难度，新增联机向导作为第一版主流程：
+
+```text
+选择身份
+→ 配置 n2n 房间
+→ 房主启动服务端 / 加入者启动 n2n
+→ 复制邀请信息 / Join via IP
+```
+
+内嵌控制台设计原则：
+
+- 不直接嵌入系统 cmd/Terminal 窗口。
+- 由 Rust 托管游戏服务端子进程。
+- Windows 下隐藏外部控制台窗口。
+- 捕获 stdout/stderr 并显示在前端日志面板。
+- 第一版先支持 Terraria 服务端。
+- 第一版先支持启动、读取日志、停止；后续再支持发送服务端命令。
+
+新增 Tauri API：
+
+```ts
+startGameServerSession(gameId, profileId, config)
+readServerSession()
+stopServerSession()
+```
+
+新增 Rust 模块：
+
+```text
+src-tauri/src/core/server_session.rs
+src-tauri/src/models/server_session.rs
+```

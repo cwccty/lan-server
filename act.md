@@ -396,3 +396,46 @@ tools/n2n/
   4. 房主测 `127.0.0.1:7777`。
   5. 朋友测 `房主虚拟 IP:7777`。
 - 根据测试结果继续增强：显示 n2n edge PID、虚拟 IP、supernode 当前配置和复制给朋友的一键说明。
+
+## 2026-06-01 联机向导与内嵌服务端控制台基础
+
+### 本轮目标
+- 实现“联机向导”，把普通用户流程整理成房主/加入者两条路径。
+- 评估并实现白色命令框内嵌到程序中的可行方案。
+
+### 结论
+- 不建议把系统 cmd/Terminal 窗口直接嵌入 UI。
+- 推荐做法是由 Tauri/Rust 托管游戏服务端子进程，隐藏原始控制台窗口，捕获 stdout/stderr，并在前端显示为“内嵌服务端控制台”。
+- 这种方式更稳定、可控，也便于后续做停止服务端、复制日志、诊断分析。
+
+### 已完成
+- 新增 `MultiplayerWizardPage`：
+  - 身份选择：我是房主 / 我是加入者。
+  - n2n 房间配置：community、secret、supernode、房主虚拟 IP、加入者虚拟 IP。
+  - 房主流程：启动 n2n、配置 Terraria 服务端参数、在程序内启动服务端。
+  - 加入者流程：根据房主配置启动 n2n，并显示 Join via IP 地址。
+  - 自动生成可复制给朋友的邀请信息。
+- 导航新增“联机向导”。
+- 修复首页和侧栏导航中文乱码。
+- 新增 Rust 服务端会话模块 `core/server_session.rs`：
+  - 第一版支持 Terraria server。
+  - 使用命令行参数启动 TerrariaServer。
+  - Windows 下使用 `CREATE_NO_WINDOW` 隐藏外部控制台窗口。
+  - 捕获 stdout/stderr 到内嵌日志面板。
+  - 支持读取会话状态和停止服务端。
+- 新增 Tauri commands：
+  - `start_game_server_session`
+  - `read_server_session`
+  - `stop_server_session`
+- 新增前端类型 `serverSession.ts` 和 API 封装。
+- 新增 `.console-panel` 样式。
+
+### 验证
+- `npm run build` 通过。
+- `cargo check` 通过。
+- `npm run tauri:build` 通过。
+
+### 注意
+- 内嵌控制台第一版先显示日志和停止进程；暂不实现任意 stdin 交互输入。
+- Terraria 当前通过 `-world/-players/-port/-pass/-noupnp` 命令行参数避免交互式世界选择。
+- 后续可增加：发送服务端命令、保存日志、按行高亮错误、自动识别 Listening on port。

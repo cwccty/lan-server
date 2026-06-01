@@ -1,6 +1,6 @@
 use crate::core::{
     capability_engine, connectivity_tester, diagnostic_logger, game_detector, game_launcher,
-    recommendation_engine,
+    recommendation_engine, server_session,
 };
 use crate::models::diagnostics::DiagnosticReport;
 use crate::models::game::{GameAnalysis, GameSummary};
@@ -9,6 +9,7 @@ use crate::models::network::{
     SetupResult,
 };
 use crate::models::recommendation::{LaunchResult, Recommendation};
+use crate::models::server_session::ServerSessionStatus;
 use crate::network::{manual_lan_backend, n2n_backend, radmin_backend};
 use serde_json::Value;
 
@@ -83,4 +84,23 @@ pub fn launch_profile(
 #[tauri::command]
 pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
     diagnostic_logger::generate_diagnostic_report()
+}
+
+#[tauri::command]
+pub fn start_game_server_session(
+    game_id: String,
+    profile_id: String,
+    config: serde_json::Value,
+) -> Result<ServerSessionStatus, String> {
+    server_session::start_game_server_session(&game_id, &profile_id, config)
+}
+
+#[tauri::command]
+pub fn read_server_session() -> Result<ServerSessionStatus, String> {
+    server_session::read_server_session()
+}
+
+#[tauri::command]
+pub fn stop_server_session() -> Result<ServerSessionStatus, String> {
+    server_session::stop_server_session()
 }

@@ -10,6 +10,7 @@ import type {
   SetupResult
 } from '../types/network';
 import type { LaunchConfig, LaunchResult, Recommendation } from '../types/recommendation';
+import type { ServerSessionStatus } from '../types/serverSession';
 
 export const scanGames = () => invoke<GameSummary[]>('scan_games');
 export const analyzeGame = (gameId: string) => invoke<GameAnalysis>('analyze_game', { gameId });
@@ -24,3 +25,8 @@ export const recommendPlans = (gameId: string) => invoke<Recommendation[]>('reco
 export const launchProfile = (gameId: string, profileId: string, config: LaunchConfig = {}) =>
   invoke<LaunchResult>('launch_profile', { gameId, profileId, config });
 export const generateDiagnosticReport = () => invoke<DiagnosticReport>('generate_diagnostic_report');
+
+export const startGameServerSession = (gameId: string, profileId: string, config: LaunchConfig = {}) =>
+  invoke<ServerSessionStatus>('start_game_server_session', { gameId, profileId, config });
+export const readServerSession = () => invoke<ServerSessionStatus>('read_server_session');
+export const stopServerSession = () => invoke<ServerSessionStatus>('stop_server_session');
