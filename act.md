@@ -557,3 +557,25 @@ tools/n2n/
 - 重新构建/打开 release 客户端。
 - 在“联机向导”里点击“在程序内启动服务端”，确认不再出现持续空白白色命令框。
 - 如果仍出现，需要记录该窗口对应进程 PID/标题，再针对具体进程继续处理。
+
+
+## 2026-06-01 主程序白色空窗口二次修复
+
+### 问题
+- 用户反馈：只要打开联机助手，白色空窗口仍存在。
+
+### 定位
+- 这类窗口在打开主程序时就出现，说明不是 Terraria Server/n2n 启动造成，而是 `lan-helper.exe` 自身仍按控制台子系统运行。
+- `src-tauri/src/main.rs` 缺少 Tauri/Rust Windows release 常用的 `windows_subsystem = "windows"` 标记。
+
+### 已完成
+- `src-tauri/src/main.rs`
+  - 增加 `#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]`。
+- `src-tauri/tauri.conf.json`
+  - 修复产品名和窗口标题，使用 JSON Unicode escape 保存，避免 Windows 终端编码导致乱码。
+
+### 验证
+- `npm run build` 通过。
+- `cargo check` 通过。
+- `npm run tauri:build` 通过。
+- 重新启动 release `lan-helper.exe` 后，进程树中只有 `lan-helper.exe` 和 WebView2 子进程；白色 Terminal/OpenConsole 不再作为主程序子进程出现。

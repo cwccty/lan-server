@@ -587,3 +587,12 @@ src-tauri/src/models/server_session.rs
 - 服务端状态轮询从 1.5 秒调整到 3 秒，并在操作进行中暂停轮询，减少前端和后端请求堆积。
 
 说明：当前隐藏模式仍不是完整 ConPTY 伪终端，第一版主要保证“后台启动、PID 管理、端口就绪判断”。后续如果需要真正实时日志和可交互命令，再进入 Windows ConPTY 方案。
+
+
+## 27. 主程序白色控制台窗口修复（2026-06-01 补充）
+
+本轮确认“打开联机助手就出现的白色空窗口”不是 Terraria Server 或 n2n edge，而是 release 主程序缺少 Windows GUI 子系统标记导致。修复方式：
+
+- 在 `src-tauri/src/main.rs` 增加 `#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]`。
+- release 构建后 `lan-helper.exe` 将作为 Windows GUI 程序启动，不再附带控制台窗口。
+- 同时将 `tauri.conf.json` 的产品名和窗口标题改为 JSON Unicode escape，避免命令行编码导致中文再次被写成乱码。

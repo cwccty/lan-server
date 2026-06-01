@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "联机助手",
+  "productName": "\u8054\u673a\u52a9\u624b",
   "version": "0.1.0",
   "identifier": "com.lanhelper.desktop",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "联机助手",
+        "title": "\u8054\u673a\u52a9\u624b",
         "width": 1200,
         "height": 760,
         "resizable": true
