@@ -91,3 +91,17 @@ SourceAddress：10.10.10.2
 - 不提交 n2n 二进制；`tools/n2n/*.exe` 继续由 `.gitignore` 排除。
 - 不把无关格式化改动混进提交。
 - 第一版不做 Steam API 模拟、Hook、注入、破解、绕过反作弊。
+
+## 2026-06-02 发布阻断项继续推进：Terraria 后台启动方式修正
+
+本轮继续处理“监听端口后几秒变灰 / 服务端可能启动后退出”的发布阻断项。当前判断：仅用 `CREATE_NO_WINDOW` 启动 TerrariaServer 风险较高，因为 TerrariaServer 是控制台程序，部分版本会访问 Console API；如果进程没有有效控制台，可能触发控制台句柄无效并退出。
+
+已调整：
+
+- Windows 下内嵌 Terraria 服务端改为 `CreateProcessW + CREATE_NEW_CONSOLE + STARTF_USESHOWWINDOW/SW_HIDE`。
+- 目的：给 TerrariaServer 一个有效控制台环境，同时隐藏外部白色命令框。
+- 状态判断继续以真实进程状态、`127.0.0.1:端口` 探测、运行时长、退出码、退出时间、是否曾经监听端口为准。
+- 当前 Windows 隐藏控制台模式不读取实时 stdout，因此内嵌控制台显示的是托管状态日志，不把“没有 stdout”伪装成真实游戏日志。
+- 修复 `server_session.rs` 中遗留中文乱码，避免用户看到不可读错误信息。
+
+这一步不是纯 UI 修改，而是改变服务端创建方式，目标是降低“后台隐藏后服务端立即退出”的真实风险。

@@ -1,9 +1,15 @@
 use std::collections::HashMap;
 use std::fs;
-use std::io::{BufRead, BufReader, Write};
+use std::io::Write;
+#[cfg(not(windows))]
+use std::io::{BufRead, BufReader};
 use std::net::{TcpStream, ToSocketAddrs};
-use std::path::PathBuf;
-use std::process::{Child, ChildStdin, Command, Stdio};
+use std::path::{Path, PathBuf};
+#[cfg(not(windows))]
+use std::process::Child;
+#[cfg(not(windows))]
+use std::process::Stdio;
+use std::process::{ChildStdin, Command};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -17,17 +23,22 @@ use crate::models::server_session::ServerSessionStatus;
 use crate::storage::adapter_store;
 
 #[cfg(windows)]
-use std::os::windows::process::CommandExt;
-
+use std::os::windows::ffi::OsStrExt;
 #[cfg(windows)]
-const CREATE_NO_WINDOW: u32 = 0x08000000;
+use windows_sys::Win32::Foundation::{CloseHandle, HANDLE};
+#[cfg(windows)]
+use windows_sys::Win32::System::Threading::{
+    CreateProcessW, GetExitCodeProcess, TerminateProcess, CREATE_NEW_CONSOLE, PROCESS_INFORMATION,
+    STARTF_USESHOWWINDOW, STARTUPINFOW,
+};
+#[cfg(windows)]
+use windows_sys::Win32::UI::WindowsAndMessaging::SW_HIDE;
 
 struct ServerSession {
-    pid: u32,
     game_id: String,
     profile_id: String,
     port: u16,
-    child: Child,
+    process: ManagedChild,
     stdin: Option<ChildStdin>,
     logs: Arc<Mutex<Vec<String>>>,
     exit_code: Option<i32>,
@@ -38,9 +49,95 @@ struct ServerSession {
 }
 
 struct ManagedProcess {
-    child: Child,
+    process: ManagedChild,
     stdin: Option<ChildStdin>,
     logs: Arc<Mutex<Vec<String>>>,
+}
+
+enum ManagedChild {
+    #[cfg(not(windows))]
+    Std(Child),
+    #[cfg(windows)]
+    Windows(WindowsProcess),
+}
+
+#[cfg(windows)]
+const STILL_ACTIVE_EXIT_CODE: u32 = 259;
+
+#[cfg(windows)]
+struct WindowsProcess {
+    process_handle: HANDLE,
+    thread_handle: HANDLE,
+    pid: u32,
+}
+
+#[cfg(windows)]
+unsafe impl Send for WindowsProcess {}
+
+#[cfg(windows)]
+impl Drop for WindowsProcess {
+    fn drop(&mut self) {
+        unsafe {
+            if !self.thread_handle.is_null() {
+                let _ = CloseHandle(self.thread_handle);
+            }
+            if !self.process_handle.is_null() {
+                let _ = CloseHandle(self.process_handle);
+            }
+        }
+    }
+}
+
+impl ManagedChild {
+    fn id(&self) -> u32 {
+        match self {
+            #[cfg(not(windows))]
+            ManagedChild::Std(child) => child.id(),
+            #[cfg(windows)]
+            ManagedChild::Windows(process) => process.pid,
+        }
+    }
+
+    fn try_exit_code(&mut self) -> Result<Option<Option<i32>>, String> {
+        match self {
+            #[cfg(not(windows))]
+            ManagedChild::Std(child) => child
+                .try_wait()
+                .map(|status| status.map(|item| item.code()))
+                .map_err(|err| format!("查询服务端进程状态失败：{err}")),
+            #[cfg(windows)]
+            ManagedChild::Windows(process) => {
+                let mut code: u32 = 0;
+                let ok = unsafe { GetExitCodeProcess(process.process_handle, &mut code) };
+                if ok == 0 {
+                    return Err("查询服务端进程状态失败：GetExitCodeProcess 返回失败。".to_string());
+                }
+                if code == STILL_ACTIVE_EXIT_CODE {
+                    Ok(None)
+                } else {
+                    Ok(Some(Some(code as i32)))
+                }
+            }
+        }
+    }
+
+    fn terminate(&mut self) -> Result<(), String> {
+        match self {
+            #[cfg(not(windows))]
+            ManagedChild::Std(child) => child
+                .kill()
+                .map_err(|err| format!("强制停止服务端失败：{err}")),
+            #[cfg(windows)]
+            ManagedChild::Windows(process) => {
+                let ok = unsafe { TerminateProcess(process.process_handle, 1) };
+                if ok == 0 {
+                    Err("强制停止服务端失败：TerminateProcess 返回失败。".to_string())
+                } else {
+                    Ok(())
+                }
+            }
+        }
+    }
 }
 
 static SESSION: OnceLock<Mutex<Option<ServerSession>>> = OnceLock::new();
@@ -85,7 +182,7 @@ pub fn start_game_server_session(
     let steam_libraries = game_detector::discover_steam_libraries();
     let game_path = game_detector::find_installed_game_path(&adapter, &steam_libraries)
         .ok_or_else(|| "未检测到 Terraria 安装路径，无法启动后台服务端。".to_string())?;
-    let executable = std::path::Path::new(&game_path).join(exe);
+    let executable = Path::new(&game_path).join(exe);
     if !executable.exists() {
         return Err(format!(
             "未找到 Terraria 服务端程序：{}",
@@ -95,7 +192,7 @@ pub fn start_game_server_session(
 
     let (args, note, port) = build_terraria_server_args(&values)?;
     let mut managed = start_hidden_process(&executable, &PathBuf::from(&game_path), &args)?;
-    let pid = managed.child.id();
+    let pid = managed.process.id();
 
     push_logs(
         &managed.logs,
@@ -104,17 +201,16 @@ pub fn start_game_server_session(
             format!("参数：{}", args.join(" ")),
             note,
             format!("PID：{pid}"),
-            "已使用后台托管模式启动：不弹出白色命令框，保留 stdin，并捕获 stdout/stderr 到内嵌控制台。".to_string(),
-            "若服务端退出，联机助手会保留最后日志、退出码和曾经监听过端口的信息。".to_string(),
+            "已使用后台托管模式启动：不弹出白色命令框，并通过进程状态与端口探测判断服务端是否真实可用。".to_string(),
+            "如果服务端退出，联机助手会保留最后状态、退出码、运行时长和是否曾经监听端口。".to_string(),
         ],
     );
 
     let mut session = ServerSession {
-        pid,
         game_id: game_id.to_string(),
         profile_id: profile_id.to_string(),
         port,
-        child: managed.child,
+        process: managed.process,
         stdin: managed.stdin.take(),
         logs: managed.logs,
         exit_code: None,
@@ -159,7 +255,10 @@ pub fn send_server_command(command: &str) -> Result<ServerSessionStatus, String>
         return Ok(status_from_session(session, "命令为空，未发送。"));
     }
     let Some(stdin) = session.stdin.as_mut() else {
-        return Ok(status_from_session(session, "当前服务端没有可用的输入流。"));
+        return Ok(status_from_session(
+            session,
+            "当前后台模式没有可用的服务端输入流；请使用停止按钮结束服务端。",
+        ));
     };
     writeln!(stdin, "{trimmed}").map_err(|err| format!("发送服务端命令失败：{err}"))?;
     stdin
@@ -189,29 +288,97 @@ pub fn stop_server_session() -> Result<ServerSessionStatus, String> {
     }
     if session.exit_code.is_none() {
         let mut command = Command::new("taskkill");
-        command.args(["/PID", &session.pid.to_string(), "/F"]);
+        command.args(["/PID", &session.process.id().to_string(), "/F"]);
         let output = hide_console_window(&mut command).output();
         if let Ok(result) = output {
             if !result.status.success() {
                 push_log(
                     &session.logs,
                     format!(
-                        "强制停止服务端可能失败：{}",
+                        "通过 taskkill 停止服务端可能失败：{}",
                         String::from_utf8_lossy(&result.stderr)
                     ),
                 );
+                if let Err(err) = session.process.terminate() {
+                    push_log(&session.logs, err);
+                }
             }
+        } else if let Err(err) = session.process.terminate() {
+            push_log(&session.logs, err);
         }
+        thread::sleep(Duration::from_millis(300));
         refresh_process_state(&mut session);
     }
 
-    let mut status = status_from_session(&mut session, "服务端已停止。");
+    let mut status = status_from_session(
+        &mut session,
+        "服务端已停止。若游戏没有保存，请下次优先在游戏内正常退出。",
+    );
     status.running = false;
     status.ready = false;
     status.pid = None;
     Ok(status)
 }
 
+#[cfg(windows)]
+fn start_hidden_process(
+    executable: &PathBuf,
+    working_dir: &PathBuf,
+    args: &[String],
+) -> Result<ManagedProcess, String> {
+    let command_line = build_windows_command_line(executable, args);
+    let mut command_line_w = wide_null(&command_line);
+    let application_w = wide_null(executable.as_os_str());
+    let working_dir_w = wide_null(working_dir.as_os_str());
+
+    let mut startup: STARTUPINFOW = unsafe { std::mem::zeroed() };
+    startup.cb = std::mem::size_of::<STARTUPINFOW>() as u32;
+    startup.dwFlags = STARTF_USESHOWWINDOW;
+    startup.wShowWindow = SW_HIDE as u16;
+
+    let mut process_info: PROCESS_INFORMATION = unsafe { std::mem::zeroed() };
+    let created = unsafe {
+        CreateProcessW(
+            application_w.as_ptr(),
+            command_line_w.as_mut_ptr(),
+            std::ptr::null(),
+            std::ptr::null(),
+            0,
+            CREATE_NEW_CONSOLE,
+            std::ptr::null(),
+            working_dir_w.as_ptr(),
+            &startup,
+            &mut process_info,
+        )
+    };
+
+    if created == 0 {
+        return Err("启动后台服务端失败：CreateProcessW 返回失败。".to_string());
+    }
+
+    let logs = Arc::new(Mutex::new(Vec::new()));
+    push_log(
+        &logs,
+        "Windows 隐藏控制台模式：为 Terraria Server 创建隐藏控制台，避免 Console.Title/控制台句柄无效导致进程启动后退出。".to_string(),
+    );
+    push_log(
+        &logs,
+        "当前模式不读取实时 stdout；服务端是否可用以进程状态、127.0.0.1 端口和虚拟 IP 端口为准。"
+            .to_string(),
+    );
+
+    Ok(ManagedProcess {
+        process: ManagedChild::Windows(WindowsProcess {
+            process_handle: process_info.hProcess,
+            thread_handle: process_info.hThread,
+            pid: process_info.dwProcessId,
+        }),
+        stdin: None,
+        logs,
+    })
+}
+
+#[cfg(not(windows))]
 fn start_hidden_process(
     executable: &PathBuf,
     working_dir: &PathBuf,
@@ -224,9 +391,6 @@ fn start_hidden_process(
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-
-    #[cfg(windows)]
-    command.creation_flags(CREATE_NO_WINDOW);
 
     let mut child = command
         .spawn()
@@ -242,9 +406,63 @@ fn start_hidden_process(
         spawn_output_reader(stderr, Arc::clone(&logs));
     }
 
-    Ok(ManagedProcess { child, stdin, logs })
+    Ok(ManagedProcess {
+        process: ManagedChild::Std(child),
+        stdin,
+        logs,
+    })
 }
 
+#[cfg(windows)]
+fn wide_null(value: impl AsRef<std::ffi::OsStr>) -> Vec<u16> {
+    value.as_ref().encode_wide().chain(std::iter::once(0)).collect()
+}
+
+#[cfg(windows)]
+fn build_windows_command_line(executable: &Path, args: &[String]) -> String {
+    std::iter::once(executable.to_string_lossy().to_string())
+        .chain(args.iter().cloned())
+        .map(|item| quote_windows_arg(&item))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+#[cfg(windows)]
+fn quote_windows_arg(arg: &str) -> String {
+    if arg.is_empty() {
+        return "\"\"".to_string();
+    }
+    let needs_quote = arg.chars().any(|ch| ch.is_whitespace() || ch == '"');
+    if !needs_quote {
+        return arg.to_string();
+    }
+    let mut quoted = String::from("\"");
+    let mut backslashes = 0;
+    for ch in arg.chars() {
+        match ch {
+            '\\' => backslashes += 1,
+            '"' => {
+                quoted.push_str(&"\\".repeat(backslashes * 2 + 1));
+                quoted.push('"');
+                backslashes = 0;
+            }
+            _ => {
+                if backslashes > 0 {
+                    quoted.push_str(&"\\".repeat(backslashes));
+                    backslashes = 0;
+                }
+                quoted.push(ch);
+            }
+        }
+    }
+    if backslashes > 0 {
+        quoted.push_str(&"\\".repeat(backslashes * 2));
+    }
+    quoted.push('"');
+    quoted
+}
+
+#[cfg(not(windows))]
 fn spawn_output_reader<R>(reader: R, logs: Arc<Mutex<Vec<String>>>)
 where
     R: std::io::Read + Send + 'static,
@@ -261,9 +479,9 @@ fn refresh_process_state(session: &mut ServerSession) {
     if session.exit_code.is_some() {
         return;
     }
-    match session.child.try_wait() {
-        Ok(Some(status)) => {
-            session.exit_code = status.code();
+    match session.process.try_exit_code() {
+        Ok(Some(code)) => {
+            session.exit_code = code;
             session.exited_at = Some(Utc::now().to_rfc3339());
             push_log(
                 &session.logs,
@@ -279,7 +497,7 @@ fn refresh_process_state(session: &mut ServerSession) {
         }
         Ok(None) => {}
         Err(err) => {
-            push_log(&session.logs, format!("查询服务端进程状态失败：{err}"));
+            push_log(&session.logs, err);
         }
     }
 }
@@ -316,15 +534,14 @@ fn status_from_session(session: &mut ServerSession, message: &str) -> ServerSess
     let mut logs = snapshot_logs(&session.logs);
     logs.push(format!(
         "当前状态：{}；端口 {} {}；运行时长 {} 秒。",
-        if running {
-            "进程运行中"
-        } else {
-            "进程已退出"
-        },
+        if running { "进程运行中" } else { "进程已退出" },
         session.port,
         if ready { "已监听" } else { "尚未监听" },
         uptime_seconds
     ));
+    if running && ready && uptime_seconds >= 30 {
+        logs.push("30 秒稳定性已通过：服务端仍在运行，并且端口仍可连接。".to_string());
+    }
     if !running {
         logs.push(format!(
             "退出诊断：exit_code={}；退出时间={}；曾经监听端口={}。",
@@ -339,7 +556,7 @@ fn status_from_session(session: &mut ServerSession, message: &str) -> ServerSess
 
     ServerSessionStatus {
         running,
-        pid: if running { Some(session.pid) } else { None },
+        pid: if running { Some(session.process.id()) } else { None },
         game_id: Some(session.game_id.clone()),
         profile_id: Some(session.profile_id.clone()),
         ready,
