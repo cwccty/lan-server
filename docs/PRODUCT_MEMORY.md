@@ -71,3 +71,15 @@ SourceAddress：10.10.10.2
 ## 2026-06-02 结构化诊断要求
 
 诊断报告必须包含 `release_checks`，用于明确 MVP 必需项是否通过。只有所有 `required_for_mvp=true` 的检查项通过，并完成朋友侧真实加入测试，才允许声明 MVP 完成。
+
+## 2026-06-02 当前联机方式规划与开发进度补充
+
+除 n2n 外，项目规划中还保留这些联机方式：
+
+- Radmin VPN：作为外部工具检测和引导，不嵌入、不自动创建网络；适合用户已经会用 Radmin 的场景。
+- Manual LAN / 手动 IP：作为兜底模式，覆盖同一局域网、已有 VPN、ZeroTier、Tailscale、自建 WireGuard 等情况；客户端只负责 IP/端口测试和解释。
+- ZeroTier / Tailscale：后续可做检测与引导，但当前 MVP 不内置管理，先归入 Manual LAN 场景。
+- 官方/自建 supernode：未来可产品化，当前只支持用户 VPS 自建 supernode。
+- n2n 自动下载/安装：未来方向，必须固定版本、白名单下载、SHA256 校验和用户确认；当前 MVP 不自动下载。
+
+当前开发进度以“可发布 MVP”为口径粗估：n2n 内置组网约 65%，通用组网中心约 45%，Terraria 向导约 55%，发布级诊断约 35%。真正完成 MVP 的条件不是界面看起来正常，而是 release 客户端生成的结构化 `release_checks` 必需项全部通过，并完成朋友侧真实加入测试。

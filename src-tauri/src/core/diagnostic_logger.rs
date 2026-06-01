@@ -20,19 +20,32 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
     let n2n_available = n2n.map(|item| item.available).unwrap_or(false);
     let n2n_virtual_ip = n2n.and_then(|item| item.virtual_ip.clone());
     let n2n_running = n2n
-        .map(|item| item.notes.iter().any(|note| note.contains("正在运行")))
+        .map(|item| {
+            item.notes.iter().any(|note| {
+                note.contains("正在运行")
+                    || note.to_ascii_lowercase().contains("running")
+                    || note.contains("PID")
+            })
+        })
         .unwrap_or(false);
+
     let server_running = server.as_ref().map(|item| item.running).unwrap_or(false);
     let server_ready = server.as_ref().map(|item| item.ready).unwrap_or(false);
     let server_uptime = server
         .as_ref()
         .and_then(|item| item.uptime_seconds)
         .unwrap_or(0);
+    let server_exit_code = server.as_ref().and_then(|item| item.exit_code);
     let terraria_stable = server_running && server_ready && server_uptime >= 30;
-    let server_exit_ok = server
+
+    // 这个检查不是要求服务端必须正在运行，而是要求“退出时能被真实记录”。
+    // 没有启动过服务端时不通过，避免发布前漏测；启动后若退出，必须能看到 exit_code/exited_at/ever_ready。
+    let server_exit_diagnostics_ok = server
         .as_ref()
-        .map(|item| item.running || item.exit_code.is_some() || !item.ever_ready)
-        .unwrap_or(true);
+        .map(|item| {
+            item.running || item.exit_code.is_some() || item.exited_at.is_some() || item.ever_ready
+        })
+        .unwrap_or(false);
 
     let release_checks = vec![
         ReleaseCheck {
@@ -48,17 +61,18 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
             id: "n2n_virtual_ip".to_string(),
             label: "n2n 虚拟 IP".to_string(),
             ok: n2n_virtual_ip.is_some(),
-            detail: n2n_virtual_ip.unwrap_or_else(|| "未检测到虚拟 IP".to_string()),
+            detail: n2n_virtual_ip.unwrap_or_else(|| "未检测到 n2n/TAP 虚拟 IP".to_string()),
             required_for_mvp: true,
         },
         ReleaseCheck {
             id: "n2n_running".to_string(),
-            label: "n2n edge 运行态".to_string(),
+            label: "n2n edge 运行状态".to_string(),
             ok: n2n_running,
             detail: if n2n_running {
-                "检测到由联机助手记录的 n2n edge 正在运行。".to_string()
+                "检测到由联机助手记录或系统中正在运行的 n2n edge。".to_string()
             } else {
-                "尚未检测到正在运行的 n2n edge；发布前需启动一次并确认。".to_string()
+                "尚未检测到正在运行的 n2n edge；发布前需要启动一次并确认 supernode 注册成功。"
+                    .to_string()
             },
             required_for_mvp: true,
         },
@@ -71,9 +85,7 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
                 server_running,
                 server_ready,
                 server_uptime,
-                server
-                    .as_ref()
-                    .and_then(|item| item.exit_code)
+                server_exit_code
                     .map(|code| code.to_string())
                     .unwrap_or_else(|| "无".to_string())
             ),
@@ -82,20 +94,24 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
         ReleaseCheck {
             id: "server_exit_diagnostics".to_string(),
             label: "服务端退出诊断".to_string(),
-            ok: server_exit_ok,
+            ok: server_exit_diagnostics_ok,
             detail: server
                 .as_ref()
                 .map(|item| {
                     format!(
-                        "ever_ready={} exit_code={} exited_at={}",
+                        "ever_ready={} exit_code={} exited_at={} uptime={}s",
                         item.ever_ready,
                         item.exit_code
                             .map(|code| code.to_string())
                             .unwrap_or_else(|| "无".to_string()),
-                        item.exited_at.as_deref().unwrap_or("无")
+                        item.exited_at.as_deref().unwrap_or("无"),
+                        item.uptime_seconds.unwrap_or(0)
                     )
                 })
-                .unwrap_or_else(|| "当前没有服务端会话；启动后才能验证退出诊断。".to_string()),
+                .unwrap_or_else(|| {
+                    "当前没有服务端会话；请在 release 客户端启动一次 Terraria 服务端后再生成诊断。"
+                        .to_string()
+                }),
             required_for_mvp: true,
         },
         ReleaseCheck {
@@ -143,9 +159,9 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
         ),
         release_checks,
         details: vec![
-            format!("发布前关键检查:\n{}", release_lines.join("\n")),
+            format!("发布前关键检查：\n{}", release_lines.join("\n")),
             format!(
-                "Steam 库路径: {}",
+                "Steam 库路径：{}",
                 serde_json::to_string_pretty(
                     &steam_libraries
                         .iter()
@@ -155,15 +171,15 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
                 .unwrap_or_default()
             ),
             format!(
-                "游戏扫描: {}",
+                "游戏扫描：{}",
                 serde_json::to_string_pretty(&games).unwrap_or_default()
             ),
             format!(
-                "网络后端: {}",
+                "网络后端：{}",
                 serde_json::to_string_pretty(&backends).unwrap_or_default()
             ),
             format!(
-                "内嵌服务端会话: {}",
+                "内嵌服务端会话：{}",
                 serde_json::to_string_pretty(&server).unwrap_or_default()
             ),
             "隐私说明：报告不包含凭据、Cookie、SSH Key、浏览器数据或无关用户目录内容。".to_string(),
