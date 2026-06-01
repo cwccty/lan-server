@@ -271,3 +271,26 @@ tools/n2n/
 ### 后续建议
 - 增加 supernode 延迟测试和多节点评分。
 - 增加 P2P/中继状态识别能力。
+
+## 2026-06-01 supernode 部署文档与未来自动下载规划
+
+### 本轮目标
+- 采用 A 方案：优先从官方源码自行构建 n2n edge。
+- 把自动下载 edge 加入未来方向，而不是当前第一版默认能力。
+- 给出 VPS 部署 supernode 的可执行步骤。
+
+### 已完成
+- 新增 `docs/N2N_SUPERNODE_DEPLOY.md`，包含：
+  - Ubuntu/Debian 上安装 n2n。
+  - 源码构建 n2n。
+  - 临时启动 `supernode -l 7777`。
+  - UFW 和云厂商安全组放行 UDP。
+  - systemd 常驻服务配置。
+  - 客户端填写方式。
+  - 延迟判断和常见问题。
+- 更新 `PROJECT.md`：把 n2n 自动下载/安装列为未来方向，并规定固定版本、白名单、SHA256 校验和用户确认。
+
+### 下一步
+- 用户在 VPS 上按 `docs/N2N_SUPERNODE_DEPLOY.md` 部署 supernode。
+- 本地准备 Windows 版 `tools/n2n/edge.exe`。
+- 两台电脑用相同 community/secret/supernode，不同 local_ip 做真实互通测试。
