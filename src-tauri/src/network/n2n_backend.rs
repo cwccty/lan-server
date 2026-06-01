@@ -17,15 +17,15 @@ pub fn detect() -> BackendSummary {
         available: executable.is_some(),
         virtual_ip: find_n2n_virtual_ip(),
         notes: if let Some(path) = executable {
-            vec![format!("??? n2n edge: {}", path.to_string_lossy())]
+            vec![format!("检测到 n2n edge: {}", path.to_string_lossy())]
         } else {
             vec![format!(
-                "???? n2n edge??? edge.exe ? n2n.exe ?????????{}",
+                "未检测到 n2n edge。请将 edge.exe 或 n2n.exe 放入以下任一目录：{}",
                 candidate_n2n_dirs()
                     .iter()
                     .map(|path| path.to_string_lossy().to_string())
                     .collect::<Vec<_>>()
-                    .join("?")
+                    .join("；")
             )]
         },
     }

@@ -349,3 +349,19 @@ tools/n2n/
 ### 下一步
 - 重新打开 `src-tauri/target/release/lan-helper.exe`。
 - 进入网络配置页，n2n 应显示检测到 `tools/n2n/edge.exe`。
+
+## 2026-06-01 n2n 检测提示乱码修复
+
+### 已完成
+- 修复 `n2n_backend` 检测成功/失败提示中的乱码。
+- 修复 `BackendCard` 中“可用/不可用”和 notes 分隔符乱码。
+- 已停止旧 release 客户端进程并重新执行 `npm run tauri:build`，生成新版 `lan-helper.exe`。
+
+### 验证
+- `npm run build` 通过。
+- `cargo check` 通过。
+- `npm run tauri:build` 通过。
+
+### 下一步
+- 重新打开 release 客户端确认 n2n 卡片显示：`检测到 n2n edge: ...`。
+- 进入真实 n2n 联调：VPS supernode、两台客户端 edge、虚拟 IP 互通、Terraria 端口测试。
