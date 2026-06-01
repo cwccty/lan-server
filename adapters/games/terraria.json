@@ -1,0 +1,75 @@
+{
+  "game_id": "terraria",
+  "display_name": "Terraria",
+  "steam_appid": "105600",
+  "capabilities": ["lan", "ip_join", "dedicated_server"],
+  "executables": ["Terraria.exe", "TerrariaServer.exe"],
+  "default_ports": [7777],
+  "launch_profiles": [
+    {
+      "id": "client",
+      "name": "启动游戏客户端",
+      "type": "client",
+      "exe": "Terraria.exe"
+    },
+    {
+      "id": "server",
+      "name": "启动本地服务端",
+      "type": "server",
+      "exe": "TerrariaServer.exe",
+      "config_fields": [
+        {
+          "id": "world_choice",
+          "label": "世界编号",
+          "type": "number",
+          "default_value": "1",
+          "required": true,
+          "help": "对应 Terraria Server 控制台中的世界序号，例如截图里的 1。"
+        },
+        {
+          "id": "max_players",
+          "label": "最大人数",
+          "type": "number",
+          "default_value": "8",
+          "required": true
+        },
+        {
+          "id": "port",
+          "label": "端口",
+          "type": "number",
+          "default_value": "7777",
+          "required": true
+        },
+        {
+          "id": "auto_forward",
+          "label": "自动端口转发 y/n",
+          "type": "select",
+          "default_value": "y",
+          "required": true,
+          "options": ["y", "n"],
+          "help": "使用虚拟局域网时一般填 n 也可以；公网开服可尝试 y。"
+        },
+        {
+          "id": "password",
+          "label": "服务器密码",
+          "type": "password",
+          "default_value": "",
+          "required": false,
+          "help": "留空表示不设置密码。"
+        }
+      ],
+      "stdin_templates": [
+        "{{world_choice}}",
+        "{{max_players}}",
+        "{{port}}",
+        "{{auto_forward}}",
+        "{{password}}"
+      ]
+    },
+    {
+      "id": "docs",
+      "name": "查看连接说明",
+      "type": "docs"
+    }
+  ]
+}

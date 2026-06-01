@@ -1,0 +1,11 @@
+{
+  "game_id": "stardew_valley",
+  "display_name": "Stardew Valley",
+  "steam_appid": "413150",
+  "capabilities": ["lan", "ip_join"],
+  "executables": ["Stardew Valley.exe"],
+  "default_ports": [24642],
+  "launch_profiles": [
+    { "id": "client", "name": "启动游戏", "type": "client", "exe": "Stardew Valley.exe" }
+  ]
+}

@@ -1,0 +1,14 @@
+node_modules/
+dist/
+target/
+src-tauri/target/
+.vite/
+*.log
+*.tmp
+.env
+.env.*
+!.env.example
+tools/n2n/*.exe
+tools/n2n/last_config.json
+tools/n2n/n2n.pid
+heic_preview.png

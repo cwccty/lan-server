@@ -1,0 +1,11 @@
+{
+  "game_id": "minecraft_java",
+  "display_name": "Minecraft Java Edition",
+  "steam_appid": null,
+  "capabilities": ["lan", "ip_join", "dedicated_server"],
+  "executables": ["MinecraftLauncher.exe", "java.exe"],
+  "default_ports": [25565],
+  "launch_profiles": [
+    { "id": "docs", "name": "查看连接说明", "type": "docs" }
+  ]
+}

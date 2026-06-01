@@ -1,0 +1,105 @@
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #10141f;
+  color: #f5f7fb;
+}
+
+button {
+  cursor: pointer;
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: #4f7cff;
+  color: white;
+  margin: 6px;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+button.active {
+  background: #8fb0ff;
+  color: #10141f;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0;
+  color: #c9d4ee;
+}
+
+input,
+select {
+  border: 1px solid #2b3652;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #0d1220;
+  color: #f5f7fb;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 240px 1fr;
+}
+
+aside {
+  padding: 24px;
+  background: #151b2b;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+main {
+  padding: 32px;
+}
+
+.card {
+  background: #1a2235;
+  border: 1px solid #2b3652;
+  border-radius: 16px;
+  padding: 16px;
+  margin: 12px 0;
+}
+
+.error-card {
+  border-color: #9a2e2e;
+}
+
+.muted {
+  color: #8d9ab7;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.config-panel {
+  border-top: 1px solid #2b3652;
+  margin-top: 12px;
+  padding-top: 12px;
+}
+
+.badge {
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: #30384f;
+}
+
+.badge.good { background: #1d7f56; }
+.badge.warn { background: #9a7620; }
+.badge.bad { background: #9a2e2e; }
+
+pre {
+  background: #080b12;
+  padding: 16px;
+  overflow: auto;
+  border-radius: 12px;
+}
