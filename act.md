@@ -606,3 +606,17 @@ tools/n2n/
 - `cargo check` 通过。
 - `npm run tauri:build` 通过。
 - 清理残留后重新打开 release，进程列表显示主窗口为 `lan-helper.exe`，未再出现 `WindowsTerminal/OpenConsole`。
+
+
+## 2026-06-01 联机向导中文界面恢复
+
+### 已完成
+- 将联机向导中临时英文的邀请信息、等待提示、服务端状态、加入说明、控制台说明恢复为中文。
+- 保留上一轮无白框、无透明 Terminal、后台命令隐藏执行的修复。
+
+### 验证
+- `npm run build` 通过。
+- `npm run tauri:build` 通过。
+
+### 下一步
+- 进入真实联机验证：确认房主服务端端口已监听、n2n edge 已在双方运行、加入者用房主虚拟 IP + 端口加入。
