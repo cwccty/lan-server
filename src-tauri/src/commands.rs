@@ -104,3 +104,8 @@ pub fn read_server_session() -> Result<ServerSessionStatus, String> {
 pub fn stop_server_session() -> Result<ServerSessionStatus, String> {
     server_session::stop_server_session()
 }
+
+#[tauri::command]
+pub fn send_server_command(command: String) -> Result<ServerSessionStatus, String> {
+    server_session::send_server_command(&command)
+}

@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::fs;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
 
@@ -20,6 +20,7 @@ const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 struct ServerSession {
     child: Child,
+    stdin: Option<ChildStdin>,
     game_id: String,
     profile_id: String,
     logs: Arc<Mutex<Vec<String>>>,
@@ -45,7 +46,7 @@ pub fn start_game_server_session(
     *current = None;
 
     if game_id != "terraria" || profile_id != "server" {
-        return Err("当前内嵌控制台第一版仅支持 Terraria 服务端。".to_string());
+        return Err("内嵌控制台第一版仅支持 Terraria 服务端。".to_string());
     }
 
     let adapter = adapter_store::load_game_adapters()?
@@ -76,13 +77,14 @@ pub fn start_game_server_session(
         format!("启动：{}", executable.to_string_lossy()),
         format!("参数：{}", args.join(" ")),
         note,
+        "提示：如果仍出现外部白色控制台，请确认你点击的是“联机向导 → 在程序内启动服务端”，不是旧的推荐启动项。".to_string(),
     ]));
 
     let mut command = Command::new(&executable);
     command
         .current_dir(&game_path)
         .args(args)
-        .stdin(Stdio::null())
+        .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
@@ -90,12 +92,14 @@ pub fn start_game_server_session(
     command.creation_flags(CREATE_NO_WINDOW);
 
     let mut child = command.spawn().map_err(|err| format!("启动 Terraria 服务端失败：{err}"))?;
+    let stdin = child.stdin.take();
     attach_reader(child.stdout.take(), logs.clone(), "OUT");
     attach_reader(child.stderr.take(), logs.clone(), "ERR");
 
     let pid = child.id();
     *current = Some(ServerSession {
         child,
+        stdin,
         game_id: game_id.to_string(),
         profile_id: profile_id.to_string(),
         logs,
@@ -106,6 +110,7 @@ pub fn start_game_server_session(
         pid: Some(pid),
         game_id: Some(game_id.to_string()),
         profile_id: Some(profile_id.to_string()),
+        ready: false,
         logs: current
             .as_ref()
             .and_then(|session| session.logs.lock().ok().map(|logs| logs.clone()))
@@ -125,6 +130,7 @@ pub fn read_server_session() -> Result<ServerSessionStatus, String> {
             pid: None,
             game_id: None,
             profile_id: None,
+            ready: false,
             logs: Vec::new(),
             message: "当前没有运行中的服务端会话。".to_string(),
         });
@@ -141,6 +147,28 @@ pub fn read_server_session() -> Result<ServerSessionStatus, String> {
     Ok(status)
 }
 
+pub fn send_server_command(command: &str) -> Result<ServerSessionStatus, String> {
+    let session_lock = SESSION.get_or_init(|| Mutex::new(None));
+    let mut current = session_lock
+        .lock()
+        .map_err(|_| "服务端会话锁已损坏".to_string())?;
+    let Some(session) = current.as_mut() else {
+        return Err("当前没有运行中的服务端会话。".to_string());
+    };
+    if session.child.try_wait().map_err(|err| err.to_string())?.is_some() {
+        return Err("服务端进程已退出，无法发送命令。".to_string());
+    }
+    let Some(stdin) = session.stdin.as_mut() else {
+        return Err("当前服务端没有可写入的 stdin。".to_string());
+    };
+
+    writeln!(stdin, "{command}").map_err(|err| format!("发送服务端命令失败：{err}"))?;
+    if let Ok(mut logs) = session.logs.lock() {
+        logs.push(format!("[CMD] {command}"));
+    }
+    Ok(status_from_session(session, "命令已发送。"))
+}
+
 pub fn stop_server_session() -> Result<ServerSessionStatus, String> {
     let session_lock = SESSION.get_or_init(|| Mutex::new(None));
     let mut current = session_lock
@@ -152,6 +180,7 @@ pub fn stop_server_session() -> Result<ServerSessionStatus, String> {
             pid: None,
             game_id: None,
             profile_id: None,
+            ready: false,
             logs: Vec::new(),
             message: "当前没有运行中的服务端会话。".to_string(),
         });
@@ -166,12 +195,17 @@ pub fn stop_server_session() -> Result<ServerSessionStatus, String> {
 }
 
 fn status_from_session(session: &mut ServerSession, message: &str) -> ServerSessionStatus {
+    let logs = session.logs.lock().map(|logs| logs.clone()).unwrap_or_default();
+    let ready = logs
+        .iter()
+        .any(|line| line.contains("Listening on port") || line.contains("Server started"));
     ServerSessionStatus {
         running: true,
         pid: Some(session.child.id()),
         game_id: Some(session.game_id.clone()),
         profile_id: Some(session.profile_id.clone()),
-        logs: session.logs.lock().map(|logs| logs.clone()).unwrap_or_default(),
+        ready,
+        logs,
         message: message.to_string(),
     }
 }

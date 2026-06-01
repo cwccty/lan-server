@@ -5,6 +5,7 @@ export interface ServerSessionStatus {
   pid?: number;
   game_id?: string;
   profile_id?: string;
+  ready: boolean;
   logs: string[];
   message: string;
 }

@@ -30,3 +30,4 @@ export const startGameServerSession = (gameId: string, profileId: string, config
   invoke<ServerSessionStatus>('start_game_server_session', { gameId, profileId, config });
 export const readServerSession = () => invoke<ServerSessionStatus>('read_server_session');
 export const stopServerSession = () => invoke<ServerSessionStatus>('stop_server_session');
+export const sendServerCommand = (command: string) => invoke<ServerSessionStatus>('send_server_command', { command });

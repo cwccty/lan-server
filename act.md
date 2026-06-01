@@ -439,3 +439,35 @@ tools/n2n/
 - 内嵌控制台第一版先显示日志和停止进程；暂不实现任意 stdin 交互输入。
 - Terraria 当前通过 `-world/-players/-port/-pass/-noupnp` 命令行参数避免交互式世界选择。
 - 后续可增加：发送服务端命令、保存日志、按行高亮错误、自动识别 Listening on port。
+
+## 2026-06-01 联机向导按钮反馈与内嵌控制台增强
+
+### 问题
+- 用户反馈联机向导里的按钮按下貌似没有响应。
+- 用户反馈 Terraria Server 白色命令框仍单独出现，两个运行窗口体验不舒服。
+
+### 判断
+- 按钮“无响应”的主要原因是前端 async 操作没有统一捕获错误，Tauri invoke 失败时没有把错误显示到 UI。
+- 白色命令框不应该作为最终体验存在；应使用“程序托管子进程 + 内嵌日志面板”。如果仍弹出，通常是点击了旧的推荐方案启动项、旧客户端未重启，或 TerrariaServer 自身创建控制台窗口。
+
+### 已完成
+- 重写 `MultiplayerWizardPage`，修复中文乱码。
+- 为所有关键按钮增加统一错误反馈：失败会显示在状态消息区域。
+- 内嵌控制台增加服务端命令输入：
+  - 自定义命令输入框。
+  - 预设按钮：`help`、`save`、`exit`。
+- Rust 服务端会话改为保留 stdin，可向 Terraria Server 发送命令。
+- `ServerSessionStatus` 增加 `ready` 字段。
+- 根据日志自动识别：`Listening on port` 或 `Server started`，显示服务端是否就绪。
+- 新增 Tauri command：`send_server_command`。
+- Windows 下继续使用 `CREATE_NO_WINDOW` 隐藏外部控制台。
+- 已停止旧 release 客户端并重新构建。
+
+### 验证
+- `npm run build` 通过。
+- `cargo check` 通过。
+- `npm run tauri:build` 通过。
+
+### 下一步
+- 用户重新打开新版 `src-tauri/target/release/lan-helper.exe` 测试联机向导按钮反馈。
+- 如果“在程序内启动服务端”仍弹出白色命令框，记录具体点击入口和是否有旧 TerrariaServer 进程残留，再考虑更强的 Windows 进程创建策略或改用服务端配置文件模式。

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   readServerSession,
+  sendServerCommand,
   setupNetwork,
   startGameServerSession,
   startNetwork,
@@ -24,6 +25,7 @@ export function MultiplayerWizardPage() {
   const [maxPlayers, setMaxPlayers] = useState('8');
   const [password, setPassword] = useState('');
   const [autoForward, setAutoForward] = useState('n');
+  const [serverCommand, setServerCommand] = useState('help');
   const [statusMessage, setStatusMessage] = useState('');
   const [session, setSession] = useState<ServerSessionStatus | null>(null);
 
@@ -63,31 +65,54 @@ export function MultiplayerWizardPage() {
     '操作：打开联机助手 → 联机向导 → 我是加入者 → 按上面信息填写 → 启动 n2n edge → Terraria 里 Join via IP。'
   ].join('\n');
 
-  const saveAndStartN2n = async () => {
-    setStatusMessage('正在保存 n2n 配置...');
-    const setup = await setupNetwork('n2n', {
-      room_name: roomName,
-      secret,
-      supernode,
-      local_ip: localIp
+  const runAction = async (label: string, action: () => Promise<unknown>) => {
+    try {
+      setStatusMessage(`${label}...`);
+      await action();
+    } catch (error) {
+      setStatusMessage(`${label}失败：${String(error)}`);
+    }
+  };
+
+  const saveAndStartN2n = () =>
+    runAction('正在保存 n2n 配置并启动 edge', async () => {
+      const setup = await setupNetwork('n2n', {
+        room_name: roomName,
+        secret,
+        supernode,
+        local_ip: localIp
+      });
+      const started = await startNetwork('n2n');
+      setStatusMessage(`${setup.message}\n${started.message}`);
     });
-    setStatusMessage(setup.message);
-    const started = await startNetwork('n2n');
-    setStatusMessage(`${setup.message}\n${started.message}`);
-  };
 
-  const startEmbeddedServer = async () => {
-    setStatusMessage('正在启动内嵌 Terraria 服务端...');
-    const next = await startGameServerSession('terraria', 'server', serverConfig);
-    setSession(next);
-    setStatusMessage(next.message);
-  };
+  const startEmbeddedServer = () =>
+    runAction('正在启动内嵌 Terraria 服务端', async () => {
+      const next = await startGameServerSession('terraria', 'server', serverConfig);
+      setSession(next);
+      setStatusMessage(next.message);
+    });
 
-  const stopEmbeddedServer = async () => {
-    const next = await stopServerSession();
-    setSession(next);
-    setStatusMessage(next.message);
-  };
+  const stopEmbeddedServer = () =>
+    runAction('正在停止内嵌服务端', async () => {
+      const next = await stopServerSession();
+      setSession(next);
+      setStatusMessage(next.message);
+    });
+
+  const sendCommand = (command = serverCommand) =>
+    runAction(`正在发送命令：${command}`, async () => {
+      const next = await sendServerCommand(command);
+      setSession(next);
+      setStatusMessage(next.message);
+      setServerCommand('');
+    });
+
+  const copyInvite = () =>
+    runAction('正在复制邀请信息', async () => {
+      await navigator.clipboard?.writeText(inviteText);
+      setStatusMessage('邀请信息已复制。');
+    });
 
   return (
     <section>
@@ -174,7 +199,7 @@ export function MultiplayerWizardPage() {
           <>
             <p className="muted">把下面内容发给朋友。</p>
             <pre>{inviteText}</pre>
-            <button onClick={() => navigator.clipboard?.writeText(inviteText)}>复制邀请信息</button>
+            <button onClick={copyInvite}>复制邀请信息</button>
           </>
         ) : (
           <p>
@@ -187,12 +212,32 @@ export function MultiplayerWizardPage() {
       <article className="card">
         <h3>内嵌服务端控制台</h3>
         <p className="muted">
-          可行，但不是把系统白色命令框嵌进去，而是由程序托管服务端进程，并把 stdout/stderr 日志显示在这里。
-          第一版先支持 Terraria 服务端日志显示和停止进程。
+          这里不是嵌入系统白色命令框，而是由程序托管服务端进程并显示日志。正常情况下不会再弹出第二个 Terraria Server 窗口；
+          如果仍弹出，请确认没有使用旧的“推荐方案启动项”或旧版本客户端。
         </p>
         {statusMessage && <pre>{statusMessage}</pre>}
         <div className={session?.running ? 'result-ok' : 'result-bad'}>
           <p>状态：{session?.running ? `运行中，PID ${session.pid}` : '未运行'}</p>
+          <p>就绪：{session?.ready ? '已监听端口，可以邀请朋友加入' : '尚未识别到 Listening/Server started'}</p>
+        </div>
+        <div className="actions">
+          <input
+            value={serverCommand}
+            onChange={(event) => setServerCommand(event.target.value)}
+            placeholder="输入服务端命令，例如 help / save / exit"
+          />
+          <button onClick={() => sendCommand()} disabled={!session?.running || !serverCommand.trim()}>
+            发送命令
+          </button>
+          <button onClick={() => sendCommand('help')} disabled={!session?.running}>
+            help
+          </button>
+          <button onClick={() => sendCommand('save')} disabled={!session?.running}>
+            save
+          </button>
+          <button onClick={() => sendCommand('exit')} disabled={!session?.running}>
+            exit
+          </button>
         </div>
         <pre className="console-panel">{session?.logs?.join('\n') || '暂无服务端日志。'}</pre>
       </article>
