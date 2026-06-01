@@ -101,7 +101,21 @@ SourceAddress：10.10.10.2
 - Windows 下内嵌 Terraria 服务端改为 `CreateProcessW + CREATE_NEW_CONSOLE + STARTF_USESHOWWINDOW/SW_HIDE`。
 - 目的：给 TerrariaServer 一个有效控制台环境，同时隐藏外部白色命令框。
 - 状态判断继续以真实进程状态、`127.0.0.1:端口` 探测、运行时长、退出码、退出时间、是否曾经监听端口为准。
-- 当前 Windows 隐藏控制台模式不读取实时 stdout，因此内嵌控制台显示的是托管状态日志，不把“没有 stdout”伪装成真实游戏日志。
+- 当前 Windows 隐藏控制台模式已重定向 stdin/stdout/stderr，因此内嵌控制台和命令按钮应对应真实服务端进程。
 - 修复 `server_session.rs` 中遗留中文乱码，避免用户看到不可读错误信息。
 
 这一步不是纯 UI 修改，而是改变服务端创建方式，目标是降低“后台隐藏后服务端立即退出”的真实风险。
+
+## 2026-06-02 发布阻断项补强：隐藏控制台 + 标准输入输出重定向
+
+上一轮隐藏控制台方案解决了“需要有效控制台”的问题，但如果不重定向标准输入输出，`help/save/exit` 等按钮无法证明发送到了真实服务端。为满足发布清单，本轮继续补强：
+
+- Windows 下 `CreateProcessW` 启动 TerrariaServer 时创建匿名管道。
+- 将 stdin/stdout/stderr 传给子进程，同时继续使用隐藏的新控制台。
+- 内嵌控制台现在应能显示服务端 stdout/stderr。
+- `help` / `save` / `exit` 会写入真实服务端 stdin，不再只是界面按钮。
+- 状态仍以真实进程句柄、端口探测、退出码、退出时间、运行时长和是否曾经监听端口为准。
+
+这一步进一步把“服务端托管”从表面控制台面板推进为可验证的真实进程控制闭环。
+
+- 诊断报告新增 `server_io_bridge` 必需检查，用于证明内嵌控制台和 help/save/exit 不是 UI 伪装，而是已连接真实服务端 stdin/stdout/stderr。

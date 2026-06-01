@@ -38,12 +38,19 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
     let server_exit_code = server.as_ref().and_then(|item| item.exit_code);
     let terraria_stable = server_running && server_ready && server_uptime >= 30;
 
-    // 这个检查不是要求服务端必须正在运行，而是要求“退出时能被真实记录”。
-    // 没有启动过服务端时不通过，避免发布前漏测；启动后若退出，必须能看到 exit_code/exited_at/ever_ready。
     let server_exit_diagnostics_ok = server
         .as_ref()
         .map(|item| {
             item.running || item.exit_code.is_some() || item.exited_at.is_some() || item.ever_ready
+        })
+        .unwrap_or(false);
+
+    let server_io_bridge_ok = server
+        .as_ref()
+        .map(|item| {
+            item.logs
+                .iter()
+                .any(|line| line.contains("已重定向 stdin/stdout/stderr"))
         })
         .unwrap_or(false);
 
@@ -89,6 +96,17 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
                     .map(|code| code.to_string())
                     .unwrap_or_else(|| "无".to_string())
             ),
+            required_for_mvp: true,
+        },
+        ReleaseCheck {
+            id: "server_io_bridge".to_string(),
+            label: "服务端输入输出桥接".to_string(),
+            ok: server_io_bridge_ok,
+            detail: if server_io_bridge_ok {
+                "检测到服务端 stdin/stdout/stderr 已重定向，内嵌控制台和命令按钮对应真实服务端进程。".to_string()
+            } else {
+                "尚未检测到服务端 IO 桥接证据；请用新版 release 启动一次 Terraria 服务端后再生成诊断。".to_string()
+            },
             required_for_mvp: true,
         },
         ReleaseCheck {

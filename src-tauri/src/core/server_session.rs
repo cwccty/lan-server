@@ -1,15 +1,17 @@
 use std::collections::HashMap;
 use std::fs;
-use std::io::Write;
-#[cfg(not(windows))]
-use std::io::{BufRead, BufReader};
+#[cfg(windows)]
+use std::fs::File;
+use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpStream, ToSocketAddrs};
 use std::path::{Path, PathBuf};
 #[cfg(not(windows))]
 use std::process::Child;
 #[cfg(not(windows))]
+use std::process::ChildStdin;
+use std::process::Command;
+#[cfg(not(windows))]
 use std::process::Stdio;
-use std::process::{ChildStdin, Command};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -25,11 +27,19 @@ use crate::storage::adapter_store;
 #[cfg(windows)]
 use std::os::windows::ffi::OsStrExt;
 #[cfg(windows)]
-use windows_sys::Win32::Foundation::{CloseHandle, HANDLE};
+use std::os::windows::io::{FromRawHandle, RawHandle};
+#[cfg(windows)]
+use windows_sys::Win32::Foundation::{
+    CloseHandle, SetHandleInformation, HANDLE, HANDLE_FLAG_INHERIT,
+};
+#[cfg(windows)]
+use windows_sys::Win32::Security::SECURITY_ATTRIBUTES;
+#[cfg(windows)]
+use windows_sys::Win32::System::Pipes::CreatePipe;
 #[cfg(windows)]
 use windows_sys::Win32::System::Threading::{
     CreateProcessW, GetExitCodeProcess, TerminateProcess, CREATE_NEW_CONSOLE, PROCESS_INFORMATION,
-    STARTF_USESHOWWINDOW, STARTUPINFOW,
+    STARTF_USESHOWWINDOW, STARTF_USESTDHANDLES, STARTUPINFOW,
 };
 #[cfg(windows)]
 use windows_sys::Win32::UI::WindowsAndMessaging::SW_HIDE;
@@ -39,7 +49,7 @@ struct ServerSession {
     profile_id: String,
     port: u16,
     process: ManagedChild,
-    stdin: Option<ChildStdin>,
+    stdin: Option<ManagedStdin>,
     logs: Arc<Mutex<Vec<String>>>,
     exit_code: Option<i32>,
     exited_at: Option<String>,
@@ -50,8 +60,35 @@ struct ServerSession {
 
 struct ManagedProcess {
     process: ManagedChild,
-    stdin: Option<ChildStdin>,
+    stdin: Option<ManagedStdin>,
     logs: Arc<Mutex<Vec<String>>>,
+}
+
+enum ManagedStdin {
+    #[cfg(not(windows))]
+    Std(ChildStdin),
+    #[cfg(windows)]
+    Windows(File),
+}
+
+impl Write for ManagedStdin {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        match self {
+            #[cfg(not(windows))]
+            ManagedStdin::Std(stdin) => stdin.write(buf),
+            #[cfg(windows)]
+            ManagedStdin::Windows(file) => file.write(buf),
+        }
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        match self {
+            #[cfg(not(windows))]
+            ManagedStdin::Std(stdin) => stdin.flush(),
+            #[cfg(windows)]
+            ManagedStdin::Windows(file) => file.flush(),
+        }
+    }
 }
 
 enum ManagedChild {
@@ -331,10 +368,20 @@ fn start_hidden_process(
     let application_w = wide_null(executable.as_os_str());
     let working_dir_w = wide_null(working_dir.as_os_str());
 
+    let (stdin_read, stdin_write) = create_pipe_pair("stdin")?;
+    let (stdout_read, stdout_write) = create_pipe_pair("stdout")?;
+    let (stderr_read, stderr_write) = create_pipe_pair("stderr")?;
+    make_non_inheritable(stdin_write, "stdin parent write")?;
+    make_non_inheritable(stdout_read, "stdout parent read")?;
+    make_non_inheritable(stderr_read, "stderr parent read")?;
+
     let mut startup: STARTUPINFOW = unsafe { std::mem::zeroed() };
     startup.cb = std::mem::size_of::<STARTUPINFOW>() as u32;
-    startup.dwFlags = STARTF_USESHOWWINDOW;
+    startup.dwFlags = STARTF_USESHOWWINDOW | STARTF_USESTDHANDLES;
     startup.wShowWindow = SW_HIDE as u16;
+    startup.hStdInput = stdin_read;
+    startup.hStdOutput = stdout_write;
+    startup.hStdError = stderr_write;
 
     let mut process_info: PROCESS_INFORMATION = unsafe { std::mem::zeroed() };
     let created = unsafe {
@@ -343,7 +390,7 @@ fn start_hidden_process(
             command_line_w.as_mut_ptr(),
             std::ptr::null(),
             std::ptr::null(),
-            0,
+            1,
             CREATE_NEW_CONSOLE,
             std::ptr::null(),
             working_dir_w.as_ptr(),
@@ -352,7 +399,18 @@ fn start_hidden_process(
         )
     };
 
+    unsafe {
+        let _ = CloseHandle(stdin_read);
+        let _ = CloseHandle(stdout_write);
+        let _ = CloseHandle(stderr_write);
+    }
+
     if created == 0 {
+        unsafe {
+            let _ = CloseHandle(stdin_write);
+            let _ = CloseHandle(stdout_read);
+            let _ = CloseHandle(stderr_read);
+        }
         return Err("启动后台服务端失败：CreateProcessW 返回失败。".to_string());
     }
 
@@ -363,9 +421,15 @@ fn start_hidden_process(
     );
     push_log(
         &logs,
-        "当前模式不读取实时 stdout；服务端是否可用以进程状态、127.0.0.1 端口和虚拟 IP 端口为准。"
+        "已重定向 stdin/stdout/stderr：内嵌控制台会显示服务端输出，help/save/exit 会发送到真实服务端进程。"
             .to_string(),
     );
+
+    let stdin = unsafe { File::from_raw_handle(stdin_write as RawHandle) };
+    let stdout = unsafe { File::from_raw_handle(stdout_read as RawHandle) };
+    let stderr = unsafe { File::from_raw_handle(stderr_read as RawHandle) };
+    spawn_output_reader(stdout, Arc::clone(&logs));
+    spawn_output_reader(stderr, Arc::clone(&logs));
 
     Ok(ManagedProcess {
         process: ManagedChild::Windows(WindowsProcess {
@@ -373,7 +437,7 @@ fn start_hidden_process(
             thread_handle: process_info.hThread,
             pid: process_info.dwProcessId,
         }),
-        stdin: None,
+        stdin: Some(ManagedStdin::Windows(stdin)),
         logs,
     })
 }
@@ -396,7 +460,7 @@ fn start_hidden_process(
         .spawn()
         .map_err(|err| format!("启动后台服务端失败：{err}"))?;
 
-    let stdin = child.stdin.take();
+    let stdin = child.stdin.take().map(ManagedStdin::Std);
     let logs = Arc::new(Mutex::new(Vec::new()));
 
     if let Some(stdout) = child.stdout.take() {
@@ -414,8 +478,39 @@ fn start_hidden_process(
 }
 
 #[cfg(windows)]
+fn create_pipe_pair(name: &str) -> Result<(HANDLE, HANDLE), String> {
+    let mut read: HANDLE = std::ptr::null_mut();
+    let mut write: HANDLE = std::ptr::null_mut();
+    let attrs = SECURITY_ATTRIBUTES {
+        nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
+        lpSecurityDescriptor: std::ptr::null_mut(),
+        bInheritHandle: 1,
+    };
+    let ok = unsafe { CreatePipe(&mut read, &mut write, &attrs, 0) };
+    if ok == 0 {
+        Err(format!("创建 {name} 管道失败：CreatePipe 返回失败。"))
+    } else {
+        Ok((read, write))
+    }
+}
+
+#[cfg(windows)]
+fn make_non_inheritable(handle: HANDLE, name: &str) -> Result<(), String> {
+    let ok = unsafe { SetHandleInformation(handle, HANDLE_FLAG_INHERIT, 0) };
+    if ok == 0 {
+        Err(format!("设置 {name} 管道继承属性失败。"))
+    } else {
+        Ok(())
+    }
+}
+
+#[cfg(windows)]
 fn wide_null(value: impl AsRef<std::ffi::OsStr>) -> Vec<u16> {
-    value.as_ref().encode_wide().chain(std::iter::once(0)).collect()
+    value
+        .as_ref()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect()
 }
 
 #[cfg(windows)]
@@ -462,7 +557,6 @@ fn quote_windows_arg(arg: &str) -> String {
     quoted
 }
 
-#[cfg(not(windows))]
 fn spawn_output_reader<R>(reader: R, logs: Arc<Mutex<Vec<String>>>)
 where
     R: std::io::Read + Send + 'static,
@@ -534,7 +628,11 @@ fn status_from_session(session: &mut ServerSession, message: &str) -> ServerSess
     let mut logs = snapshot_logs(&session.logs);
     logs.push(format!(
         "当前状态：{}；端口 {} {}；运行时长 {} 秒。",
-        if running { "进程运行中" } else { "进程已退出" },
+        if running {
+            "进程运行中"
+        } else {
+            "进程已退出"
+        },
         session.port,
         if ready { "已监听" } else { "尚未监听" },
         uptime_seconds
@@ -556,7 +654,11 @@ fn status_from_session(session: &mut ServerSession, message: &str) -> ServerSess
 
     ServerSessionStatus {
         running,
-        pid: if running { Some(session.process.id()) } else { None },
+        pid: if running {
+            Some(session.process.id())
+        } else {
+            None
+        },
         game_id: Some(session.game_id.clone()),
         profile_id: Some(session.profile_id.clone()),
         ready,
