@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 use std::fs;
+use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpStream, ToSocketAddrs};
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
-use std::sync::{Mutex, OnceLock};
+use std::process::{Child, ChildStdin, Command, Stdio};
+use std::sync::{Arc, Mutex, OnceLock};
+use std::thread;
 use std::time::Duration;
 
 use serde_json::Value;
@@ -25,13 +27,20 @@ const PROCESS_QUERY_LIMITED_INFORMATION: u32 = 0x1000;
 #[cfg(windows)]
 const STILL_ACTIVE: u32 = 259;
 
-#[derive(Clone)]
 struct ServerSession {
     pid: u32,
     game_id: String,
     profile_id: String,
     port: u16,
-    logs: Vec<String>,
+    child: Child,
+    stdin: Option<ChildStdin>,
+    logs: Arc<Mutex<Vec<String>>>,
+}
+
+struct ManagedProcess {
+    child: Child,
+    stdin: Option<ChildStdin>,
+    logs: Arc<Mutex<Vec<String>>>,
 }
 
 static SESSION: OnceLock<Mutex<Option<ServerSession>>> = OnceLock::new();
@@ -44,7 +53,7 @@ pub fn start_game_server_session(
     let session_lock = SESSION.get_or_init(|| Mutex::new(None));
     let mut current = session_lock
         .lock()
-        .map_err(|_| "服务端会话锁已损坏".to_string())?;
+        .map_err(|_| "服务端会话锁已损坏。".to_string())?;
 
     if let Some(session) = current.as_ref() {
         if is_pid_running(session.pid) {
@@ -77,52 +86,88 @@ pub fn start_game_server_session(
         .ok_or_else(|| "未检测到 Terraria 安装路径，无法启动后台服务端。".to_string())?;
     let executable = std::path::Path::new(&game_path).join(exe);
     if !executable.exists() {
-        return Err(format!("未找到 Terraria 服务端程序：{}", executable.to_string_lossy()));
+        return Err(format!(
+            "未找到 Terraria 服务端程序：{}",
+            executable.to_string_lossy()
+        ));
     }
 
     let (args, note, port) = build_terraria_server_args(&values)?;
-    let pid = start_hidden_process(&executable, &PathBuf::from(&game_path), &args)?;
+    let mut managed = start_hidden_process(&executable, &PathBuf::from(&game_path), &args)?;
+    let pid = managed.child.id();
 
-    let logs = vec![
-        format!("后台启动：{}", executable.to_string_lossy()),
-        format!("参数：{}", args.join(" ")),
-        note,
-        format!("PID：{pid}"),
-        "已使用隐藏窗口方式启动。该模式不会弹出白色命令框，但第一版无法捕获 Terraria 实时日志或发送服务端命令。".to_string(),
-        "服务端是否可用将通过 127.0.0.1:端口 监听状态判断。".to_string(),
-    ];
+    push_logs(
+        &managed.logs,
+        vec![
+            format!("后台启动：{}", executable.to_string_lossy()),
+            format!("参数：{}", args.join(" ")),
+            note,
+            format!("PID：{pid}"),
+            "已使用后台托管模式启动：不会弹出白色命令框，并会保持 Terraria 控制台输入流。"
+                .to_string(),
+            "服务端是否可用将通过 127.0.0.1:端口监听状态判断。".to_string(),
+        ],
+    );
 
     let session = ServerSession {
         pid,
         game_id: game_id.to_string(),
         profile_id: profile_id.to_string(),
         port,
-        logs,
+        child: managed.child,
+        stdin: managed.stdin.take(),
+        logs: managed.logs,
     };
-    *current = Some(session.clone());
-    Ok(status_from_session(&session, "Terraria 服务端已在后台启动。"))
+    let status = status_from_session(&session, "Terraria 服务端已在后台启动。");
+    *current = Some(session);
+    Ok(status)
 }
 
 pub fn read_server_session() -> Result<ServerSessionStatus, String> {
     let session_lock = SESSION.get_or_init(|| Mutex::new(None));
     let current = session_lock
         .lock()
-        .map_err(|_| "服务端会话锁已损坏".to_string())?;
+        .map_err(|_| "服务端会话锁已损坏。".to_string())?;
     let Some(session) = current.as_ref() else {
         return Ok(empty_status("当前没有运行中的服务端会话。"));
     };
     Ok(status_from_session(session, "服务端状态已刷新。"))
 }
 
-pub fn send_server_command(_command: &str) -> Result<ServerSessionStatus, String> {
-    Err("当前使用隐藏后台模式，暂不支持向 Terraria 服务端发送命令。需要 help/save/exit 时，后续会用 Windows ConPTY 方案实现真正内嵌控制台。".to_string())
+pub fn send_server_command(command: &str) -> Result<ServerSessionStatus, String> {
+    let session_lock = SESSION.get_or_init(|| Mutex::new(None));
+    let mut current = session_lock
+        .lock()
+        .map_err(|_| "服务端会话锁已损坏。".to_string())?;
+    let Some(session) = current.as_mut() else {
+        return Ok(empty_status("当前没有运行中的服务端会话。"));
+    };
+    if !is_pid_running(session.pid) {
+        return Ok(status_from_session(
+            session,
+            "服务端进程已经退出，命令未发送。",
+        ));
+    }
+    let trimmed = command.trim();
+    if trimmed.is_empty() {
+        return Ok(status_from_session(session, "命令为空，未发送。"));
+    }
+    let Some(stdin) = session.stdin.as_mut() else {
+        return Ok(status_from_session(session, "当前服务端没有可用的输入流。"));
+    };
+    writeln!(stdin, "{trimmed}").map_err(|err| format!("发送服务端命令失败: {err}"))?;
+    stdin
+        .flush()
+        .map_err(|err| format!("刷新服务端命令失败: {err}"))?;
+    push_log(&session.logs, format!("> {trimmed}"));
+    Ok(status_from_session(session, "命令已发送。"))
 }
 
 pub fn stop_server_session() -> Result<ServerSessionStatus, String> {
     let session_lock = SESSION.get_or_init(|| Mutex::new(None));
     let mut current = session_lock
         .lock()
-        .map_err(|_| "服务端会话锁已损坏".to_string())?;
+        .map_err(|_| "服务端会话锁已损坏。".to_string())?;
     let Some(session) = current.take() else {
         return Ok(empty_status("当前没有运行中的服务端会话。"));
     };
@@ -130,7 +175,7 @@ pub fn stop_server_session() -> Result<ServerSessionStatus, String> {
     let mut command = Command::new("taskkill");
     command.args(["/PID", &session.pid.to_string(), "/F"]);
     let output = hide_console_window(&mut command).output();
-    let mut status = status_from_session(&session, "服务端已停止。");
+    let mut status = status_from_session(&session, "服务端已停止。委托进程即将清理。");
     status.running = false;
     status.pid = None;
     if let Ok(result) = output {
@@ -144,169 +189,83 @@ pub fn stop_server_session() -> Result<ServerSessionStatus, String> {
     Ok(status)
 }
 
-fn start_hidden_process(executable: &PathBuf, working_dir: &PathBuf, args: &[String]) -> Result<u32, String> {
-    #[cfg(windows)]
-    {
-        return start_hidden_windows_console_process(executable, working_dir, args);
-    }
-
-    #[cfg(not(windows))]
-    {
-        let child = Command::new(executable)
-            .args(args)
-            .current_dir(working_dir)
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
-            .map_err(|err| format!("启动后台服务端失败：{err}"))?;
-        return Ok(child.id());
-    }
-}
-
-#[cfg(windows)]
-fn start_hidden_windows_console_process(
+fn start_hidden_process(
     executable: &PathBuf,
     working_dir: &PathBuf,
     args: &[String],
-) -> Result<u32, String> {
-    use std::mem::size_of;
-    use std::ptr::null;
-    use windows_sys::Win32::Foundation::{CloseHandle, GetLastError};
-    use windows_sys::Win32::System::Threading::{
-        CreateProcessW, CREATE_NEW_CONSOLE, PROCESS_INFORMATION, STARTUPINFOW, STARTF_USESHOWWINDOW,
-    };
-    use windows_sys::Win32::UI::WindowsAndMessaging::SW_HIDE;
-
-    let command_line = std::iter::once(executable.to_string_lossy().to_string())
-        .chain(args.iter().cloned())
-        .map(|item| quote_windows_arg(&item))
-        .collect::<Vec<_>>()
-        .join(" ");
-    let mut command_line_w = to_wide_null(&command_line);
-    let application_name_w = to_wide_null(&executable.to_string_lossy());
-    let current_dir_w = to_wide_null(&working_dir.to_string_lossy());
-
-    let mut startup_info = STARTUPINFOW {
-        cb: size_of::<STARTUPINFOW>() as u32,
-        dwFlags: STARTF_USESHOWWINDOW,
-        wShowWindow: SW_HIDE as u16,
-        ..unsafe { std::mem::zeroed() }
-    };
-    let mut process_info: PROCESS_INFORMATION = unsafe { std::mem::zeroed() };
-
-    let created = unsafe {
-        CreateProcessW(
-            application_name_w.as_ptr(),
-            command_line_w.as_mut_ptr(),
-            null(),
-            null(),
-            0,
-            CREATE_NEW_CONSOLE,
-            null(),
-            current_dir_w.as_ptr(),
-            &mut startup_info,
-            &mut process_info,
-        )
-    };
-
-    if created == 0 {
-        let code = unsafe { GetLastError() };
-        return Err(format!("启动隐藏控制台服务端失败，Windows 错误码：{code}"));
-    }
-
-    let pid = process_info.dwProcessId;
-    unsafe {
-        CloseHandle(process_info.hThread);
-        CloseHandle(process_info.hProcess);
-    }
-    Ok(pid)
-}
-
-#[cfg(windows)]
-fn to_wide_null(input: &str) -> Vec<u16> {
-    input.encode_utf16().chain(std::iter::once(0)).collect()
-}
-
-#[cfg(windows)]
-fn quote_windows_arg(input: &str) -> String {
-    if input.is_empty() {
-        return "\"\"".to_string();
-    }
-    if !input.chars().any(|item| item.is_whitespace() || item == '"') {
-        return input.to_string();
-    }
-    let mut quoted = String::from("\"");
-    let mut backslashes = 0;
-    for ch in input.chars() {
-        match ch {
-            '\\' => backslashes += 1,
-            '"' => {
-                quoted.push_str(&"\\".repeat(backslashes * 2 + 1));
-                quoted.push('"');
-                backslashes = 0;
-            }
-            _ => {
-                quoted.push_str(&"\\".repeat(backslashes));
-                backslashes = 0;
-                quoted.push(ch);
-            }
-        }
-    }
-    quoted.push_str(&"\\".repeat(backslashes * 2));
-    quoted.push('"');
-    quoted
-}
-
-#[allow(dead_code)]
-fn start_hidden_process_via_powershell(executable: &PathBuf, working_dir: &PathBuf, args: &[String]) -> Result<u32, String> {
-    let script = format!(
-        "$p = Start-Process -FilePath '{}' -ArgumentList @({}) -WorkingDirectory '{}' -WindowStyle Hidden -PassThru; Write-Output $p.Id",
-        ps_escape(&executable.to_string_lossy()),
-        args.iter()
-            .map(|arg| format!("'{}'", ps_escape(arg)))
-            .collect::<Vec<_>>()
-            .join(","),
-        ps_escape(&working_dir.to_string_lossy())
-    );
-
-    let mut command = Command::new("powershell");
+) -> Result<ManagedProcess, String> {
+    let mut command = Command::new(executable);
     command
-        .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", &script])
-        .stdin(Stdio::null())
+        .args(args)
+        .current_dir(working_dir)
+        .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
     #[cfg(windows)]
     command.creation_flags(CREATE_NO_WINDOW);
 
-    let output = command
-        .output()
-        .map_err(|err| format!("调用 PowerShell 后台启动失败：{err}"))?;
-    if !output.status.success() {
-        return Err(format!(
-            "PowerShell 后台启动失败：{}",
-            String::from_utf8_lossy(&output.stderr)
-        ));
+    let mut child = command
+        .spawn()
+        .map_err(|err| format!("启动后台服务端失败: {err}"))?;
+
+    let stdin = child.stdin.take();
+    let logs = Arc::new(Mutex::new(Vec::new()));
+
+    if let Some(stdout) = child.stdout.take() {
+        spawn_output_reader(stdout, Arc::clone(&logs));
     }
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    stdout
-        .trim()
-        .parse::<u32>()
-        .map_err(|_| format!("无法解析后台服务端 PID：{stdout}"))
+    if let Some(stderr) = child.stderr.take() {
+        spawn_output_reader(stderr, Arc::clone(&logs));
+    }
+
+    Ok(ManagedProcess { child, stdin, logs })
 }
 
-fn ps_escape(input: &str) -> String {
-    input.replace('\'', "''")
+fn spawn_output_reader<R>(reader: R, logs: Arc<Mutex<Vec<String>>>)
+where
+    R: std::io::Read + Send + 'static,
+{
+    thread::spawn(move || {
+        let reader = BufReader::new(reader);
+        for line in reader.lines().map_while(Result::ok) {
+            push_log(&logs, line);
+        }
+    });
+}
+
+fn push_log(logs: &Arc<Mutex<Vec<String>>>, line: String) {
+    if let Ok(mut logs) = logs.lock() {
+        logs.push(line);
+        let overflow = logs.len().saturating_sub(300);
+        if overflow > 0 {
+            logs.drain(0..overflow);
+        }
+    }
+}
+
+fn push_logs(logs: &Arc<Mutex<Vec<String>>>, lines: Vec<String>) {
+    for line in lines {
+        push_log(logs, line);
+    }
+}
+
+fn snapshot_logs(logs: &Arc<Mutex<Vec<String>>>) -> Vec<String> {
+    logs.lock().map(|logs| logs.clone()).unwrap_or_default()
 }
 
 fn status_from_session(session: &ServerSession, message: &str) -> ServerSessionStatus {
+    let _ = session.child.id();
     let running = is_pid_running(session.pid);
     let ready = running && is_local_port_open(session.port);
-    let mut logs = session.logs.clone();
+    let mut logs = snapshot_logs(&session.logs);
     logs.push(format!(
         "当前状态：{}；端口 {} {}。",
-        if running { "进程运行中" } else { "进程已退出" },
+        if running {
+            "进程运行中"
+        } else {
+            "进程已退出"
+        },
         session.port,
         if ready { "已监听" } else { "尚未监听" }
     ));
@@ -428,7 +387,10 @@ fn value_to_string(value: &Value) -> Option<String> {
 fn build_terraria_server_args(
     values: &HashMap<String, String>,
 ) -> Result<(Vec<String>, String, u16), String> {
-    let world_path = if let Some(path) = values.get("world_path").filter(|item| !item.trim().is_empty()) {
+    let world_path = if let Some(path) = values
+        .get("world_path")
+        .filter(|item| !item.trim().is_empty())
+    {
         PathBuf::from(path)
     } else {
         let world_choice = values
@@ -445,7 +407,10 @@ fn build_terraria_server_args(
     };
 
     if !world_path.exists() {
-        return Err(format!("Terraria 世界文件不存在：{}", world_path.to_string_lossy()));
+        return Err(format!(
+            "Terraria 世界文件不存在：{}",
+            world_path.to_string_lossy()
+        ));
     }
 
     let players = values
