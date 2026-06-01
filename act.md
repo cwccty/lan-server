@@ -579,3 +579,30 @@ tools/n2n/
 - `cargo check` 通过。
 - `npm run tauri:build` 通过。
 - 重新启动 release `lan-helper.exe` 后，进程树中只有 `lan-helper.exe` 和 WebView2 子进程；白色 Terminal/OpenConsole 不再作为主程序子进程出现。
+
+
+## 2026-06-01 透明 Terminal 残影清理
+
+### 问题
+- 主程序白框消失后，用户反馈任务栏出现两个透明 Terminal 窗口，很难关闭。
+
+### 定位
+- 不是 `lan-helper.exe` 主窗口本身。
+- 启动时游戏扫描会运行 `reg query` 等短命令行工具；Windows 11 默认终端可能接管这些控制台子进程，留下 `WindowsTerminal/OpenConsole` 透明残影。
+
+### 已完成
+- 清理当前残留：停止旧 `lan-helper.exe`、`TerrariaServer.exe`、`edge.exe`、`WindowsTerminal.exe`、`OpenConsole.exe`。
+- 新增 `src-tauri/src/core/process_util.rs`。
+- 后台检测/管理命令统一隐藏执行：
+  - `reg query`
+  - `tasklist`
+  - `taskkill`
+  - `powershell`
+  - `ipconfig`
+- `src-tauri/src/lib.rs` 增加窗口关闭时清理托管的 Terraria/n2n 会话，减少残留进程。
+
+### 验证
+- `npm run build` 通过。
+- `cargo check` 通过。
+- `npm run tauri:build` 通过。
+- 清理残留后重新打开 release，进程列表显示主窗口为 `lan-helper.exe`，未再出现 `WindowsTerminal/OpenConsole`。

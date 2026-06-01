@@ -2,6 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
+use crate::core::process_util::hide_console_window;
 use crate::models::network::{BackendRuntimeStatus, BackendSummary, NetworkConfig, SetupResult};
 use crate::network::windows_ip;
 
@@ -161,9 +162,9 @@ pub fn stop() -> BackendRuntimeStatus {
         };
     };
 
-    let output = Command::new("taskkill")
-        .args(["/PID", &pid.to_string(), "/F"])
-        .output();
+    let mut command = Command::new("taskkill");
+    command.args(["/PID", &pid.to_string(), "/F"]);
+    let output = hide_console_window(&mut command).output();
 
     let _ = fs::remove_file(PID_PATH);
     match output {
@@ -247,9 +248,9 @@ fn read_recorded_pid() -> Option<u32> {
 }
 
 fn is_pid_running(pid: u32) -> bool {
-    let output = Command::new("tasklist")
-        .args(["/FI", &format!("PID eq {pid}"), "/FO", "CSV", "/NH"])
-        .output();
+    let mut command = Command::new("tasklist");
+    command.args(["/FI", &format!("PID eq {pid}"), "/FO", "CSV", "/NH"]);
+    let output = hide_console_window(&mut command).output();
 
     let Ok(output) = output else {
         return false;

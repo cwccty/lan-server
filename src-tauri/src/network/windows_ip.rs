@@ -1,5 +1,7 @@
 use std::process::Command;
 
+use crate::core::process_util::hide_console_window;
+
 pub fn find_ipv4_by_interface_keywords(keywords: &[&str]) -> Option<String> {
     find_by_get_net_ip_address(keywords).or_else(|| find_by_ipconfig(keywords))
 }
@@ -10,10 +12,9 @@ fn find_by_get_net_ip_address(keywords: &[&str]) -> Option<String> {
         "Get-NetIPAddress -AddressFamily IPv4 | Where-Object {{ $_.InterfaceAlias -match '{}' }} | Select-Object -First 1 -ExpandProperty IPAddress",
         keyword_regex
     );
-    let output = Command::new("powershell")
-        .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", &command])
-        .output()
-        .ok()?;
+    let mut process = Command::new("powershell");
+    process.args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", &command]);
+    let output = hide_console_window(&mut process).output().ok()?;
     if !output.status.success() {
         return None;
     }
@@ -26,7 +27,8 @@ fn find_by_get_net_ip_address(keywords: &[&str]) -> Option<String> {
 }
 
 fn find_by_ipconfig(keywords: &[&str]) -> Option<String> {
-    let output = Command::new("ipconfig").output().ok()?;
+    let mut command = Command::new("ipconfig");
+    let output = hide_console_window(&mut command).output().ok()?;
     let text = String::from_utf8_lossy(&output.stdout);
     let mut matched_section = false;
 

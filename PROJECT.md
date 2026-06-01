@@ -596,3 +596,16 @@ src-tauri/src/models/server_session.rs
 - 在 `src-tauri/src/main.rs` 增加 `#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]`。
 - release 构建后 `lan-helper.exe` 将作为 Windows GUI 程序启动，不再附带控制台窗口。
 - 同时将 `tauri.conf.json` 的产品名和窗口标题改为 JSON Unicode escape，避免命令行编码导致中文再次被写成乱码。
+
+
+## 28. 启动扫描命令隐藏执行（2026-06-01 补充）
+
+进一步定位到：主程序已是 GUI 子系统后，透明 Terminal 残影仍可能来自启动后的后台检测命令，例如 Steam 注册表扫描的 `reg.exe`。Windows 11 默认终端会接管这些短命令行工具，导致任务栏出现透明 Terminal。处理方式：
+
+- 新增 `core/process_util.rs`，统一给后台检测命令加 `CREATE_NO_WINDOW`。
+- Steam 注册表扫描 `reg query` 改为隐藏执行。
+- n2n 状态/停止用到的 `tasklist`、`taskkill` 改为隐藏执行。
+- 网络 IP 检测用到的 `powershell`、`ipconfig` 改为隐藏执行。
+- Terraria 停止和兜底 PID 检测用到的 `taskkill`、`tasklist` 改为隐藏执行。
+
+验证结果：清理旧 Terminal 残留后重新打开 release，只看到 `lan-helper.exe` 主窗口，不再出现 `WindowsTerminal/OpenConsole` 透明窗口。

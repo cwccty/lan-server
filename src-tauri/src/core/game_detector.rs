@@ -3,6 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use crate::core::process_util::hide_console_window;
 use crate::models::game::{GameAdapter, GameCapability, GameSummary};
 use crate::storage::adapter_store;
 
@@ -78,10 +79,9 @@ fn candidate_steam_roots_from_registry() -> Vec<PathBuf> {
 }
 
 fn read_registry_string(key: &str, value: &str) -> Option<String> {
-    let output = Command::new("reg")
-        .args(["query", key, "/v", value])
-        .output()
-        .ok()?;
+    let mut command = Command::new("reg");
+    command.args(["query", key, "/v", value]);
+    let output = hide_console_window(&mut command).output().ok()?;
     if !output.status.success() {
         return None;
     }

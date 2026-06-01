@@ -9,6 +9,7 @@ use std::time::Duration;
 use serde_json::Value;
 
 use crate::core::game_detector;
+use crate::core::process_util::hide_console_window;
 use crate::models::server_session::ServerSessionStatus;
 use crate::storage::adapter_store;
 
@@ -126,9 +127,9 @@ pub fn stop_server_session() -> Result<ServerSessionStatus, String> {
         return Ok(empty_status("当前没有运行中的服务端会话。"));
     };
 
-    let output = Command::new("taskkill")
-        .args(["/PID", &session.pid.to_string(), "/F"])
-        .output();
+    let mut command = Command::new("taskkill");
+    command.args(["/PID", &session.pid.to_string(), "/F"]);
+    let output = hide_console_window(&mut command).output();
     let mut status = status_from_session(&session, "服务端已停止。");
     status.running = false;
     status.pid = None;
@@ -364,9 +365,9 @@ fn is_pid_running_windows(pid: u32) -> bool {
 
 #[allow(dead_code)]
 fn is_pid_running_tasklist(pid: u32) -> bool {
-    let output = Command::new("tasklist")
-        .args(["/FI", &format!("PID eq {pid}"), "/FO", "CSV", "/NH"])
-        .output();
+    let mut command = Command::new("tasklist");
+    command.args(["/FI", &format!("PID eq {pid}"), "/FO", "CSV", "/NH"]);
+    let output = hide_console_window(&mut command).output();
     let Ok(output) = output else {
         return false;
     };

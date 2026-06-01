@@ -6,6 +6,11 @@ mod storage;
 
 pub fn run() {
     tauri::Builder::default()
+        .on_window_event(|_, event| {
+            if matches!(event, tauri::WindowEvent::CloseRequested { .. }) {
+                cleanup_managed_processes();
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             commands::scan_games,
             commands::analyze_game,
@@ -24,4 +29,9 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+fn cleanup_managed_processes() {
+    let _ = core::server_session::stop_server_session();
+    let _ = network::n2n_backend::stop();
 }
