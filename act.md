@@ -257,3 +257,17 @@ tools/n2n/
 - 准备一个可用 supernode。
 - 两台电脑分别配置不同 local_ip，做真实 n2n 互通测试。
 - 验证记录：`npm run build` 通过；随后在仓库根目录直接运行 `cargo check` 失败，因为 `Cargo.toml` 位于 `src-tauri/`；切换到 `src-tauri` 后 `cargo check` 通过。
+
+## 2026-06-01 n2n edge 获取与 VPS 延迟说明
+
+### 已完成
+- 新增 `docs/N2N_EDGE_AND_SUPERNODE.md`。
+- 文档明确：
+  - `edge.exe` 推荐从官方源码自行构建。
+  - 临时测试可用可信构建产物，但必须记录来源、版本和 SHA256。
+  - 正式分发前应做固定版本、白名单下载和校验。
+  - VPS 很远是否影响延迟取决于是否 P2P 直连成功：直连成功影响小；走 supernode 中继影响大。
+
+### 后续建议
+- 增加 supernode 延迟测试和多节点评分。
+- 增加 P2P/中继状态识别能力。
