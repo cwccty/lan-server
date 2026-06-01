@@ -493,3 +493,30 @@ tools/n2n/
 - `npm run build` 通过。
 - `cargo check` 通过。
 - `npm run tauri:build` 通过。
+
+## 2026-06-01 Terraria 后台启动修复
+
+### 问题
+- 隐藏控制台后 Terraria Server 报 `System.IO.IOException: 句柄无效`。
+- 原因：Terraria Server 是控制台程序，会调用 `Console.Title` 等 Console API；直接 `CREATE_NO_WINDOW/DETACHED_PROCESS` 会导致没有有效控制台句柄。
+- n2n 保存/启动时白色框闪现后消失，且 UI 缺少明确失败反馈。
+
+### 修复
+- Terraria 内嵌服务端改为 PowerShell `Start-Process -WindowStyle Hidden -PassThru` 后台启动：
+  - 给 Terraria 一个隐藏窗口环境，避免 `Console.Title` 句柄无效。
+  - 不再显示白色 Terraria Server 控制台。
+  - 通过 PID 管理服务端进程。
+  - 通过检测 `127.0.0.1:端口` 判断是否就绪。
+- 明确当前隐藏后台模式的限制：第一版无法捕获实时 stdout，也无法发送 help/save/exit；这些需要后续 Windows ConPTY 真正伪终端方案。
+- n2n edge 启动去掉 `DETACHED_PROCESS`，保留 `CREATE_NO_WINDOW`，减少短暂白框/闪退影响。
+
+### 验证
+- `npm run build` 通过。
+- `cargo check` 通过。
+- `npm run tauri:build` 通过。
+
+### 测试建议
+- 关闭所有旧的 TerrariaServer.exe / edge.exe / 白色命令框。
+- 重新打开新版 release 客户端。
+- 从“联机向导 → 在程序内启动服务端”启动。
+- 等待状态从“尚未监听”变为“已监听端口，可以邀请朋友加入”。

@@ -11,9 +11,6 @@ use std::os::windows::process::CommandExt;
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
-#[cfg(windows)]
-const DETACHED_PROCESS: u32 = 0x00000008;
-
 const CONFIG_PATH: &str = "tools/n2n/last_config.json";
 const PID_PATH: &str = "tools/n2n/n2n.pid";
 
@@ -128,7 +125,7 @@ pub fn start() -> BackendRuntimeStatus {
         .stderr(Stdio::null());
 
     #[cfg(windows)]
-    command.creation_flags(CREATE_NO_WINDOW | DETACHED_PROCESS);
+    command.creation_flags(CREATE_NO_WINDOW);
 
     if let Some(local_ip) = config.local_ip {
         command.args(["-a", &local_ip]);

@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 use std::fs;
-use std::io::{BufRead, BufReader, Write};
+use std::net::{TcpStream, ToSocketAddrs};
 use std::path::PathBuf;
-use std::process::{Child, ChildStdin, Command, Stdio};
-use std::sync::{Arc, Mutex, OnceLock};
-use std::thread;
+use std::process::{Command, Stdio};
+use std::sync::{Mutex, OnceLock};
+use std::time::Duration;
 
 use serde_json::Value;
 
@@ -18,15 +18,13 @@ use std::os::windows::process::CommandExt;
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
-#[cfg(windows)]
-const DETACHED_PROCESS: u32 = 0x00000008;
-
+#[derive(Clone)]
 struct ServerSession {
-    child: Child,
-    stdin: Option<ChildStdin>,
+    pid: u32,
     game_id: String,
     profile_id: String,
-    logs: Arc<Mutex<Vec<String>>>,
+    port: u16,
+    logs: Vec<String>,
 }
 
 static SESSION: OnceLock<Mutex<Option<ServerSession>>> = OnceLock::new();
@@ -41,15 +39,15 @@ pub fn start_game_server_session(
         .lock()
         .map_err(|_| "服务端会话锁已损坏".to_string())?;
 
-    if let Some(session) = current.as_mut() {
-        if session.child.try_wait().map_err(|err| err.to_string())?.is_none() {
+    if let Some(session) = current.as_ref() {
+        if is_pid_running(session.pid) {
             return Ok(status_from_session(session, "已有服务端会话正在运行。"));
         }
     }
     *current = None;
 
     if game_id != "terraria" || profile_id != "server" {
-        return Err("内嵌控制台第一版仅支持 Terraria 服务端。".to_string());
+        return Err("后台服务端第一版仅支持 Terraria 服务端。".to_string());
     }
 
     let adapter = adapter_store::load_game_adapters()?
@@ -69,107 +67,48 @@ pub fn start_game_server_session(
     let values = collect_profile_values(profile, config)?;
     let steam_libraries = game_detector::discover_steam_libraries();
     let game_path = game_detector::find_installed_game_path(&adapter, &steam_libraries)
-        .ok_or_else(|| "未检测到 Terraria 安装路径，无法启动内嵌服务端。".to_string())?;
+        .ok_or_else(|| "未检测到 Terraria 安装路径，无法启动后台服务端。".to_string())?;
     let executable = std::path::Path::new(&game_path).join(exe);
     if !executable.exists() {
         return Err(format!("未找到 Terraria 服务端程序：{}", executable.to_string_lossy()));
     }
 
-    let (args, note) = build_terraria_server_args(&values)?;
-    let logs = Arc::new(Mutex::new(vec![
-        format!("启动：{}", executable.to_string_lossy()),
+    let (args, note, port) = build_terraria_server_args(&values)?;
+    let pid = start_hidden_process(&executable, &PathBuf::from(&game_path), &args)?;
+
+    let logs = vec![
+        format!("后台启动：{}", executable.to_string_lossy()),
         format!("参数：{}", args.join(" ")),
         note,
-        "提示：如果仍出现外部白色控制台，请确认你点击的是“联机向导 → 在程序内启动服务端”，不是旧的推荐启动项。".to_string(),
-    ]));
+        format!("PID：{pid}"),
+        "已使用隐藏窗口方式启动。该模式不会弹出白色命令框，但第一版无法捕获 Terraria 实时日志或发送服务端命令。".to_string(),
+        "服务端是否可用将通过 127.0.0.1:端口 监听状态判断。".to_string(),
+    ];
 
-    let mut command = Command::new(&executable);
-    command
-        .current_dir(&game_path)
-        .args(args)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-
-    #[cfg(windows)]
-    command.creation_flags(CREATE_NO_WINDOW | DETACHED_PROCESS);
-
-    let mut child = command.spawn().map_err(|err| format!("启动 Terraria 服务端失败：{err}"))?;
-    let stdin = child.stdin.take();
-    attach_reader(child.stdout.take(), logs.clone(), "OUT");
-    attach_reader(child.stderr.take(), logs.clone(), "ERR");
-
-    let pid = child.id();
-    *current = Some(ServerSession {
-        child,
-        stdin,
+    let session = ServerSession {
+        pid,
         game_id: game_id.to_string(),
         profile_id: profile_id.to_string(),
+        port,
         logs,
-    });
-
-    Ok(ServerSessionStatus {
-        running: true,
-        pid: Some(pid),
-        game_id: Some(game_id.to_string()),
-        profile_id: Some(profile_id.to_string()),
-        ready: false,
-        logs: current
-            .as_ref()
-            .and_then(|session| session.logs.lock().ok().map(|logs| logs.clone()))
-            .unwrap_or_default(),
-        message: format!("Terraria 服务端已在程序内启动，PID: {pid}"),
-    })
+    };
+    *current = Some(session.clone());
+    Ok(status_from_session(&session, "Terraria 服务端已在后台启动。"))
 }
 
 pub fn read_server_session() -> Result<ServerSessionStatus, String> {
     let session_lock = SESSION.get_or_init(|| Mutex::new(None));
-    let mut current = session_lock
+    let current = session_lock
         .lock()
         .map_err(|_| "服务端会话锁已损坏".to_string())?;
-    let Some(session) = current.as_mut() else {
-        return Ok(ServerSessionStatus {
-            running: false,
-            pid: None,
-            game_id: None,
-            profile_id: None,
-            ready: false,
-            logs: Vec::new(),
-            message: "当前没有运行中的服务端会话。".to_string(),
-        });
+    let Some(session) = current.as_ref() else {
+        return Ok(empty_status("当前没有运行中的服务端会话。"));
     };
-
-    let running = session.child.try_wait().map_err(|err| err.to_string())?.is_none();
-    let message = if running {
-        "服务端正在运行。"
-    } else {
-        "服务端进程已退出。"
-    };
-    let mut status = status_from_session(session, message);
-    status.running = running;
-    Ok(status)
+    Ok(status_from_session(session, "服务端状态已刷新。"))
 }
 
-pub fn send_server_command(command: &str) -> Result<ServerSessionStatus, String> {
-    let session_lock = SESSION.get_or_init(|| Mutex::new(None));
-    let mut current = session_lock
-        .lock()
-        .map_err(|_| "服务端会话锁已损坏".to_string())?;
-    let Some(session) = current.as_mut() else {
-        return Err("当前没有运行中的服务端会话。".to_string());
-    };
-    if session.child.try_wait().map_err(|err| err.to_string())?.is_some() {
-        return Err("服务端进程已退出，无法发送命令。".to_string());
-    }
-    let Some(stdin) = session.stdin.as_mut() else {
-        return Err("当前服务端没有可写入的 stdin。".to_string());
-    };
-
-    writeln!(stdin, "{command}").map_err(|err| format!("发送服务端命令失败：{err}"))?;
-    if let Ok(mut logs) = session.logs.lock() {
-        logs.push(format!("[CMD] {command}"));
-    }
-    Ok(status_from_session(session, "命令已发送。"))
+pub fn send_server_command(_command: &str) -> Result<ServerSessionStatus, String> {
+    Err("当前使用隐藏后台模式，暂不支持向 Terraria 服务端发送命令。需要 help/save/exit 时，后续会用 Windows ConPTY 方案实现真正内嵌控制台。".to_string())
 }
 
 pub fn stop_server_session() -> Result<ServerSessionStatus, String> {
@@ -177,34 +116,81 @@ pub fn stop_server_session() -> Result<ServerSessionStatus, String> {
     let mut current = session_lock
         .lock()
         .map_err(|_| "服务端会话锁已损坏".to_string())?;
-    let Some(mut session) = current.take() else {
-        return Ok(ServerSessionStatus {
-            running: false,
-            pid: None,
-            game_id: None,
-            profile_id: None,
-            ready: false,
-            logs: Vec::new(),
-            message: "当前没有运行中的服务端会话。".to_string(),
-        });
+    let Some(session) = current.take() else {
+        return Ok(empty_status("当前没有运行中的服务端会话。"));
     };
 
-    let _ = session.child.kill();
-    let _ = session.child.wait();
-    let mut status = status_from_session(&mut session, "服务端已停止。");
+    let output = Command::new("taskkill")
+        .args(["/PID", &session.pid.to_string(), "/F"])
+        .output();
+    let mut status = status_from_session(&session, "服务端已停止。");
     status.running = false;
     status.pid = None;
+    if let Ok(result) = output {
+        if !result.status.success() {
+            status.message = format!(
+                "停止服务端可能失败：{}",
+                String::from_utf8_lossy(&result.stderr)
+            );
+        }
+    }
     Ok(status)
 }
 
-fn status_from_session(session: &mut ServerSession, message: &str) -> ServerSessionStatus {
-    let logs = session.logs.lock().map(|logs| logs.clone()).unwrap_or_default();
-    let ready = logs
-        .iter()
-        .any(|line| line.contains("Listening on port") || line.contains("Server started"));
+fn start_hidden_process(executable: &PathBuf, working_dir: &PathBuf, args: &[String]) -> Result<u32, String> {
+    let script = format!(
+        "$p = Start-Process -FilePath '{}' -ArgumentList @({}) -WorkingDirectory '{}' -WindowStyle Hidden -PassThru; Write-Output $p.Id",
+        ps_escape(&executable.to_string_lossy()),
+        args.iter()
+            .map(|arg| format!("'{}'", ps_escape(arg)))
+            .collect::<Vec<_>>()
+            .join(","),
+        ps_escape(&working_dir.to_string_lossy())
+    );
+
+    let mut command = Command::new("powershell");
+    command
+        .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", &script])
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+
+    #[cfg(windows)]
+    command.creation_flags(CREATE_NO_WINDOW);
+
+    let output = command
+        .output()
+        .map_err(|err| format!("调用 PowerShell 后台启动失败：{err}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "PowerShell 后台启动失败：{}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    stdout
+        .trim()
+        .parse::<u32>()
+        .map_err(|_| format!("无法解析后台服务端 PID：{stdout}"))
+}
+
+fn ps_escape(input: &str) -> String {
+    input.replace('\'', "''")
+}
+
+fn status_from_session(session: &ServerSession, message: &str) -> ServerSessionStatus {
+    let running = is_pid_running(session.pid);
+    let ready = running && is_local_port_open(session.port);
+    let mut logs = session.logs.clone();
+    logs.push(format!(
+        "当前状态：{}；端口 {} {}。",
+        if running { "进程运行中" } else { "进程已退出" },
+        session.port,
+        if ready { "已监听" } else { "尚未监听" }
+    ));
     ServerSessionStatus {
-        running: true,
-        pid: Some(session.child.id()),
+        running,
+        pid: if running { Some(session.pid) } else { None },
         game_id: Some(session.game_id.clone()),
         profile_id: Some(session.profile_id.clone()),
         ready,
@@ -213,25 +199,40 @@ fn status_from_session(session: &mut ServerSession, message: &str) -> ServerSess
     }
 }
 
-fn attach_reader<T: std::io::Read + Send + 'static>(
-    stream: Option<T>,
-    logs: Arc<Mutex<Vec<String>>>,
-    label: &'static str,
-) {
-    if let Some(stream) = stream {
-        thread::spawn(move || {
-            let reader = BufReader::new(stream);
-            for line in reader.lines().map_while(Result::ok) {
-                if let Ok(mut logs) = logs.lock() {
-                    logs.push(format!("[{label}] {line}"));
-                    if logs.len() > 500 {
-                        let excess = logs.len() - 500;
-                        logs.drain(0..excess);
-                    }
-                }
-            }
-        });
+fn empty_status(message: &str) -> ServerSessionStatus {
+    ServerSessionStatus {
+        running: false,
+        pid: None,
+        game_id: None,
+        profile_id: None,
+        ready: false,
+        logs: Vec::new(),
+        message: message.to_string(),
     }
+}
+
+fn is_pid_running(pid: u32) -> bool {
+    let output = Command::new("tasklist")
+        .args(["/FI", &format!("PID eq {pid}"), "/FO", "CSV", "/NH"])
+        .output();
+    let Ok(output) = output else {
+        return false;
+    };
+    if !output.status.success() {
+        return false;
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    stdout.contains(&pid.to_string()) && !stdout.to_ascii_lowercase().contains("no tasks")
+}
+
+fn is_local_port_open(port: u16) -> bool {
+    let Ok(mut addrs) = format!("127.0.0.1:{port}").to_socket_addrs() else {
+        return false;
+    };
+    let Some(addr) = addrs.next() else {
+        return false;
+    };
+    TcpStream::connect_timeout(&addr, Duration::from_millis(300)).is_ok()
 }
 
 fn collect_profile_values(
@@ -273,7 +274,7 @@ fn value_to_string(value: &Value) -> Option<String> {
 
 fn build_terraria_server_args(
     values: &HashMap<String, String>,
-) -> Result<(Vec<String>, String), String> {
+) -> Result<(Vec<String>, String, u16), String> {
     let world_path = if let Some(path) = values.get("world_path").filter(|item| !item.trim().is_empty()) {
         PathBuf::from(path)
     } else {
@@ -300,8 +301,8 @@ fn build_terraria_server_args(
         .unwrap_or_else(|| "8".to_string());
     let port = values
         .get("port")
-        .cloned()
-        .unwrap_or_else(|| "7777".to_string());
+        .and_then(|value| value.trim().parse::<u16>().ok())
+        .unwrap_or(7777);
     let password = values.get("password").cloned().unwrap_or_default();
     let auto_forward = values
         .get("auto_forward")
@@ -314,7 +315,7 @@ fn build_terraria_server_args(
         "-players".to_string(),
         players,
         "-port".to_string(),
-        port,
+        port.to_string(),
     ];
     if !password.trim().is_empty() {
         args.push("-pass".to_string());
@@ -327,6 +328,7 @@ fn build_terraria_server_args(
     Ok((
         args,
         format!("已指定世界文件：{}", world_path.to_string_lossy()),
+        port,
     ))
 }
 
