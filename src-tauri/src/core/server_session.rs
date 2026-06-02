@@ -28,8 +28,6 @@ use crate::models::server_session::ServerSessionStatus;
 use crate::storage::adapter_store;
 
 #[cfg(windows)]
-use std::os::windows::ffi::OsStrExt;
-#[cfg(windows)]
 use windows_sys::Win32::Foundation::{CloseHandle, ERROR_INSUFFICIENT_BUFFER, HANDLE};
 #[cfg(windows)]
 use windows_sys::Win32::NetworkManagement::IpHelper::{
@@ -39,11 +37,9 @@ use windows_sys::Win32::NetworkManagement::IpHelper::{
 use windows_sys::Win32::Networking::WinSock::AF_INET;
 #[cfg(windows)]
 use windows_sys::Win32::System::Threading::{
-    CreateProcessW, GetExitCodeProcess, TerminateProcess, CREATE_NEW_CONSOLE, PROCESS_INFORMATION,
-    STARTF_USESHOWWINDOW, STARTUPINFOW,
+    GetExitCodeProcess, OpenProcess, TerminateProcess, PROCESS_QUERY_LIMITED_INFORMATION,
+    PROCESS_TERMINATE,
 };
-#[cfg(windows)]
-use windows_sys::Win32::UI::WindowsAndMessaging::SW_HIDE;
 
 struct ServerSession {
     game_id: String,
@@ -375,56 +371,71 @@ fn start_hidden_process(
     working_dir: &PathBuf,
     args: &[String],
 ) -> Result<ManagedProcess, String> {
-    let command_line = build_windows_command_line(executable, args);
-    let mut command_line_w = wide_null(&command_line);
-    let application_w = wide_null(executable.as_os_str());
-    let working_dir_w = wide_null(working_dir.as_os_str());
+    let logs = Arc::new(Mutex::new(Vec::new()));
+    let script = format!(
+        "$p = Start-Process -FilePath {} -ArgumentList @({}) -WorkingDirectory {} -WindowStyle Hidden -PassThru; $p.Id",
+        ps_single_quote(&executable.to_string_lossy()),
+        args.iter()
+            .map(|item| ps_single_quote(item))
+            .collect::<Vec<_>>()
+            .join(", "),
+        ps_single_quote(&working_dir.to_string_lossy())
+    );
 
-    let mut startup: STARTUPINFOW = unsafe { std::mem::zeroed() };
-    startup.cb = std::mem::size_of::<STARTUPINFOW>() as u32;
-    startup.dwFlags = STARTF_USESHOWWINDOW;
-    startup.wShowWindow = SW_HIDE as u16;
-
-    let mut process_info: PROCESS_INFORMATION = unsafe { std::mem::zeroed() };
-    let created = unsafe {
-        CreateProcessW(
-            application_w.as_ptr(),
-            command_line_w.as_mut_ptr(),
-            std::ptr::null(),
-            std::ptr::null(),
-            0,
-            CREATE_NEW_CONSOLE,
-            std::ptr::null(),
-            working_dir_w.as_ptr(),
-            &startup,
-            &mut process_info,
-        )
-    };
-
-    if created == 0 {
-        return Err("启动后台服务端失败：CreateProcessW 返回失败。".to_string());
+    let mut command = Command::new("powershell");
+    command.args([
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        &script,
+    ]);
+    let output = hide_console_window(&mut command)
+        .output()
+        .map_err(|err| format!("?????????????? PowerShell Start-Process?{err}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "??????????Start-Process ?????{}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
     }
 
-    let logs = Arc::new(Mutex::new(Vec::new()));
+    let pid_text = String::from_utf8_lossy(&output.stdout);
+    let pid = pid_text
+        .split_whitespace()
+        .find_map(|item| item.trim().parse::<u32>().ok())
+        .ok_or_else(|| format!("?????????????? Start-Process PID?{pid_text}"))?;
+    let process_handle = unsafe {
+        OpenProcess(
+            PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE,
+            0,
+            pid,
+        )
+    };
+    if process_handle.is_null() {
+        return Err(format!("??????????OpenProcess({pid}) ??????"));
+    }
+
     push_log(
         &logs,
-        "Windows 稳定后台模式：为 Terraria Server 创建隐藏控制台，但不重定向 stdin/stdout/stderr，避免服务端把输入结束当成退出并返回 exit_code=0。".to_string(),
+        "Windows Shell ??????? PowerShell Start-Process ??????? TerrariaServer????? stdin/stdout/stderr???????????? exit_code=0?".to_string(),
     );
     push_log(
         &logs,
-        "MVP 当前以真实进程、PID 对应端口监听表和运行时长判断服务端状态；内嵌面板显示托管状态，不再伪装完整交互式控制台。".to_string(),
+        "MVP ????????PID ????????????????????????????????????????????".to_string(),
     );
 
     Ok(ManagedProcess {
         process: ManagedChild::Windows(WindowsProcess {
-            process_handle: process_info.hProcess,
-            thread_handle: process_info.hThread,
-            pid: process_info.dwProcessId,
+            process_handle,
+            thread_handle: std::ptr::null_mut(),
+            pid,
         }),
         stdin: None,
         logs,
     })
 }
+
 #[cfg(not(windows))]
 fn start_hidden_process(
     executable: &PathBuf,
@@ -461,56 +472,8 @@ fn start_hidden_process(
 }
 
 #[cfg(windows)]
-fn wide_null(value: impl AsRef<std::ffi::OsStr>) -> Vec<u16> {
-    value
-        .as_ref()
-        .encode_wide()
-        .chain(std::iter::once(0))
-        .collect()
-}
-
-#[cfg(windows)]
-fn build_windows_command_line(executable: &Path, args: &[String]) -> String {
-    std::iter::once(executable.to_string_lossy().to_string())
-        .chain(args.iter().cloned())
-        .map(|item| quote_windows_arg(&item))
-        .collect::<Vec<_>>()
-        .join(" ")
-}
-
-#[cfg(windows)]
-fn quote_windows_arg(arg: &str) -> String {
-    if arg.is_empty() {
-        return "\"\"".to_string();
-    }
-    let needs_quote = arg.chars().any(|ch| ch.is_whitespace() || ch == '"');
-    if !needs_quote {
-        return arg.to_string();
-    }
-    let mut quoted = String::from("\"");
-    let mut backslashes = 0;
-    for ch in arg.chars() {
-        match ch {
-            '\\' => backslashes += 1,
-            '"' => {
-                quoted.push_str(&"\\".repeat(backslashes * 2 + 1));
-                quoted.push('"');
-                backslashes = 0;
-            }
-            _ => {
-                if backslashes > 0 {
-                    quoted.push_str(&"\\".repeat(backslashes));
-                    backslashes = 0;
-                }
-                quoted.push(ch);
-            }
-        }
-    }
-    if backslashes > 0 {
-        quoted.push_str(&"\\".repeat(backslashes * 2));
-    }
-    quoted.push('"');
-    quoted
+fn ps_single_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "''"))
 }
 
 #[cfg(not(windows))]

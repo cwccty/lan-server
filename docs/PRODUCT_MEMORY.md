@@ -150,3 +150,9 @@ Backing up world file
 MVP 修正为：Windows 下创建隐藏控制台，但不再重定向 stdin/stdout/stderr。联机助手只用真实进程句柄、PID 对应 TCP LISTEN 表和运行时长判断服务端状态。内嵌面板显示托管状态，不再承诺完整交互式控制台或 Terraria 原始 stdout 日志。这样优先保证“服务端能稳定留在后台并监听端口”。
 
 同时，n2n 的 `supernode` 输入框会从最近一次保存的配置中自动填入，减少用户重复输入；用户仍可手动覆盖。
+
+## 2026-06-02 Terraria 后台稳定性第三次修正
+
+继续跟踪用户截图后确认：直接 `CreateProcessW + CREATE_NEW_CONSOLE` 即使不重定向标准输入输出，仍可能让 TerrariaServer 在启动后以 `exit_code=0` 正常退出。说明从 GUI/Tauri 进程直接创建控制台子进程时，TerrariaServer 仍没有获得它期望的交互式控制台环境。
+
+本轮改为 Windows Shell 托管模式：通过 PowerShell `Start-Process -WindowStyle Hidden -PassThru` 启动 TerrariaServer，再用返回的 PID 打开真实进程句柄，并继续用 PID 对应 TCP LISTEN 表判断 ready。目标是让 Windows shell 负责创建更接近普通双击/命令行启动的控制台进程，同时保持窗口隐藏和状态可诊断。

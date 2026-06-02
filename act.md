@@ -166,3 +166,7 @@ SourceAddress：10.10.10.2
 用户截图证明：服务端在 `Listening on port 7777` 后以 `exit_code=0` 退出，根因不是端口探测，而是隐藏后台模式下的 stdin/stdout/stderr 重定向会干扰 TerrariaServer。已改为 Windows 隐藏控制台 + 不重定向标准输入输出；MVP 以真实进程和 PID 对应监听端口作为状态来源，优先保证后台服务端稳定运行。
 
 同时补充易用性：通用组网中心和联机向导会读取 n2n 最近一次配置，将 supernode 自动填入空输入框。
+
+## 2026-06-02 发布阻断项第三次修正：Shell 托管 TerrariaServer
+
+直接 `CreateProcessW + CREATE_NEW_CONSOLE` 仍会出现 `exit_code=0` 自动退出。本轮改用 PowerShell `Start-Process -WindowStyle Hidden -PassThru` 启动 TerrariaServer，并读取返回 PID 转为联机助手托管进程句柄；ready 判断仍来自 PID 对应端口监听表，而不是 UI 或 TCP 探测副作用。
