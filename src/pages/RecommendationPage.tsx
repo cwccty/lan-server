@@ -192,6 +192,45 @@ function buildChecklist(
   ];
 }
 
+function buildFriendInvitePacket(
+  analysis: GameAnalysis | null,
+  n2n: N2nDiagnostics | null,
+  localPortReport: ConnectivityReport | null,
+  serverSession: ServerSessionStatus | null
+) {
+  const defaultPort = analysis?.default_ports[0] ?? 7777;
+  const profile = analysis?.multiplayer_conversion;
+  const networkReady = Boolean(n2n?.ok_link && !n2n.auth_error && !n2n.ip_mac_conflict);
+  const localPortReady = Boolean(localPortReport?.reachable);
+  const hostVirtualIp = n2n?.virtual_ip || '待确认';
+  const canSendAsReady = Boolean(networkReady && localPortReady);
+
+  return [
+    '【联机助手 · 游戏邀请好友包】',
+    '',
+    `游戏：${analysis?.display_name || '未选择游戏'}`,
+    `推荐判断：${profile ? capabilityLabels[profile.capability] ?? profile.capability : '暂无适配器判断'}`,
+    `推荐方式：${profile?.methods.map((method) => methodLabels[method] ?? method).join('、') || '暂无'}`,
+    `默认端口：${defaultPort}`,
+    `房主虚拟 IP：${hostVirtualIp}`,
+    '',
+    '当前检测状态：',
+    `- n2n 组网：${networkReady ? '已检测到 ACK/PONG' : '待确认 / 未完成'}`,
+    `- 本机游戏端口：${localPortReady ? `127.0.0.1:${defaultPort} 可连接` : `127.0.0.1:${defaultPort} 待确认 / 不可达`}`,
+    `- 服务端状态：${serverSession?.ready ? '已就绪' : serverSession?.running ? '运行中，等待就绪' : '未检测到独立服务端就绪'}`,
+    '',
+    canSendAsReady ? '结论：房主侧组网和本机端口已有可用证据，可以让朋友尝试加入。' : '结论：当前证据还不完整，建议先完成组网 ACK/PONG 和本机端口检测后再邀请。',
+    '',
+    '朋友操作：',
+    '1. 先打开联机助手，进入通用组网中心。',
+    '2. 使用房主发来的 n2n community、密钥、supernode，并给自己分配一个不重复的虚拟 IP。',
+    '3. 启动 n2n edge，等待 ACK/PONG。',
+    `4. 打开游戏，在 LAN / Join via IP / 直连入口连接 ${hostVirtualIp}:${defaultPort}。`,
+    '',
+    '注意：community 和密钥请从“通用组网中心 → 复制给朋友的通用组网配置”获取；推荐页只生成游戏层面的加入说明和当前检测摘要。'
+  ].join('\n');
+}
+
 export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string; onOpenNetwork?: (preset: NetworkSetupPreset) => void }) {
   const [items, setItems] = useState<Recommendation[]>([]);
   const [analysis, setAnalysis] = useState<GameAnalysis | null>(null);
@@ -203,6 +242,7 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
   const [n2nDiagnostics, setN2nDiagnostics] = useState<N2nDiagnostics | null>(null);
   const [serverSession, setServerSession] = useState<ServerSessionStatus | null>(null);
   const [localPortReport, setLocalPortReport] = useState<ConnectivityReport | null>(null);
+  const [copyMessage, setCopyMessage] = useState('');
 
   const profilesById = useMemo(() => {
     const map = new Map<string, LaunchProfile>();
@@ -212,6 +252,7 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
 
   const defaultPort = analysis?.default_ports[0] ?? 7777;
   const checklist = buildChecklist(analysis, n2nDiagnostics, serverSession, localPortReport, launchResult);
+  const friendInvitePacket = buildFriendInvitePacket(analysis, n2nDiagnostics, localPortReport, serverSession);
 
   const refreshExecutionChecklist = async (nextAnalysis = analysis) => {
     setIsRefreshingChecklist(true);
@@ -296,6 +337,11 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
     });
   };
 
+  const copyFriendInvitePacket = async () => {
+    await navigator.clipboard?.writeText(friendInvitePacket);
+    setCopyMessage('游戏邀请好友包已复制。若还没有 community / 密钥，请再到通用组网中心复制完整组网配置。');
+  };
+
   return (
     <section className="page-stack">
       <LoadingOverlay visible={isLaunching || isRefreshingChecklist} title={isLaunching ? '正在执行推荐启动项' : '正在刷新执行清单'} message={isLaunching ? '正在调用后端执行启动流程，请稍等。' : '正在读取 n2n、服务端会话和本机端口状态。'} />
@@ -329,6 +375,28 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
         </div>
         <ExecutionChecklist items={checklist} />
       </article>
+
+      {analysis && (
+        <article className="card">
+          <div className="feature-card-title">
+            <div>
+              <h3>游戏邀请好友包</h3>
+              <p className="muted">
+                这是“游戏层”的邀请说明，会带入游戏名、端口、房主虚拟 IP 和当前检测摘要；n2n community / 密钥仍以通用组网中心复制内容为准。
+              </p>
+            </div>
+            <span className={n2nDiagnostics?.ok_link && localPortReport?.reachable ? 'badge good' : 'badge warn'}>
+              {n2nDiagnostics?.ok_link && localPortReport?.reachable ? '可尝试邀请' : '证据待补齐'}
+            </span>
+          </div>
+          <pre>{friendInvitePacket}</pre>
+          <div className="actions">
+            <button type="button" onClick={copyFriendInvitePacket}>复制游戏邀请好友包</button>
+            <button type="button" className="secondary" onClick={() => refreshExecutionChecklist()} disabled={isRefreshingChecklist}>先刷新检测状态</button>
+          </div>
+          {copyMessage && <p className="muted">{copyMessage}</p>}
+        </article>
+      )}
 
       {analysis && (
         <article className="card">

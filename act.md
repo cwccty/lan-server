@@ -411,6 +411,18 @@ ConPTY 方案出现 `0xc0000142`。本轮回退为隐藏 `cmd.exe` 托管 Terrar
 
 验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。release exe：src-tauri\target\release\lan-helper.exe。
 
+## 2026-06-03 推荐页游戏邀请好友包
+
+已在推荐页新增“游戏邀请好友包”，作为现有“通用组网配置”的游戏层补充，而不是替代 n2n 邀请。
+
+- 邀请包包含：游戏名、推荐判断、推荐方式、默认端口、房主虚拟 IP、n2n ACK/PONG 状态、本机端口状态、服务端状态、朋友加入步骤。
+- 如果 n2n 或本机端口证据不足，邀请包会明确写“待确认 / 不可达”，不会假装已经可以联机。
+- 由于推荐页目前无法读取 n2n community 和密钥，邀请包明确提示：community 和密钥仍从“通用组网中心 → 复制给朋友的通用组网配置”获取。
+- 推荐页新增“复制游戏邀请好友包”和“先刷新检测状态”按钮。
+- 该功能定位：把现有组网邀请与游戏加入说明串起来，减少朋友看到配置后不知道进哪个游戏端口/入口的问题。
+
+验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。release exe：src-tauri\target\release\lan-helper.exe。
+
 ## 2026-06-02 推荐页执行清单状态化
 
 已把推荐页从单纯展示方案，升级为“执行清单”视角，帮助用户判断当前卡在哪一步。
