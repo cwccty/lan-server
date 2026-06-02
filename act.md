@@ -410,3 +410,17 @@ ConPTY 方案出现 `0xc0000142`。本轮回退为隐藏 `cmd.exe` 托管 Terrar
 - 用 UTF-8 读取构建产物验证：dist/assets 中包含“联机助手、首页、通用组网中心、Terraria 向导、游戏扫描、推荐方案、适配器管理、诊断报告”等中文，并且没有连续问号串。
 
 验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。release exe：src-tauri\target\release\lan-helper.exe。
+
+
+## 2026-06-02 通用组网中心真实状态卡
+
+已按 Stitch 设计方向增强“通用组网中心”的顶部真实状态区：
+
+- 新增 4 张状态卡：n2n edge、supernode、虚拟网卡、虚拟 IP。
+- n2n edge 状态来自后端检测、记录 PID、启动/停止操作结果。
+- 虚拟网卡和虚拟 IP 来自后端 Windows 网卡 IPv4 扫描。
+- supernode 卡片只表示“是否填写 / 是否已被 edge 启动使用”，不伪装成“supernode 已响应”；ACK/响应需要后续通过 edge 日志或诊断确认。
+- 页面顶部新增真实状态说明，避免用户误以为只是 UI 改绿。
+- 用 Browser 打开本地 Vite 预览验证：通用组网页可见四个状态卡，中文正常。
+
+验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。release exe：src-tauri\target\release\lan-helper.exe。

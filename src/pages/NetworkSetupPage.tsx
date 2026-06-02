@@ -60,6 +60,36 @@ function recentSupernodeFromBackends(backends: BackendSummary[]) {
   return note?.replace(/^最近一次 supernode[:：]\s*/, '').trim() || '';
 }
 
+type NetworkStatusKind = 'good' | 'warn' | 'bad' | 'idle';
+
+type NetworkStatusCardData = {
+  title: string;
+  value: string;
+  kind: NetworkStatusKind;
+  evidence: string;
+  detail: string;
+};
+
+function statusBadgeClass(kind: NetworkStatusKind) {
+  if (kind === 'good') return 'badge good';
+  if (kind === 'warn') return 'badge warn';
+  if (kind === 'bad') return 'badge bad';
+  return 'badge';
+}
+
+function NetworkStatusCard({ item }: { item: NetworkStatusCardData }) {
+  return (
+    <article className={'status-tile status-' + item.kind}>
+      <div className="feature-card-title">
+        <span>{item.title}</span>
+        <span className={statusBadgeClass(item.kind)}>{item.value}</span>
+      </div>
+      <strong>{item.evidence}</strong>
+      <small>{item.detail}</small>
+    </article>
+  );
+}
+
 export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
   const [backends, setBackends] = useState<BackendSummary[]>([]);
   const [host, setHost] = useState('127.0.0.1');
@@ -147,6 +177,39 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
   const n2nBackend = backends.find((backend) => backend.id === 'n2n');
   const n2nRuntimeResult = n2nResult && 'running' in n2nResult ? n2nResult : null;
   const n2nSetupResult = n2nResult && 'ok' in n2nResult ? n2nResult : null;
+  const n2nRecordedRunning = Boolean(n2nBackend?.notes.some((note) => note.includes('PID')));
+  const n2nRunning = Boolean(n2nRuntimeResult?.running || n2nRecordedRunning);
+  const supernodeValue = supernode.trim();
+  const networkStatusCards: NetworkStatusCardData[] = [
+    {
+      title: 'n2n edge',
+      value: n2nRunning ? '运行中' : n2nBackend?.available ? '可启动' : '未检测到',
+      kind: n2nRunning ? 'good' : n2nBackend?.available ? 'warn' : 'bad',
+      evidence: n2nRuntimeResult?.message || n2nBackend?.notes.find((note) => note.includes('edge')) || '等待后端检测 edge.exe / n2n.exe',
+      detail: '来自后端文件检测、记录 PID 与启动/停止操作结果。'
+    },
+    {
+      title: 'supernode',
+      value: supernodeValue ? (n2nRunning ? '已用于启动' : '已填写') : '未配置',
+      kind: supernodeValue ? (n2nRunning ? 'good' : 'warn') : 'bad',
+      evidence: supernodeValue || '请填写 VPS_IP:端口，例如 154.64.231.137:7777',
+      detail: n2nRunning ? 'edge 已带该 supernode 启动；是否 ACK 需看 edge 日志或诊断。' : '这里只表示配置存在，不伪装成 supernode 已响应。'
+    },
+    {
+      title: '虚拟网卡',
+      value: n2nBackend?.virtual_ip ? '已检测' : n2nBackend?.available ? '待分配 IP' : '未检测',
+      kind: n2nBackend?.virtual_ip ? 'good' : n2nBackend?.available ? 'warn' : 'idle',
+      evidence: n2nBackend?.virtual_ip ? '检测到 TAP/n2n/cfw/edge 相关 IPv4' : '尚未从系统网卡检测到 n2n 虚拟 IP',
+      detail: '来自 Windows 网卡 IPv4 扫描，不是前端静态显示。'
+    },
+    {
+      title: '虚拟 IP',
+      value: n2nBackend?.virtual_ip || n2nRuntimeResult?.virtual_ip || '未分配',
+      kind: n2nBackend?.virtual_ip || n2nRuntimeResult?.virtual_ip ? 'good' : 'warn',
+      evidence: localIp ? '当前配置期望：' + localIp : '未填写本机虚拟 IP',
+      detail: '显示“检测值 / 期望值”，用于发现 IP 冲突或 TAP 未生效。'
+    }
+  ];
 
   const steamRelayPacketText = [
     '【Steam 中继联机入口草案】',
@@ -171,14 +234,28 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
   };
 
   return (
-    <section>
-      <h2>通用组网中心</h2>
-      <p className="muted">
-        n2n / Radmin / 已有局域网属于“组网层”，不应该绑定某个具体游戏。先让几台电脑进入同一个虚拟局域网，
-        然后任何支持 LAN 或 IP 直连的游戏都可以尝试连接房主虚拟 IP。Terraria 向导只是额外的一键开服辅助。
-      </p>
+    <section className="page-stack">
+      <div className="page-header">
+        <div>
+          <span className="eyebrow">NETWORK</span>
+          <h2>通用组网中心</h2>
+          <p className="muted">
+            n2n / Radmin / 已有局域网属于“组网层”，不应该绑定某个具体游戏。先让几台电脑进入同一个虚拟局域网，
+            然后任何支持 LAN 或 IP 直连的游戏都可以尝试连接房主虚拟 IP。Terraria 向导只是额外的一键开服辅助。
+          </p>
+        </div>
+        <span className={n2nRunning ? 'badge good' : 'badge warn'}>{n2nRunning ? '组网进程运行中' : '等待启动组网'}</span>
+      </div>
 
       {busy && <div className="busy-banner">正在处理：{busy}，请稍等，不要重复点击。</div>}
+
+      <div className="status-grid">
+        {networkStatusCards.map((item) => <NetworkStatusCard key={item.title} item={item} />)}
+      </div>
+
+      <div className="notice-card">
+        <strong>真实状态说明：</strong>edge、虚拟网卡、虚拟 IP 来自后端检测；supernode 卡片只说明配置是否存在和 edge 是否已用它启动，不会把“已填写”伪装成“已响应”。
+      </div>
 
       <article className="card">
         <h3>当前网络后端</h3>

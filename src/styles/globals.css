@@ -159,3 +159,9 @@ pre { background: #050914; color: #d7e3ff; padding: 16px; overflow: auto; border
   .side-nav, .feature-grid, .feature-grid.two, .hero-panel, .status-grid, .status-grid.compact, .content-with-aside { grid-template-columns: 1fr; }
   .right-panel { position: static; }
 }
+
+.status-good { border-color: rgba(34, 197, 94, 0.58); background: linear-gradient(135deg, rgba(34, 197, 94, 0.12), rgba(23, 32, 51, 0.82)); }
+.status-warn { border-color: rgba(245, 158, 11, 0.58); background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(23, 32, 51, 0.82)); }
+.status-bad { border-color: rgba(239, 68, 68, 0.62); background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(23, 32, 51, 0.82)); }
+.status-idle { border-color: rgba(100, 116, 139, 0.58); }
+.status-tile .feature-card-title { align-items: center; }
