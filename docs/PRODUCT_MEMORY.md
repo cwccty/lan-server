@@ -733,3 +733,25 @@ https://raw.githubusercontent.com/cwccty/lan-server/master/adapter-registry/inde
 验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。
 
 下一步推荐：完善 n2n 失败分类提示和“下一步修复建议”。
+
+## 2026-06-03 发布级诊断与失败分类第一步
+
+产品状态：诊断报告已从“检查项列表”升级为“问题定位中心”的第一步。
+
+已完成：
+
+- 后端报告新增 `DiagnosticIssue` 结构和 `most_likely_cause`。
+- n2n 失败分类已结构化：edge 缺失、supernode 未配置、edge 未运行、认证错误、IP/MAC 冲突、supernode 无响应、等待 ACK/PONG、虚拟 IP 缺失。
+- 每个失败分类都包含下一步建议和证据。
+- TCP 端口代理一键自测加入诊断报告，检查项 id 为 `tcp_port_proxy_self_test`。
+- 诊断报告页展示：最可能原因、失败分类、证据、下一步修复建议、检测项时间线、详细日志。
+
+边界：
+
+- 这一步主要覆盖 n2n 和 TCP 端口代理，后续还要继续把游戏适配器、游戏类型、UDP 能力纳入诊断体系。
+- `tcp_port_proxy_self_test` 当前不是 MVP 必需项，因为并非所有游戏都需要 TCP 代理；但它是重要能力自测项。
+- 失败分类仍需持续根据真实用户日志扩展。
+
+验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。
+
+下一步推荐：更新 MVP 发布清单，并为诊断页增加“按失败类型跳转到对应修复页面”的产品流。

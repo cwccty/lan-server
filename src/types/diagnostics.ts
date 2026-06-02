@@ -6,11 +6,22 @@
   required_for_mvp: boolean;
 }
 
+export interface DiagnosticIssue {
+  id: string;
+  severity: string;
+  title: string;
+  detail: string;
+  next_actions: string[];
+  evidence: string[];
+}
+
 export interface DiagnosticReport {
   generated_at: string;
   app_version: string;
   os: string;
   summary: string;
+  most_likely_cause?: DiagnosticIssue;
+  issues: DiagnosticIssue[];
   release_ready: boolean;
   required_passed: number;
   required_total: number;

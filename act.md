@@ -655,3 +655,19 @@ ConPTY 方案出现 `0xc0000142`。本轮回退为隐藏 `cmd.exe` 托管 Terrar
 验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。第一次 tauri build 因 release 版 lan-helper.exe 正在运行导致拒绝覆盖，停止 PID 54676 后重新打包成功。
 
 下一步推荐：把 n2n 启动失败原因进一步分类展示，例如 edge 未检测到、supernode 未填写、IP/MAC 冲突、supernode 无响应、认证错误，让用户不用看日志也能知道下一步该做什么。
+
+## 2026-06-03 发布级诊断与失败分类第一步
+
+已开始实现“发布级诊断与失败分类”大区块，先把 n2n 失败分类和 TCP 端口代理自测接入诊断报告。
+
+- `DiagnosticReport` 新增 `issues` 和 `most_likely_cause`，不再只依赖 release_checks 列表。
+- 新增 `DiagnosticIssue`：包含 id、severity、title、detail、next_actions、evidence。
+- 诊断报告后端纳入 `n2n_backend::diagnose()` 的真实日志状态。
+- 新增 n2n 失败分类：edge 缺失、supernode 未配置、edge 未运行、认证错误、IP/MAC 冲突、supernode 无响应、等待 ACK/PONG、虚拟 IP 缺失。
+- 诊断报告纳入 TCP 端口代理一键自测，新增检查项 `tcp_port_proxy_self_test`。
+- 诊断报告页升级为“问题定位中心”：显示最可能原因、失败分类、证据、下一步建议、检测项时间线和详细日志。
+- 复制摘要会包含最可能原因，方便发给朋友或管理员。
+
+验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。
+
+下一步推荐：继续细化 n2n 失败分类 UI 的修复入口，例如从诊断页一键跳到通用组网中心并带入“要修复的项”；同时更新 MVP 发布清单，把 TCP 代理自测与失败分类纳入发布标准。

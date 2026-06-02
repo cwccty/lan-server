@@ -6,6 +6,8 @@ pub struct DiagnosticReport {
     pub app_version: String,
     pub os: String,
     pub summary: String,
+    pub most_likely_cause: Option<DiagnosticIssue>,
+    pub issues: Vec<DiagnosticIssue>,
     pub release_ready: bool,
     pub required_passed: usize,
     pub required_total: usize,
@@ -21,4 +23,14 @@ pub struct ReleaseCheck {
     pub ok: bool,
     pub detail: String,
     pub required_for_mvp: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DiagnosticIssue {
+    pub id: String,
+    pub severity: String,
+    pub title: String,
+    pub detail: String,
+    pub next_actions: Vec<String>,
+    pub evidence: Vec<String>,
 }

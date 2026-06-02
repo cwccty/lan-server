@@ -1,7 +1,8 @@
 use chrono::Utc;
 
-use crate::core::{game_detector, server_session};
-use crate::models::diagnostics::{DiagnosticReport, ReleaseCheck};
+use crate::core::{game_detector, port_proxy, server_session};
+use crate::models::diagnostics::{DiagnosticIssue, DiagnosticReport, ReleaseCheck};
+use crate::models::network::N2nDiagnostics;
 use crate::network::{manual_lan_backend, n2n_backend, radmin_backend};
 use crate::storage::adapter_store;
 
@@ -14,6 +15,8 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
         radmin_backend::detect(),
         n2n_backend::detect(),
     ];
+    let n2n_diagnostics = n2n_backend::diagnose();
+    let tcp_proxy_self_test = port_proxy::self_test_port_proxy();
     let server = server_session::read_server_session().ok();
     let n2n = backends.iter().find(|backend| backend.id == "n2n");
 
@@ -58,6 +61,25 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
         })
         .unwrap_or(false);
 
+    let tcp_proxy_self_test_ok = tcp_proxy_self_test
+        .as_ref()
+        .map(|report| report.ok)
+        .unwrap_or(false);
+    let tcp_proxy_detail = match &tcp_proxy_self_test {
+        Ok(report) => format!(
+            "ok={} {} -> {} sent={} received={} connections={} bytes_in={} bytes_out={}",
+            report.ok,
+            report.listen,
+            report.target,
+            report.sent,
+            report.received,
+            report.total_connections,
+            report.bytes_in,
+            report.bytes_out
+        ),
+        Err(err) => format!("TCP 端口代理自测失败: {err}"),
+    };
+
     let release_checks = vec![
         ReleaseCheck {
             id: "n2n_edge".to_string(),
@@ -86,6 +108,22 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
                     .to_string()
             },
             required_for_mvp: true,
+        },
+        ReleaseCheck {
+            id: "n2n_supernode_response".to_string(),
+            label: "n2n supernode 响应".to_string(),
+            ok: n2n_diagnostics.ok_link
+                && !n2n_diagnostics.auth_error
+                && !n2n_diagnostics.ip_mac_conflict,
+            detail: n2n_diagnostics.summary.clone(),
+            required_for_mvp: true,
+        },
+        ReleaseCheck {
+            id: "tcp_port_proxy_self_test".to_string(),
+            label: "TCP 端口代理一键自测".to_string(),
+            ok: tcp_proxy_self_test_ok,
+            detail: tcp_proxy_detail.clone(),
+            required_for_mvp: false,
         },
         ReleaseCheck {
             id: "terraria_server_30s".to_string(),
@@ -172,22 +210,81 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
         required_passed, required_total
     ));
 
-    let next_actions = release_checks
+    let mut issues = classify_n2n_issues(&n2n_diagnostics, n2n_available);
+    if let Err(err) = &tcp_proxy_self_test {
+        issues.push(DiagnosticIssue {
+            id: "tcp_proxy_self_test_failed".to_string(),
+            severity: "warn".to_string(),
+            title: "TCP 端口代理自测失败".to_string(),
+            detail: format!("一键自测没有完成：{err}"),
+            next_actions: vec![
+                "检查是否有安全软件拦截本机临时 TCP 监听。".to_string(),
+                "确认没有其他程序占用大量本地端口后重试。".to_string(),
+                "如果游戏不需要 TCP 端口代理，可暂时忽略该项。".to_string(),
+            ],
+            evidence: vec![tcp_proxy_detail.clone()],
+        });
+    }
+    if !terraria_stable {
+        issues.push(DiagnosticIssue {
+            id: "terraria_server_not_stable".to_string(),
+            severity: "error".to_string(),
+            title: "Terraria 服务端尚未证明 30 秒稳定运行".to_string(),
+            detail: format!(
+                "running={} ready={} uptime={}s exit_code={}",
+                server_running,
+                server_ready,
+                server_uptime,
+                server_exit_code
+                    .map(|code| code.to_string())
+                    .unwrap_or_else(|| "无".to_string())
+            ),
+            next_actions: vec![
+                "进入 Terraria 向导，在程序内启动服务端。".to_string(),
+                "等待至少 30 秒后重新生成诊断报告。".to_string(),
+                "如果服务端退出，查看内嵌控制台的最后日志和 exit_code。".to_string(),
+            ],
+            evidence: vec![
+                serde_json::to_string_pretty(&server).unwrap_or_else(|_| "服务端状态无法序列化".to_string()),
+            ],
+        });
+    }
+    let most_likely_cause = issues
+        .iter()
+        .find(|item| item.severity == "error")
+        .or_else(|| issues.first())
+        .cloned();
+
+    let mut next_actions = issues
+        .iter()
+        .flat_map(|issue| {
+            issue
+                .next_actions
+                .iter()
+                .map(|action| format!("{}：{}", issue.title, action))
+        })
+        .collect::<Vec<_>>();
+    next_actions.extend(release_checks
         .iter()
         .filter(|item| item.required_for_mvp && !item.ok)
         .map(|item| format!("处理 {}：{}", item.label, item.detail))
-        .collect::<Vec<_>>();
+        .collect::<Vec<_>>());
+    next_actions.sort();
+    next_actions.dedup();
 
     Ok(DiagnosticReport {
         generated_at: Utc::now().to_rfc3339(),
         app_version: env!("CARGO_PKG_VERSION").to_string(),
         os: std::env::consts::OS.to_string(),
         summary: format!(
-            "适配库 {} 个游戏；扫描返回 {} 个游戏；网络后端 {} 个。",
+            "适配库 {} 个游戏；扫描返回 {} 个游戏；网络后端 {} 个；诊断问题 {} 个。",
             adapters.len(),
             games.len(),
-            backends.len()
+            backends.len(),
+            issues.len()
         ),
+        most_likely_cause,
+        issues,
         release_ready: mvp_ready,
         required_passed,
         required_total,
@@ -214,10 +311,162 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
                 serde_json::to_string_pretty(&backends).unwrap_or_default()
             ),
             format!(
+                "n2n 失败分类输入：{}",
+                serde_json::to_string_pretty(&n2n_diagnostics).unwrap_or_default()
+            ),
+            format!(
+                "TCP 端口代理自测：{}",
+                match &tcp_proxy_self_test {
+                    Ok(report) => serde_json::to_string_pretty(report).unwrap_or_default(),
+                    Err(err) => err.clone(),
+                }
+            ),
+            format!(
                 "内嵌服务端会话：{}",
                 serde_json::to_string_pretty(&server).unwrap_or_default()
             ),
             "隐私说明：报告不包含凭据、Cookie、SSH Key、浏览器数据或无关用户目录内容。".to_string(),
         ],
     })
+}
+
+fn classify_n2n_issues(diagnostics: &N2nDiagnostics, edge_available: bool) -> Vec<DiagnosticIssue> {
+    let mut issues = Vec::new();
+
+    if !edge_available {
+        issues.push(DiagnosticIssue {
+            id: "n2n_edge_missing".to_string(),
+            severity: "error".to_string(),
+            title: "未检测到 n2n edge".to_string(),
+            detail: "客户端没有找到 edge.exe / n2n.exe，无法启动内置 n2n 组网。".to_string(),
+            next_actions: vec![
+                "确认 tools/n2n 目录下存在官方源码编译的 edge.exe 或 n2n.exe。".to_string(),
+                "重新打开通用组网中心并刷新组网状态。".to_string(),
+            ],
+            evidence: vec![diagnostics.summary.clone()],
+        });
+    }
+
+    if !diagnostics.supernode_configured {
+        issues.push(DiagnosticIssue {
+            id: "n2n_supernode_missing".to_string(),
+            severity: "error".to_string(),
+            title: "未配置 supernode".to_string(),
+            detail: "n2n 需要 VPS 上的 supernode 地址用于异地节点发现。".to_string(),
+            next_actions: vec![
+                "在通用组网中心填写 supernode，例如 VPS_IP:7777。".to_string(),
+                "确认 VPS 上 supernode 正在监听对应端口。".to_string(),
+            ],
+            evidence: vec![diagnostics.summary.clone()],
+        });
+        return issues;
+    }
+
+    if !diagnostics.running {
+        issues.push(DiagnosticIssue {
+            id: "n2n_edge_not_running".to_string(),
+            severity: "error".to_string(),
+            title: "n2n edge 未运行".to_string(),
+            detail: "已经配置 supernode，但当前没有检测到由联机助手记录的 edge 进程。".to_string(),
+            next_actions: vec![
+                "在通用组网中心点击“启动 n2n edge”。".to_string(),
+                "启动后等待 10-20 秒，再查看是否出现 ACK/PONG。".to_string(),
+            ],
+            evidence: vec![diagnostics.summary.clone()],
+        });
+    }
+
+    if diagnostics.auth_error {
+        issues.push(DiagnosticIssue {
+            id: "n2n_auth_error".to_string(),
+            severity: "error".to_string(),
+            title: "n2n 认证错误".to_string(),
+            detail: "edge 日志显示认证失败，常见原因是 community 或密钥与朋友不一致。".to_string(),
+            next_actions: vec![
+                "确认所有玩家填写相同 community。".to_string(),
+                "确认所有玩家填写相同 n2n 密钥。".to_string(),
+                "保存配置后停止并重新启动 n2n edge。".to_string(),
+            ],
+            evidence: diagnostic_evidence(diagnostics),
+        });
+    }
+
+    if diagnostics.ip_mac_conflict {
+        issues.push(DiagnosticIssue {
+            id: "n2n_ip_mac_conflict".to_string(),
+            severity: "error".to_string(),
+            title: "n2n IP / MAC 冲突".to_string(),
+            detail: "supernode 返回 IP 或 MAC 已被占用，通常是虚拟 IP 重复或旧注册未释放。".to_string(),
+            next_actions: vec![
+                "给每台电脑分配不同虚拟 IP，例如房主 10.10.10.2，朋友 10.10.10.3。".to_string(),
+                "点击通用组网中心的候选 IP 按钮或手动更换本机虚拟 IP。".to_string(),
+                "停止 n2n edge 后重新启动；必要时等待 supernode 释放旧注册。".to_string(),
+            ],
+            evidence: diagnostic_evidence(diagnostics),
+        });
+    }
+
+    if diagnostics.not_responding && !diagnostics.ok_link {
+        issues.push(DiagnosticIssue {
+            id: "n2n_supernode_not_responding".to_string(),
+            severity: "error".to_string(),
+            title: "supernode 无响应".to_string(),
+            detail: "edge 日志显示 supernode 没有响应，通常是 VPS 服务未运行、端口未放行或地址填写错误。".to_string(),
+            next_actions: vec![
+                "在 VPS 上确认 supernode 进程正在监听，例如 ss -lunp | grep 7777。".to_string(),
+                "确认 VPS 安全组和系统防火墙放行 UDP/TCP 7777。".to_string(),
+                "确认客户端填写的是正确的 VPS_IP:端口。".to_string(),
+            ],
+            evidence: diagnostic_evidence(diagnostics),
+        });
+    }
+
+    if diagnostics.running
+        && diagnostics.supernode_configured
+        && !diagnostics.ok_link
+        && !diagnostics.auth_error
+        && !diagnostics.ip_mac_conflict
+        && !diagnostics.not_responding
+    {
+        issues.push(DiagnosticIssue {
+            id: "n2n_waiting_for_ack".to_string(),
+            severity: "warn".to_string(),
+            title: "n2n 正在等待 ACK/PONG".to_string(),
+            detail: "edge 已运行且 supernode 已配置，但日志中尚未看到 ACK/PONG。".to_string(),
+            next_actions: vec![
+                "等待 10-20 秒后刷新组网状态。".to_string(),
+                "如果仍无 ACK/PONG，检查 supernode 地址、防火墙和网络连通性。".to_string(),
+            ],
+            evidence: diagnostic_evidence(diagnostics),
+        });
+    }
+
+    if diagnostics.virtual_ip.is_none() {
+        issues.push(DiagnosticIssue {
+            id: "n2n_virtual_ip_missing".to_string(),
+            severity: "warn".to_string(),
+            title: "未检测到 n2n 虚拟 IP".to_string(),
+            detail: "系统网卡扫描没有发现 n2n/TAP/cfw/edge 相关 10.x 虚拟地址。".to_string(),
+            next_actions: vec![
+                "确认 TAP 驱动或 n2n 虚拟网卡已经创建。".to_string(),
+                "启动 n2n edge 后重新刷新状态。".to_string(),
+                "如果虚拟 IP 被分配到其他网卡名称，请生成诊断报告发给开发者。".to_string(),
+            ],
+            evidence: diagnostic_evidence(diagnostics),
+        });
+    }
+
+    issues
+}
+
+fn diagnostic_evidence(diagnostics: &N2nDiagnostics) -> Vec<String> {
+    let mut evidence = vec![
+        diagnostics.summary.clone(),
+        format!("log_path={}", diagnostics.log_path),
+    ];
+    if let Some(error) = &diagnostics.last_error {
+        evidence.push(format!("last_error={error}"));
+    }
+    evidence.extend(diagnostics.recent_logs.iter().rev().take(8).cloned());
+    evidence
 }
