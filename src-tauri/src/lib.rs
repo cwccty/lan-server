@@ -33,7 +33,12 @@ pub fn run() {
             commands::start_game_server_session,
             commands::read_server_session,
             commands::stop_server_session,
-            commands::send_server_command
+            commands::send_server_command,
+            commands::start_port_proxy,
+            commands::stop_port_proxy,
+            commands::list_port_proxies,
+            commands::get_port_proxy_status,
+            commands::test_port_proxy
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -42,4 +47,5 @@ pub fn run() {
 fn cleanup_managed_processes() {
     let _ = core::server_session::stop_server_session();
     let _ = network::n2n_backend::stop();
+    core::port_proxy::stop_all_port_proxies();
 }

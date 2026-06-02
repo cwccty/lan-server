@@ -594,3 +594,16 @@ ConPTY 方案出现 `0xc0000142`。本轮回退为隐藏 `cmd.exe` 托管 Terrar
 - 该功能只基于真实 edge 日志诊断触发，不会在没有冲突证据时假提示。
 
 验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。release exe：src-tauri\target\release\lan-helper.exe。
+
+## 2026-06-03 TCP 端口代理后端 MVP 实现
+
+已实现端口代理后端 MVP，为后续“把房主真实游戏服务端映射到组网虚拟地址/端口”打基础。
+
+- 新增 `PortProxyConfig` / `PortProxyStatus` 类型。
+- 新增 `core::port_proxy`，当前只支持 TCP：监听、转发、停止、列表、状态、连接数、字节统计和最近日志。
+- 新增 Tauri 命令：`start_port_proxy`、`stop_port_proxy`、`list_port_proxies`、`get_port_proxy_status`、`test_port_proxy`。
+- 程序退出清理时会停止全部端口代理，避免后台残留监听端口。
+- 前端补齐 `src/types/portProxy.ts` 和 `src/api/tauri.ts` API 封装。
+- 当前尚未接入页面 UI；下一步推荐把它接到推荐方案页/通用组网中心，作为“房主端口转发”控制卡片。
+
+验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。release exe：src-tauri\target\release\lan-helper.exe。

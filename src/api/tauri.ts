@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+﻿import { invoke } from '@tauri-apps/api/core';
 import type { DiagnosticReport } from '../types/diagnostics';
 import type { GameAdapter, GameAnalysis, GameSummary } from '../types/game';
 import type {
@@ -12,6 +12,7 @@ import type {
 } from '../types/network';
 import type { LaunchConfig, LaunchResult, Recommendation } from '../types/recommendation';
 import type { ServerSessionStatus } from '../types/serverSession';
+import type { PortProxyConfig, PortProxyStatus } from '../types/portProxy';
 
 export const scanGames = () => invoke<GameSummary[]>('scan_games');
 export const analyzeGame = (gameId: string) => invoke<GameAnalysis>('analyze_game', { gameId });
@@ -51,3 +52,13 @@ export const startGameServerSession = (gameId: string, profileId: string, config
 export const readServerSession = () => invoke<ServerSessionStatus>('read_server_session');
 export const stopServerSession = () => invoke<ServerSessionStatus>('stop_server_session');
 export const sendServerCommand = (command: string) => invoke<ServerSessionStatus>('send_server_command', { command });
+
+export const startPortProxy = (config: PortProxyConfig) =>
+  invoke<PortProxyStatus>('start_port_proxy', { config });
+export const stopPortProxy = (id: string) =>
+  invoke<PortProxyStatus>('stop_port_proxy', { id });
+export const listPortProxies = () => invoke<PortProxyStatus[]>('list_port_proxies');
+export const getPortProxyStatus = (id: string) =>
+  invoke<PortProxyStatus>('get_port_proxy_status', { id });
+export const testPortProxy = (id: string) =>
+  invoke<ConnectivityReport>('test_port_proxy', { id });

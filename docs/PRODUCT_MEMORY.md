@@ -649,3 +649,21 @@ https://raw.githubusercontent.com/cwccty/lan-server/master/adapter-registry/inde
 - 该功能只基于真实 edge 日志诊断触发，不会在没有冲突证据时假提示。
 
 验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。release exe：src-tauri\target\release\lan-helper.exe。
+
+## 2026-06-03 TCP 端口代理后端 MVP 实现
+
+产品决策：端口代理不是替代 n2n，而是在组网成功后，把“好友访问房主虚拟 IP 的某个端口”转发到房主本机真实游戏服务端，例如 `127.0.0.1:7777`。第一版只做 TCP，UDP 广播桥和 UDP 端口代理以后单独做，避免架构混乱。
+
+已完成：
+
+- 后端新增 TCP 端口代理运行时，支持启动、停止、列表、状态、连通性测试、连接数、字节统计、最近日志。
+- Tauri 命令已注册，前端 API/类型已补齐。
+- 程序退出时统一停止端口代理，避免残留后台监听。
+
+未完成/下一步：
+
+- 把端口代理接入推荐方案页或通用组网中心 UI。
+- UI 必须显示真实状态：监听地址、目标地址、是否运行、连接数、最近错误、测试结果。
+- 后续再做 UDP 相关能力，不要和本次 TCP MVP 混写。
+
+验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。

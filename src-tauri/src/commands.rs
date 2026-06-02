@@ -1,6 +1,6 @@
 use crate::core::{
     capability_engine, connectivity_tester, diagnostic_logger, game_detector, game_launcher,
-    recommendation_engine, server_session,
+    port_proxy, recommendation_engine, server_session,
 };
 use crate::models::diagnostics::DiagnosticReport;
 use crate::models::game::{GameAdapter, GameAnalysis, GameSummary};
@@ -8,6 +8,7 @@ use crate::models::network::{
     BackendRuntimeStatus, BackendSummary, ConnectivityReport, ConnectivityTarget, N2nDiagnostics,
     NetworkConfig, SetupResult,
 };
+use crate::models::port_proxy::{PortProxyConfig, PortProxyStatus};
 use crate::models::recommendation::{LaunchResult, Recommendation};
 use crate::models::server_session::ServerSessionStatus;
 use crate::network::{manual_lan_backend, n2n_backend, radmin_backend};
@@ -149,4 +150,29 @@ pub fn stop_server_session() -> Result<ServerSessionStatus, String> {
 #[tauri::command]
 pub fn send_server_command(command: String) -> Result<ServerSessionStatus, String> {
     server_session::send_server_command(&command)
+}
+
+#[tauri::command]
+pub fn start_port_proxy(config: PortProxyConfig) -> Result<PortProxyStatus, String> {
+    port_proxy::start_port_proxy(config)
+}
+
+#[tauri::command]
+pub fn stop_port_proxy(id: String) -> Result<PortProxyStatus, String> {
+    port_proxy::stop_port_proxy(&id)
+}
+
+#[tauri::command]
+pub fn list_port_proxies() -> Result<Vec<PortProxyStatus>, String> {
+    Ok(port_proxy::list_port_proxies())
+}
+
+#[tauri::command]
+pub fn get_port_proxy_status(id: String) -> Result<PortProxyStatus, String> {
+    port_proxy::get_port_proxy_status(&id)
+}
+
+#[tauri::command]
+pub fn test_port_proxy(id: String) -> Result<ConnectivityReport, String> {
+    port_proxy::test_port_proxy(&id)
 }
