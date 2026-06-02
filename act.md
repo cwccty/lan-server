@@ -728,3 +728,25 @@ cargo check --manifest-path src-tauri\Cargo.toml
 ```
 
 下一步：把 UDP 端口代理卡片接入通用组网中心，并把 `self_test_udp_proxy` 加入诊断报告检查项。
+
+## 2026-06-03 UDP 端口代理 UI 与诊断接入
+
+已把 UDP 单播端口代理接入通用组网中心和发布级诊断：
+
+- 通用组网中心新增“房主 UDP 端口代理”卡片。
+- 支持启动、停止、刷新状态和一键 UDP Echo 自测。
+- UI 明确说明 UDP 单播代理只解决已知 IP/端口转发，不解决 LAN 广播/组播房间发现。
+- 通用组网邀请文本加入“房主 UDP 端口代理”摘要。
+- 诊断报告新增 `udp_port_proxy_self_test` 检查项。
+- 如果 UDP 自测失败，会生成 `udp_proxy_self_test_failed` 失败分类和下一步建议。
+
+验证通过：
+
+```powershell
+npm run build
+cargo check --manifest-path src-tauri\Cargo.toml
+cargo test --manifest-path src-tauri\Cargo.toml udp_proxy -- --nocapture
+npm run tauri:build
+```
+
+下一步：进入 UDP 广播桥 MVP，实现受控广播/组播发现包转发，并在 adapter 中对 `udp_broadcast_needed` 游戏显示能力状态。

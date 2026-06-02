@@ -1,6 +1,6 @@
 use chrono::Utc;
 
-use crate::core::{game_detector, port_proxy, server_session};
+use crate::core::{game_detector, port_proxy, server_session, udp_proxy};
 use crate::models::diagnostics::{DiagnosticIssue, DiagnosticReport, ReleaseCheck};
 use crate::models::network::N2nDiagnostics;
 use crate::network::{manual_lan_backend, n2n_backend, radmin_backend};
@@ -17,6 +17,7 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
     ];
     let n2n_diagnostics = n2n_backend::diagnose();
     let tcp_proxy_self_test = port_proxy::self_test_port_proxy();
+    let udp_proxy_self_test = udp_proxy::self_test_udp_proxy();
     let server = server_session::read_server_session().ok();
     let n2n = backends.iter().find(|backend| backend.id == "n2n");
 
@@ -79,6 +80,25 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
         ),
         Err(err) => format!("TCP 端口代理自测失败: {err}"),
     };
+    let udp_proxy_self_test_ok = udp_proxy_self_test
+        .as_ref()
+        .map(|report| report.ok)
+        .unwrap_or(false);
+    let udp_proxy_detail = match &udp_proxy_self_test {
+        Ok(report) => format!(
+            "ok={} {} -> {} sent={} received={} packets_in={} packets_out={} bytes_in={} bytes_out={}",
+            report.ok,
+            report.listen,
+            report.target,
+            report.sent,
+            report.received,
+            report.packets_in,
+            report.packets_out,
+            report.bytes_in,
+            report.bytes_out
+        ),
+        Err(err) => format!("UDP 端口代理自测失败: {err}"),
+    };
 
     let release_checks = vec![
         ReleaseCheck {
@@ -123,6 +143,13 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
             label: "TCP 端口代理一键自测".to_string(),
             ok: tcp_proxy_self_test_ok,
             detail: tcp_proxy_detail.clone(),
+            required_for_mvp: false,
+        },
+        ReleaseCheck {
+            id: "udp_port_proxy_self_test".to_string(),
+            label: "UDP 端口代理一键自测".to_string(),
+            ok: udp_proxy_self_test_ok,
+            detail: udp_proxy_detail.clone(),
             required_for_mvp: false,
         },
         ReleaseCheck {
@@ -225,6 +252,21 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
             evidence: vec![tcp_proxy_detail.clone()],
         });
     }
+    if let Err(err) = &udp_proxy_self_test {
+        issues.push(DiagnosticIssue {
+            id: "udp_proxy_self_test_failed".to_string(),
+            severity: "warn".to_string(),
+            title: "UDP 端口代理自测失败".to_string(),
+            detail: format!("一键 UDP 自测没有完成：{err}"),
+            next_actions: vec![
+                "检查是否有安全软件拦截本机临时 UDP 监听。".to_string(),
+                "确认没有其他程序占用大量本地 UDP 端口后重试。".to_string(),
+                "如果游戏不需要 UDP 单播端口代理，可暂时忽略该项。".to_string(),
+                "如果问题是游戏列表发现不到房间，后续应使用 UDP 广播桥而不是单播端口代理。".to_string(),
+            ],
+            evidence: vec![udp_proxy_detail.clone()],
+        });
+    }
     if !terraria_stable {
         issues.push(DiagnosticIssue {
             id: "terraria_server_not_stable".to_string(),
@@ -317,6 +359,13 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
             format!(
                 "TCP 端口代理自测：{}",
                 match &tcp_proxy_self_test {
+                    Ok(report) => serde_json::to_string_pretty(report).unwrap_or_default(),
+                    Err(err) => err.clone(),
+                }
+            ),
+            format!(
+                "UDP 端口代理自测：{}",
+                match &udp_proxy_self_test {
                     Ok(report) => serde_json::to_string_pretty(report).unwrap_or_default(),
                     Err(err) => err.clone(),
                 }
