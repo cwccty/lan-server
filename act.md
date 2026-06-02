@@ -325,3 +325,13 @@ ConPTY 方案出现 `0xc0000142`。本轮回退为隐藏 `cmd.exe` 托管 Terrar
 - `busy === false` 的完成消息使用 `status-banner`，不显示加载图标。
 
 验证：`npm run build` 和 `cargo check --manifest-path src-tauri\\Cargo.toml` 通过。
+
+## 2026-06-02 忽略 registry 运行时缓存
+
+按发布整理要求处理同步缓存：
+
+- `.gitignore` 增加 `adapters/games/registry_*.json`。
+- 删除当前未提交的 `registry_minecraft_java.json`、`registry_stardew_valley.json`、`registry_terraria.json`。
+- 验证 `npm run build` 与 `cargo check --manifest-path src-tauri\\Cargo.toml` 通过。
+
+目的：避免用户运行同步功能后污染 Git 工作区。

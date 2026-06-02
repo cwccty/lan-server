@@ -369,3 +369,18 @@ http://127.0.0.1:8088/adapter-registry/index.json
 - 操作完成/错误等普通消息改用 `status-banner`，不显示 spinner。
 
 这属于状态语义修正，避免用户误以为同步仍在继续。
+
+## 2026-06-02 忽略 registry 运行时缓存
+
+远程/本地示例库同步会在 `adapters/games/` 下生成 `registry_<game_id>.json`。这些文件是运行时缓存，不应该提交到 Git。
+
+已处理：
+
+- `.gitignore` 新增 `adapters/games/registry_*.json`。
+- 清理当前测试生成的 registry 缓存文件。
+
+保留规则：
+
+- `adapter-registry/` 是共享库示例，可提交。
+- `adapters/games/registry_*.json` 是用户同步缓存，不提交。
+- `adapters/games/custom_*.json` 是用户本地自定义，后续也应评估是否默认忽略或提供导出提交流程。
