@@ -7,3 +7,4 @@ pub mod port_proxy;
 pub mod process_util;
 pub mod recommendation_engine;
 pub mod server_session;
+pub mod udp_proxy;

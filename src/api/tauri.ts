@@ -13,6 +13,7 @@ import type {
 import type { LaunchConfig, LaunchResult, Recommendation } from '../types/recommendation';
 import type { ServerSessionStatus } from '../types/serverSession';
 import type { PortProxyConfig, PortProxySelfTestReport, PortProxyStatus } from '../types/portProxy';
+import type { UdpProxyConfig, UdpProxySelfTestReport, UdpProxyStatus } from '../types/udpProxy';
 
 export const scanGames = () => invoke<GameSummary[]>('scan_games');
 export const analyzeGame = (gameId: string) => invoke<GameAnalysis>('analyze_game', { gameId });
@@ -63,3 +64,12 @@ export const getPortProxyStatus = (id: string) =>
 export const testPortProxy = (id: string) =>
   invoke<ConnectivityReport>('test_port_proxy', { id });
 export const selfTestPortProxy = () => invoke<PortProxySelfTestReport>('self_test_port_proxy');
+
+export const startUdpProxy = (config: UdpProxyConfig) =>
+  invoke<UdpProxyStatus>('start_udp_proxy', { config });
+export const stopUdpProxy = (id: string) =>
+  invoke<UdpProxyStatus>('stop_udp_proxy', { id });
+export const listUdpProxies = () => invoke<UdpProxyStatus[]>('list_udp_proxies');
+export const getUdpProxyStatus = (id: string) =>
+  invoke<UdpProxyStatus>('get_udp_proxy_status', { id });
+export const selfTestUdpProxy = () => invoke<UdpProxySelfTestReport>('self_test_udp_proxy');

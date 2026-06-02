@@ -39,7 +39,12 @@ pub fn run() {
             commands::list_port_proxies,
             commands::get_port_proxy_status,
             commands::test_port_proxy,
-            commands::self_test_port_proxy
+            commands::self_test_port_proxy,
+            commands::start_udp_proxy,
+            commands::stop_udp_proxy,
+            commands::list_udp_proxies,
+            commands::get_udp_proxy_status,
+            commands::self_test_udp_proxy
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -49,4 +54,5 @@ fn cleanup_managed_processes() {
     let _ = core::server_session::stop_server_session();
     let _ = network::n2n_backend::stop();
     core::port_proxy::stop_all_port_proxies();
+    core::udp_proxy::stop_all_udp_proxies();
 }

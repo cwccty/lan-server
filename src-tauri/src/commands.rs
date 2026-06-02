@@ -1,6 +1,6 @@
 use crate::core::{
     capability_engine, connectivity_tester, diagnostic_logger, game_detector, game_launcher,
-    port_proxy, recommendation_engine, server_session,
+    port_proxy, recommendation_engine, server_session, udp_proxy,
 };
 use crate::models::diagnostics::DiagnosticReport;
 use crate::models::game::{GameAdapter, GameAnalysis, GameSummary};
@@ -9,6 +9,7 @@ use crate::models::network::{
     NetworkConfig, SetupResult,
 };
 use crate::models::port_proxy::{PortProxyConfig, PortProxySelfTestReport, PortProxyStatus};
+use crate::models::udp_proxy::{UdpProxyConfig, UdpProxySelfTestReport, UdpProxyStatus};
 use crate::models::recommendation::{LaunchResult, Recommendation};
 use crate::models::server_session::ServerSessionStatus;
 use crate::network::{manual_lan_backend, n2n_backend, radmin_backend};
@@ -180,4 +181,29 @@ pub fn test_port_proxy(id: String) -> Result<ConnectivityReport, String> {
 #[tauri::command]
 pub fn self_test_port_proxy() -> Result<PortProxySelfTestReport, String> {
     port_proxy::self_test_port_proxy()
+}
+
+#[tauri::command]
+pub fn start_udp_proxy(config: UdpProxyConfig) -> Result<UdpProxyStatus, String> {
+    udp_proxy::start_udp_proxy(config)
+}
+
+#[tauri::command]
+pub fn stop_udp_proxy(id: String) -> Result<UdpProxyStatus, String> {
+    udp_proxy::stop_udp_proxy(&id)
+}
+
+#[tauri::command]
+pub fn list_udp_proxies() -> Result<Vec<UdpProxyStatus>, String> {
+    Ok(udp_proxy::list_udp_proxies())
+}
+
+#[tauri::command]
+pub fn get_udp_proxy_status(id: String) -> Result<UdpProxyStatus, String> {
+    udp_proxy::get_udp_proxy_status(&id)
+}
+
+#[tauri::command]
+pub fn self_test_udp_proxy() -> Result<UdpProxySelfTestReport, String> {
+    udp_proxy::self_test_udp_proxy()
 }

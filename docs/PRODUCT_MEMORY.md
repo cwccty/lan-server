@@ -801,3 +801,19 @@ https://raw.githubusercontent.com/cwccty/lan-server/master/adapter-registry/inde
 - UDP 广播桥解决“游戏房间列表依赖 LAN 广播/组播发现”。
 
 两者不能共用一个模糊按钮。推荐页和诊断报告要根据 adapter 的 `connection_plan` 明确显示当前游戏到底需要哪一种能力。广播桥未实现前，相关游戏应标记为能力待实现或建议尝试手动 IP 直连。
+
+## 2026-06-03 UDP 单播端口代理后端 MVP
+
+UDP 单播端口代理已进入后端 MVP 阶段，定位为 TCP 端口代理的 UDP 版本，但产品上必须继续和 UDP 广播桥区分。
+
+当前已支持：
+
+- `start_udp_proxy`：启动 `listen_host:listen_port -> target_host:target_port` UDP 单播代理。
+- `stop_udp_proxy`：停止指定代理。
+- `list_udp_proxies` / `get_udp_proxy_status`：读取真实运行状态。
+- `self_test_udp_proxy`：自动启动临时 UDP Echo 服务和临时 UDP 代理，发送 `hello udp proxy` 并读取回包。
+- 状态字段包含活跃客户端、包数、字节数、最近错误和日志。
+
+实现原则：UDP 无连接，不能照搬 TCP 连接模型。当前代理维护 `client_addr -> last_seen` 映射，并将目标回包转发给活跃客户端；映射通过 TTL 清理。
+
+注意：这只能解决已知 IP/端口的 UDP 单播转发，不解决 LAN 广播/组播房间发现。广播发现仍属于后续 UDP 广播桥能力。

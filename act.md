@@ -707,3 +707,24 @@ ConPTY 方案出现 `0xc0000142`。本轮回退为隐藏 `cmd.exe` 托管 Terrar
 - 明确 UDP 单播端口代理与 UDP 广播桥的区别。
 - 决定下一步优先做 UDP 单播端口代理，因为它可以复用 TCP 代理的任务管理、自测和诊断模式。
 - 广播桥作为后续能力，重点处理房间发现、广播/组播转发、防回环和可诊断计数。
+
+## 2026-06-03 UDP 单播端口代理后端 MVP
+
+已实现 UDP 单播端口代理后端 MVP：
+
+- 新增 `src-tauri/src/core/udp_proxy.rs` 和 `src-tauri/src/models/udp_proxy.rs`。
+- 支持启动、停止、列表、读取状态和一键 UDP Echo 自测。
+- UDP 代理维护客户端来源地址映射和 TTL，能把目标 UDP 回包转发给活跃客户端。
+- 状态包含活跃客户端数、收发包数、收发字节、最近错误和日志。
+- 客户端关闭时会停止所有由联机助手管理的 UDP 代理。
+- 前端 API 与类型已接入：`src/types/udpProxy.ts`、`src/api/tauri.ts`。
+
+验证通过：
+
+```powershell
+cargo test --manifest-path src-tauri\Cargo.toml udp_proxy -- --nocapture
+npm run build
+cargo check --manifest-path src-tauri\Cargo.toml
+```
+
+下一步：把 UDP 端口代理卡片接入通用组网中心，并把 `self_test_udp_proxy` 加入诊断报告检查项。
