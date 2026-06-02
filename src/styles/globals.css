@@ -32,6 +32,18 @@ button:disabled {
   color: #dce6ff;
 }
 
+.status-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 14px;
+  padding: 10px 14px;
+  border: 1px solid #4f7cff;
+  border-radius: 12px;
+  background: rgba(79, 124, 255, 0.14);
+  color: #dce6ff;
+}
+
 .busy-banner::before {
   content: "";
   width: 10px;

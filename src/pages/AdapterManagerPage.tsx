@@ -232,7 +232,7 @@ export function AdapterManagerPage() {
     <section>
       <h2>游戏适配器管理</h2>
       <p className="muted">这是管理员/高级功能：认定一次游戏类型并保存适配器，后续其他用户扫描到同一游戏即可复用转换方案。</p>
-      {message && <div className="busy-banner">{message}</div>}
+      {message && <div className={busy ? 'busy-banner' : 'status-banner'}>{message}</div>}
 
       <article className="card">
         <h3>远程共享适配器库</h3>

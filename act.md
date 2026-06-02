@@ -314,3 +314,14 @@ ConPTY 方案出现 `0xc0000142`。本轮回退为隐藏 `cmd.exe` 托管 Terrar
 - 远程 URL 输入继续用于 VPS / GitHub Pages / 本地 HTTP 服务测试。
 
 验证：`npm run build` 和 `cargo check --manifest-path src-tauri\\Cargo.toml` 通过。
+
+## 2026-06-02 修复适配器同步完成仍显示加载图标
+
+用户反馈本地示例库同步完成后仍显示 spinner。原因是完成消息复用了 `busy-banner`。
+
+已改为：
+
+- `busy === true` 时使用 `busy-banner`。
+- `busy === false` 的完成消息使用 `status-banner`，不显示加载图标。
+
+验证：`npm run build` 和 `cargo check --manifest-path src-tauri\\Cargo.toml` 通过。

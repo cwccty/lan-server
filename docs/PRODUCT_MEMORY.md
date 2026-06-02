@@ -358,3 +358,14 @@ http://127.0.0.1:8088/adapter-registry/index.json
 - 保存为 `adapters/games/registry_<game_id>.json`。
 
 远程 URL 同步仍保留，用于测试 VPS、GitHub Pages 或本地 HTTP 服务。
+
+## 2026-06-02 适配器同步完成状态去除加载图标
+
+用户反馈“本地示例库同步完成”后仍显示加载图标。原因是适配器管理页把普通完成消息也复用了 `busy-banner` 样式，而 `busy-banner::before` 固定带旋转 spinner。
+
+已修正：
+
+- 忙碌中继续使用 `busy-banner`，保留 spinner。
+- 操作完成/错误等普通消息改用 `status-banner`，不显示 spinner。
+
+这属于状态语义修正，避免用户误以为同步仍在继续。
