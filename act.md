@@ -860,3 +860,22 @@ npm run tauri:build
 ```
 
 下一步：在适配器管理页增加“按游戏网络类型自动应用推荐模板/需求”的能力，减少管理员手动勾选错误。
+
+## 2026-06-03 适配器管理页按网络类型自动应用模板
+
+已在适配器管理页实现“游戏网络类型 / 管理员认定”自动模板联动：
+
+- 管理员选择 `lan_ip_direct`、`dedicated_server`、`tcp_port_proxy_needed`、`udp_broadcast_needed`、`steam_lobby_direct_possible`、`steam_relay_plugin`、`mod_required`、`official_only`、`not_supported`、`unknown_need_review` 后，会自动同步推荐字段。
+- 自动同步内容包括：`capabilities`、`multiplayer_conversion`、`methods`、`connection_plan`、`requires_virtual_lan`、`requires_tcp_port_proxy`、`requires_udp_broadcast_bridge`、`requires_dedicated_server`。
+- 模板不会覆盖已有 game_id、display_name、Steam AppID、executables；已有端口不为空时也不会覆盖端口。
+- 页面提示管理员仍需人工确认默认端口、房主步骤、加入者步骤和具体游戏限制。
+
+验证通过：
+
+```powershell
+npm run build
+cargo check --manifest-path src-tauri\Cargo.toml
+npm run tauri:build
+```
+
+下一步：把本地 custom adapter 草稿导出/同步流程再完善，便于把认定后的方案提交到共享 registry。

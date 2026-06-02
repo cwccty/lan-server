@@ -143,6 +143,201 @@ const templates: Record<string, Pick<GameAdapter, 'capabilities' | 'default_port
   }
 };
 
+const networkTypeTemplateIds: Record<GameNetworkType, keyof typeof templates | 'tcp_port_proxy_needed' | 'udp_broadcast_needed' | 'steam_relay_plugin' | 'mod_required' | 'not_supported' | 'unknown_need_review' | 'steam_lobby_direct_possible'> = {
+  lan_ip_direct: 'native_lan_ip',
+  dedicated_server: 'dedicated_server',
+  tcp_port_proxy_needed: 'tcp_port_proxy_needed',
+  udp_broadcast_needed: 'udp_broadcast_needed',
+  steam_lobby_direct_possible: 'steam_lobby_direct_possible',
+  steam_relay_plugin: 'steam_relay_plugin',
+  mod_required: 'mod_required',
+  official_only: 'official_only',
+  not_supported: 'not_supported',
+  unknown_need_review: 'unknown_need_review'
+};
+
+function templateForNetworkType(type: GameNetworkType): Pick<GameAdapter, 'capabilities' | 'default_ports' | 'multiplayer_conversion' | 'launch_profiles' | 'network_type' | 'connection_plan'> {
+  if (networkTypeTemplateIds[type] in templates) {
+    return templates[networkTypeTemplateIds[type] as keyof typeof templates];
+  }
+  const docs = [{ id: 'docs', name: '查看连接说明', type: 'docs' as const }];
+  if (type === 'tcp_port_proxy_needed') {
+    return {
+      capabilities: ['lan', 'ip_join'],
+      default_ports: [],
+      launch_profiles: docs,
+      multiplayer_conversion: {
+        capability: 'tcp_udp_proxy_possible',
+        methods: ['virtual_lan', 'port_proxy', 'manual_guide'],
+        can_convert_to_lan: true,
+        risk_level: 'medium',
+        notes: ['该游戏可能需要端口代理才能让朋友访问房主本机服务。', '优先确认游戏是否支持直接 IP/端口加入。'],
+        required_components: ['n2n/Radmin/已有局域网', 'TCP 端口代理', '游戏端口']
+      },
+      network_type: 'tcp_port_proxy_needed',
+      connection_plan: {
+        summary: '房主启动游戏后，再启动 TCP 端口代理，把虚拟 IP 端口转发到本机游戏端口。',
+        host_role: '房主先启动游戏房间/服务端，再在通用组网中心启动 TCP 端口代理。',
+        join_role: '加入者连接房主虚拟 IP 和代理监听端口。',
+        default_join_host: '房主虚拟 IP',
+        default_join_port: undefined,
+        requires_virtual_lan: true,
+        requires_tcp_port_proxy: true,
+        requires_udp_broadcast_bridge: false,
+        requires_dedicated_server: false,
+        invite_template: ['双方进入同一虚拟局域网。', '房主启动 TCP 端口代理。', '加入者连接房主虚拟 IP:代理端口。'],
+        troubleshooting: ['确认 TCP 代理自测通过。', '确认目标游戏端口在房主本机可达。']
+      }
+    };
+  }
+  if (type === 'udp_broadcast_needed') {
+    return {
+      capabilities: ['lan'],
+      default_ports: [],
+      launch_profiles: docs,
+      multiplayer_conversion: {
+        capability: 'lan_discovery_broadcast',
+        methods: ['virtual_lan', 'broadcast_bridge', 'manual_guide'],
+        can_convert_to_lan: true,
+        risk_level: 'medium',
+        notes: ['该游戏依赖 LAN 广播/组播发现房间。', '组网已通但列表看不到房间时，需要 UDP 广播桥辅助发现。'],
+        required_components: ['n2n/Radmin/已有局域网', 'UDP 广播桥', '游戏发现端口']
+      },
+      network_type: 'udp_broadcast_needed',
+      connection_plan: {
+        summary: '先完成通用组网；如果游戏房间列表看不到房主，启动 UDP 广播桥转发发现包。',
+        host_role: '房主创建 LAN 房间，并按游戏发现端口启动 UDP 广播桥。',
+        join_role: '加入者进入同一虚拟局域网，在游戏 LAN 列表中查找房间；若支持 IP 直连则优先直连。',
+        default_join_host: '房主虚拟 IP',
+        default_join_port: undefined,
+        requires_virtual_lan: true,
+        requires_tcp_port_proxy: false,
+        requires_udp_broadcast_bridge: true,
+        requires_dedicated_server: false,
+        invite_template: ['双方进入同一虚拟局域网。', '房主启动 UDP 广播桥。', '加入者刷新 LAN 房间列表或尝试 IP 直连。'],
+        troubleshooting: ['广播桥只辅助发现房间，不保证加入成功。', '如果游戏支持 IP 直连，优先连接房主虚拟 IP。']
+      }
+    };
+  }
+  if (type === 'steam_lobby_direct_possible') {
+    return {
+      capabilities: ['steam_lobby', 'ip_join'],
+      default_ports: [],
+      launch_profiles: docs,
+      multiplayer_conversion: {
+        capability: 'native_lan_ip',
+        methods: ['virtual_lan', 'manual_guide', 'steam_relay_plugin'],
+        can_convert_to_lan: true,
+        risk_level: 'medium',
+        notes: ['Steam Lobby 可用于发现/邀请，但仍可能支持 IP 直连。', '优先验证虚拟 IP 是否能加入。'],
+        required_components: ['Steam Lobby/游戏内邀请', 'n2n/Radmin/已有局域网']
+      },
+      network_type: 'steam_lobby_direct_possible',
+      connection_plan: {
+        summary: '保留 Steam Lobby 发现/邀请，同时优先验证是否可通过房主虚拟 IP 直连。',
+        host_role: '房主按游戏内 Steam/LAN 流程创建房间，并记录端口或直连入口。',
+        join_role: '加入者可尝试 Steam 邀请或连接房主虚拟 IP。',
+        default_join_host: '房主虚拟 IP',
+        default_join_port: undefined,
+        requires_virtual_lan: true,
+        requires_tcp_port_proxy: false,
+        requires_udp_broadcast_bridge: false,
+        requires_dedicated_server: false,
+        invite_template: ['先尝试游戏内 Steam/LAN 邀请。', '失败时尝试房主虚拟 IP 直连。'],
+        troubleshooting: ['确认游戏是否允许直接 IP 加入。', '涉及 Steam/反作弊时不要绕过官方验证。']
+      }
+    };
+  }
+  if (type === 'steam_relay_plugin') {
+    return {
+      capabilities: ['steam_lobby', 'steam_p2p'],
+      default_ports: [],
+      launch_profiles: docs,
+      multiplayer_conversion: {
+        capability: 'official_only',
+        methods: ['steam_relay_plugin', 'manual_guide'],
+        can_convert_to_lan: false,
+        risk_level: 'high',
+        notes: ['该游戏可能需要 Steam Networking/Relay 插件路线。', '当前 MVP 仅保留入口，不承诺真实接入。'],
+        required_components: ['Steamworks/Steam Networking 插件', '官方平台能力']
+      },
+      network_type: 'steam_relay_plugin',
+      connection_plan: {
+        summary: '当前只作为 Steam Relay 插件研究入口，不作为默认可用联机方案。',
+        host_role: '使用官方/Steam 房间或等待插件 PoC。',
+        join_role: '通过官方/Steam 方式加入。',
+        default_join_host: undefined,
+        default_join_port: undefined,
+        requires_virtual_lan: false,
+        requires_tcp_port_proxy: false,
+        requires_udp_broadcast_bridge: false,
+        requires_dedicated_server: false,
+        invite_template: ['当前不承诺本地联机转换。'],
+        troubleshooting: ['需要官方 Steamworks/Networking SDK 或用户自有 AppID。']
+      }
+    };
+  }
+  if (type === 'mod_required') {
+    return {
+      capabilities: ['unknown'],
+      default_ports: [],
+      launch_profiles: docs,
+      multiplayer_conversion: {
+        capability: 'community_mod',
+        methods: ['mod_installer', 'manual_guide'],
+        can_convert_to_lan: false,
+        risk_level: 'high',
+        notes: ['该游戏可能需要社区 Mod 才能转换联机方式。', '当前不自动安装 Mod。'],
+        required_components: ['社区 Mod', '人工确认风险']
+      },
+      network_type: 'mod_required',
+      connection_plan: {
+        summary: '需要社区 Mod 或额外补丁才可能转换联机方式；当前仅记录说明。',
+        host_role: '按 Mod 文档配置房主环境。',
+        join_role: '按 Mod 文档加入。',
+        default_join_host: undefined,
+        default_join_port: undefined,
+        requires_virtual_lan: false,
+        requires_tcp_port_proxy: false,
+        requires_udp_broadcast_bridge: false,
+        requires_dedicated_server: false,
+        invite_template: ['请先阅读 Mod 文档并确认风险。'],
+        troubleshooting: ['不要自动安装未知 Mod。', '注意版本、反作弊和账号风险。']
+      }
+    };
+  }
+  if (type === 'not_supported') {
+    return {
+      capabilities: ['unknown'],
+      default_ports: [],
+      launch_profiles: docs,
+      multiplayer_conversion: {
+        capability: 'unsupported',
+        methods: ['not_supported'],
+        can_convert_to_lan: false,
+        risk_level: 'high',
+        notes: ['已确认当前不支持转换成本地联机。'],
+        required_components: ['无可用转换方案']
+      },
+      network_type: 'not_supported',
+      connection_plan: {
+        summary: '已确认当前暂不支持转换为本地/局域网联机。',
+        host_role: '不提供房主流程。',
+        join_role: '不提供加入流程。',
+        default_join_host: undefined,
+        default_join_port: undefined,
+        requires_virtual_lan: false,
+        requires_tcp_port_proxy: false,
+        requires_udp_broadcast_bridge: false,
+        requires_dedicated_server: false,
+        invite_template: ['该游戏当前暂不支持。'],
+        troubleshooting: ['不要给用户误导性联机步骤。']
+      }
+    };
+  }
+  return emptyAdapter();
+}
+
 function emptyAdapter(): GameAdapter {
   return {
     game_id: '',
@@ -231,6 +426,33 @@ export function AdapterManagerPage() {
   const applyTemplate = (id: keyof typeof templates) => {
     const template = templates[id];
     syncDraftText({ ...draft, ...template, multiplayer_conversion: { ...template.multiplayer_conversion! } });
+  };
+
+  const applyNetworkTypeTemplate = (type: GameNetworkType) => {
+    const template = templateForNetworkType(type);
+    syncDraftText({
+      ...draft,
+      ...template,
+      game_id: draft.game_id,
+      display_name: draft.display_name,
+      steam_appid: draft.steam_appid,
+      executables: draft.executables,
+      default_ports: draft.default_ports.length > 0 ? draft.default_ports : template.default_ports,
+      network_type: type,
+      multiplayer_conversion: {
+        ...template.multiplayer_conversion!,
+        notes: [...template.multiplayer_conversion!.notes],
+        required_components: [...template.multiplayer_conversion!.required_components],
+        methods: [...template.multiplayer_conversion!.methods]
+      },
+      connection_plan: {
+        ...template.connection_plan!,
+        invite_template: [...template.connection_plan!.invite_template],
+        troubleshooting: [...template.connection_plan!.troubleshooting]
+      },
+      launch_profiles: template.launch_profiles.map((profile) => ({ ...profile }))
+    });
+    setMessage(`已按“${networkTypeOptions.find(([value]) => value === type)?.[1] ?? type}”同步推荐模板；请继续确认端口、房主/加入者步骤后保存。`);
   };
 
   const save = async () => {
@@ -440,10 +662,15 @@ export function AdapterManagerPage() {
         <label>可执行文件名，每行一个<textarea value={executablesText} onChange={(event) => setExecutablesText(event.target.value)} placeholder="Game.exe" /></label>
         <label>默认端口，逗号分隔<input value={portsText} onChange={(event) => setPortsText(event.target.value)} placeholder="7777,25565" /></label>
         <label>游戏网络类型 / 管理员认定
-          <select value={draft.network_type ?? 'unknown_need_review'} onChange={(event) => setDraft({ ...draft, network_type: event.target.value as GameNetworkType })}>
+          <select value={draft.network_type ?? 'unknown_need_review'} onChange={(event) => applyNetworkTypeTemplate(event.target.value as GameNetworkType)}>
             {networkTypeOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
+          <small className="muted">选择后会自动同步 capabilities、转换方式和 connection_plan 需求，避免手动勾选错误；仍需人工确认端口和具体步骤。</small>
         </label>
+        <div className="notice-card">
+          <strong>当前认定结果：</strong>{draft.network_type ?? 'unknown_need_review'}。
+          管理员认定后请检查下方“方案需求”和“房主/加入者步骤”，再保存为本地 custom adapter。
+        </div>
         <label>连接方案摘要<input value={draft.connection_plan?.summary ?? ''} onChange={(event) => setDraft({ ...draft, connection_plan: { ...(draft.connection_plan ?? emptyAdapter().connection_plan!), summary: event.target.value } })} placeholder="例如：房主启动服务端，好友连接房主虚拟 IP:端口" /></label>
         <label>房主步骤<input value={draft.connection_plan?.host_role ?? ''} onChange={(event) => setDraft({ ...draft, connection_plan: { ...(draft.connection_plan ?? emptyAdapter().connection_plan!), host_role: event.target.value } })} /></label>
         <label>加入者步骤<input value={draft.connection_plan?.join_role ?? ''} onChange={(event) => setDraft({ ...draft, connection_plan: { ...(draft.connection_plan ?? emptyAdapter().connection_plan!), join_role: event.target.value } })} /></label>
