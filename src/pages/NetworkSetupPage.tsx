@@ -25,6 +25,32 @@ type SteamRelayDraft = {
   notes: string;
 };
 
+type NetworkSetupCache = {
+  backends: BackendSummary[];
+  n2nDiagnostics: N2nDiagnostics | null;
+  portProxyStatus: PortProxyStatus | null;
+  savedAt: number;
+};
+
+const NETWORK_SETUP_CACHE_KEY = 'lan-helper-network-setup-cache';
+
+function readNetworkSetupCache(): NetworkSetupCache | null {
+  try {
+    const raw = window.localStorage.getItem(NETWORK_SETUP_CACHE_KEY);
+    return raw ? JSON.parse(raw) as NetworkSetupCache : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeNetworkSetupCache(cache: NetworkSetupCache) {
+  try {
+    window.localStorage.setItem(NETWORK_SETUP_CACHE_KEY, JSON.stringify(cache));
+  } catch {
+    // Ignore localStorage quota or compatibility failures.
+  }
+}
+
 function ConnectivityReportView({ report }: { report: ConnectivityReport }) {
   return (
     <div className={report.reachable ? 'result-ok' : 'result-bad'}>
@@ -195,7 +221,8 @@ function buildN2nAdminSummary(
 }
 
 export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; preset?: NetworkSetupPreset }) {
-  const [backends, setBackends] = useState<BackendSummary[]>([]);
+  const cachedNetworkSetup = readNetworkSetupCache();
+  const [backends, setBackends] = useState<BackendSummary[]>(cachedNetworkSetup?.backends ?? []);
   const [host, setHost] = useState('127.0.0.1');
   const [ports, setPorts] = useState('7777');
   const [report, setReport] = useState<ConnectivityReport | null>(null);
@@ -211,15 +238,19 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
   const [proxyTargetPort, setProxyTargetPort] = useState('7777');
   const [localReport, setLocalReport] = useState<ConnectivityReport | null>(null);
   const [peerReport, setPeerReport] = useState<ConnectivityReport | null>(null);
-  const [portProxyStatus, setPortProxyStatus] = useState<PortProxyStatus | null>(null);
+  const [portProxyStatus, setPortProxyStatus] = useState<PortProxyStatus | null>(cachedNetworkSetup?.portProxyStatus ?? null);
   const [portProxyReport, setPortProxyReport] = useState<ConnectivityReport | null>(null);
   const [portProxySelfTest, setPortProxySelfTest] = useState<PortProxySelfTestReport | null>(null);
   const [n2nResult, setN2nResult] = useState<SetupResult | BackendRuntimeStatus | null>(null);
-  const [n2nDiagnostics, setN2nDiagnostics] = useState<N2nDiagnostics | null>(null);
+  const [n2nDiagnostics, setN2nDiagnostics] = useState<N2nDiagnostics | null>(cachedNetworkSetup?.n2nDiagnostics ?? null);
   const [n2nAutoRefresh, setN2nAutoRefresh] = useState<{ reason: string; startedAt: number } | null>(null);
   const [presetNotice, setPresetNotice] = useState('');
   const [copyMessage, setCopyMessage] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
+  const [initialLoading, setInitialLoading] = useState(!cachedNetworkSetup);
+  const [backgroundRefreshing, setBackgroundRefreshing] = useState(false);
+  const [networkLoadError, setNetworkLoadError] = useState('');
+  const [lastRefreshAt, setLastRefreshAt] = useState(cachedNetworkSetup?.savedAt ?? 0);
   const autoRefreshInFlightRef = useRef(false);
   const [steamRelayDraft, setSteamRelayDraft] = useState<SteamRelayDraft>({
     appId: '',
@@ -228,31 +259,67 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
     notes: '预留 connecttool-qt 类路线：通过 Steam Networking / Relay 做房间发现和中继。'
   });
 
+  const saveNetworkCache = (
+    nextBackends = backends,
+    nextDiagnostics = n2nDiagnostics,
+    nextPortProxyStatus = portProxyStatus
+  ) => {
+    const savedAt = Date.now();
+    setLastRefreshAt(savedAt);
+    writeNetworkSetupCache({
+      backends: nextBackends,
+      n2nDiagnostics: nextDiagnostics,
+      portProxyStatus: nextPortProxyStatus,
+      savedAt
+    });
+  };
+
   const refreshBackends = () =>
     Promise.all([listNetworkBackends(), getN2nDiagnostics().catch(() => null)])
       .then(([items, diagnostics]) => {
         setBackends(items);
         setN2nDiagnostics(diagnostics);
+        setNetworkLoadError('');
+        saveNetworkCache(items, diagnostics, portProxyStatus);
         const recentSupernode = recentSupernodeFromBackends(items);
         if (recentSupernode) {
           setSupernode((current) => current.trim() ? current : recentSupernode);
         }
       })
-      .catch(() => {
-        setBackends([]);
-        setN2nDiagnostics(null);
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : String(error || '未知错误');
+        setNetworkLoadError(`刷新网络后端失败：${message}。已保留上次检测结果，请稍后重试。`);
       });
 
   const refreshPortProxy = () =>
     listPortProxies()
       .then((items) => {
-        setPortProxyStatus(items.find((item) => item.id === 'default') ?? items[0] ?? null);
+        const nextStatus = items.find((item) => item.id === 'default') ?? items[0] ?? null;
+        setPortProxyStatus(nextStatus);
+        setNetworkLoadError('');
+        saveNetworkCache(backends, n2nDiagnostics, nextStatus);
       })
-      .catch(() => setPortProxyStatus(null));
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : String(error || '未知错误');
+        setNetworkLoadError(`刷新 TCP 端口代理状态失败：${message}。已保留上次检测结果，请稍后重试。`);
+      });
 
   useEffect(() => {
-    refreshBackends();
-    refreshPortProxy();
+    const loadInitialState = async () => {
+      try {
+        if (cachedNetworkSetup) {
+          setBackgroundRefreshing(true);
+        } else {
+          setInitialLoading(true);
+        }
+        await Promise.all([refreshBackends(), refreshPortProxy()]);
+      } finally {
+        setInitialLoading(false);
+        setBackgroundRefreshing(false);
+      }
+    };
+
+    loadInitialState();
     const saved = window.localStorage.getItem('lan-helper-steam-relay-draft');
     if (!saved) {
       return;
@@ -291,14 +358,24 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
   const runAction = async <T,>(label: string, action: () => Promise<T>, onDone?: (value: T) => void) => {
     if (busy) return;
     try {
+      setNetworkLoadError('');
       setBusy(label);
       const value = await action();
       onDone?.(value);
       await Promise.all([refreshBackends(), refreshPortProxy()]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error || '未知错误');
+      setNetworkLoadError(`${label}失败：${message}`);
     } finally {
       setBusy(null);
     }
   };
+
+  const refreshAllNetworkState = () =>
+    runAction('刷新组网状态', async () => {
+      await Promise.all([refreshBackends(), refreshPortProxy()]);
+      return true;
+    });
 
   const friendConfigText = [
     '【联机助手通用组网邀请】',
@@ -455,7 +532,11 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
 
   return (
     <section className="page-stack">
-      <LoadingOverlay visible={Boolean(busy)} title={`正在处理：${busy ?? ''}`} message="请稍等，不要重复点击按钮或关闭程序。" />
+      <LoadingOverlay
+        visible={initialLoading || Boolean(busy)}
+        title={initialLoading ? '正在加载通用组网状态' : `正在处理：${busy ?? ''}`}
+        message={initialLoading ? '首次进入需要读取 n2n、网卡、端口代理和日志状态，请稍等。' : '请稍等，不要重复点击按钮或关闭程序。'}
+      />
       <div className="page-header">
         <div>
           <span className="eyebrow">NETWORK</span>
@@ -469,6 +550,19 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
       </div>
 
       {busy && <div className="busy-banner">正在处理：{busy}，请稍等，不要重复点击。</div>}
+      {backgroundRefreshing && !busy && !initialLoading && (
+        <div className="busy-banner">正在后台刷新组网状态。页面先显示上次检测结果，刷新完成后会自动更新。</div>
+      )}
+      {lastRefreshAt > 0 && !backgroundRefreshing && !initialLoading && (
+        <div className="notice-card">
+          <strong>状态缓存：</strong>当前页面优先显示上次检测结果，最近刷新时间：{new Date(lastRefreshAt).toLocaleString()}。
+        </div>
+      )}
+      {networkLoadError && (
+        <div className="error-card">
+          <strong>组网状态提示：</strong>{networkLoadError}
+        </div>
+      )}
       {n2nAutoRefresh && !busy && (
         <div className="busy-banner">正在自动刷新 n2n 状态：{n2nAutoRefresh.reason}。检测到 ACK/PONG、错误、进程停止或 60 秒超时后会自动停止。</div>
       )}
@@ -533,7 +627,8 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
       <article className="card">
         <h3>当前网络后端</h3>
         {backends.map((backend) => <BackendCard key={backend.id} backend={backend} />)}
-        <button onClick={refreshBackends} disabled={Boolean(busy)}>刷新网络后端状态</button>
+        {backends.length === 0 && !initialLoading && <p className="muted">尚未读取到网络后端状态。可以点击刷新，或查看上方失败提示。</p>}
+        <button onClick={refreshAllNetworkState} disabled={Boolean(busy) || initialLoading}>刷新组网状态</button>
       </article>
 
       <article className="card">

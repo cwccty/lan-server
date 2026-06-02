@@ -639,3 +639,19 @@ ConPTY 方案出现 `0xc0000142`。本轮回退为隐藏 `cmd.exe` 托管 Terrar
 验证：cargo test --manifest-path src-tauri\Cargo.toml port_proxy、npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。Browser 复查时本地浏览器拦截了 http://127.0.0.1:1420，但不影响编译和后端自测验证结果。
 
 下一步推荐：把“一键自测 TCP 代理”结果纳入诊断报告，让用户点击“开始诊断”时也能看到 TCP 代理自测是否通过。
+
+## 2026-06-03 通用组网中心进入加载与缓存优化
+
+已修复用户反馈的“点进通用组网中心会自动卡一段时间但没有明显加载提示”和“重复进入仍重新加载不合理”的产品体验问题。
+
+- 首次进入通用组网中心，如果没有缓存，会显示全屏加载遮罩：正在加载通用组网状态。
+- 后续再次进入会优先显示上次检测缓存，避免页面空白或明显卡顿。
+- 后续进入时会在后台刷新 n2n、网卡、端口代理状态，并显示“正在后台刷新组网状态”的提示。
+- 新增状态缓存：backends、n2nDiagnostics、portProxyStatus、savedAt，存入 localStorage。
+- 页面显示最近刷新时间，让用户知道当前状态来自缓存还是刚刷新。
+- 刷新失败或组网操作失败时，不再静默清空旧内容，会显示明确错误提示，例如“刷新网络后端失败 / 启动 n2n edge 失败 / 刷新 TCP 端口代理状态失败”。
+- “刷新网络后端状态”调整为“刷新组网状态”，同时刷新 n2n 后端和 TCP 端口代理状态。
+
+验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。第一次 tauri build 因 release 版 lan-helper.exe 正在运行导致拒绝覆盖，停止 PID 54676 后重新打包成功。
+
+下一步推荐：把 n2n 启动失败原因进一步分类展示，例如 edge 未检测到、supernode 未填写、IP/MAC 冲突、supernode 无响应、认证错误，让用户不用看日志也能知道下一步该做什么。

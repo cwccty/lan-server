@@ -711,3 +711,25 @@ https://raw.githubusercontent.com/cwccty/lan-server/master/adapter-registry/inde
 验证：cargo test --manifest-path src-tauri\Cargo.toml port_proxy、npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。
 
 下一步推荐：把自测接入诊断报告，并在失败时给出“目标服务没开 / 监听端口被占用 / 代理不可启动”等分支建议。
+
+## 2026-06-03 通用组网中心进入加载与缓存优化
+
+产品决策：通用组网中心读取 n2n、网卡、日志和端口代理状态可能耗时，不能让用户感觉按钮无响应或页面卡死。首次进入需要明确加载动画；后续进入应先显示缓存，再后台刷新。
+
+已完成：
+
+- 首次无缓存进入：显示 LoadingOverlay。
+- 后续有缓存进入：立即显示上次检测结果，后台刷新真实状态。
+- 缓存内容：网络后端、n2n 诊断、TCP 端口代理状态、保存时间。
+- 页面展示最近刷新时间。
+- 刷新失败和操作失败显示错误提示，且保留旧状态，避免因为一次失败导致页面变空。
+- 手动刷新按钮改为“刷新组网状态”，统一刷新 n2n 和 TCP 端口代理。
+
+边界：
+
+- 缓存只是为了减少等待感，不代表状态永远准确；后台刷新完成后会更新。
+- 失败提示来自前端捕获的命令错误，后续应继续拆分为更具体的 n2n 失败类型。
+
+验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。
+
+下一步推荐：完善 n2n 失败分类提示和“下一步修复建议”。
