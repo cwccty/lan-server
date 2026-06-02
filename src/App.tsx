@@ -54,7 +54,7 @@ export default function App() {
         />
       )}
       {page === 'adapters' && <AdapterManagerPage />}
-      {page === 'diagnostics' && <DiagnosticsPage />}
+      {page === 'diagnostics' && <DiagnosticsPage selectedGame={games.find((game) => game.game_id === selectedGameId)} />}
     </Layout>
   );
 }

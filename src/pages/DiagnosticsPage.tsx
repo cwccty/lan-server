@@ -1,7 +1,8 @@
 ﻿import { useState } from 'react';
-import { generateDiagnosticReport } from '../api/tauri';
+import { generateDiagnosticReport, generateDiagnosticReportForGame } from '../api/tauri';
 import { LoadingOverlay } from '../components/LoadingOverlay';
 import type { DiagnosticIssue, DiagnosticReport } from '../types/diagnostics';
+import type { GameSummary } from '../types/game';
 
 const fixedChecks = [
   ['后端服务可用性', '等待检测', 'Tauri 后端命令是否正常响应'],
@@ -57,7 +58,7 @@ function IssueCard({ issue }: { issue: DiagnosticIssue }) {
   );
 }
 
-export function DiagnosticsPage() {
+export function DiagnosticsPage({ selectedGame }: { selectedGame?: GameSummary }) {
   const [report, setReport] = useState<DiagnosticReport | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -73,7 +74,7 @@ export function DiagnosticsPage() {
     setBusy(true);
     setError('');
     try {
-      setReport(await generateDiagnosticReport());
+      setReport(selectedGame?.game_id ? await generateDiagnosticReportForGame(selectedGame.game_id) : await generateDiagnosticReport());
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err || '生成诊断报告失败'));
     } finally {
@@ -97,6 +98,7 @@ export function DiagnosticsPage() {
           <span className="eyebrow">DIAGNOSTICS</span>
           <h2>诊断报告</h2>
           <p className="muted">把“不能联机”拆成可验证的检测项、失败分类和下一步修复建议，而不是只显示 false。</p>
+          {selectedGame && <p className="muted">当前游戏上下文：{selectedGame.display_name}（{selectedGame.game_id}）</p>}
         </div>
         <span className={mvpReady ? 'badge good' : report ? 'badge bad' : 'badge warn'}>{report ? (mvpReady ? '核心通过' : '存在问题') : '未检测'}</span>
       </div>
@@ -112,7 +114,7 @@ export function DiagnosticsPage() {
 
       <article className="card toolbar-card">
         <div className="actions">
-          <button onClick={createReport} disabled={busy}>{busy ? '正在诊断...' : '开始诊断'}</button>
+          <button onClick={createReport} disabled={busy}>{busy ? '正在诊断...' : selectedGame ? '诊断当前游戏' : '开始诊断'}</button>
           {report && <button className="secondary" onClick={() => navigator.clipboard.writeText(reportText)}>复制完整报告</button>}
           {report && <button className="secondary" onClick={() => navigator.clipboard.writeText(summary)}>复制摘要</button>}
           {report && <button className="secondary" onClick={() => setReport(null)}>清空日志</button>}

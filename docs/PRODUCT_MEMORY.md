@@ -1041,3 +1041,41 @@ cargo check --manifest-path src-tauri\Cargo.toml
 ```
 
 下一步推荐：做“当前游戏上下文诊断”，让诊断报告不只全局巡检所有 adapter，也能针对用户当前选中的游戏输出更精准的能力缺口和下一步操作。
+
+## 2026-06-03 当前游戏上下文诊断
+
+诊断报告已从单纯全局巡检升级为支持“当前游戏上下文诊断”。
+
+新增后端命令：
+
+- `generate_diagnostic_report_for_game(game_id)`
+
+当用户已经在扫描/详情/推荐流程中选中某个游戏后，诊断页会把该游戏传入后端，报告会额外生成当前游戏专属检查项：
+
+- `selected_game_adapter_found`：当前游戏是否存在 adapter；
+- `selected_game_connection_plan`：当前游戏是否已经沉淀 connection_plan；
+- `selected_game_virtual_lan_ready`：该游戏所需虚拟局域网是否就绪；
+- `selected_game_tcp_proxy_ready`：该游戏所需 TCP 端口代理是否就绪；
+- `selected_game_udp_proxy_candidate`：该游戏是否属于 UDP 单播代理候选，以及 UDP 代理自测是否通过；
+- `selected_game_udp_broadcast_bridge_ready`：该游戏所需 UDP 广播桥是否就绪；
+- `selected_game_dedicated_server_ready`：该游戏所需专用服务端是否已观察到 running/ready。
+
+新增当前游戏失败分类：
+
+- `selected_game_adapter_missing`
+- `selected_game_unknown_need_review`
+- `selected_game_virtual_lan_not_ready`
+- `selected_game_tcp_proxy_not_ready`
+- `selected_game_udp_broadcast_bridge_not_ready`
+- `selected_game_dedicated_server_not_observed`
+
+这一步让诊断报告能回答“我现在选中的这个游戏为什么还不能联机”，而不只是回答“整个适配器库里有哪些能力缺口”。所有结论仍来自真实 n2n、代理自测、广播桥自测、服务端会话和 adapter connection_plan，不做 UI 假绿。
+
+验证通过：
+
+```powershell
+npm run build
+cargo check --manifest-path src-tauri\Cargo.toml
+```
+
+下一步推荐：做一次发布目标完成度审计，逐项核对“发布级诊断与失败分类、适配器体系升级、游戏类型识别与方案沉淀、UDP 广播桥、UDP 端口代理”是否已有当前证据支撑；如无缺口，再考虑标记长期目标完成。

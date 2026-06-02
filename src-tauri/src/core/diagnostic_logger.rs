@@ -8,6 +8,14 @@ use crate::network::{manual_lan_backend, n2n_backend, radmin_backend};
 use crate::storage::adapter_store;
 
 pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
+    generate_diagnostic_report_with_context(None)
+}
+
+pub fn generate_diagnostic_report_for_game(game_id: &str) -> Result<DiagnosticReport, String> {
+    generate_diagnostic_report_with_context(Some(game_id))
+}
+
+fn generate_diagnostic_report_with_context(selected_game_id: Option<&str>) -> Result<DiagnosticReport, String> {
     let adapters = adapter_store::load_game_adapters().unwrap_or_default();
     let steam_libraries = game_detector::discover_steam_libraries();
     let games = game_detector::scan_games().unwrap_or_default();
@@ -133,6 +141,18 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
         .checks
         .iter()
         .all(|item| item.ok);
+    let selected_game_report = selected_game_id
+        .map(|game_id| {
+            build_selected_game_requirement_report(
+                game_id,
+                &adapters,
+                &n2n_diagnostics,
+                tcp_proxy_self_test_ok,
+                udp_proxy_self_test_ok,
+                udp_broadcast_bridge_self_test_ok,
+                server_running || server_ready,
+            )
+        });
 
     let mut release_checks = vec![
         ReleaseCheck {
@@ -259,6 +279,9 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
         },
     ];
     release_checks.extend(adapter_requirement_report.checks.clone());
+    if let Some(report) = &selected_game_report {
+        release_checks.extend(report.checks.clone());
+    }
 
     let required_total = release_checks
         .iter()
@@ -288,6 +311,9 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
 
     let mut issues = classify_n2n_issues(&n2n_diagnostics, n2n_available);
     issues.extend(adapter_requirement_report.issues.clone());
+    if let Some(report) = &selected_game_report {
+        issues.extend(report.issues.clone());
+    }
     if let Err(err) = &tcp_proxy_self_test {
         issues.push(DiagnosticIssue {
             id: "tcp_proxy_self_test_failed".to_string(),
@@ -384,10 +410,14 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
         app_version: env!("CARGO_PKG_VERSION").to_string(),
         os: std::env::consts::OS.to_string(),
         summary: format!(
-            "适配库 {} 个游戏；扫描返回 {} 个游戏；网络后端 {} 个；诊断问题 {} 个。",
+            "适配库 {} 个游戏；扫描返回 {} 个游戏；网络后端 {} 个；{}诊断问题 {} 个。",
             adapters.len(),
             games.len(),
             backends.len(),
+            selected_game_report
+                .as_ref()
+                .map(|report| format!("当前游戏：{}；", report.summary))
+                .unwrap_or_default(),
             issues.len()
         ),
         most_likely_cause,
@@ -447,6 +477,16 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
                 adapter_requirement_report.summary,
                 adapter_requirement_report.details.join("\n")
             ),
+            selected_game_report
+                .as_ref()
+                .map(|report| {
+                    format!(
+                        "当前游戏上下文诊断：\n{}\n{}",
+                        report.summary,
+                        report.details.join("\n")
+                    )
+                })
+                .unwrap_or_else(|| "当前游戏上下文诊断：未选择游戏，执行全局诊断。".to_string()),
             format!(
                 "内嵌服务端会话：{}",
                 serde_json::to_string_pretty(&server).unwrap_or_default()
@@ -664,6 +704,242 @@ fn build_adapter_requirement_report(
             udp_proxy_ok,
             udp_broadcast_bridge_ok,
             dedicated_server_observed
+        ),
+        checks,
+        issues,
+        details,
+    }
+}
+
+fn build_selected_game_requirement_report(
+    game_id: &str,
+    adapters: &[GameAdapter],
+    n2n_diagnostics: &N2nDiagnostics,
+    tcp_proxy_ok: bool,
+    udp_proxy_ok: bool,
+    udp_broadcast_bridge_ok: bool,
+    dedicated_server_observed: bool,
+) -> AdapterRequirementReport {
+    let mut checks = Vec::new();
+    let mut issues = Vec::new();
+    let mut details = Vec::new();
+    let selected = adapters.iter().find(|adapter| adapter.game_id == game_id);
+    let virtual_lan_ok = n2n_diagnostics.ok_link
+        && !n2n_diagnostics.auth_error
+        && !n2n_diagnostics.ip_mac_conflict;
+
+    let Some(adapter) = selected else {
+        push_adapter_check(
+            &mut checks,
+            "selected_game_adapter_found",
+            "当前游戏适配器存在",
+            false,
+            format!("未找到 game_id={game_id} 的适配器；可能还没有扫描或同步共享库。"),
+        );
+        issues.push(DiagnosticIssue {
+            id: "selected_game_adapter_missing".to_string(),
+            severity: "warn".to_string(),
+            title: "当前游戏没有可用适配器".to_string(),
+            detail: format!("诊断时没有找到 game_id={game_id} 的 adapter，因此无法判断这个游戏需要哪种联机能力。"),
+            next_actions: vec![
+                "先进入游戏扫描页确认游戏是否被识别。".to_string(),
+                "进入适配器管理页同步共享库或创建本地 adapter 草稿。".to_string(),
+                "管理员认定游戏网络类型后，再重新生成当前游戏诊断。".to_string(),
+            ],
+            evidence: vec![format!("selected_game_id={game_id}")],
+        });
+        return AdapterRequirementReport {
+            summary: format!("未找到当前游戏适配器 game_id={game_id}"),
+            checks,
+            issues,
+            details: vec![format!("selected_game_id={game_id}；适配器不存在")],
+        };
+    };
+
+    push_adapter_check(
+        &mut checks,
+        "selected_game_adapter_found",
+        "当前游戏适配器存在",
+        true,
+        format!(
+            "{}({}) source={} network_type={:?}",
+            adapter.display_name,
+            adapter.game_id,
+            adapter.adapter_source.as_deref().unwrap_or("unknown"),
+            adapter.network_type
+        ),
+    );
+
+    let plan = adapter.connection_plan.as_ref();
+    push_adapter_check(
+        &mut checks,
+        "selected_game_connection_plan",
+        "当前游戏连接方案已沉淀",
+        plan.is_some() && !matches!(adapter.network_type, Some(GameNetworkType::UnknownNeedReview)),
+        plan.map(|item| item.summary.clone()).unwrap_or_else(|| "当前 adapter 缺少 connection_plan。".to_string()),
+    );
+
+    if plan.is_none() || matches!(adapter.network_type, Some(GameNetworkType::UnknownNeedReview)) {
+        issues.push(adapter_issue(
+            "selected_game_unknown_need_review",
+            "warn",
+            "当前游戏还没有完成方案认定",
+            "当前游戏缺少可复用 connection_plan，或仍标记为 unknown_need_review；不能把它伪装成已经支持。",
+            vec![
+                "进入适配器管理页，选择该游戏真实网络类型。".to_string(),
+                "补齐房主步骤、加入者步骤、默认端口和能力需求。".to_string(),
+                "保存后可导出并提交到共享 adapter registry。".to_string(),
+            ],
+            &[adapter],
+            Vec::new(),
+        ));
+    }
+
+    let requires_virtual_lan = plan.map(|item| item.requires_virtual_lan).unwrap_or(false);
+    let requires_tcp_proxy = plan.map(|item| item.requires_tcp_port_proxy).unwrap_or(false);
+    let requires_udp_broadcast_bridge = plan.map(|item| item.requires_udp_broadcast_bridge).unwrap_or(false);
+    let requires_dedicated_server = plan.map(|item| item.requires_dedicated_server).unwrap_or(false);
+    let udp_proxy_candidate = matches!(adapter.network_type, Some(GameNetworkType::TcpPortProxyNeeded));
+
+    push_adapter_check(
+        &mut checks,
+        "selected_game_virtual_lan_ready",
+        "当前游戏所需虚拟局域网",
+        !requires_virtual_lan || virtual_lan_ok,
+        format!("requires_virtual_lan={}；n2n ACK/PONG={}", requires_virtual_lan, virtual_lan_ok),
+    );
+    if requires_virtual_lan && !virtual_lan_ok {
+        issues.push(adapter_issue(
+            "selected_game_virtual_lan_not_ready",
+            "error",
+            "当前游戏需要虚拟局域网，但 n2n 尚未就绪",
+            "当前游戏连接方案声明需要虚拟局域网；诊断没有证明 n2n 已 ACK/PONG。",
+            vec![
+                "进入通用组网中心，启动 n2n edge。".to_string(),
+                "确认 supernode 地址、community、secret 与好友一致。".to_string(),
+                "等待 ACK/PONG 后重新生成当前游戏诊断。".to_string(),
+            ],
+            &[adapter],
+            vec![n2n_diagnostics.summary.clone()],
+        ));
+    }
+
+    push_adapter_check(
+        &mut checks,
+        "selected_game_tcp_proxy_ready",
+        "当前游戏所需 TCP 端口代理",
+        !requires_tcp_proxy || tcp_proxy_ok,
+        format!("requires_tcp_port_proxy={}；TCP 代理自测={}", requires_tcp_proxy, tcp_proxy_ok),
+    );
+    if requires_tcp_proxy && !tcp_proxy_ok {
+        issues.push(adapter_issue(
+            "selected_game_tcp_proxy_not_ready",
+            "warn",
+            "当前游戏需要 TCP 端口代理，但代理能力未通过自测",
+            "当前游戏可能只监听 127.0.0.1 或需要把虚拟 IP 端口转发到本机服务端。",
+            vec![
+                "进入通用组网中心，运行“一键自测 TCP 代理”。".to_string(),
+                "房主侧启动 TCP 端口代理：虚拟 IP/0.0.0.0:游戏端口 -> 127.0.0.1:游戏端口。".to_string(),
+                "把代理状态写入邀请包后再发给好友。".to_string(),
+            ],
+            &[adapter],
+            Vec::new(),
+        ));
+    }
+
+    push_adapter_check(
+        &mut checks,
+        "selected_game_udp_proxy_candidate",
+        "当前游戏 UDP 单播代理候选",
+        !udp_proxy_candidate || udp_proxy_ok,
+        format!("udp_proxy_candidate={}；UDP 单播代理自测={}", udp_proxy_candidate, udp_proxy_ok),
+    );
+
+    push_adapter_check(
+        &mut checks,
+        "selected_game_udp_broadcast_bridge_ready",
+        "当前游戏所需 UDP 广播桥",
+        !requires_udp_broadcast_bridge || udp_broadcast_bridge_ok,
+        format!("requires_udp_broadcast_bridge={}；UDP 广播桥自测={}", requires_udp_broadcast_bridge, udp_broadcast_bridge_ok),
+    );
+    if requires_udp_broadcast_bridge && !udp_broadcast_bridge_ok {
+        issues.push(adapter_issue(
+            "selected_game_udp_broadcast_bridge_not_ready",
+            "warn",
+            "当前游戏需要 UDP 广播桥，但广播桥能力未通过自测",
+            "当前游戏连接方案依赖 LAN 广播/房间发现；仅有 n2n 虚拟 IP 不一定能让房间出现在列表里。",
+            vec![
+                "进入通用组网中心，运行“一键自测 UDP 广播桥”。".to_string(),
+                "如果游戏支持直接 IP 加入，优先使用房主虚拟 IP 绕过房间列表。".to_string(),
+                "如果必须靠房间列表发现，广播桥失败时提交诊断报告继续定位。".to_string(),
+            ],
+            &[adapter],
+            Vec::new(),
+        ));
+    }
+
+    push_adapter_check(
+        &mut checks,
+        "selected_game_dedicated_server_ready",
+        "当前游戏所需专用服务端",
+        !requires_dedicated_server || dedicated_server_observed,
+        format!("requires_dedicated_server={}；服务端 running/ready={}", requires_dedicated_server, dedicated_server_observed),
+    );
+    if requires_dedicated_server && !dedicated_server_observed {
+        issues.push(adapter_issue(
+            "selected_game_dedicated_server_not_observed",
+            "warn",
+            "当前游戏需要专用服务端，但未观察到服务端运行",
+            "当前游戏方案声明需要服务端；诊断时没有看到内嵌服务端会话 running/ready。",
+            vec![
+                "按推荐方案中的房主步骤启动服务端。".to_string(),
+                "如果是 Terraria，进入 Terraria 向导并在程序内启动服务端。".to_string(),
+                "服务端稳定监听后重新生成当前游戏诊断。".to_string(),
+            ],
+            &[adapter],
+            Vec::new(),
+        ));
+    }
+
+    details.push(format!(
+        "当前游戏：{}({}) source={} network_type={:?}",
+        adapter.display_name,
+        adapter.game_id,
+        adapter.adapter_source.as_deref().unwrap_or("unknown"),
+        adapter.network_type
+    ));
+    details.push(format!(
+        "需求：virtual_lan={} tcp_proxy={} udp_proxy_candidate={} udp_broadcast_bridge={} dedicated_server={}",
+        requires_virtual_lan,
+        requires_tcp_proxy,
+        udp_proxy_candidate,
+        requires_udp_broadcast_bridge,
+        requires_dedicated_server
+    ));
+    details.push(format!(
+        "当前能力：n2n={} tcp_proxy={} udp_proxy={} udp_broadcast_bridge={} dedicated_server={}",
+        virtual_lan_ok,
+        tcp_proxy_ok,
+        udp_proxy_ok,
+        udp_broadcast_bridge_ok,
+        dedicated_server_observed
+    ));
+    if let Some(plan) = plan {
+        details.push(format!("房主步骤：{}", plan.host_role));
+        details.push(format!("加入者步骤：{}", plan.join_role));
+        if let Some(port) = plan.default_join_port {
+            details.push(format!("默认加入端口：{}", port));
+        }
+    }
+
+    let failed = checks.iter().filter(|item| !item.ok).count();
+    AdapterRequirementReport {
+        summary: format!(
+            "{}({}) 当前游戏检查 {} 项，{} 项未满足",
+            adapter.display_name,
+            adapter.game_id,
+            checks.len(),
+            failed
         ),
         checks,
         issues,

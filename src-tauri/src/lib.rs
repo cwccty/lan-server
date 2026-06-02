@@ -30,6 +30,7 @@ pub fn run() {
             commands::recommend_plans,
             commands::launch_profile,
             commands::generate_diagnostic_report,
+            commands::generate_diagnostic_report_for_game,
             commands::start_game_server_session,
             commands::read_server_session,
             commands::stop_server_session,

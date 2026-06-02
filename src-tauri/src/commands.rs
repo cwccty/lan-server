@@ -133,6 +133,11 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
 }
 
 #[tauri::command]
+pub fn generate_diagnostic_report_for_game(game_id: String) -> Result<DiagnosticReport, String> {
+    diagnostic_logger::generate_diagnostic_report_for_game(&game_id)
+}
+
+#[tauri::command]
 pub fn start_game_server_session(
     game_id: String,
     profile_id: String,

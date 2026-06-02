@@ -71,6 +71,8 @@ export const recommendPlans = (gameId: string) => invoke<Recommendation[]>('reco
 export const launchProfile = (gameId: string, profileId: string, config: LaunchConfig = {}) =>
   invoke<LaunchResult>('launch_profile', { gameId, profileId, config });
 export const generateDiagnosticReport = () => invoke<DiagnosticReport>('generate_diagnostic_report');
+export const generateDiagnosticReportForGame = (gameId: string) =>
+  invoke<DiagnosticReport>('generate_diagnostic_report_for_game', { gameId });
 
 export const startGameServerSession = (gameId: string, profileId: string, config: LaunchConfig = {}) =>
   invoke<ServerSessionStatus>('start_game_server_session', { gameId, profileId, config });
