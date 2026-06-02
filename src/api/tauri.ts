@@ -20,6 +20,15 @@ export const importGameAdapterJson = (content: string) =>
   invoke<GameAdapter>('import_game_adapter_json', { content });
 export const exportGameAdapterJson = (gameId: string) =>
   invoke<string>('export_game_adapter_json', { gameId });
+export interface AdapterRegistrySyncResult {
+  ok: boolean;
+  registry_url: string;
+  updated: number;
+  skipped: number;
+  messages: string[];
+}
+export const syncAdapterRegistry = (registryUrl: string) =>
+  invoke<AdapterRegistrySyncResult>('sync_adapter_registry', { registryUrl });
 export const listNetworkBackends = () => invoke<BackendSummary[]>('list_network_backends');
 export const setupNetwork = (backendId: string, config: NetworkConfig) =>
   invoke<SetupResult>('setup_network', { backendId, config });

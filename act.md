@@ -274,3 +274,16 @@ ConPTY 方案出现 `0xc0000142`。本轮回退为隐藏 `cmd.exe` 托管 Terrar
 验证：`npm run build` 和 `cargo check --manifest-path src-tauri\\Cargo.toml` 通过。
 
 后续：远程共享适配器库拉取、hash 校验、在线提交和审核。
+
+## 2026-06-02 远程共享适配器库同步第一版
+
+本次实现共享适配器库拉取：
+
+- `adapter_store` 新增 registry index 解析、适配器下载、可选 sha256 校验、保存 `registry_<game_id>.json`。
+- 新增后端命令 `sync_adapter_registry`。
+- 前端 API 新增 `syncAdapterRegistry`。
+- 适配器管理页新增“远程共享适配器库”卡片，可填写 index URL 并同步。
+- 适配器加载优先级调整为：custom > registry > builtin。
+- 新增依赖：`reqwest` 用于 HTTPS 拉取，`sha2` 用于 hash 校验。
+
+验证：`npm run build` 和 `cargo check --manifest-path src-tauri\\Cargo.toml` 通过。

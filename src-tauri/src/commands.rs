@@ -11,7 +11,7 @@ use crate::models::network::{
 use crate::models::recommendation::{LaunchResult, Recommendation};
 use crate::models::server_session::ServerSessionStatus;
 use crate::network::{manual_lan_backend, n2n_backend, radmin_backend};
-use crate::storage::adapter_store;
+use crate::storage::adapter_store::{self, AdapterRegistrySyncResult};
 use serde_json::Value;
 
 #[tauri::command]
@@ -42,6 +42,11 @@ pub fn import_game_adapter_json(content: String) -> Result<GameAdapter, String> 
 #[tauri::command]
 pub fn export_game_adapter_json(game_id: String) -> Result<String, String> {
     adapter_store::export_game_adapter_json(game_id)
+}
+
+#[tauri::command]
+pub fn sync_adapter_registry(registry_url: String) -> Result<AdapterRegistrySyncResult, String> {
+    adapter_store::sync_adapter_registry(registry_url)
 }
 
 #[tauri::command]

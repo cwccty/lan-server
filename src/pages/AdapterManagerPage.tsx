@@ -1,5 +1,12 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
-import { exportGameAdapterJson, importGameAdapterJson, listGameAdapters, saveGameAdapter } from '../api/tauri';
+import {
+  exportGameAdapterJson,
+  importGameAdapterJson,
+  listGameAdapters,
+  saveGameAdapter,
+  syncAdapterRegistry,
+  type AdapterRegistrySyncResult
+} from '../api/tauri';
 import type { ConversionMethod, GameAdapter, GameCapability, MultiplayerCapability } from '../types/game';
 
 const capabilityOptions: Array<[MultiplayerCapability, string]> = [
@@ -103,14 +110,19 @@ export function AdapterManagerPage() {
   const [componentsText, setComponentsText] = useState('人工适配');
   const [importText, setImportText] = useState('');
   const [exportText, setExportText] = useState('');
+  const [registryUrl, setRegistryUrl] = useState('');
+  const [registryResult, setRegistryResult] = useState<AdapterRegistrySyncResult | null>(null);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
 
   const refresh = () => listGameAdapters().then(setAdapters).catch((error) => setMessage(String(error)));
 
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => {
+    refresh();
+    setRegistryUrl(window.localStorage.getItem('lan-helper-adapter-registry-url') ?? '');
+  }, []);
 
-  const adapterById = useMemo(() => new Map(adapters.map((adapter) => [adapter.game_id, adapter])), [adapters]);
+  const adapterCount = useMemo(() => adapters.length, [adapters]);
 
   const syncDraftText = (next: GameAdapter) => {
     setDraft(next);
@@ -180,6 +192,23 @@ export function AdapterManagerPage() {
     }
   };
 
+  const syncRegistry = async () => {
+    setBusy(true);
+    setMessage('');
+    setRegistryResult(null);
+    try {
+      window.localStorage.setItem('lan-helper-adapter-registry-url', registryUrl);
+      const result = await syncAdapterRegistry(registryUrl);
+      setRegistryResult(result);
+      await refresh();
+      setMessage(`共享库同步完成：更新 ${result.updated} 个，跳过 ${result.skipped} 个。`);
+    } catch (error) {
+      setMessage(String(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const conversion = draft.multiplayer_conversion ?? emptyAdapter().multiplayer_conversion!;
 
   return (
@@ -189,7 +218,33 @@ export function AdapterManagerPage() {
       {message && <div className="busy-banner">{message}</div>}
 
       <article className="card">
-        <h3>当前适配器</h3>
+        <h3>远程共享适配器库</h3>
+        <p className="muted">
+          从管理员维护的 registry index 拉取适配器。远程适配器会保存为 registry_*.json；
+          如果本地存在同 game_id 的 custom_*.json，本地自定义会优先。
+        </p>
+        <label>Registry index URL
+          <input
+            value={registryUrl}
+            onChange={(event) => setRegistryUrl(event.target.value)}
+            placeholder="https://example.com/adapter-registry/index.json"
+            disabled={busy}
+          />
+        </label>
+        <button disabled={busy || !registryUrl.trim()} onClick={syncRegistry}>同步共享适配器库</button>
+        {registryResult && (
+          <div className={registryResult.ok ? 'result-ok' : 'result-bad'}>
+            <h4>{registryResult.ok ? '同步成功' : '同步完成但有跳过项'}</h4>
+            <p>更新：{registryResult.updated}，跳过：{registryResult.skipped}</p>
+            <ul>
+              {registryResult.messages.map((item) => <li key={item}>{item}</li>)}
+            </ul>
+          </div>
+        )}
+      </article>
+
+      <article className="card">
+        <h3>当前适配器（{adapterCount}）</h3>
         {adapters.length === 0 ? <p className="muted">暂无适配器。</p> : (
           <table className="adapter-table">
             <thead><tr><th>游戏</th><th>AppID</th><th>能力</th><th>端口</th><th>操作</th></tr></thead>
