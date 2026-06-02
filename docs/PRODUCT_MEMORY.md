@@ -667,3 +667,26 @@ https://raw.githubusercontent.com/cwccty/lan-server/master/adapter-registry/inde
 - 后续再做 UDP 相关能力，不要和本次 TCP MVP 混写。
 
 验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。
+
+## 2026-06-03 TCP 端口代理 UI 接入与端到端验证
+
+产品状态：TCP 端口代理已从后端 MVP 接到通用组网中心，成为用户可操作能力。
+
+当前能力：
+
+- 房主侧可配置 `监听地址:监听端口 -> 目标地址:目标端口`。
+- 默认推荐 `0.0.0.0:游戏端口 -> 127.0.0.1:游戏端口`。
+- 页面按钮支持启动、停止、刷新、测试代理监听。
+- 页面显示真实状态，不做假绿灯：运行状态、连接数、字节统计、最近错误、最近日志都来自后端代理运行时。
+- 好友邀请文本包含端口代理摘要，方便解释“朋友连接房主虚拟 IP 的哪个端口”。
+- 后端有端到端测试证明 TCP 字节可穿过代理转发。
+
+使用边界：
+
+- TCP 端口代理不是组网工具，不能替代 n2n；它运行在房主侧，前提是双方已经通过 n2n / Radmin / 其他方式进入同一虚拟局域网。
+- 当前只支持 TCP。UDP 广播桥、UDP 端口代理、游戏协议转换应作为后续独立模块，不要混在这个 MVP 中。
+- 对于本来就监听 `0.0.0.0` 或虚拟网卡地址的游戏，可能不需要端口代理；对于只监听 `127.0.0.1` 或需要换端口暴露的场景才使用。
+
+验证：cargo test --manifest-path src-tauri\Cargo.toml tcp_proxy_forwards_bytes_end_to_end、npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过；Browser 已确认通用组网中心可见端口代理卡片。
+
+下一步推荐：真实 Tauri 运行态手工测试并把测试步骤固化到诊断报告或 README。

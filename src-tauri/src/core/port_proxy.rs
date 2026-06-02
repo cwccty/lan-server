@@ -155,7 +155,10 @@ pub fn get_port_proxy_status(id: &str) -> Result<PortProxyStatus, String> {
 
 pub fn test_port_proxy(id: &str) -> Result<ConnectivityReport, String> {
     let status = get_port_proxy_status(id)?;
-    let (host, port) = parse_host_port(&status.listen)?;
+    let (mut host, port) = parse_host_port(&status.listen)?;
+    if host == "0.0.0.0" || host == "::" {
+        host = "127.0.0.1".to_string();
+    }
     connectivity_tester::test_connectivity(ConnectivityTarget {
         host,
         ports: vec![port],
@@ -285,4 +288,79 @@ fn parse_host_port(value: &str) -> Result<(String, u16), String> {
         .parse::<u16>()
         .map_err(|err| format!("无法解析端口 {port}: {err}"))?;
     Ok((host.to_string(), port))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::{Read, Write};
+    use std::net::{TcpListener, TcpStream};
+    use std::time::{Duration, Instant};
+
+    fn free_port() -> u16 {
+        TcpListener::bind("127.0.0.1:0")
+            .expect("bind ephemeral port")
+            .local_addr()
+            .expect("read local addr")
+            .port()
+    }
+
+    fn wait_for_tcp(host: &str, port: u16) {
+        let deadline = Instant::now() + Duration::from_secs(3);
+        while Instant::now() < deadline {
+            if TcpStream::connect((host, port)).is_ok() {
+                return;
+            }
+            thread::sleep(Duration::from_millis(40));
+        }
+        panic!("tcp listener did not become ready on {host}:{port}");
+    }
+
+    #[test]
+    fn tcp_proxy_forwards_bytes_end_to_end() {
+        let target_listener = TcpListener::bind(("127.0.0.1", 0)).expect("bind target");
+        let target_port = target_listener.local_addr().expect("target addr").port();
+        let proxy_port = free_port();
+        let proxy_id = format!("test-proxy-{proxy_port}");
+
+        thread::spawn(move || {
+            for _ in 0..4 {
+                let (mut stream, _) = target_listener.accept().expect("accept target connection");
+                let mut buffer = [0_u8; 64];
+                let size = stream.read(&mut buffer).expect("read proxied data");
+                if size == 0 {
+                    continue;
+                }
+                stream.write_all(&buffer[..size]).expect("echo proxied data");
+                break;
+            }
+        });
+
+        let status = start_port_proxy(PortProxyConfig {
+            id: Some(proxy_id.clone()),
+            protocol: "tcp".to_string(),
+            listen_host: "127.0.0.1".to_string(),
+            listen_port: proxy_port,
+            target_host: "127.0.0.1".to_string(),
+            target_port,
+            label: Some("test proxy".to_string()),
+            game_id: None,
+        })
+        .expect("start proxy");
+        assert!(status.running);
+        assert_eq!(status.listen, format!("127.0.0.1:{proxy_port}"));
+
+        wait_for_tcp("127.0.0.1", proxy_port);
+        let mut client = TcpStream::connect(("127.0.0.1", proxy_port)).expect("connect proxy");
+        client.write_all(b"hello-proxy").expect("write proxy");
+        let mut response = [0_u8; 32];
+        let size = client.read(&mut response).expect("read echo");
+        assert_eq!(&response[..size], b"hello-proxy");
+
+        let status = get_port_proxy_status(&proxy_id).expect("read proxy status");
+        assert!(status.total_connections >= 1);
+
+        let stopped = stop_port_proxy(&proxy_id).expect("stop proxy");
+        assert!(!stopped.running);
+    }
 }

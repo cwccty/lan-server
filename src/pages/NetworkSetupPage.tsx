@@ -1,9 +1,21 @@
 ﻿import { useEffect, useRef, useState } from 'react';
-import { getN2nDiagnostics, listNetworkBackends, setupNetwork, startNetwork, stopNetwork, testConnectivity } from '../api/tauri';
+import {
+  getN2nDiagnostics,
+  listNetworkBackends,
+  listPortProxies,
+  setupNetwork,
+  startNetwork,
+  startPortProxy,
+  stopNetwork,
+  stopPortProxy,
+  testConnectivity,
+  testPortProxy
+} from '../api/tauri';
 import { BackendCard } from '../components/BackendCard';
 import { LoadingOverlay } from '../components/LoadingOverlay';
 import type { BackendRuntimeStatus, BackendSummary, ConnectivityReport, N2nDiagnostics, SetupResult } from '../types/network';
 import type { NetworkSetupPreset } from '../types/networkPreset';
+import type { PortProxyStatus } from '../types/portProxy';
 
 type SteamRelayDraft = {
   appId: string;
@@ -52,6 +64,28 @@ function SetupResultView({ result }: { result: SetupResult }) {
     <div className={result.ok ? 'result-ok' : 'result-bad'}>
       <h4>{result.ok ? '配置已保存' : '配置未完成'}</h4>
       <p>{result.message}</p>
+    </div>
+  );
+}
+
+function PortProxyStatusView({ status }: { status: PortProxyStatus }) {
+  return (
+    <div className={status.running ? 'result-ok' : 'result-idle'}>
+      <h4>{status.running ? 'TCP 端口代理正在运行' : 'TCP 端口代理未运行'}</h4>
+      <p>{status.listen || '未监听'} → {status.target || '未设置目标'}</p>
+      <ul>
+        <li>当前连接：{status.active_connections}</li>
+        <li>历史连接：{status.total_connections}</li>
+        <li>上行字节：{status.bytes_in}</li>
+        <li>下行字节：{status.bytes_out}</li>
+      </ul>
+      {status.last_error && <p className="muted">最近错误：{status.last_error}</p>}
+      {status.logs.length > 0 && (
+        <details>
+          <summary>查看端口代理日志</summary>
+          <pre className="console-panel">{status.logs.slice(-20).join('\n')}</pre>
+        </details>
+      )}
     </div>
   );
 }
@@ -150,8 +184,14 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
   const [localIp, setLocalIp] = useState('10.10.10.2');
   const [peerIp, setPeerIp] = useState('10.10.10.3');
   const [gamePort, setGamePort] = useState('7777');
+  const [proxyListenHost, setProxyListenHost] = useState('0.0.0.0');
+  const [proxyListenPort, setProxyListenPort] = useState('7777');
+  const [proxyTargetHost, setProxyTargetHost] = useState('127.0.0.1');
+  const [proxyTargetPort, setProxyTargetPort] = useState('7777');
   const [localReport, setLocalReport] = useState<ConnectivityReport | null>(null);
   const [peerReport, setPeerReport] = useState<ConnectivityReport | null>(null);
+  const [portProxyStatus, setPortProxyStatus] = useState<PortProxyStatus | null>(null);
+  const [portProxyReport, setPortProxyReport] = useState<ConnectivityReport | null>(null);
   const [n2nResult, setN2nResult] = useState<SetupResult | BackendRuntimeStatus | null>(null);
   const [n2nDiagnostics, setN2nDiagnostics] = useState<N2nDiagnostics | null>(null);
   const [n2nAutoRefresh, setN2nAutoRefresh] = useState<{ reason: string; startedAt: number } | null>(null);
@@ -181,8 +221,16 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
         setN2nDiagnostics(null);
       });
 
+  const refreshPortProxy = () =>
+    listPortProxies()
+      .then((items) => {
+        setPortProxyStatus(items.find((item) => item.id === 'default') ?? items[0] ?? null);
+      })
+      .catch(() => setPortProxyStatus(null));
+
   useEffect(() => {
     refreshBackends();
+    refreshPortProxy();
     const saved = window.localStorage.getItem('lan-helper-steam-relay-draft');
     if (!saved) {
       return;
@@ -205,6 +253,8 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
       const nextPort = String(preset.defaultPort);
       setGamePort(nextPort);
       setPorts(nextPort);
+      setProxyListenPort(nextPort);
+      setProxyTargetPort(nextPort);
     }
     setPresetNotice(
       [
@@ -222,7 +272,7 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
       setBusy(label);
       const value = await action();
       onDone?.(value);
-      await refreshBackends();
+      await Promise.all([refreshBackends(), refreshPortProxy()]);
     } finally {
       setBusy(null);
     }
@@ -238,6 +288,8 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
     `supernode：${supernode || '先填写你的 supernode 地址'}`,
     `你的虚拟 IP：${peerIp}`,
     `房主虚拟 IP：${localIp}`,
+    `房主 TCP 端口代理：${portProxyStatus?.running ? `${portProxyStatus.listen} -> ${portProxyStatus.target}` : '未启动 / 不需要时可忽略'}`,
+    `建议游戏端口：${gamePort}`,
     '',
     '操作：',
     '1. 打开联机助手 → 通用组网中心。',
@@ -250,6 +302,13 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
   const n2nAdminSummary = buildN2nAdminSummary(n2nDiagnostics, localIp, peerIp, supernode, roomName);
 
   const parsedGamePort = Number(gamePort.trim()) || 7777;
+  const parsedProxyListenPort = Number(proxyListenPort.trim());
+  const parsedProxyTargetPort = Number(proxyTargetPort.trim());
+  const proxyPortsValid =
+    Number.isInteger(parsedProxyListenPort) &&
+    parsedProxyListenPort > 0 &&
+    Number.isInteger(parsedProxyTargetPort) &&
+    parsedProxyTargetPort > 0;
   const n2nBackend = backends.find((backend) => backend.id === 'n2n');
   const n2nRuntimeResult = n2nResult && 'running' in n2nResult ? n2nResult : null;
   const n2nSetupResult = n2nResult && 'ok' in n2nResult ? n2nResult : null;
@@ -346,6 +405,28 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
     await navigator.clipboard?.writeText(steamRelayPacketText);
     setCopyMessage('Steam 中继入口草案已复制，可作为后续插件制作说明。');
   };
+
+  const startDefaultPortProxy = () =>
+    runAction(
+      '启动 TCP 端口代理',
+      () => startPortProxy({
+        id: 'default',
+        protocol: 'tcp',
+        listen_host: proxyListenHost.trim() || '0.0.0.0',
+        listen_port: parsedProxyListenPort,
+        target_host: proxyTargetHost.trim() || '127.0.0.1',
+        target_port: parsedProxyTargetPort,
+        label: '通用房主端口代理',
+        game_id: preset?.gameId
+      }),
+      setPortProxyStatus
+    );
+
+  const stopDefaultPortProxy = () =>
+    runAction('停止 TCP 端口代理', () => stopPortProxy(portProxyStatus?.id || 'default'), setPortProxyStatus);
+
+  const testDefaultPortProxy = () =>
+    runAction('测试 TCP 端口代理', () => testPortProxy(portProxyStatus?.id || 'default'), setPortProxyReport);
 
   return (
     <section className="page-stack">
@@ -482,6 +563,45 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
           <button type="button" onClick={copyFriendConfig} disabled={Boolean(busy)}>复制通用组网配置</button>
           {copyMessage && <p className="muted">{copyMessage}</p>}
         </details>
+      </article>
+
+      <article className="card feature-card pending-feature">
+        <div className="feature-card-title">
+          <h3>房主 TCP 端口代理</h3>
+          <span className={portProxyStatus?.running ? 'badge good' : 'badge warn'}>
+            {portProxyStatus?.running ? '运行中' : '未启动'}
+          </span>
+        </div>
+        <p className="muted">
+          端口代理用于房主侧：把朋友访问“房主虚拟 IP:监听端口”的 TCP 流量转发到房主本机真实游戏服务端。
+          例如游戏只监听 <code>127.0.0.1:7777</code> 时，可启动 <code>0.0.0.0:7777 → 127.0.0.1:7777</code>。
+          它不是替代 n2n，必须先保证双方已经在同一个虚拟局域网里。
+        </p>
+        <div className="room-grid">
+          <section className="config-panel">
+            <h4>监听设置</h4>
+            <label>监听地址<input value={proxyListenHost} onChange={(event) => setProxyListenHost(event.target.value)} disabled={Boolean(busy)} /><small className="muted">房主侧建议 0.0.0.0；测试时也可填 127.0.0.1。</small></label>
+            <label>监听端口<input value={proxyListenPort} onChange={(event) => setProxyListenPort(event.target.value)} disabled={Boolean(busy)} /><small className="muted">朋友在游戏里连接房主虚拟 IP 时使用的端口。</small></label>
+          </section>
+          <section className="config-panel">
+            <h4>目标游戏服务端</h4>
+            <label>目标地址<input value={proxyTargetHost} onChange={(event) => setProxyTargetHost(event.target.value)} disabled={Boolean(busy)} /><small className="muted">通常是 127.0.0.1，表示房主本机游戏服务端。</small></label>
+            <label>目标端口<input value={proxyTargetPort} onChange={(event) => setProxyTargetPort(event.target.value)} disabled={Boolean(busy)} /><small className="muted">通常和游戏端口一致，例如 Terraria 7777。</small></label>
+          </section>
+        </div>
+        {!proxyPortsValid && <p className="result-bad">监听端口和目标端口必须是大于 0 的数字。</p>}
+        <div className="actions">
+          <button type="button" disabled={Boolean(busy) || !proxyPortsValid} onClick={startDefaultPortProxy}>启动 TCP 端口代理</button>
+          <button type="button" className="secondary" disabled={Boolean(busy)} onClick={stopDefaultPortProxy}>停止 TCP 端口代理</button>
+          <button type="button" className="secondary" disabled={Boolean(busy) || !portProxyStatus?.running} onClick={testDefaultPortProxy}>测试代理监听</button>
+          <button type="button" className="secondary" disabled={Boolean(busy)} onClick={refreshPortProxy}>刷新代理状态</button>
+        </div>
+        {portProxyStatus && <PortProxyStatusView status={portProxyStatus} />}
+        {portProxyReport && <ConnectivityReportView report={portProxyReport} />}
+        <div className="notice-card">
+          <strong>使用方式：</strong>房主启动 n2n 和游戏服务端后，再启动此代理；朋友仍然在游戏里连接房主虚拟 IP：
+          <code>{localIp || '房主虚拟IP'}:{proxyListenPort || gamePort}</code>。
+        </div>
       </article>
 
       <article className="card feature-card pending-feature">

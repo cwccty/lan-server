@@ -607,3 +607,20 @@ ConPTY 方案出现 `0xc0000142`。本轮回退为隐藏 `cmd.exe` 托管 Terrar
 - 当前尚未接入页面 UI；下一步推荐把它接到推荐方案页/通用组网中心，作为“房主端口转发”控制卡片。
 
 验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。release exe：src-tauri\target\release\lan-helper.exe。
+
+## 2026-06-03 TCP 端口代理 UI 接入与端到端验证
+
+已把 TCP 端口代理从“只有后端 API”推进到用户可操作的通用组网中心功能。
+
+- 通用组网中心新增“房主 TCP 端口代理”卡片。
+- 默认参数：`0.0.0.0:7777 -> 127.0.0.1:7777`，用于房主把朋友访问虚拟 IP 的 TCP 流量转发到本机游戏服务端。
+- 支持在 UI 中修改监听地址、监听端口、目标地址、目标端口。
+- 支持启动、停止、刷新、测试代理监听。
+- UI 显示真实代理状态：监听地址、目标地址、运行状态、当前连接数、历史连接数、上下行字节、最近错误、最近日志。
+- 复制给朋友的通用组网邀请会带上当前端口代理摘要，避免用户不知道是否需要代理。
+- 后端 `test_port_proxy` 对 `0.0.0.0` / `::` 监听做本地测试地址转换，避免测试连接不可用的通配监听地址。
+- 新增 Rust 端到端测试 `tcp_proxy_forwards_bytes_end_to_end`，验证本地 TCP 服务端经代理可以真实收发字节。
+
+验证：cargo test --manifest-path src-tauri\Cargo.toml tcp_proxy_forwards_bytes_end_to_end、npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。Browser 打开 http://127.0.0.1:1420 并进入通用组网，已确认“房主 TCP 端口代理”卡片、启动按钮和默认代理说明可见。
+
+下一步推荐：做一次真实 Tauri 运行态手工测试：房主本机开一个临时 TCP 服务，使用页面启动代理，再用 Test-NetConnection 或另一台机器访问房主虚拟 IP:监听端口，确认 UI 连接数和字节统计增长。
