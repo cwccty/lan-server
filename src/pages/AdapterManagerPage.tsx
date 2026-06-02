@@ -57,7 +57,22 @@ const DEFAULT_ADAPTER_REGISTRY_URL = 'https://raw.githubusercontent.com/cwccty/l
 const LEGACY_LOCAL_REGISTRY_URL = 'http://127.0.0.1:8088/adapter-registry/index.json';
 const REGISTRY_URL_STORAGE_KEY = 'lan-helper-adapter-registry-url';
 const REGISTRY_LAST_SYNC_STORAGE_KEY = 'lan-helper-adapter-registry-last-sync';
-const ADAPTER_MANAGER_VERSION = 'adapter-manager-2026-06-02-github-default';
+const ADAPTER_MANAGER_VERSION = 'adapter-manager-2026-06-03-registry-sync-details';
+
+const registrySyncStatusLabels: Record<string, string> = {
+  created: '新增',
+  updated: '更新',
+  skipped_fetch_failed: '读取失败',
+  skipped_hash_failed: 'Hash 失败',
+  skipped_parse_failed: '解析失败',
+  skipped_validation_failed: '校验失败',
+  skipped_write_failed: '写入失败'
+};
+
+function shortHash(value?: string | null) {
+  if (!value) return '-';
+  return value.length > 12 ? `${value.slice(0, 12)}…` : value;
+}
 
 const templates: Record<string, Pick<GameAdapter, 'capabilities' | 'default_ports' | 'multiplayer_conversion' | 'launch_profiles' | 'network_type' | 'connection_plan'>> = {
   native_lan_ip: {
@@ -578,7 +593,7 @@ export function AdapterManagerPage() {
   const finishRegistrySync = async (result: AdapterRegistrySyncResult, label: string) => {
     setRegistryResult(result);
     await refresh();
-    const summary = `${new Date().toLocaleString()}：${label}，更新 ${result.updated} 个，跳过 ${result.skipped} 个。`;
+    const summary = `${new Date().toLocaleString()}：${label}，总计 ${result.total} 个，新增 ${result.created} 个，更新 ${result.updated} 个，跳过 ${result.skipped} 个。`;
     setLastRegistrySync(summary);
     window.localStorage.setItem(REGISTRY_LAST_SYNC_STORAGE_KEY, summary);
     setMessage(summary);
@@ -669,10 +684,41 @@ export function AdapterManagerPage() {
         {registryResult && (
           <div className={registryResult.ok ? 'result-ok' : 'result-bad'}>
             <h4>{registryResult.ok ? '同步成功' : '同步完成但有跳过项'}</h4>
-            <p>更新：{registryResult.updated}，跳过：{registryResult.skipped}</p>
-            <ul>
-              {registryResult.messages.map((item) => <li key={item}>{item}</li>)}
-            </ul>
+            <div className="status-grid compact">
+              <article className="status-tile"><span>索引总数</span><strong>{registryResult.total}</strong><small>registry index 中的游戏</small></article>
+              <article className="status-tile"><span>新增</span><strong>{registryResult.created}</strong><small>本地新写入 registry_*.json</small></article>
+              <article className="status-tile"><span>更新</span><strong>{registryResult.updated}</strong><small>覆盖已有 registry adapter</small></article>
+              <article className="status-tile"><span>跳过</span><strong>{registryResult.skipped}</strong><small>未覆盖本地可用数据</small></article>
+            </div>
+            {registryResult.skipped > 0 && (
+              <p className="muted">
+                失败分类：读取 {registryResult.fetch_failed}，Hash {registryResult.hash_failed}，
+                解析 {registryResult.parse_failed}，字段校验 {registryResult.validation_failed}，写入 {registryResult.write_failed}。
+              </p>
+            )}
+            <p className="muted">来源：{registryResult.registry_url}</p>
+            <table className="adapter-table registry-sync-table">
+              <thead><tr><th>游戏</th><th>结果</th><th>原因</th><th>Hash</th><th>保存位置</th></tr></thead>
+              <tbody>
+                {registryResult.items.map((item) => (
+                  <tr key={`${item.game_id}-${item.status}-${item.adapter_url}`}>
+                    <td>{item.display_name || item.game_id}<br /><small className="muted">{item.game_id}</small></td>
+                    <td><span className={`badge ${item.status.startsWith('skipped') ? 'source-custom' : 'source-registry'}`}>{registrySyncStatusLabels[item.status] ?? item.status}</span></td>
+                    <td>{item.reason}<br /><small className="muted">{item.adapter_url}</small></td>
+                    <td><small>期望：{shortHash(item.expected_sha256)}<br />实际：{shortHash(item.actual_sha256)}</small></td>
+                    <td><small>{item.saved_path || '-'}</small></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {registryResult.messages.length > 0 && (
+              <details>
+                <summary>原始同步日志</summary>
+                <ul>
+                  {registryResult.messages.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}
+                </ul>
+              </details>
+            )}
           </div>
         )}
       </article>

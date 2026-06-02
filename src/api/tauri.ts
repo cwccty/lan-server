@@ -31,9 +31,28 @@ export const exportGameAdapterJson = (gameId: string) =>
 export interface AdapterRegistrySyncResult {
   ok: boolean;
   registry_url: string;
+  total: number;
+  created: number;
   updated: number;
   skipped: number;
+  hash_failed: number;
+  parse_failed: number;
+  fetch_failed: number;
+  validation_failed: number;
+  write_failed: number;
+  items: AdapterRegistrySyncItem[];
   messages: string[];
+}
+
+export interface AdapterRegistrySyncItem {
+  game_id: string;
+  display_name?: string | null;
+  adapter_url: string;
+  status: string;
+  reason: string;
+  expected_sha256?: string | null;
+  actual_sha256?: string | null;
+  saved_path?: string | null;
 }
 export const syncAdapterRegistry = (registryUrl: string) =>
   invoke<AdapterRegistrySyncResult>('sync_adapter_registry', { registryUrl });

@@ -24,9 +24,29 @@ pub struct AdapterRegistryGame {
 pub struct AdapterRegistrySyncResult {
     pub ok: bool,
     pub registry_url: String,
+    pub total: usize,
+    pub created: usize,
     pub updated: usize,
     pub skipped: usize,
+    pub hash_failed: usize,
+    pub parse_failed: usize,
+    pub fetch_failed: usize,
+    pub validation_failed: usize,
+    pub write_failed: usize,
+    pub items: Vec<AdapterRegistrySyncItem>,
     pub messages: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdapterRegistrySyncItem {
+    pub game_id: String,
+    pub display_name: Option<String>,
+    pub adapter_url: String,
+    pub status: String,
+    pub reason: String,
+    pub expected_sha256: Option<String>,
+    pub actual_sha256: Option<String>,
+    pub saved_path: Option<String>,
 }
 
 pub fn load_game_adapters() -> Result<Vec<GameAdapter>, String> {
@@ -94,12 +114,32 @@ pub fn sync_adapter_registry(registry_url: String) -> Result<AdapterRegistrySync
     let dir = writable_adapter_dir()?;
     fs::create_dir_all(&dir).map_err(|err| format!("create adapter dir failed: {err}"))?;
 
+    let total = index.games.len();
+    let mut created = 0usize;
     let mut updated = 0usize;
     let mut skipped = 0usize;
     let mut messages = Vec::new();
+    let mut items = Vec::new();
 
     for game in index.games {
-        let adapter_url = resolve_registry_url(&registry_url, &game.adapter_url)?;
+        let adapter_url = match resolve_registry_url(&registry_url, &game.adapter_url) {
+            Ok(url) => url,
+            Err(err) => {
+                skipped += 1;
+                messages.push(format!("skip {}: invalid adapter url: {err}", game.game_id));
+                items.push(sync_item(
+                    &game.game_id,
+                    None,
+                    &game.adapter_url,
+                    "skipped_fetch_failed",
+                    format!("invalid adapter url: {err}"),
+                    game.sha256.clone(),
+                    None,
+                    None,
+                ));
+                continue;
+            }
+        };
         let adapter_text = match client
             .get(&adapter_url)
             .send()
@@ -111,15 +151,35 @@ pub fn sync_adapter_registry(registry_url: String) -> Result<AdapterRegistrySync
             Err(err) => {
                 skipped += 1;
                 messages.push(format!("skip {}: fetch failed: {err}", game.game_id));
+                items.push(sync_item(
+                    &game.game_id,
+                    None,
+                    &adapter_url,
+                    "skipped_fetch_failed",
+                    format!("fetch failed: {err}"),
+                    game.sha256.clone(),
+                    None,
+                    None,
+                ));
                 continue;
             }
         };
 
+        let actual_hash = sha256_hex(adapter_text.as_bytes());
         if let Some(expected_hash) = game.sha256.as_ref().filter(|value| !value.trim().is_empty()) {
-            let actual_hash = sha256_hex(adapter_text.as_bytes());
             if !actual_hash.eq_ignore_ascii_case(expected_hash.trim()) {
                 skipped += 1;
                 messages.push(format!("skip {}: sha256 mismatch", game.game_id));
+                items.push(sync_item(
+                    &game.game_id,
+                    None,
+                    &adapter_url,
+                    "skipped_hash_failed",
+                    "sha256 mismatch".to_string(),
+                    game.sha256.clone(),
+                    Some(actual_hash),
+                    None,
+                ));
                 continue;
             }
         }
@@ -129,23 +189,101 @@ pub fn sync_adapter_registry(registry_url: String) -> Result<AdapterRegistrySync
             Err(err) => {
                 skipped += 1;
                 messages.push(format!("skip {}: parse failed: {err}", game.game_id));
+                items.push(sync_item(
+                    &game.game_id,
+                    None,
+                    &adapter_url,
+                    "skipped_parse_failed",
+                    format!("parse failed: {err}"),
+                    game.sha256.clone(),
+                    Some(actual_hash),
+                    None,
+                ));
                 continue;
             }
         };
-        validate_adapter(&adapter)?;
+        if let Err(err) = validate_adapter(&adapter) {
+            skipped += 1;
+            messages.push(format!("skip {}: validation failed: {err}", game.game_id));
+            items.push(sync_item(
+                &game.game_id,
+                Some(&adapter.display_name),
+                &adapter_url,
+                "skipped_validation_failed",
+                format!("validation failed: {err}"),
+                game.sha256.clone(),
+                Some(actual_hash),
+                None,
+            ));
+            continue;
+        }
 
         let file_name = format!("registry_{}.json", sanitize_file_stem(&adapter.game_id));
         let path = dir.join(file_name);
-        write_adapter(&path, &adapter)?;
-        updated += 1;
-        messages.push(format!("updated {}", adapter.game_id));
+        let existed = path.exists();
+        if let Err(err) = write_adapter(&path, &adapter) {
+            skipped += 1;
+            messages.push(format!("skip {}: write failed: {err}", adapter.game_id));
+            items.push(sync_item(
+                &adapter.game_id,
+                Some(&adapter.display_name),
+                &adapter_url,
+                "skipped_write_failed",
+                format!("write failed: {err}"),
+                game.sha256.clone(),
+                Some(actual_hash),
+                Some(path.to_string_lossy().to_string()),
+            ));
+            continue;
+        }
+        if existed {
+            updated += 1;
+            messages.push(format!("updated {}", adapter.game_id));
+            items.push(sync_item(
+                &adapter.game_id,
+                Some(&adapter.display_name),
+                &adapter_url,
+                "updated",
+                "registry adapter updated".to_string(),
+                game.sha256.clone(),
+                Some(actual_hash),
+                Some(path.to_string_lossy().to_string()),
+            ));
+        } else {
+            created += 1;
+            messages.push(format!("created {}", adapter.game_id));
+            items.push(sync_item(
+                &adapter.game_id,
+                Some(&adapter.display_name),
+                &adapter_url,
+                "created",
+                "registry adapter created".to_string(),
+                game.sha256.clone(),
+                Some(actual_hash),
+                Some(path.to_string_lossy().to_string()),
+            ));
+        }
     }
+
+    let hash_failed = items.iter().filter(|item| item.status == "skipped_hash_failed").count();
+    let parse_failed = items.iter().filter(|item| item.status == "skipped_parse_failed").count();
+    let fetch_failed = items.iter().filter(|item| item.status == "skipped_fetch_failed").count();
+    let validation_failed = items.iter().filter(|item| item.status == "skipped_validation_failed").count();
+    let write_failed = items.iter().filter(|item| item.status == "skipped_write_failed").count();
 
     Ok(AdapterRegistrySyncResult {
         ok: skipped == 0,
         registry_url,
+        total,
+        created,
         updated,
         skipped,
+        hash_failed,
+        parse_failed,
+        fetch_failed,
+        validation_failed,
+        write_failed,
+        items,
         messages,
     })
 }
@@ -164,26 +302,50 @@ pub fn sync_adapter_registry_from_dir(root: PathBuf) -> Result<AdapterRegistrySy
     let dir = writable_adapter_dir()?;
     fs::create_dir_all(&dir).map_err(|err| format!("create adapter dir failed: {err}"))?;
 
+    let total = index.games.len();
+    let mut created = 0usize;
     let mut updated = 0usize;
     let mut skipped = 0usize;
     let mut messages = Vec::new();
+    let mut items = Vec::new();
 
     for game in index.games {
         let adapter_path = root.join(&game.adapter_url);
+        let adapter_url = adapter_path.to_string_lossy().to_string();
         let adapter_text = match fs::read_to_string(&adapter_path) {
             Ok(content) => content,
             Err(err) => {
                 skipped += 1;
                 messages.push(format!("skip {}: read failed: {err}", game.game_id));
+                items.push(sync_item(
+                    &game.game_id,
+                    None,
+                    &adapter_url,
+                    "skipped_fetch_failed",
+                    format!("read failed: {err}"),
+                    game.sha256.clone(),
+                    None,
+                    None,
+                ));
                 continue;
             }
         };
 
+        let actual_hash = sha256_hex(adapter_text.as_bytes());
         if let Some(expected_hash) = game.sha256.as_ref().filter(|value| !value.trim().is_empty()) {
-            let actual_hash = sha256_hex(adapter_text.as_bytes());
             if !actual_hash.eq_ignore_ascii_case(expected_hash.trim()) {
                 skipped += 1;
                 messages.push(format!("skip {}: sha256 mismatch", game.game_id));
+                items.push(sync_item(
+                    &game.game_id,
+                    None,
+                    &adapter_url,
+                    "skipped_hash_failed",
+                    "sha256 mismatch".to_string(),
+                    game.sha256.clone(),
+                    Some(actual_hash),
+                    None,
+                ));
                 continue;
             }
         }
@@ -193,24 +355,124 @@ pub fn sync_adapter_registry_from_dir(root: PathBuf) -> Result<AdapterRegistrySy
             Err(err) => {
                 skipped += 1;
                 messages.push(format!("skip {}: parse failed: {err}", game.game_id));
+                items.push(sync_item(
+                    &game.game_id,
+                    None,
+                    &adapter_url,
+                    "skipped_parse_failed",
+                    format!("parse failed: {err}"),
+                    game.sha256.clone(),
+                    Some(actual_hash),
+                    None,
+                ));
                 continue;
             }
         };
-        validate_adapter(&adapter)?;
+        if let Err(err) = validate_adapter(&adapter) {
+            skipped += 1;
+            messages.push(format!("skip {}: validation failed: {err}", game.game_id));
+            items.push(sync_item(
+                &game.game_id,
+                Some(&adapter.display_name),
+                &adapter_url,
+                "skipped_validation_failed",
+                format!("validation failed: {err}"),
+                game.sha256.clone(),
+                Some(actual_hash),
+                None,
+            ));
+            continue;
+        }
         let file_name = format!("registry_{}.json", sanitize_file_stem(&adapter.game_id));
         let path = dir.join(file_name);
-        write_adapter(&path, &adapter)?;
-        updated += 1;
-        messages.push(format!("updated {}", adapter.game_id));
+        let existed = path.exists();
+        if let Err(err) = write_adapter(&path, &adapter) {
+            skipped += 1;
+            messages.push(format!("skip {}: write failed: {err}", adapter.game_id));
+            items.push(sync_item(
+                &adapter.game_id,
+                Some(&adapter.display_name),
+                &adapter_url,
+                "skipped_write_failed",
+                format!("write failed: {err}"),
+                game.sha256.clone(),
+                Some(actual_hash),
+                Some(path.to_string_lossy().to_string()),
+            ));
+            continue;
+        }
+        if existed {
+            updated += 1;
+            messages.push(format!("updated {}", adapter.game_id));
+            items.push(sync_item(
+                &adapter.game_id,
+                Some(&adapter.display_name),
+                &adapter_url,
+                "updated",
+                "registry adapter updated".to_string(),
+                game.sha256.clone(),
+                Some(actual_hash),
+                Some(path.to_string_lossy().to_string()),
+            ));
+        } else {
+            created += 1;
+            messages.push(format!("created {}", adapter.game_id));
+            items.push(sync_item(
+                &adapter.game_id,
+                Some(&adapter.display_name),
+                &adapter_url,
+                "created",
+                "registry adapter created".to_string(),
+                game.sha256.clone(),
+                Some(actual_hash),
+                Some(path.to_string_lossy().to_string()),
+            ));
+        }
     }
+
+    let hash_failed = items.iter().filter(|item| item.status == "skipped_hash_failed").count();
+    let parse_failed = items.iter().filter(|item| item.status == "skipped_parse_failed").count();
+    let fetch_failed = items.iter().filter(|item| item.status == "skipped_fetch_failed").count();
+    let validation_failed = items.iter().filter(|item| item.status == "skipped_validation_failed").count();
+    let write_failed = items.iter().filter(|item| item.status == "skipped_write_failed").count();
 
     Ok(AdapterRegistrySyncResult {
         ok: skipped == 0,
         registry_url: index_path.to_string_lossy().to_string(),
+        total,
+        created,
         updated,
         skipped,
+        hash_failed,
+        parse_failed,
+        fetch_failed,
+        validation_failed,
+        write_failed,
+        items,
         messages,
     })
+}
+
+fn sync_item(
+    game_id: &str,
+    display_name: Option<&str>,
+    adapter_url: &str,
+    status: &str,
+    reason: String,
+    expected_sha256: Option<String>,
+    actual_sha256: Option<String>,
+    saved_path: Option<String>,
+) -> AdapterRegistrySyncItem {
+    AdapterRegistrySyncItem {
+        game_id: game_id.to_string(),
+        display_name: display_name.map(|value| value.to_string()),
+        adapter_url: adapter_url.to_string(),
+        status: status.to_string(),
+        reason,
+        expected_sha256,
+        actual_sha256,
+        saved_path,
+    }
 }
 
 fn locate_local_registry_dir() -> Result<PathBuf, String> {

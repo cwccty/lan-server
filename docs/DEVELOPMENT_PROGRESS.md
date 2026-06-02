@@ -241,3 +241,36 @@ Get-Content adapter-registry\index.json -Raw -Encoding UTF8 | ConvertFrom-Json
 ```
 
 下一步推荐：把共享库同步做成更强的“同步结果详情页/弹窗”，显示新增、更新、跳过、hash 失败、解析失败，方便发布前排查远程 registry 问题。
+
+## 2026-06-03 共享库同步结果详情
+
+已把 adapter registry 同步从一句“成功/失败”升级为结构化结果详情。
+
+后端 `AdapterRegistrySyncResult` 现在返回：
+
+- `total`：index 中总游戏数；
+- `created`：本地新增的 registry adapter 数；
+- `updated`：覆盖更新的 registry adapter 数；
+- `skipped`：跳过数；
+- `hash_failed` / `parse_failed` / `fetch_failed` / `validation_failed` / `write_failed`：失败分类计数；
+- `items`：每个 adapter 的处理结果、原因、期望 hash、实际 hash、保存路径。
+
+前端适配器管理页现在会显示同步详情表：
+
+- 游戏；
+- 新增/更新/读取失败/Hash 失败/解析失败/校验失败/写入失败；
+- 失败原因；
+- 期望与实际 hash；
+- 写入路径；
+- 原始同步日志。
+
+这一步的产品意义：用户或管理员以后点“同步共享库”时，可以知道到底新增了什么、更新了什么、为什么某个游戏被跳过；失败时不会覆盖本地可用 adapter，也不会用一句泛泛错误掩盖内部混乱。
+
+验证通过：
+
+```powershell
+npm run build
+cargo check --manifest-path src-tauri\Cargo.toml
+```
+
+下一步推荐：做“当前游戏上下文诊断”，让诊断报告不只全局巡检所有 adapter，也能针对用户当前选中的游戏输出更精准的能力缺口和下一步操作。
