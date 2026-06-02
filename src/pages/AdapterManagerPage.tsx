@@ -33,8 +33,10 @@ const methodOptions: Array<[ConversionMethod, string]> = [
 ];
 
 const DEFAULT_ADAPTER_REGISTRY_URL = 'https://raw.githubusercontent.com/cwccty/lan-server/master/adapter-registry/index.json';
+const LEGACY_LOCAL_REGISTRY_URL = 'http://127.0.0.1:8088/adapter-registry/index.json';
 const REGISTRY_URL_STORAGE_KEY = 'lan-helper-adapter-registry-url';
 const REGISTRY_LAST_SYNC_STORAGE_KEY = 'lan-helper-adapter-registry-last-sync';
+const ADAPTER_MANAGER_VERSION = 'adapter-manager-2026-06-02-github-default';
 
 const templates: Record<string, Pick<GameAdapter, 'capabilities' | 'default_ports' | 'multiplayer_conversion' | 'launch_profiles'>> = {
   native_lan_ip: {
@@ -125,7 +127,12 @@ export function AdapterManagerPage() {
 
   useEffect(() => {
     refresh();
-    setRegistryUrl(window.localStorage.getItem(REGISTRY_URL_STORAGE_KEY) ?? DEFAULT_ADAPTER_REGISTRY_URL);
+    const savedUrl = window.localStorage.getItem(REGISTRY_URL_STORAGE_KEY);
+    const nextUrl = !savedUrl || savedUrl === LEGACY_LOCAL_REGISTRY_URL ? DEFAULT_ADAPTER_REGISTRY_URL : savedUrl;
+    setRegistryUrl(nextUrl);
+    if (savedUrl !== nextUrl) {
+      window.localStorage.setItem(REGISTRY_URL_STORAGE_KEY, nextUrl);
+    }
     setLastRegistrySync(window.localStorage.getItem(REGISTRY_LAST_SYNC_STORAGE_KEY) ?? '');
   }, []);
 
@@ -247,7 +254,7 @@ export function AdapterManagerPage() {
   const restoreDefaultRegistryUrl = () => {
     setRegistryUrl(DEFAULT_ADAPTER_REGISTRY_URL);
     window.localStorage.setItem(REGISTRY_URL_STORAGE_KEY, DEFAULT_ADAPTER_REGISTRY_URL);
-    setMessage('已恢复默认共享库地址。');
+    setMessage('已恢复 GitHub 默认共享库地址。');
   };
 
   const conversion = draft.multiplayer_conversion ?? emptyAdapter().multiplayer_conversion!;
@@ -256,6 +263,7 @@ export function AdapterManagerPage() {
     <section>
       <h2>游戏适配器管理</h2>
       <p className="muted">这是管理员/高级功能：认定一次游戏类型并保存适配器，后续其他用户扫描到同一游戏即可复用转换方案。</p>
+      <p className="muted">页面版本：{ADAPTER_MANAGER_VERSION}</p>
       {message && <div className={busy ? 'busy-banner' : 'status-banner'}>{message}</div>}
 
       <article className="card">
@@ -267,7 +275,7 @@ export function AdapterManagerPage() {
         <div className="actions">
           <button disabled={busy} onClick={oneClickUpdateSharedAdapters}>一键更新共享适配器</button>
           <button disabled={busy} onClick={syncLocalExample}>同步本地示例库（无需 HTTP）</button>
-          <button disabled={busy} onClick={restoreDefaultRegistryUrl}>恢复默认地址</button>
+          <button disabled={busy} onClick={restoreDefaultRegistryUrl}>恢复 GitHub 默认地址</button>
         </div>
         <p className="muted">默认共享库地址：{DEFAULT_ADAPTER_REGISTRY_URL}</p>
         {lastRegistrySync && <p className="muted">上次同步：{lastRegistrySync}</p>}

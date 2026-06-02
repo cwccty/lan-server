@@ -359,3 +359,11 @@ ConPTY 方案出现 `0xc0000142`。本轮回退为隐藏 `cmd.exe` 托管 Terrar
 - 本地示例库按钮继续保留用于离线测试。
 
 本机 `git ls-remote` 访问 GitHub 超时，后续 push 可能需要用户网络/GitHub Desktop 协助。
+
+## 2026-06-02 适配器默认地址旧值迁移
+
+用户反馈恢复默认地址仍是 `127.0.0.1:8088`。已增加旧 localStorage 地址迁移和页面版本提示：
+
+- 旧地址 `http://127.0.0.1:8088/adapter-registry/index.json` 会自动替换成 GitHub raw 默认地址。
+- 按钮改为“恢复 GitHub 默认地址”。
+- 页面显示版本 `adapter-manager-2026-06-02-github-default`，便于确认是否打开最新 exe。

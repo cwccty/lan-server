@@ -410,3 +410,15 @@ https://raw.githubusercontent.com/cwccty/lan-server/master/adapter-registry/inde
 适配器管理页“一键更新共享适配器”现在默认走这个公开 GitHub raw 地址；“同步本地示例库（无需 HTTP）”按钮仍保留，用于离线/本地测试。
 
 注意：当前本机访问 GitHub 出现连接超时，推送或远程可达性验证可能受网络影响。代码侧已完成配置，成功推送到 GitHub 后该 URL 才能正常拉取。
+
+## 2026-06-02 适配器默认地址旧值迁移
+
+用户反馈点击“恢复默认地址”后仍显示 `127.0.0.1:8088`。代码中最新默认值已是 GitHub raw，但旧版本曾把本地测试地址写入 localStorage，且用户可能正在运行旧 exe，导致界面仍显示旧值。
+
+本轮补充：
+
+- 新增 `LEGACY_LOCAL_REGISTRY_URL`，页面加载时如果发现 localStorage 仍是旧本地测试地址，会自动迁移到 GitHub raw 默认地址。
+- “恢复默认地址”按钮改名为“恢复 GitHub 默认地址”。
+- 适配器管理页显示版本号 `adapter-manager-2026-06-02-github-default`，用于确认用户打开的是最新 exe。
+
+如果页面版本号没有出现，说明运行的不是最新 release exe。
