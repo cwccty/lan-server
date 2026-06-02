@@ -28,6 +28,23 @@ export interface BackendRuntimeStatus {
   message: string;
 }
 
+export interface N2nDiagnostics {
+  running: boolean;
+  supernode_configured: boolean;
+  supernode?: string;
+  virtual_ip?: string;
+  ack: boolean;
+  pong: boolean;
+  ok_link: boolean;
+  auth_error: boolean;
+  ip_mac_conflict: boolean;
+  not_responding: boolean;
+  last_error?: string;
+  summary: string;
+  log_path: string;
+  recent_logs: string[];
+}
+
 export interface ConnectivityTarget {
   host: string;
   ports: number[];

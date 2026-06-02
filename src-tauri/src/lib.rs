@@ -24,6 +24,7 @@ pub fn run() {
             commands::setup_network,
             commands::start_network,
             commands::stop_network,
+            commands::get_n2n_diagnostics,
             commands::test_connectivity,
             commands::recommend_plans,
             commands::launch_profile,

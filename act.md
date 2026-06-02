@@ -424,3 +424,25 @@ ConPTY 方案出现 `0xc0000142`。本轮回退为隐藏 `cmd.exe` 托管 Terrar
 - 用 Browser 打开本地 Vite 预览验证：通用组网页可见四个状态卡，中文正常。
 
 验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。release exe：src-tauri\target\release\lan-helper.exe。
+
+
+## 2026-06-02 n2n edge 日志捕获与 supernode 响应诊断
+
+已实现 n2n supernode 真实响应诊断，避免只显示“已填写 supernode”导致用户误判为可联机。
+
+后端改动：
+
+- n2n_backend::start() 启动 edge 时改为隐藏窗口 + stdout/stderr 管道捕获。
+- 启动 edge 时增加 -v，确保可捕获 REGISTER_SUPER_ACK、PONG、认证错误等关键日志。
+- 每次启动前重置 tools/n2n/edge.log，避免旧日志无限累积。
+- 新增 n2n_backend::diagnose()，解析最近日志并输出 ack、pong、ok_link、auth_error、ip_mac_conflict、not_responding、summary、last_error、recent_logs、log_path。
+- 新增 Tauri 命令 get_n2n_diagnostics。
+- 诊断报告新增 MVP 检测项 n2n_supernode_response，用于区分 edge 已启动与 supernode 真正 ACK/PONG。
+
+前端改动：
+
+- 通用组网中心调用 getN2nDiagnostics()。
+- supernode 状态卡现在显示：未配置 / 已填写 / 等待 ACK / ACK-PONG / 存在问题。
+- 当前 n2n 状态区新增“supernode 响应诊断”和最近 edge 日志折叠面板。
+
+验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml 通过。第一次 npm run tauri:build 因 release exe 正在运行导致拒绝覆盖，关闭 lan-helper.exe 后重新打包成功。release exe：src-tauri\target\release\lan-helper.exe。

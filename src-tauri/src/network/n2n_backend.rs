@@ -1,9 +1,14 @@
 use std::fs;
+use std::fs::OpenOptions;
+use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::thread;
 
 use crate::core::process_util::hide_console_window;
-use crate::models::network::{BackendRuntimeStatus, BackendSummary, NetworkConfig, SetupResult};
+use crate::models::network::{
+    BackendRuntimeStatus, BackendSummary, N2nDiagnostics, NetworkConfig, SetupResult,
+};
 use crate::network::windows_ip;
 
 #[cfg(windows)]
@@ -15,6 +20,7 @@ const CREATE_NO_WINDOW: u32 = 0x08000000;
 pub fn detect() -> BackendSummary {
     let executable = find_n2n_executable();
     let virtual_ip = find_n2n_virtual_ip();
+    let diagnostics = diagnose();
     let mut notes = Vec::new();
 
     if let Some(path) = &executable {
@@ -47,6 +53,8 @@ pub fn detect() -> BackendSummary {
             notes.push(format!("最近一次 supernode: {supernode}"));
         }
     }
+
+    notes.push(format!("supernode 诊断：{}", diagnostics.summary));
 
     BackendSummary {
         id: "n2n".to_string(),
@@ -149,9 +157,10 @@ pub fn start() -> BackendRuntimeStatus {
     let mut command = Command::new(executable);
     command
         .args(["-c", &community, "-k", &secret, "-l", &supernode])
+        .arg("-v")
         .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
 
     if let Some(local_ip) = &local_ip {
         command.args(["-a", local_ip]);
@@ -164,9 +173,18 @@ pub fn start() -> BackendRuntimeStatus {
     #[cfg(windows)]
     command.creation_flags(CREATE_NO_WINDOW);
 
+    let _ = reset_edge_log(&supernode, &community, local_ip.as_deref(), tap_device.as_deref());
+
     match command.spawn() {
-        Ok(child) => {
+        Ok(mut child) => {
             let _ = fs::write(pid_path(), child.id().to_string());
+            if let Some(stdout) = child.stdout.take() {
+                spawn_log_reader(stdout, "stdout");
+            }
+            if let Some(stderr) = child.stderr.take() {
+                spawn_log_reader(stderr, "stderr");
+            }
+            append_edge_log(&format!("[manager] n2n edge started, pid={}", child.id()));
             BackendRuntimeStatus {
                 backend_id: "n2n".to_string(),
                 running: true,
@@ -211,12 +229,15 @@ pub fn stop() -> BackendRuntimeStatus {
 
     let _ = fs::remove_file(pid_path());
     match output {
-        Ok(result) if result.status.success() => BackendRuntimeStatus {
-            backend_id: "n2n".to_string(),
-            running: false,
-            virtual_ip: find_n2n_virtual_ip(),
-            message: format!("n2n edge 已停止，PID: {pid}"),
-        },
+        Ok(result) if result.status.success() => {
+            append_edge_log(&format!("[manager] n2n edge stopped, pid={pid}"));
+            BackendRuntimeStatus {
+                backend_id: "n2n".to_string(),
+                running: false,
+                virtual_ip: find_n2n_virtual_ip(),
+                message: format!("n2n edge 已停止，PID: {pid}"),
+            }
+        }
         Ok(result) => BackendRuntimeStatus {
             backend_id: "n2n".to_string(),
             running: false,
@@ -232,6 +253,76 @@ pub fn stop() -> BackendRuntimeStatus {
             virtual_ip: find_n2n_virtual_ip(),
             message: format!("调用 taskkill 失败: {err}"),
         },
+    }
+}
+
+pub fn diagnose() -> N2nDiagnostics {
+    let running = read_recorded_pid()
+        .map(is_pid_running)
+        .unwrap_or(false);
+    let config = load_config().ok();
+    let supernode = config.as_ref().and_then(|item| item.supernode.clone());
+    let supernode_configured = supernode
+        .as_ref()
+        .map(|item| !item.trim().is_empty())
+        .unwrap_or(false);
+    let virtual_ip = find_n2n_virtual_ip();
+    let recent_logs = read_edge_log_lines(160);
+    let joined = recent_logs.join("\n");
+    let lower = joined.to_ascii_lowercase();
+
+    let ack = joined.contains("REGISTER_SUPER_ACK");
+    let pong = joined.contains("Rx PONG") || lower.contains(" pong ");
+    let ok_link = joined.contains("[OK] edge <<<") || ack || pong;
+    let auth_error = lower.contains("authentication error");
+    let ip_mac_conflict = lower.contains("mac or ip address already in use")
+        || lower.contains("address already in use")
+        || lower.contains("ip address already in use");
+    let not_responding = lower.contains("supernode not responding")
+        || lower.contains("not responding")
+        || lower.contains("timeout");
+    let last_error = recent_logs
+        .iter()
+        .rev()
+        .find(|line| {
+            let lower = line.to_ascii_lowercase();
+            lower.contains("error")
+                || lower.contains("warning")
+                || lower.contains("not responding")
+                || lower.contains("nak")
+        })
+        .cloned();
+
+    let summary = if auth_error || ip_mac_conflict {
+        "supernode 已返回认证/IP/MAC 冲突错误，请更换虚拟 IP 或等待旧注册释放。"
+    } else if ok_link {
+        "已从 edge 日志看到 supernode ACK/PONG，supernode 响应正常。"
+    } else if not_responding {
+        "edge 日志显示 supernode 无响应，请检查 VPS 防火墙、端口和地址。"
+    } else if running && supernode_configured {
+        "edge 已启动且 supernode 已配置，但尚未在日志中看到 ACK/PONG。"
+    } else if supernode_configured {
+        "supernode 已配置，但 edge 尚未运行。"
+    } else {
+        "尚未配置 supernode。"
+    }
+    .to_string();
+
+    N2nDiagnostics {
+        running,
+        supernode_configured,
+        supernode,
+        virtual_ip,
+        ack,
+        pong,
+        ok_link,
+        auth_error,
+        ip_mac_conflict,
+        not_responding,
+        last_error,
+        summary,
+        log_path: edge_log_path().to_string_lossy().to_string(),
+        recent_logs,
     }
 }
 
@@ -277,6 +368,70 @@ fn config_path() -> PathBuf {
 
 fn pid_path() -> PathBuf {
     n2n_storage_dir().join("n2n.pid")
+}
+
+fn edge_log_path() -> PathBuf {
+    n2n_storage_dir().join("edge.log")
+}
+
+fn reset_edge_log(
+    supernode: &str,
+    community: &str,
+    local_ip: Option<&str>,
+    tap_device: Option<&str>,
+) -> Result<(), String> {
+    let path = edge_log_path();
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|err| err.to_string())?;
+    }
+    let mut file = fs::File::create(&path).map_err(|err| err.to_string())?;
+    writeln!(file, "[manager] reset edge log").map_err(|err| err.to_string())?;
+    writeln!(file, "[manager] supernode={supernode}").map_err(|err| err.to_string())?;
+    writeln!(file, "[manager] community={community}").map_err(|err| err.to_string())?;
+    if let Some(local_ip) = local_ip {
+        writeln!(file, "[manager] local_ip={local_ip}").map_err(|err| err.to_string())?;
+    }
+    if let Some(tap_device) = tap_device {
+        writeln!(file, "[manager] tap_device={tap_device}").map_err(|err| err.to_string())?;
+    }
+    Ok(())
+}
+
+fn append_edge_log(line: &str) {
+    let path = edge_log_path();
+    if let Some(parent) = path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(path) {
+        let _ = writeln!(file, "{line}");
+    }
+}
+
+fn spawn_log_reader<R>(reader: R, stream_name: &'static str)
+where
+    R: Read + Send + 'static,
+{
+    thread::spawn(move || {
+        let reader = BufReader::new(reader);
+        for line in reader.lines().map_while(Result::ok) {
+            append_edge_log(&format!("[{stream_name}] {line}"));
+        }
+    });
+}
+
+fn read_edge_log_lines(max_lines: usize) -> Vec<String> {
+    let Ok(content) = fs::read_to_string(edge_log_path()) else {
+        return Vec::new();
+    };
+    let mut lines = content
+        .lines()
+        .map(|line| line.trim_end().to_string())
+        .filter(|line| !line.trim().is_empty())
+        .collect::<Vec<_>>();
+    if lines.len() > max_lines {
+        lines = lines.split_off(lines.len() - max_lines);
+    }
+    lines
 }
 
 fn dedup_paths(paths: Vec<PathBuf>) -> Vec<PathBuf> {

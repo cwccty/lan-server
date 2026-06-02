@@ -1,7 +1,7 @@
 ﻿import { useEffect, useState } from 'react';
-import { listNetworkBackends, setupNetwork, startNetwork, stopNetwork, testConnectivity } from '../api/tauri';
+import { getN2nDiagnostics, listNetworkBackends, setupNetwork, startNetwork, stopNetwork, testConnectivity } from '../api/tauri';
 import { BackendCard } from '../components/BackendCard';
-import type { BackendRuntimeStatus, BackendSummary, ConnectivityReport, SetupResult } from '../types/network';
+import type { BackendRuntimeStatus, BackendSummary, ConnectivityReport, N2nDiagnostics, SetupResult } from '../types/network';
 
 type SteamRelayDraft = {
   appId: string;
@@ -104,6 +104,7 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
   const [localReport, setLocalReport] = useState<ConnectivityReport | null>(null);
   const [peerReport, setPeerReport] = useState<ConnectivityReport | null>(null);
   const [n2nResult, setN2nResult] = useState<SetupResult | BackendRuntimeStatus | null>(null);
+  const [n2nDiagnostics, setN2nDiagnostics] = useState<N2nDiagnostics | null>(null);
   const [copyMessage, setCopyMessage] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [steamRelayDraft, setSteamRelayDraft] = useState<SteamRelayDraft>({
@@ -114,15 +115,19 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
   });
 
   const refreshBackends = () =>
-    listNetworkBackends()
-      .then((items) => {
+    Promise.all([listNetworkBackends(), getN2nDiagnostics().catch(() => null)])
+      .then(([items, diagnostics]) => {
         setBackends(items);
+        setN2nDiagnostics(diagnostics);
         const recentSupernode = recentSupernodeFromBackends(items);
         if (recentSupernode) {
           setSupernode((current) => current.trim() ? current : recentSupernode);
         }
       })
-      .catch(() => setBackends([]));
+      .catch(() => {
+        setBackends([]);
+        setN2nDiagnostics(null);
+      });
 
   useEffect(() => {
     refreshBackends();
@@ -178,8 +183,10 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
   const n2nRuntimeResult = n2nResult && 'running' in n2nResult ? n2nResult : null;
   const n2nSetupResult = n2nResult && 'ok' in n2nResult ? n2nResult : null;
   const n2nRecordedRunning = Boolean(n2nBackend?.notes.some((note) => note.includes('PID')));
-  const n2nRunning = Boolean(n2nRuntimeResult?.running || n2nRecordedRunning);
+  const n2nRunning = Boolean(n2nDiagnostics?.running || n2nRuntimeResult?.running || n2nRecordedRunning);
   const supernodeValue = supernode.trim();
+  const supernodeOk = Boolean(n2nDiagnostics?.ok_link && !n2nDiagnostics.auth_error && !n2nDiagnostics.ip_mac_conflict);
+  const supernodeProblem = Boolean(n2nDiagnostics?.auth_error || n2nDiagnostics?.ip_mac_conflict || n2nDiagnostics?.not_responding);
   const networkStatusCards: NetworkStatusCardData[] = [
     {
       title: 'n2n edge',
@@ -190,10 +197,10 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
     },
     {
       title: 'supernode',
-      value: supernodeValue ? (n2nRunning ? '已用于启动' : '已填写') : '未配置',
-      kind: supernodeValue ? (n2nRunning ? 'good' : 'warn') : 'bad',
-      evidence: supernodeValue || '请填写 VPS_IP:端口，例如 154.64.231.137:7777',
-      detail: n2nRunning ? 'edge 已带该 supernode 启动；是否 ACK 需看 edge 日志或诊断。' : '这里只表示配置存在，不伪装成 supernode 已响应。'
+      value: supernodeOk ? 'ACK / PONG' : supernodeProblem ? '存在问题' : supernodeValue ? (n2nRunning ? '等待 ACK' : '已填写') : '未配置',
+      kind: supernodeOk ? 'good' : supernodeProblem ? 'bad' : supernodeValue ? 'warn' : 'bad',
+      evidence: n2nDiagnostics?.summary || supernodeValue || '请填写 VPS_IP:端口，例如 154.64.231.137:7777',
+      detail: n2nDiagnostics ? 'ACK=' + n2nDiagnostics.ack + ' PONG=' + n2nDiagnostics.pong + ' 认证错误=' + n2nDiagnostics.auth_error + ' IP/MAC冲突=' + n2nDiagnostics.ip_mac_conflict : '这里只表示配置存在，不伪装成 supernode 已响应。'
     },
     {
       title: '虚拟网卡',
@@ -204,8 +211,8 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
     },
     {
       title: '虚拟 IP',
-      value: n2nBackend?.virtual_ip || n2nRuntimeResult?.virtual_ip || '未分配',
-      kind: n2nBackend?.virtual_ip || n2nRuntimeResult?.virtual_ip ? 'good' : 'warn',
+      value: n2nDiagnostics?.virtual_ip || n2nBackend?.virtual_ip || n2nRuntimeResult?.virtual_ip || '未分配',
+      kind: n2nDiagnostics?.virtual_ip || n2nBackend?.virtual_ip || n2nRuntimeResult?.virtual_ip ? 'good' : 'warn',
       evidence: localIp ? '当前配置期望：' + localIp : '未填写本机虚拟 IP',
       detail: '显示“检测值 / 期望值”，用于发现 IP 冲突或 TAP 未生效。'
     }
@@ -254,7 +261,7 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
       </div>
 
       <div className="notice-card">
-        <strong>真实状态说明：</strong>edge、虚拟网卡、虚拟 IP 来自后端检测；supernode 卡片只说明配置是否存在和 edge 是否已用它启动，不会把“已填写”伪装成“已响应”。
+        <strong>真实状态说明：</strong>edge、虚拟网卡、虚拟 IP 来自后端检测；supernode 必须从 edge 日志解析到 REGISTER_SUPER_ACK、PONG 或 [OK] 才显示正常。
       </div>
 
       <article className="card">
@@ -290,6 +297,18 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
           ) : <p className="muted">尚未读取 n2n 状态。</p>}
           {n2nSetupResult && <SetupResultView result={n2nSetupResult} />}
           {n2nRuntimeResult && <BackendRuntimeStatusView status={n2nRuntimeResult} />}
+          {n2nDiagnostics && (
+            <div className={supernodeOk ? 'result-ok' : supernodeProblem ? 'result-bad' : 'result-idle'}>
+              <h4>supernode 响应诊断</h4>
+              <p>{n2nDiagnostics.summary}</p>
+              <p>日志文件：{n2nDiagnostics.log_path}</p>
+              {n2nDiagnostics.last_error && <p>最近错误：{n2nDiagnostics.last_error}</p>}
+              <details>
+                <summary>查看最近 edge 日志</summary>
+                <pre className="console-panel">{n2nDiagnostics.recent_logs.join('\n') || '暂无 edge 日志。启动 n2n edge 后会自动捕获。'}</pre>
+              </details>
+            </div>
+          )}
         </article>
 
         <details>

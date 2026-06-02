@@ -5,8 +5,8 @@ use crate::core::{
 use crate::models::diagnostics::DiagnosticReport;
 use crate::models::game::{GameAdapter, GameAnalysis, GameSummary};
 use crate::models::network::{
-    BackendRuntimeStatus, BackendSummary, ConnectivityReport, ConnectivityTarget, NetworkConfig,
-    SetupResult,
+    BackendRuntimeStatus, BackendSummary, ConnectivityReport, ConnectivityTarget, N2nDiagnostics,
+    NetworkConfig, SetupResult,
 };
 use crate::models::recommendation::{LaunchResult, Recommendation};
 use crate::models::server_session::ServerSessionStatus;
@@ -91,6 +91,11 @@ pub fn stop_network(backend_id: String) -> Result<BackendRuntimeStatus, String> 
         "n2n" => Ok(n2n_backend::stop()),
         _ => Err(format!("未知网络后端: {backend_id}")),
     }
+}
+
+#[tauri::command]
+pub fn get_n2n_diagnostics() -> Result<N2nDiagnostics, String> {
+    Ok(n2n_backend::diagnose())
 }
 
 #[tauri::command]

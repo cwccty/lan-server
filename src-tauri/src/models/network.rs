@@ -32,6 +32,25 @@ pub struct BackendRuntimeStatus {
     pub message: String,
 }
 
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct N2nDiagnostics {
+    pub running: bool,
+    pub supernode_configured: bool,
+    pub supernode: Option<String>,
+    pub virtual_ip: Option<String>,
+    pub ack: bool,
+    pub pong: bool,
+    pub ok_link: bool,
+    pub auth_error: bool,
+    pub ip_mac_conflict: bool,
+    pub not_responding: bool,
+    pub last_error: Option<String>,
+    pub summary: String,
+    pub log_path: String,
+    pub recent_logs: Vec<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConnectivityTarget {
     pub host: String,
