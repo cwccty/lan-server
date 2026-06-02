@@ -21,6 +21,8 @@ pub fn scan_games() -> Result<Vec<GameSummary>, String> {
                 detected_path,
                 capabilities: adapter.capabilities,
                 multiplayer_conversion: adapter.multiplayer_conversion,
+                network_type: adapter.network_type,
+                connection_plan: adapter.connection_plan,
                 adapter_source: adapter.adapter_source,
             }
         })
@@ -221,6 +223,8 @@ fn append_unknown_steam_games(games: &mut Vec<GameSummary>, steam_libraries: &[P
                 detected_path,
                 capabilities: vec![GameCapability::Unknown],
                 multiplayer_conversion: None,
+                network_type: None,
+                connection_plan: None,
                 adapter_source: Some("steam_scan".to_string()),
             });
         }

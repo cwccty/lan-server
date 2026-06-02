@@ -37,5 +37,27 @@
       "游戏内合作模式",
       "实际使用的游戏端口"
     ]
+  },
+  "network_type": "lan_ip_direct",
+  "connection_plan": {
+    "summary": "Stardew Valley 主要依赖游戏内合作模式；联机助手负责组网、端口提示和诊断。",
+    "host_role": "房主在游戏内创建合作农场，并确保双方在同一虚拟局域网。",
+    "join_role": "加入者通过游戏内合作入口或可用的 IP/LAN 方式加入。",
+    "default_join_host": "房主虚拟 IP",
+    "default_join_port": 24642,
+    "requires_virtual_lan": true,
+    "requires_tcp_port_proxy": false,
+    "requires_udp_broadcast_bridge": false,
+    "requires_dedicated_server": false,
+    "invite_template": [
+      "双方进入同一虚拟局域网。",
+      "房主在游戏内创建合作农场。",
+      "加入者优先使用游戏内合作入口；如版本支持 IP/LAN，则连接房主虚拟 IP。"
+    ],
+    "troubleshooting": [
+      "确认游戏版本和联机方式是否支持 LAN/IP。",
+      "如果游戏只显示平台邀请，当前适配器不承诺强制转换。",
+      "必要时记录实际端口后再做连接测试。"
+    ]
   }
 }

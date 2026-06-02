@@ -755,3 +755,26 @@ https://raw.githubusercontent.com/cwccty/lan-server/master/adapter-registry/inde
 验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。
 
 下一步推荐：更新 MVP 发布清单，并为诊断页增加“按失败类型跳转到对应修复页面”的产品流。
+
+## 2026-06-03 游戏适配器体系升级第一步：游戏类型与连接方案沉淀
+
+产品状态：适配器体系已开始从“能力标签”升级为“管理员认定的游戏类型 + 可复用连接方案”。
+
+已完成：
+
+- 新增 `GameNetworkType`，用于表达管理员认定的游戏联机类型。
+- 新增 `GameConnectionPlan`，用于沉淀连接方案、房主/加入者步骤、默认主机/端口、需求组件、邀请模板和排错建议。
+- `GameAdapter`、`GameSummary`、`GameAnalysis` 透传新字段。
+- 新字段为可选，兼容旧适配器。
+- 适配器管理页可编辑游戏网络类型和连接方案。
+- 示例适配器和本地 registry 示例已写入新字段，并更新 sha256。
+
+边界：
+
+- 目前推荐页还未消费 `connection_plan`，下一步需要把它用于推荐卡片、邀请包和执行清单。
+- UDP 广播桥只是类型和方案需求字段已预留，实际 UDP 后端尚未实现。
+- Steam Relay 仍是预留/插件路线，不进入 MVP 默认承诺。
+
+验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。
+
+下一步推荐：将 `connection_plan` 接入推荐方案页，让扫描到游戏后自动显示沉淀方案。

@@ -671,3 +671,19 @@ ConPTY 方案出现 `0xc0000142`。本轮回退为隐藏 `cmd.exe` 托管 Terrar
 验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。
 
 下一步推荐：继续细化 n2n 失败分类 UI 的修复入口，例如从诊断页一键跳到通用组网中心并带入“要修复的项”；同时更新 MVP 发布清单，把 TCP 代理自测与失败分类纳入发布标准。
+
+## 2026-06-03 游戏适配器体系升级第一步：游戏类型与连接方案沉淀
+
+已开始实现“游戏适配器体系升级 / 游戏类型识别与方案沉淀”大区块。
+
+- 后端 `GameAdapter` / `GameSummary` / `GameAnalysis` 新增 `network_type` 和 `connection_plan`。
+- 新增 `GameNetworkType`：LAN/IP 直连、专用服务端、需要 TCP 端口代理、需要 UDP 广播桥、Steam Lobby 可直连、Steam Relay 插件、需要 Mod、仅官方、暂不支持、未知需审核。
+- 新增 `GameConnectionPlan`：连接方案摘要、房主步骤、加入者步骤、默认加入主机/端口、是否需要虚拟局域网、TCP 端口代理、UDP 广播桥、专用服务端、邀请模板、排错建议。
+- 旧适配器 JSON 兼容：新字段为可选，不会破坏已有 adapter。
+- 扫描和分析接口会透传新字段，供推荐页和后续诊断使用。
+- 适配器管理页新增“游戏网络类型 / 管理员认定”和连接方案编辑区，管理员可把一次判断沉淀为 adapter。
+- 内置示例和本地 registry 示例已更新 Terraria、Minecraft Java、Stardew Valley 的 `network_type` / `connection_plan`，并重新生成 registry sha256。
+
+验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。
+
+下一步推荐：把 `connection_plan` 接入推荐方案页和邀请包，让用户看到的推荐不只是 methods，而是明确的“房主做什么 / 加入者做什么 / 是否需要 TCP 代理或 UDP 广播桥”。

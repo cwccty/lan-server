@@ -27,6 +27,32 @@ export type ConversionMethod =
   | 'manual_guide'
   | 'not_supported';
 
+export type GameNetworkType =
+  | 'lan_ip_direct'
+  | 'dedicated_server'
+  | 'tcp_port_proxy_needed'
+  | 'udp_broadcast_needed'
+  | 'steam_lobby_direct_possible'
+  | 'steam_relay_plugin'
+  | 'mod_required'
+  | 'official_only'
+  | 'not_supported'
+  | 'unknown_need_review';
+
+export interface GameConnectionPlan {
+  summary: string;
+  host_role: string;
+  join_role: string;
+  default_join_host?: string;
+  default_join_port?: number;
+  requires_virtual_lan: boolean;
+  requires_tcp_port_proxy: boolean;
+  requires_udp_broadcast_bridge: boolean;
+  requires_dedicated_server: boolean;
+  invite_template: string[];
+  troubleshooting: string[];
+}
+
 export interface MultiplayerConversionProfile {
   capability: MultiplayerCapability;
   methods: ConversionMethod[];
@@ -64,6 +90,8 @@ export interface GameSummary {
   detected_path?: string;
   capabilities: GameCapability[];
   multiplayer_conversion?: MultiplayerConversionProfile;
+  network_type?: GameNetworkType;
+  connection_plan?: GameConnectionPlan;
   adapter_source?: 'builtin' | 'registry' | 'custom' | 'steam_scan' | string;
 }
 
@@ -80,6 +108,8 @@ export interface GameAdapter {
   steam_appid?: string;
   capabilities: GameCapability[];
   multiplayer_conversion?: MultiplayerConversionProfile;
+  network_type?: GameNetworkType;
+  connection_plan?: GameConnectionPlan;
   adapter_source?: 'builtin' | 'registry' | 'custom' | 'steam_scan' | string;
   executables: string[];
   default_ports: number[];

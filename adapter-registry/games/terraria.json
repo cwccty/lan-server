@@ -102,5 +102,28 @@
       "TerrariaServer.exe",
       "7777 或自定义游戏端口"
     ]
+  },
+  "network_type": "dedicated_server",
+  "connection_plan": {
+    "summary": "房主启动 TerrariaServer.exe，双方进入同一虚拟局域网后，好友连接房主虚拟 IP:7777。",
+    "host_role": "房主在联机助手内启动 Terraria 本地服务端，并保持 n2n edge 运行。",
+    "join_role": "加入者启动 n2n edge 后，在 Terraria 中选择 Join via IP，连接房主虚拟 IP 和端口。",
+    "default_join_host": "房主虚拟 IP",
+    "default_join_port": 7777,
+    "requires_virtual_lan": true,
+    "requires_tcp_port_proxy": false,
+    "requires_udp_broadcast_bridge": false,
+    "requires_dedicated_server": true,
+    "invite_template": [
+      "双方填写相同 community、密钥和 supernode。",
+      "房主虚拟 IP 通常为 10.10.10.2，加入者使用不同虚拟 IP。",
+      "房主启动 Terraria 服务端并确认 7777 端口监听。",
+      "加入者在 Terraria 中 Join via IP：房主虚拟 IP:7777。"
+    ],
+    "troubleshooting": [
+      "先确认 n2n 诊断出现 ACK/PONG。",
+      "确认 127.0.0.1:7777 和房主虚拟 IP:7777 都可达。",
+      "如果服务端只监听本地地址，可启用 TCP 端口代理。"
+    ]
   }
 }

@@ -32,6 +32,8 @@ pub fn analyze_game(game_id: &str) -> Result<GameAnalysis, String> {
                 ],
                 required_components: vec!["人工适配".to_string()],
             }),
+            network_type: game.network_type,
+            connection_plan: game.connection_plan,
             adapter_source: game.adapter_source.or_else(|| Some("steam_scan".to_string())),
             confidence: "low".to_string(),
             notes: vec![
@@ -54,6 +56,8 @@ pub fn analyze_game(game_id: &str) -> Result<GameAnalysis, String> {
             .multiplayer_conversion
             .clone()
             .or_else(|| Some(infer_multiplayer_conversion(&adapter.capabilities))),
+        network_type: adapter.network_type,
+        connection_plan: adapter.connection_plan,
         adapter_source: adapter.adapter_source,
         capabilities: adapter.capabilities,
         confidence: "medium".to_string(),

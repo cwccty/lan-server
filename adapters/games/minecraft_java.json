@@ -39,5 +39,27 @@
       "Minecraft server.jar 或游戏内开放到局域网",
       "25565 或实际端口"
     ]
+  },
+  "network_type": "dedicated_server",
+  "connection_plan": {
+    "summary": "房主开启 Minecraft Java 服务端或开放到局域网，好友通过虚拟 IP 和实际端口加入。",
+    "host_role": "房主启动 server.jar，或在游戏内开放到局域网并记录实际端口。",
+    "join_role": "加入者进入多人游戏，添加服务器：房主虚拟 IP:端口。",
+    "default_join_host": "房主虚拟 IP",
+    "default_join_port": 25565,
+    "requires_virtual_lan": true,
+    "requires_tcp_port_proxy": false,
+    "requires_udp_broadcast_bridge": false,
+    "requires_dedicated_server": true,
+    "invite_template": [
+      "双方先进入同一虚拟局域网。",
+      "房主启动 Minecraft Java 服务端或开放到局域网。",
+      "加入者连接 房主虚拟 IP:25565 或游戏显示的实际端口。"
+    ],
+    "troubleshooting": [
+      "确认 Minecraft 服务端或 LAN 房间端口正在监听。",
+      "如果开放到局域网端口不是 25565，请以游戏显示端口为准。",
+      "如果本机端口通但虚拟 IP 不通，检查防火墙或启用 TCP 端口代理。"
+    ]
   }
 }

@@ -9,7 +9,7 @@ import {
   type AdapterRegistrySyncResult
 } from '../api/tauri';
 import { LoadingOverlay } from '../components/LoadingOverlay';
-import type { ConversionMethod, GameAdapter, GameCapability, MultiplayerCapability } from '../types/game';
+import type { ConversionMethod, GameAdapter, GameCapability, GameNetworkType, MultiplayerCapability } from '../types/game';
 
 const capabilityOptions: Array<[MultiplayerCapability, string]> = [
   ['native_lan_ip', '原生 LAN/IP 直连'],
@@ -33,6 +33,19 @@ const methodOptions: Array<[ConversionMethod, string]> = [
   ['not_supported', '不支持']
 ];
 
+const networkTypeOptions: Array<[GameNetworkType, string]> = [
+  ['lan_ip_direct', 'LAN/IP 直连'],
+  ['dedicated_server', '专用服务端'],
+  ['tcp_port_proxy_needed', '需要 TCP 端口代理'],
+  ['udp_broadcast_needed', '需要 UDP 广播桥'],
+  ['steam_lobby_direct_possible', 'Steam Lobby 发现但可直连'],
+  ['steam_relay_plugin', 'Steam Relay 插件'],
+  ['mod_required', '需要 Mod'],
+  ['official_only', '仅官方/平台联机'],
+  ['not_supported', '暂不支持'],
+  ['unknown_need_review', '未知，需管理员判断']
+];
+
 const sourceLabels: Record<string, string> = {
   builtin: '内置',
   registry: '共享库',
@@ -46,7 +59,7 @@ const REGISTRY_URL_STORAGE_KEY = 'lan-helper-adapter-registry-url';
 const REGISTRY_LAST_SYNC_STORAGE_KEY = 'lan-helper-adapter-registry-last-sync';
 const ADAPTER_MANAGER_VERSION = 'adapter-manager-2026-06-02-github-default';
 
-const templates: Record<string, Pick<GameAdapter, 'capabilities' | 'default_ports' | 'multiplayer_conversion' | 'launch_profiles'>> = {
+const templates: Record<string, Pick<GameAdapter, 'capabilities' | 'default_ports' | 'multiplayer_conversion' | 'launch_profiles' | 'network_type' | 'connection_plan'>> = {
   native_lan_ip: {
     capabilities: ['lan', 'ip_join'],
     default_ports: [],
@@ -58,6 +71,20 @@ const templates: Record<string, Pick<GameAdapter, 'capabilities' | 'default_port
       risk_level: 'low',
       notes: ['该游戏原生支持 LAN 或 IP 直连。', '联机助手负责组网、邀请信息和连通性诊断。'],
       required_components: ['n2n/Radmin/已有局域网', '游戏内 LAN/IP 加入']
+    },
+    network_type: 'lan_ip_direct',
+    connection_plan: {
+      summary: '先完成通用组网，再在游戏内使用 LAN/IP 加入房主虚拟 IP。',
+      host_role: '房主创建局域网房间或主机。',
+      join_role: '加入者连接房主虚拟 IP 和游戏端口。',
+      default_join_host: '房主虚拟 IP',
+      default_join_port: undefined,
+      requires_virtual_lan: true,
+      requires_tcp_port_proxy: false,
+      requires_udp_broadcast_bridge: false,
+      requires_dedicated_server: false,
+      invite_template: ['进入同一 n2n/Radmin 网络。', '在游戏内选择 LAN/IP 加入。', '连接房主虚拟 IP 和实际端口。'],
+      troubleshooting: ['先确认双方虚拟 IP 可达。', '再确认游戏房间或端口已开启。']
     }
   },
   dedicated_server: {
@@ -71,6 +98,20 @@ const templates: Record<string, Pick<GameAdapter, 'capabilities' | 'default_port
       risk_level: 'low',
       notes: ['该游戏支持独立服务端或可由服务端启动器承接。', '组网成功后，加入方连接房主虚拟 IP 和游戏端口。'],
       required_components: ['n2n/Radmin/已有局域网', '本地服务端', '游戏端口']
+    },
+    network_type: 'dedicated_server',
+    connection_plan: {
+      summary: '房主启动本地/专用服务端，加入者通过虚拟 IP 和端口连接。',
+      host_role: '房主启动服务端并保持运行。',
+      join_role: '加入者连接房主虚拟 IP:端口。',
+      default_join_host: '房主虚拟 IP',
+      default_join_port: undefined,
+      requires_virtual_lan: true,
+      requires_tcp_port_proxy: false,
+      requires_udp_broadcast_bridge: false,
+      requires_dedicated_server: true,
+      invite_template: ['房主先启动服务端。', '双方进入同一虚拟局域网。', '加入者连接房主虚拟 IP:端口。'],
+      troubleshooting: ['确认 127.0.0.1:端口可达。', '确认房主虚拟 IP:端口可达。', '必要时启用 TCP 端口代理。']
     }
   },
   official_only: {
@@ -84,6 +125,20 @@ const templates: Record<string, Pick<GameAdapter, 'capabilities' | 'default_port
       risk_level: 'high',
       notes: ['该游戏当前只识别到官方/平台联机能力。', '不能承诺转换为本地联机；未来可研究平台网络插件。'],
       required_components: ['官方联机', '未来平台网络插件']
+    },
+    network_type: 'official_only',
+    connection_plan: {
+      summary: '当前只承诺官方/平台联机，不承诺转换为本地局域网。',
+      host_role: '使用游戏官方房间或平台邀请。',
+      join_role: '通过官方/平台方式加入。',
+      default_join_host: undefined,
+      default_join_port: undefined,
+      requires_virtual_lan: false,
+      requires_tcp_port_proxy: false,
+      requires_udp_broadcast_bridge: false,
+      requires_dedicated_server: false,
+      invite_template: ['使用官方联机入口。'],
+      troubleshooting: ['联机助手暂不承诺该游戏可转换成本地联机。']
     }
   }
 };
@@ -104,6 +159,20 @@ function emptyAdapter(): GameAdapter {
       risk_level: 'high',
       notes: ['需要管理员或高级用户进一步确认。'],
       required_components: ['人工适配']
+    },
+    network_type: 'unknown_need_review',
+    connection_plan: {
+      summary: '尚未认定游戏联机类型，需要管理员或高级用户测试后沉淀方案。',
+      host_role: '待确认。',
+      join_role: '待确认。',
+      default_join_host: '房主虚拟 IP',
+      default_join_port: undefined,
+      requires_virtual_lan: true,
+      requires_tcp_port_proxy: false,
+      requires_udp_broadcast_bridge: false,
+      requires_dedicated_server: false,
+      invite_template: ['该游戏尚未完成适配，请先人工确认联机方式。'],
+      troubleshooting: ['确认游戏是否支持 LAN/IP/专用服务端/广播发现/Mod。']
     }
   };
 }
@@ -123,6 +192,8 @@ export function AdapterManagerPage() {
   const [portsText, setPortsText] = useState('');
   const [notesText, setNotesText] = useState('需要管理员或高级用户进一步确认。');
   const [componentsText, setComponentsText] = useState('人工适配');
+  const [inviteTemplateText, setInviteTemplateText] = useState('该游戏尚未完成适配，请先人工确认联机方式。');
+  const [troubleshootingText, setTroubleshootingText] = useState('确认游戏是否支持 LAN/IP/专用服务端/广播发现/Mod。');
   const [importText, setImportText] = useState('');
   const [exportText, setExportText] = useState('');
   const [registryUrl, setRegistryUrl] = useState('');
@@ -153,6 +224,8 @@ export function AdapterManagerPage() {
     setPortsText(next.default_ports.join(','));
     setNotesText(next.multiplayer_conversion?.notes.join('\n') ?? '');
     setComponentsText(next.multiplayer_conversion?.required_components.join('\n') ?? '');
+    setInviteTemplateText(next.connection_plan?.invite_template.join('\n') ?? '');
+    setTroubleshootingText(next.connection_plan?.troubleshooting.join('\n') ?? '');
   };
 
   const applyTemplate = (id: keyof typeof templates) => {
@@ -174,6 +247,11 @@ export function AdapterManagerPage() {
           ...(draft.multiplayer_conversion ?? emptyAdapter().multiplayer_conversion!),
           notes: lines(notesText),
           required_components: lines(componentsText)
+        },
+        connection_plan: {
+          ...(draft.connection_plan ?? emptyAdapter().connection_plan!),
+          invite_template: lines(inviteTemplateText),
+          troubleshooting: lines(troubleshootingText)
         }
       };
       const saved = await saveGameAdapter(next);
@@ -327,13 +405,14 @@ export function AdapterManagerPage() {
         <h3>当前适配器（{adapterCount}）</h3>
         {adapters.length === 0 ? <p className="muted">暂无适配器。</p> : (
           <table className="adapter-table">
-            <thead><tr><th>游戏</th><th>来源</th><th>AppID</th><th>能力</th><th>端口</th><th>操作</th></tr></thead>
+            <thead><tr><th>游戏</th><th>来源</th><th>AppID</th><th>游戏类型</th><th>能力</th><th>端口</th><th>操作</th></tr></thead>
             <tbody>
               {adapters.map((adapter) => (
                 <tr key={adapter.game_id}>
                   <td>{adapter.display_name}<br /><small className="muted">{adapter.game_id}</small></td>
                   <td><span className={`badge source-${adapter.adapter_source ?? 'unknown'}`}>{sourceLabels[adapter.adapter_source ?? ''] ?? adapter.adapter_source ?? '未知'}</span></td>
                   <td>{adapter.steam_appid || '-'}</td>
+                  <td>{adapter.network_type || 'unknown_need_review'}</td>
                   <td>{adapter.multiplayer_conversion?.capability || 'unknown'}</td>
                   <td>{adapter.default_ports.join(',') || '-'}</td>
                   <td>
@@ -360,6 +439,24 @@ export function AdapterManagerPage() {
         <label>Steam AppID（可选）<input value={draft.steam_appid ?? ''} onChange={(event) => setDraft({ ...draft, steam_appid: event.target.value })} /></label>
         <label>可执行文件名，每行一个<textarea value={executablesText} onChange={(event) => setExecutablesText(event.target.value)} placeholder="Game.exe" /></label>
         <label>默认端口，逗号分隔<input value={portsText} onChange={(event) => setPortsText(event.target.value)} placeholder="7777,25565" /></label>
+        <label>游戏网络类型 / 管理员认定
+          <select value={draft.network_type ?? 'unknown_need_review'} onChange={(event) => setDraft({ ...draft, network_type: event.target.value as GameNetworkType })}>
+            {networkTypeOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+        </label>
+        <label>连接方案摘要<input value={draft.connection_plan?.summary ?? ''} onChange={(event) => setDraft({ ...draft, connection_plan: { ...(draft.connection_plan ?? emptyAdapter().connection_plan!), summary: event.target.value } })} placeholder="例如：房主启动服务端，好友连接房主虚拟 IP:端口" /></label>
+        <label>房主步骤<input value={draft.connection_plan?.host_role ?? ''} onChange={(event) => setDraft({ ...draft, connection_plan: { ...(draft.connection_plan ?? emptyAdapter().connection_plan!), host_role: event.target.value } })} /></label>
+        <label>加入者步骤<input value={draft.connection_plan?.join_role ?? ''} onChange={(event) => setDraft({ ...draft, connection_plan: { ...(draft.connection_plan ?? emptyAdapter().connection_plan!), join_role: event.target.value } })} /></label>
+        <label>默认加入主机<input value={draft.connection_plan?.default_join_host ?? ''} onChange={(event) => setDraft({ ...draft, connection_plan: { ...(draft.connection_plan ?? emptyAdapter().connection_plan!), default_join_host: event.target.value || undefined } })} placeholder="房主虚拟 IP" /></label>
+        <label>默认加入端口<input value={draft.connection_plan?.default_join_port ?? ''} onChange={(event) => setDraft({ ...draft, connection_plan: { ...(draft.connection_plan ?? emptyAdapter().connection_plan!), default_join_port: Number(event.target.value) || undefined } })} placeholder="例如 7777" /></label>
+        <label>方案需求
+          <div className="filter-list">
+            <label><input type="checkbox" checked={draft.connection_plan?.requires_virtual_lan ?? true} onChange={(event) => setDraft({ ...draft, connection_plan: { ...(draft.connection_plan ?? emptyAdapter().connection_plan!), requires_virtual_lan: event.target.checked } })} /> 虚拟局域网</label>
+            <label><input type="checkbox" checked={draft.connection_plan?.requires_dedicated_server ?? false} onChange={(event) => setDraft({ ...draft, connection_plan: { ...(draft.connection_plan ?? emptyAdapter().connection_plan!), requires_dedicated_server: event.target.checked } })} /> 专用服务端</label>
+            <label><input type="checkbox" checked={draft.connection_plan?.requires_tcp_port_proxy ?? false} onChange={(event) => setDraft({ ...draft, connection_plan: { ...(draft.connection_plan ?? emptyAdapter().connection_plan!), requires_tcp_port_proxy: event.target.checked } })} /> TCP 端口代理</label>
+            <label><input type="checkbox" checked={draft.connection_plan?.requires_udp_broadcast_bridge ?? false} onChange={(event) => setDraft({ ...draft, connection_plan: { ...(draft.connection_plan ?? emptyAdapter().connection_plan!), requires_udp_broadcast_bridge: event.target.checked } })} /> UDP 广播桥</label>
+          </div>
+        </label>
         <label>联机能力类型
           <select value={conversion.capability} onChange={(event) => setDraft({ ...draft, multiplayer_conversion: { ...conversion, capability: event.target.value as MultiplayerCapability } })}>
             {capabilityOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
@@ -386,6 +483,8 @@ export function AdapterManagerPage() {
         </label>
         <label>所需组件，每行一个<textarea value={componentsText} onChange={(event) => setComponentsText(event.target.value)} /></label>
         <label>判断说明，每行一条<textarea value={notesText} onChange={(event) => setNotesText(event.target.value)} /></label>
+        <label>邀请模板，每行一条<textarea value={inviteTemplateText} onChange={(event) => setInviteTemplateText(event.target.value)} /></label>
+        <label>排错建议，每行一条<textarea value={troubleshootingText} onChange={(event) => setTroubleshootingText(event.target.value)} /></label>
         <button disabled={busy} onClick={save}>保存到本地适配器库</button>
       </article>
 
