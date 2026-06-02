@@ -796,3 +796,23 @@ npm run tauri:build
 ```
 
 下一步：把适配器 `requires_udp_broadcast_bridge` 与推荐页/诊断联动，遇到需要广播桥的游戏时显示能力是否就绪。
+
+## 2026-06-03 推荐页接入 TCP/UDP/广播桥能力状态
+
+已把适配器 `connection_plan` 与当前真实能力状态联动：
+
+- 推荐页刷新执行清单时会读取：TCP 端口代理、UDP 单播端口代理、UDP 广播桥的真实运行状态。
+- “方案需求”不再只显示适配器声明，而是同时显示当前能力是否就绪。
+- 执行清单新增“方案所需桥接/代理”检查：如果游戏需要 TCP 代理或 UDP 广播桥但未启动，会显示待启动。
+- 好友邀请包加入当前 TCP 代理、UDP 代理、UDP 广播桥运行摘要。
+- 如果 `requires_udp_broadcast_bridge=true`，邀请包会明确说明“需要 UDP 广播桥，但当前是否运行”。
+
+验证通过：
+
+```powershell
+npm run build
+cargo check --manifest-path src-tauri\Cargo.toml
+npm run tauri:build
+```
+
+下一步：把同样的“适配器需求 vs 当前能力”检查扩展到诊断报告，生成更明确的失败分类。

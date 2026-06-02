@@ -1,5 +1,16 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
-import { analyzeGame, getN2nDiagnostics, getN2nLastConfig, launchProfile, readServerSession, recommendPlans, testConnectivity } from '../api/tauri';
+import {
+  analyzeGame,
+  getN2nDiagnostics,
+  getN2nLastConfig,
+  launchProfile,
+  listPortProxies,
+  listUdpBroadcastBridges,
+  listUdpProxies,
+  readServerSession,
+  recommendPlans,
+  testConnectivity
+} from '../api/tauri';
 import { LoadingOverlay } from '../components/LoadingOverlay';
 import { RecommendationCard } from '../components/RecommendationCard';
 import type { GameAnalysis, LaunchProfile } from '../types/game';
@@ -7,6 +18,9 @@ import type { N2nDiagnostics, ConnectivityReport, NetworkConfig } from '../types
 import type { LaunchConfig, LaunchResult, Recommendation } from '../types/recommendation';
 import type { ServerSessionStatus } from '../types/serverSession';
 import type { NetworkSetupPreset } from '../types/networkPreset';
+import type { PortProxyStatus } from '../types/portProxy';
+import type { UdpBroadcastBridgeStatus } from '../types/udpBroadcastBridge';
+import type { UdpProxyStatus } from '../types/udpProxy';
 
 type ProfileConfigState = Record<string, LaunchConfig>;
 type ChecklistKind = 'good' | 'warn' | 'bad' | 'idle';
@@ -23,6 +37,12 @@ type FriendIpAllocation = {
   name: string;
   ip: string;
   createdAt: number;
+};
+
+type AdapterAbilityStatus = {
+  tcpProxy: PortProxyStatus | null;
+  udpProxy: UdpProxyStatus | null;
+  udpBroadcastBridge: UdpBroadcastBridgeStatus | null;
 };
 
 const FRIEND_ALLOCATIONS_STORAGE_KEY = 'lan-helper-friend-ip-allocations';
@@ -121,7 +141,19 @@ function loadFriendAllocations() {
   }
 }
 
-function ConversionProfileView({ analysis }: { analysis: GameAnalysis }) {
+function abilityBadge(ready: boolean, needed: boolean) {
+  if (needed && ready) return 'future-chip active';
+  if (needed && !ready) return 'future-chip';
+  return ready ? 'future-chip active' : 'future-chip';
+}
+
+function abilityText(ready: boolean, needed: boolean, readyText = '已就绪') {
+  if (needed && ready) return readyText;
+  if (needed && !ready) return '需要，但未就绪';
+  return ready ? readyText : '不需要';
+}
+
+function ConversionProfileView({ analysis, abilityStatus }: { analysis: GameAnalysis; abilityStatus: AdapterAbilityStatus }) {
   const profile = analysis.multiplayer_conversion;
   const plan = analysis.connection_plan;
   if (!profile) {
@@ -181,10 +213,25 @@ function ConversionProfileView({ analysis }: { analysis: GameAnalysis }) {
             <div className="filter-list">
               <span className={plan.requires_virtual_lan ? 'future-chip active' : 'future-chip'}>虚拟局域网：{plan.requires_virtual_lan ? '需要' : '不需要'}</span>
               <span className={plan.requires_dedicated_server ? 'future-chip active' : 'future-chip'}>服务端：{plan.requires_dedicated_server ? '需要' : '不需要'}</span>
-              <span className={plan.requires_tcp_port_proxy ? 'future-chip active' : 'future-chip'}>TCP 代理：{plan.requires_tcp_port_proxy ? '需要' : '可选'}</span>
-              <span className={plan.requires_udp_broadcast_bridge ? 'future-chip active' : 'future-chip'}>UDP 广播桥：{plan.requires_udp_broadcast_bridge ? '需要' : '不需要'}</span>
+              <span className={abilityBadge(Boolean(abilityStatus.tcpProxy?.running), plan.requires_tcp_port_proxy)}>
+                TCP 代理：{abilityText(Boolean(abilityStatus.tcpProxy?.running), plan.requires_tcp_port_proxy)}
+              </span>
+              <span className={abilityBadge(Boolean(abilityStatus.udpProxy?.running), false)}>
+                UDP 代理：{abilityStatus.udpProxy?.running ? '已运行 / 可选' : '可选'}
+              </span>
+              <span className={abilityBadge(Boolean(abilityStatus.udpBroadcastBridge?.running), plan.requires_udp_broadcast_bridge)}>
+                UDP 广播桥：{abilityText(Boolean(abilityStatus.udpBroadcastBridge?.running), plan.requires_udp_broadcast_bridge)}
+              </span>
             </div>
           ) : <p>该适配器尚未沉淀连接方案。</p>}
+          {plan && (plan.requires_tcp_port_proxy || plan.requires_udp_broadcast_bridge) && (
+            <p className="muted">
+              当前能力状态来自通用组网中心真实后端任务：TCP 代理
+              {abilityStatus.tcpProxy?.running ? ` 已运行 ${abilityStatus.tcpProxy.listen} → ${abilityStatus.tcpProxy.target}` : ' 未运行'}；
+              UDP 广播桥
+              {abilityStatus.udpBroadcastBridge?.running ? ` 已运行 ${abilityStatus.udpBroadcastBridge.listen}` : ' 未运行'}。
+            </p>
+          )}
           <h3>风险提示</h3>
           <p>官方服务器限定、反作弊 / 账号风险、Mod 依赖、管理员审核等必须在这里明确展示。</p>
         </aside>
@@ -214,7 +261,8 @@ function buildChecklist(
   n2n: N2nDiagnostics | null,
   serverSession: ServerSessionStatus | null,
   localPortReport: ConnectivityReport | null,
-  launchResult: LaunchResult | null
+  launchResult: LaunchResult | null,
+  abilityStatus: AdapterAbilityStatus
 ): ChecklistItem[] {
   const defaultPort = analysis?.default_ports[0] ?? 7777;
   const hasServerProfile = Boolean(analysis?.launch_profiles.some((profile) => profile.type === 'server'));
@@ -223,8 +271,15 @@ function buildChecklist(
   const localPortReady = Boolean(localPortReport?.reachable);
   const launchOk = Boolean(launchResult?.ok);
   const serverReady = Boolean(serverSession?.ready || serverSession?.running || localPortReady || launchOk);
+  const tcpProxyReady = Boolean(abilityStatus.tcpProxy?.running);
+  const udpBroadcastBridgeReady = Boolean(abilityStatus.udpBroadcastBridge?.running);
+  const requiresTcpProxy = Boolean(plan?.requires_tcp_port_proxy);
+  const requiresUdpBroadcastBridge = Boolean(plan?.requires_udp_broadcast_bridge);
+  const adapterAbilityReady =
+    (!requiresTcpProxy || tcpProxyReady) &&
+    (!requiresUdpBroadcastBridge || udpBroadcastBridgeReady);
 
-  return [
+  const items: ChecklistItem[] = [
     {
       title: '1. 适配器判断',
       status: analysis?.multiplayer_conversion ? '已命中' : analysis ? '需人工适配' : '未选择',
@@ -255,13 +310,31 @@ function buildChecklist(
     },
     {
       title: '5. 邀请好友',
-      status: networkReady && (localPortReady || !hasServerProfile) ? '可以准备' : '等待前置',
-      kind: networkReady && (localPortReady || !hasServerProfile) ? 'good' : 'warn',
+      status: networkReady && adapterAbilityReady && (localPortReady || !hasServerProfile) ? '可以准备' : '等待前置',
+      kind: networkReady && adapterAbilityReady && (localPortReady || !hasServerProfile) ? 'good' : 'warn',
       detail: networkReady
         ? plan?.join_role || `把房主虚拟 IP、端口 ${defaultPort} 和组网配置发给朋友；朋友仍需启动自己的 n2n。`
         : '先完成组网 ACK/PONG，再邀请好友测试。'
     }
   ];
+
+  if (plan?.requires_tcp_port_proxy || plan?.requires_udp_broadcast_bridge) {
+    items.splice(4, 0, {
+      title: '5. 方案所需桥接/代理',
+      status: adapterAbilityReady ? '已就绪' : '待启动',
+      kind: adapterAbilityReady ? 'good' : 'warn',
+      detail: [
+        plan.requires_tcp_port_proxy
+          ? `TCP 代理：${tcpProxyReady ? `${abilityStatus.tcpProxy?.listen} → ${abilityStatus.tcpProxy?.target}` : '需要，但通用组网中心未检测到运行中的 TCP 代理'}`
+          : 'TCP 代理：不需要',
+        plan.requires_udp_broadcast_bridge
+          ? `UDP 广播桥：${udpBroadcastBridgeReady ? `${abilityStatus.udpBroadcastBridge?.listen} → ${abilityStatus.udpBroadcastBridge?.forward_targets.join('、')}` : '需要，但通用组网中心未检测到运行中的 UDP 广播桥'}`
+          : 'UDP 广播桥：不需要'
+      ].join('；')
+    });
+  }
+
+  return items;
 }
 
 function buildFriendInvitePacket(
@@ -273,7 +346,8 @@ function buildFriendInvitePacket(
   includeSecret: boolean,
   friendName: string,
   friendIp: string,
-  friendConnectivityReport: ConnectivityReport | null
+  friendConnectivityReport: ConnectivityReport | null,
+  abilityStatus: AdapterAbilityStatus
 ) {
   const defaultPort = analysis?.default_ports[0] ?? 7777;
   const profile = analysis?.multiplayer_conversion;
@@ -281,7 +355,13 @@ function buildFriendInvitePacket(
   const networkReady = Boolean(n2n?.ok_link && !n2n.auth_error && !n2n.ip_mac_conflict);
   const localPortReady = Boolean(localPortReport?.reachable);
   const hostVirtualIp = n2n?.virtual_ip || '待确认';
-  const canSendAsReady = Boolean(networkReady && localPortReady);
+  const tcpProxyReady = Boolean(abilityStatus.tcpProxy?.running);
+  const udpProxyReady = Boolean(abilityStatus.udpProxy?.running);
+  const udpBroadcastBridgeReady = Boolean(abilityStatus.udpBroadcastBridge?.running);
+  const adapterAbilityReady =
+    (!plan?.requires_tcp_port_proxy || tcpProxyReady) &&
+    (!plan?.requires_udp_broadcast_bridge || udpBroadcastBridgeReady);
+  const canSendAsReady = Boolean(networkReady && localPortReady && adapterAbilityReady);
 
   return [
     '【联机助手 · 游戏邀请好友包】',
@@ -304,14 +384,18 @@ function buildFriendInvitePacket(
     `- 加入者：${plan?.join_role || '在游戏内选择 LAN / Join via IP / 直连入口。'}`,
     `- 需要虚拟局域网：${plan?.requires_virtual_lan ? '是' : '按实际情况'}`,
     `- 需要专用服务端：${plan?.requires_dedicated_server ? '是' : '否 / 未声明'}`,
-    `- 需要 TCP 端口代理：${plan?.requires_tcp_port_proxy ? '是' : '否 / 可选'}`,
-    `- 需要 UDP 广播桥：${plan?.requires_udp_broadcast_bridge ? '是' : '否 / 尚未实现'}`,
+    `- 需要 TCP 端口代理：${plan?.requires_tcp_port_proxy ? (tcpProxyReady ? `是，当前已运行 ${abilityStatus.tcpProxy?.listen} -> ${abilityStatus.tcpProxy?.target}` : '是，但当前未运行') : '否 / 可选'}`,
+    `- UDP 单播端口代理：${udpProxyReady ? `当前已运行 ${abilityStatus.udpProxy?.listen} -> ${abilityStatus.udpProxy?.target}` : '未运行 / 仅 UDP 直连端口需要时使用'}`,
+    `- 需要 UDP 广播桥：${plan?.requires_udp_broadcast_bridge ? (udpBroadcastBridgeReady ? `是，当前已运行 ${abilityStatus.udpBroadcastBridge?.listen} -> ${abilityStatus.udpBroadcastBridge?.forward_targets.join('、')}` : '是，但当前未运行') : '否'}`,
     ...(plan?.invite_template ?? []).map((line) => `- ${line}`),
     '',
     '当前检测状态：',
     `- n2n 组网：${networkReady ? '已检测到 ACK/PONG' : '待确认 / 未完成'}`,
     `- 本机游戏端口：${localPortReady ? `127.0.0.1:${defaultPort} 可连接` : `127.0.0.1:${defaultPort} 待确认 / 不可达`}`,
     `- 服务端状态：${serverSession?.ready ? '已就绪' : serverSession?.running ? '运行中，等待就绪' : '未检测到独立服务端就绪'}`,
+    `- TCP 代理：${tcpProxyReady ? `${abilityStatus.tcpProxy?.listen} -> ${abilityStatus.tcpProxy?.target}` : '未运行'}`,
+    `- UDP 代理：${udpProxyReady ? `${abilityStatus.udpProxy?.listen} -> ${abilityStatus.udpProxy?.target}` : '未运行'}`,
+    `- UDP 广播桥：${udpBroadcastBridgeReady ? `${abilityStatus.udpBroadcastBridge?.listen} -> ${abilityStatus.udpBroadcastBridge?.forward_targets.join('、')}` : '未运行'}`,
     `- 好友虚拟 IP 检测：${friendConnectivityReport ? (friendConnectivityReport.reachable ? `${friendConnectivityReport.target_host}:${defaultPort} 可达` : `${friendConnectivityReport.target_host}:${defaultPort} 不可达 / 待确认`) : '未检测'}`,
     '',
     canSendAsReady ? '结论：房主侧组网和本机端口已有可用证据，可以让朋友尝试加入。' : '结论：当前证据还不完整，建议先完成组网 ACK/PONG 和本机端口检测后再邀请。',
@@ -348,6 +432,11 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
   const [friendConnectivityReport, setFriendConnectivityReport] = useState<ConnectivityReport | null>(null);
   const [isCheckingFriend, setIsCheckingFriend] = useState(false);
   const [copyMessage, setCopyMessage] = useState('');
+  const [abilityStatus, setAbilityStatus] = useState<AdapterAbilityStatus>({
+    tcpProxy: null,
+    udpProxy: null,
+    udpBroadcastBridge: null
+  });
 
   const profilesById = useMemo(() => {
     const map = new Map<string, LaunchProfile>();
@@ -356,10 +445,10 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
   }, [analysis]);
 
   const defaultPort = analysis?.default_ports[0] ?? 7777;
-  const checklist = buildChecklist(analysis, n2nDiagnostics, serverSession, localPortReport, launchResult);
+  const checklist = buildChecklist(analysis, n2nDiagnostics, serverSession, localPortReport, launchResult, abilityStatus);
   const hostVirtualIp = n2nConfig?.local_ip || n2nDiagnostics?.virtual_ip;
   const nextSuggestedFriendIp = suggestFriendIp(hostVirtualIp, friendAllocations);
-  const friendInvitePacket = buildFriendInvitePacket(analysis, n2nDiagnostics, localPortReport, serverSession, n2nConfig, includeSecretInInvite, friendName, selectedFriendIp, friendConnectivityReport);
+  const friendInvitePacket = buildFriendInvitePacket(analysis, n2nDiagnostics, localPortReport, serverSession, n2nConfig, includeSecretInInvite, friendName, selectedFriendIp, friendConnectivityReport, abilityStatus);
 
   const refreshExecutionChecklist = async (nextAnalysis = analysis) => {
     setIsRefreshingChecklist(true);
@@ -370,9 +459,19 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
         readServerSession().catch(() => null),
         testConnectivity({ host: '127.0.0.1', ports: [port], timeout_ms: 1000, mode: 'local_game_port' }).catch(() => null)
       ]);
+      const [tcpProxies, udpProxies, udpBroadcastBridges] = await Promise.all([
+        listPortProxies().catch(() => []),
+        listUdpProxies().catch(() => []),
+        listUdpBroadcastBridges().catch(() => [])
+      ]);
       setN2nDiagnostics(n2n);
       setServerSession(session);
       setLocalPortReport(portReport);
+      setAbilityStatus({
+        tcpProxy: tcpProxies.find((item) => item.id === 'default') ?? tcpProxies[0] ?? null,
+        udpProxy: udpProxies.find((item) => item.id === 'default') ?? udpProxies[0] ?? null,
+        udpBroadcastBridge: udpBroadcastBridges.find((item) => item.id === 'default') ?? udpBroadcastBridges[0] ?? null
+      });
       setN2nConfig(await getN2nLastConfig().catch(() => null));
     } finally {
       setIsRefreshingChecklist(false);
@@ -387,6 +486,7 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
     setN2nDiagnostics(null);
     setServerSession(null);
     setLocalPortReport(null);
+    setAbilityStatus({ tcpProxy: null, udpProxy: null, udpBroadcastBridge: null });
     setN2nConfig(null);
     if (!gameId) {
       setItems([]);
@@ -640,7 +740,7 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
         </article>
       )}
 
-      {analysis && <ConversionProfileView analysis={analysis} />}
+      {analysis && <ConversionProfileView analysis={analysis} abilityStatus={abilityStatus} />}
 
       {analysis && (
         <article className="card conversion-card">
