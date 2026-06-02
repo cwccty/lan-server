@@ -3,6 +3,7 @@ import { getN2nDiagnostics, listNetworkBackends, setupNetwork, startNetwork, sto
 import { BackendCard } from '../components/BackendCard';
 import { LoadingOverlay } from '../components/LoadingOverlay';
 import type { BackendRuntimeStatus, BackendSummary, ConnectivityReport, N2nDiagnostics, SetupResult } from '../types/network';
+import type { NetworkSetupPreset } from '../types/networkPreset';
 
 type SteamRelayDraft = {
   appId: string;
@@ -138,7 +139,7 @@ function buildN2nAdminSummary(
   ].filter(Boolean).join('\n');
 }
 
-export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
+export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; preset?: NetworkSetupPreset }) {
   const [backends, setBackends] = useState<BackendSummary[]>([]);
   const [host, setHost] = useState('127.0.0.1');
   const [ports, setPorts] = useState('7777');
@@ -154,6 +155,7 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
   const [n2nResult, setN2nResult] = useState<SetupResult | BackendRuntimeStatus | null>(null);
   const [n2nDiagnostics, setN2nDiagnostics] = useState<N2nDiagnostics | null>(null);
   const [n2nAutoRefresh, setN2nAutoRefresh] = useState<{ reason: string; startedAt: number } | null>(null);
+  const [presetNotice, setPresetNotice] = useState('');
   const [copyMessage, setCopyMessage] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const autoRefreshInFlightRef = useRef(false);
@@ -196,6 +198,23 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
   useEffect(() => {
     window.localStorage.setItem('lan-helper-steam-relay-draft', JSON.stringify(steamRelayDraft));
   }, [steamRelayDraft]);
+
+  useEffect(() => {
+    if (!preset) return;
+    if (preset.defaultPort && Number.isInteger(preset.defaultPort) && preset.defaultPort > 0) {
+      const nextPort = String(preset.defaultPort);
+      setGamePort(nextPort);
+      setPorts(nextPort);
+    }
+    setPresetNotice(
+      [
+        `已从推荐方案带入：${preset.displayName || preset.gameId || '未知游戏'}`,
+        preset.defaultPort ? `默认端口 ${preset.defaultPort}` : '未声明默认端口',
+        preset.capability ? `能力类型 ${preset.capability}` : '',
+        preset.recommendedMethods?.length ? `推荐方式 ${preset.recommendedMethods.join(', ')}` : ''
+      ].filter(Boolean).join('；')
+    );
+  }, [preset?.appliedAt]);
 
   const runAction = async <T,>(label: string, action: () => Promise<T>, onDone?: (value: T) => void) => {
     if (busy) return;
@@ -344,6 +363,11 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
       {busy && <div className="busy-banner">正在处理：{busy}，请稍等，不要重复点击。</div>}
       {n2nAutoRefresh && !busy && (
         <div className="busy-banner">正在自动刷新 n2n 状态：{n2nAutoRefresh.reason}。检测到 ACK/PONG、错误、进程停止或 60 秒超时后会自动停止。</div>
+      )}
+      {presetNotice && (
+        <div className="notice-card">
+          <strong>推荐方案参数已带入：</strong>{presetNotice}。你仍然需要填写 supernode、确认每台电脑虚拟 IP 不重复，并启动 n2n edge。
+        </div>
       )}
 
       <div className="status-grid">

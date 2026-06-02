@@ -10,6 +10,7 @@ import { MultiplayerWizardPage } from './pages/MultiplayerWizardPage';
 import { AdapterManagerPage } from './pages/AdapterManagerPage';
 import { scanGames } from './api/tauri';
 import type { GameSummary } from './types/game';
+import type { NetworkSetupPreset } from './types/networkPreset';
 
 type Page = 'home' | 'wizard' | 'scan' | 'detail' | 'network' | 'recommendation' | 'diagnostics' | 'adapters';
 
@@ -17,6 +18,7 @@ export default function App() {
   const [page, setPage] = useState<Page>('home');
   const [games, setGames] = useState<GameSummary[]>([]);
   const [selectedGameId, setSelectedGameId] = useState<string | undefined>();
+  const [networkPreset, setNetworkPreset] = useState<NetworkSetupPreset | undefined>();
 
   useEffect(() => {
     scanGames().then(setGames).catch(() => setGames([]));
@@ -36,8 +38,16 @@ export default function App() {
         />
       )}
       {page === 'detail' && <GameDetailPage gameId={selectedGameId} onNext={() => setPage('network')} />}
-      {page === 'network' && <NetworkSetupPage onNext={() => setPage('recommendation')} />}
-      {page === 'recommendation' && <RecommendationPage gameId={selectedGameId} />}
+      {page === 'network' && <NetworkSetupPage preset={networkPreset} onNext={() => setPage('recommendation')} />}
+      {page === 'recommendation' && (
+        <RecommendationPage
+          gameId={selectedGameId}
+          onOpenNetwork={(preset) => {
+            setNetworkPreset(preset);
+            setPage('network');
+          }}
+        />
+      )}
       {page === 'adapters' && <AdapterManagerPage />}
       {page === 'diagnostics' && <DiagnosticsPage />}
     </Layout>

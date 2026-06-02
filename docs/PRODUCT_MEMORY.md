@@ -478,6 +478,18 @@ https://raw.githubusercontent.com/cwccty/lan-server/master/adapter-registry/inde
 
 验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml 通过。第一次 npm run tauri:build 因旧的 release exe 正在运行导致拒绝覆盖；关闭 `lan-helper.exe` 后重新打包通过。release exe：src-tauri\target\release\lan-helper.exe。
 
+## 2026-06-02 推荐方案到通用组网参数联动
+
+已把“推荐方案”页和“通用组网中心”打通，减少用户在不同页面之间重复填写游戏端口。
+
+- 新增 `NetworkSetupPreset` 类型，用于跨页面传递游戏组网预设。
+- 推荐页在识别到游戏分析结果后，新增“带入参数并进入通用组网”按钮。
+- 传递内容包括：gameId、游戏显示名、默认端口、能力类型、推荐转换方式、适配器来源。
+- 通用组网中心接收预设后，会自动填入“游戏端口”和“手动连接测试端口”，并显示“推荐方案参数已带入”的提示。
+- 该功能只做参数联动，不宣称已经联机；页面仍提示用户需要填写 supernode、确认虚拟 IP 不重复、启动 n2n edge 并验证 ACK/PONG。
+
+验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。release exe：src-tauri\target\release\lan-helper.exe。
+
 ## 2026-06-02 全屏虚化加载遮罩
 
 已为需要等待后端结果的按钮增加统一加载遮罩，避免用户误以为程序卡死或重复点击。
