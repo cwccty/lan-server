@@ -7,10 +7,11 @@ import { NetworkSetupPage } from './pages/NetworkSetupPage';
 import { RecommendationPage } from './pages/RecommendationPage';
 import { DiagnosticsPage } from './pages/DiagnosticsPage';
 import { MultiplayerWizardPage } from './pages/MultiplayerWizardPage';
+import { AdapterManagerPage } from './pages/AdapterManagerPage';
 import { scanGames } from './api/tauri';
 import type { GameSummary } from './types/game';
 
-type Page = 'home' | 'wizard' | 'scan' | 'detail' | 'network' | 'recommendation' | 'diagnostics';
+type Page = 'home' | 'wizard' | 'scan' | 'detail' | 'network' | 'recommendation' | 'diagnostics' | 'adapters';
 
 export default function App() {
   const [page, setPage] = useState<Page>('home');
@@ -37,6 +38,7 @@ export default function App() {
       {page === 'detail' && <GameDetailPage gameId={selectedGameId} onNext={() => setPage('network')} />}
       {page === 'network' && <NetworkSetupPage onNext={() => setPage('recommendation')} />}
       {page === 'recommendation' && <RecommendationPage gameId={selectedGameId} />}
+      {page === 'adapters' && <AdapterManagerPage />}
       {page === 'diagnostics' && <DiagnosticsPage />}
     </Layout>
   );

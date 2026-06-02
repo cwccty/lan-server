@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { DiagnosticReport } from '../types/diagnostics';
-import type { GameAnalysis, GameSummary } from '../types/game';
+import type { GameAdapter, GameAnalysis, GameSummary } from '../types/game';
 import type {
   BackendRuntimeStatus,
   BackendSummary,
@@ -14,6 +14,12 @@ import type { ServerSessionStatus } from '../types/serverSession';
 
 export const scanGames = () => invoke<GameSummary[]>('scan_games');
 export const analyzeGame = (gameId: string) => invoke<GameAnalysis>('analyze_game', { gameId });
+export const listGameAdapters = () => invoke<GameAdapter[]>('list_game_adapters');
+export const saveGameAdapter = (adapter: GameAdapter) => invoke<GameAdapter>('save_game_adapter', { adapter });
+export const importGameAdapterJson = (content: string) =>
+  invoke<GameAdapter>('import_game_adapter_json', { content });
+export const exportGameAdapterJson = (gameId: string) =>
+  invoke<string>('export_game_adapter_json', { gameId });
 export const listNetworkBackends = () => invoke<BackendSummary[]>('list_network_backends');
 export const setupNetwork = (backendId: string, config: NetworkConfig) =>
   invoke<SetupResult>('setup_network', { backendId, config });

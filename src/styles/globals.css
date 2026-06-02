@@ -61,12 +61,18 @@ label {
 }
 
 input,
-select {
+select,
+textarea {
   border: 1px solid #2b3652;
   border-radius: 10px;
   padding: 10px 12px;
   background: #0d1220;
   color: #f5f7fb;
+}
+
+textarea {
+  min-height: 96px;
+  resize: vertical;
 }
 
 .app-shell {
@@ -171,6 +177,25 @@ main {
 .conversion-card {
   border-color: #1d7f56;
   background: linear-gradient(135deg, rgba(29, 127, 86, 0.14), rgba(26, 34, 53, 1) 42%);
+}
+
+.adapter-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+}
+
+.adapter-table th,
+.adapter-table td {
+  border-bottom: 1px solid #2b3652;
+  padding: 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.adapter-table th {
+  color: #c9d4ee;
+  background: #11182a;
 }
 
 pre {

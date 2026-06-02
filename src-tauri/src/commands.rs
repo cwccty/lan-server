@@ -3,7 +3,7 @@ use crate::core::{
     recommendation_engine, server_session,
 };
 use crate::models::diagnostics::DiagnosticReport;
-use crate::models::game::{GameAnalysis, GameSummary};
+use crate::models::game::{GameAdapter, GameAnalysis, GameSummary};
 use crate::models::network::{
     BackendRuntimeStatus, BackendSummary, ConnectivityReport, ConnectivityTarget, NetworkConfig,
     SetupResult,
@@ -11,6 +11,7 @@ use crate::models::network::{
 use crate::models::recommendation::{LaunchResult, Recommendation};
 use crate::models::server_session::ServerSessionStatus;
 use crate::network::{manual_lan_backend, n2n_backend, radmin_backend};
+use crate::storage::adapter_store;
 use serde_json::Value;
 
 #[tauri::command]
@@ -21,6 +22,26 @@ pub fn scan_games() -> Result<Vec<GameSummary>, String> {
 #[tauri::command]
 pub fn analyze_game(game_id: String) -> Result<GameAnalysis, String> {
     capability_engine::analyze_game(&game_id)
+}
+
+#[tauri::command]
+pub fn list_game_adapters() -> Result<Vec<GameAdapter>, String> {
+    adapter_store::list_game_adapters()
+}
+
+#[tauri::command]
+pub fn save_game_adapter(adapter: GameAdapter) -> Result<GameAdapter, String> {
+    adapter_store::save_game_adapter(adapter)
+}
+
+#[tauri::command]
+pub fn import_game_adapter_json(content: String) -> Result<GameAdapter, String> {
+    adapter_store::import_game_adapter_json(content)
+}
+
+#[tauri::command]
+pub fn export_game_adapter_json(game_id: String) -> Result<String, String> {
+    adapter_store::export_game_adapter_json(game_id)
 }
 
 #[tauri::command]

@@ -257,3 +257,20 @@ ConPTY 方案出现 `0xc0000142`。本轮回退为隐藏 `cmd.exe` 托管 Terrar
 - 普通用户扫描游戏时自动按 Steam AppID / exe / 路径特征命中共享适配器。
 
 下一步如果继续开发，应先做“本地适配器管理 + 导入/导出”，再做远程 registry 拉取。
+
+## 2026-06-02 本地适配器管理第一版
+
+本次开始落地共享适配器库路线的第一步：本地适配器管理 + 导入/导出。
+
+修改范围：
+
+- 新增 `src/pages/AdapterManagerPage.tsx`。
+- 导航新增“适配器管理”。
+- 前端 API 新增适配器列表、保存、导入、导出调用。
+- Rust 后端新增适配器读写命令。
+- `adapter_store` 新增本地保存、导入、导出逻辑。
+- 样式新增 textarea 和适配器表格样式。
+
+验证：`npm run build` 和 `cargo check --manifest-path src-tauri\\Cargo.toml` 通过。
+
+后续：远程共享适配器库拉取、hash 校验、在线提交和审核。

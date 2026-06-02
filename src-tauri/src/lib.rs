@@ -14,6 +14,10 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::scan_games,
             commands::analyze_game,
+            commands::list_game_adapters,
+            commands::save_game_adapter,
+            commands::import_game_adapter_json,
+            commands::export_game_adapter_json,
             commands::list_network_backends,
             commands::setup_network,
             commands::start_network,

@@ -1,6 +1,6 @@
 ﻿import type { ReactNode } from 'react';
 
-type Page = 'home' | 'wizard' | 'scan' | 'detail' | 'network' | 'recommendation' | 'diagnostics';
+type Page = 'home' | 'wizard' | 'scan' | 'detail' | 'network' | 'recommendation' | 'diagnostics' | 'adapters';
 
 export function Layout({
   currentPage,
@@ -17,6 +17,7 @@ export function Layout({
     ['wizard', 'Terraria 向导'],
     ['scan', '游戏扫描'],
     ['recommendation', '推荐方案'],
+    ['adapters', '适配器管理'],
     ['diagnostics', '诊断报告']
   ];
 
