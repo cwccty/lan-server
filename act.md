@@ -1010,3 +1010,115 @@ cargo check --manifest-path src-tauri\Cargo.toml
 ```
 
 下一步推荐：做一次发布目标完成度审计，逐项核对“发布级诊断与失败分类、适配器体系升级、游戏类型识别与方案沉淀、UDP 广播桥、UDP 端口代理”是否已有当前证据支撑；如无缺口，再考虑标记长期目标完成。
+
+## H. 当前长期目标完成度审计（2026-06-03）
+
+本节审计的是当前长期目标：
+
+```text
+完成发布级诊断与失败分类，游戏适配器体系升级，游戏类型识别与方案沉淀，UDP 广播桥 / UDP 端口代理
+```
+
+### H1. 发布级诊断与失败分类
+
+当前证据：
+
+- 后端报告模型包含 `release_checks`、`issues`、`most_likely_cause`、`next_actions`、`details`。
+- `src-tauri/src/core/diagnostic_logger.rs` 已生成：
+  - n2n edge / 虚拟 IP / edge 运行状态 / supernode ACK/PONG；
+  - TCP 端口代理自测：`tcp_port_proxy_self_test`；
+  - UDP 端口代理自测：`udp_port_proxy_self_test`；
+  - UDP 广播桥自测：`udp_broadcast_bridge_self_test`；
+  - 适配器需求匹配：`adapter_requirement_alignment`；
+  - 当前游戏上下文检查：`selected_game_*`。
+- 已有结构化失败分类：
+  - n2n：edge 缺失、supernode 未配置、edge 未运行、认证错误、IP/MAC 冲突、supernode 无响应、虚拟 IP 缺失等；
+  - 代理/广播桥：`tcp_proxy_self_test_failed`、`udp_proxy_self_test_failed`、`udp_broadcast_bridge_self_test_failed`；
+  - adapter 全局：`adapter_virtual_lan_not_ready`、`adapter_tcp_proxy_not_ready`、`adapter_udp_broadcast_bridge_not_ready`、`adapter_dedicated_server_not_observed`、`adapter_unknown_need_review`；
+  - 当前游戏：`selected_game_adapter_missing`、`selected_game_unknown_need_review`、`selected_game_virtual_lan_not_ready`、`selected_game_tcp_proxy_not_ready`、`selected_game_udp_broadcast_bridge_not_ready`、`selected_game_dedicated_server_not_observed`。
+
+结论：当前长期目标中的“发布级诊断与失败分类”已具备代码与构建证据。
+
+### H2. 游戏适配器体系升级
+
+当前证据：
+
+- `GameAdapter` 已包含 `network_type` 与 `connection_plan`。
+- 适配器管理页支持按网络类型自动套用模板，覆盖 LAN/IP、专用服务端、TCP 代理、UDP 广播桥、Steam Lobby、Steam Relay、Mod、仅官方、暂不支持、未知待认定。
+- 适配器同步支持 builtin / custom / registry 优先级。
+- 共享库同步现在返回结构化详情：新增、更新、跳过、读取失败、Hash 失败、解析失败、字段校验失败、写入失败。
+- 本地 `adapter-registry/index.json` 可由 `tools/update_adapter_registry_index.ps1` 自动生成 sha256。
+
+结论：当前长期目标中的“游戏适配器体系升级”已完成核心闭环。
+
+### H3. 游戏类型识别与方案沉淀
+
+当前证据：
+
+- 游戏扫描页对未知、缺少 `connection_plan` 或 `unknown_need_review` 的游戏显示创建 adapter 草稿入口。
+- 草稿默认不伪装为已支持，而是标记为 `unknown_need_review`。
+- 管理员在适配器管理页选择网络类型后，会自动生成 `connection_plan` 骨架。
+- 推荐页消费 `connection_plan`，显示方案摘要、房主/加入者步骤、默认主机/端口、所需能力和执行清单。
+- 当前游戏上下文诊断会按选中游戏的 `connection_plan` 输出具体缺口。
+
+结论：当前长期目标中的“游戏类型识别与方案沉淀”已形成“扫描未知 → 创建草稿 → 管理员认定 → 方案沉淀 → 推荐页/诊断页复用”的闭环。
+
+### H4. UDP 端口代理
+
+当前证据：
+
+- 后端：`src-tauri/src/core/udp_proxy.rs`。
+- 模型：`src-tauri/src/models/udp_proxy.rs`。
+- 命令/API：`start_udp_proxy`、`stop_udp_proxy`、`list_udp_proxies`、`get_udp_proxy_status`、`self_test_udp_proxy`。
+- UI：通用组网中心已有 UDP 端口代理卡片和自测入口。
+- 诊断：`udp_port_proxy_self_test` 与 `udp_proxy_self_test_failed`。
+- 单元测试通过：
+
+```powershell
+cargo test --manifest-path src-tauri\Cargo.toml udp_proxy -- --nocapture
+```
+
+结论：当前长期目标中的“UDP 端口代理”已完成 MVP 能力。
+
+### H5. UDP 广播桥
+
+当前证据：
+
+- 后端：`src-tauri/src/core/udp_broadcast_bridge.rs`。
+- 模型：`src-tauri/src/models/udp_broadcast_bridge.rs`。
+- 命令/API：`start_udp_broadcast_bridge`、`stop_udp_broadcast_bridge`、`list_udp_broadcast_bridges`、`get_udp_broadcast_bridge_status`、`self_test_udp_broadcast_bridge`。
+- UI：通用组网中心已有 UDP 广播桥卡片和自测入口。
+- 诊断：`udp_broadcast_bridge_self_test` 与 `udp_broadcast_bridge_self_test_failed`。
+- 单元测试通过：
+
+```powershell
+cargo test --manifest-path src-tauri\Cargo.toml udp_broadcast_bridge -- --nocapture
+```
+
+结论：当前长期目标中的“UDP 广播桥”已完成 MVP 能力。
+
+### H6. 本轮验证命令
+
+本轮已通过：
+
+```powershell
+npm run build
+cargo check --manifest-path src-tauri\Cargo.toml
+npm run tauri:build
+cargo test --manifest-path src-tauri\Cargo.toml port_proxy -- --nocapture
+cargo test --manifest-path src-tauri\Cargo.toml udp_proxy -- --nocapture
+cargo test --manifest-path src-tauri\Cargo.toml udp_broadcast_bridge -- --nocapture
+```
+
+### H7. 不纳入本长期目标完成判定的后续人工项
+
+以下属于后续发布前人工验证或产品增强，不阻塞本长期目标的代码完成判定：
+
+- 两台真实电脑完整加入同一局游戏；
+- 不同 NAT / 不同运营商下的延迟与丢包测试；
+- 每个具体游戏的 adapter 人工审核；
+- Steam Relay 插件入口的真实实现；
+- 更漂亮的前端视觉重构。
+
+下一步推荐：开始新的大方向——发布前端到端人工验证与首批游戏 adapter 审核，优先用 Terraria、Minecraft Java、Stardew Valley 三个示例验证“同步共享库 → 推荐方案 → 组网/代理/广播桥 → 邀请好友包 → 诊断报告”的完整用户链路。
+

@@ -46,7 +46,7 @@ n2n、Radmin、Manual LAN、TCP 端口代理、未来 UDP 代理和 Steam Relay 
 | `lan_ip_direct` | 游戏本身支持 LAN 或 Join via IP | 先启动通用组网，朋友连接房主虚拟 IP 和游戏端口 |
 | `dedicated_server` | 需要或推荐专用服务端 | 房主启动服务端，朋友连接房主虚拟 IP:端口 |
 | `tcp_port_proxy_needed` | 游戏服务只监听本机或需要 TCP 转发 | 房主启动 TCP 端口代理，把虚拟 IP 端口转发到本机游戏端口 |
-| `udp_broadcast_needed` | 游戏依赖 LAN 广播/组播发现 | 未来需要 UDP 广播桥；当前应标记为能力待实现或手动直连兜底 |
+| `udp_broadcast_needed` | 游戏依赖 LAN 广播/组播发现 | 需要 UDP 广播桥；当前已有广播桥 MVP，但仍需按游戏端口和发现包规则人工验证，直接 IP 加入可作为兜底 |
 | `steam_lobby_direct_possible` | Steam Lobby 负责发现，但连接可直连 | 保留 Steam 入口说明，同时优先尝试虚拟 IP/直连 |
 | `steam_relay_plugin` | 需要 Steam Networking / Relay 插件路线 | 当前仅作为未来插件入口，不作为 MVP 默认承诺 |
 | `mod_required` | 需要 Mod 才能把联机方式转换为可控 LAN/IP | 显示 Mod 依赖和风险，不自动安装 |
@@ -85,3 +85,5 @@ n2n、Radmin、Manual LAN、TCP 端口代理、未来 UDP 代理和 Steam Relay 
 3. 增加 adapter 可信度/验证状态字段，例如：`verified`、`community_draft`、`local_draft`、`needs_review`。
 4. 把诊断报告和推荐页关联：如果游戏声明需要 TCP 代理或 UDP 广播桥，诊断里要出现对应检查项。
 5. 开始 UDP 端口代理 MVP，再做 UDP 广播桥 MVP。
+
+
