@@ -128,3 +128,17 @@ CreateProcessW
 ## 2026-06-02 发布前一键汇总
 
 诊断报告模型新增 `release_ready`、`required_passed`、`required_total`、`next_actions`。发布页会根据真实检查项自动生成下一步处理列表。MVP 是否可发布仍以 release 客户端生成的结构化诊断为准，不以口头判断为准。
+
+## 2026-06-02 Terraria 健康检查与交互命令修正
+
+用户实测发现，联机助手周期性用 TCP connect 检查 `127.0.0.1:7777` 会被 TerrariaServer 当成真实连接，导致内嵌控制台反复出现：
+
+```text
+127.0.0.1:<random> is connecting...
+Saving world data...
+Backing up world file
+```
+
+这是健康检查副作用，不是游戏自然行为。MVP 修正为：Windows 下只读取系统 TCP LISTEN 表判断端口是否监听，不再主动连接 TerrariaServer；非 Windows 才保留 TCP connect 兜底。
+
+同时，`help/save/exit` 在隐藏后台托管模式下不能稳定证明被 TerrariaServer 接收。为避免发布产品出现“按钮可点但内部不可靠”的伪功能，MVP 阶段不再在联机向导暴露这些交互命令按钮。当前承诺范围调整为：后台干净运行、端口真实监听、日志可观察、退出诊断保留、停止托管可用。后续若实现 ConPTY/伪终端输入闭环，再恢复交互命令。

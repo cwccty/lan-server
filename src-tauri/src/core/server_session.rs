@@ -3,6 +3,7 @@ use std::fs;
 #[cfg(windows)]
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
+#[cfg(not(windows))]
 use std::net::{TcpStream, ToSocketAddrs};
 use std::path::{Path, PathBuf};
 #[cfg(not(windows))]
@@ -30,8 +31,14 @@ use std::os::windows::ffi::OsStrExt;
 use std::os::windows::io::{FromRawHandle, RawHandle};
 #[cfg(windows)]
 use windows_sys::Win32::Foundation::{
-    CloseHandle, SetHandleInformation, HANDLE, HANDLE_FLAG_INHERIT,
+    CloseHandle, SetHandleInformation, ERROR_INSUFFICIENT_BUFFER, HANDLE, HANDLE_FLAG_INHERIT,
 };
+#[cfg(windows)]
+use windows_sys::Win32::NetworkManagement::IpHelper::{
+    GetExtendedTcpTable, MIB_TCPROW_OWNER_PID, MIB_TCP_STATE_LISTEN, TCP_TABLE_OWNER_PID_LISTENER,
+};
+#[cfg(windows)]
+use windows_sys::Win32::Networking::WinSock::AF_INET;
 #[cfg(windows)]
 use windows_sys::Win32::Security::SECURITY_ATTRIBUTES;
 #[cfg(windows)]
@@ -238,8 +245,9 @@ pub fn start_game_server_session(
             format!("参数：{}", args.join(" ")),
             note,
             format!("PID：{pid}"),
-            "已使用后台托管模式启动：不弹出白色命令框，并通过进程状态与端口探测判断服务端是否真实可用。".to_string(),
-            "如果服务端退出，联机助手会保留最后状态、退出码、运行时长和是否曾经监听端口。".to_string(),
+            "已使用后台托管模式启动：不弹出白色命令框，并通过进程状态与端口监听表判断服务端是否真实可用。".to_string(),
+            "状态轮询只读取系统 TCP LISTEN 表，不再主动连接 Terraria，避免触发 127.0.0.1 is connecting 与周期性保存。".to_string(),
+            "内嵌控制台当前定位为日志观察与停止托管；交互式 help/save/exit 不作为 MVP 承诺。".to_string(),
         ],
     );
 
@@ -297,11 +305,16 @@ pub fn send_server_command(command: &str) -> Result<ServerSessionStatus, String>
             "当前后台模式没有可用的服务端输入流；请使用停止按钮结束服务端。",
         ));
     };
-    writeln!(stdin, "{trimmed}").map_err(|err| format!("发送服务端命令失败：{err}"))?;
+    stdin
+        .write_all(format!("{trimmed}\r\n").as_bytes())
+        .map_err(|err| format!("发送服务端命令失败：{err}"))?;
     stdin
         .flush()
         .map_err(|err| format!("刷新服务端命令失败：{err}"))?;
-    push_log(&session.logs, format!("> {trimmed}"));
+    push_log(
+        &session.logs,
+        format!("[联机助手] 已向服务端 stdin 尝试发送命令：{trimmed}"),
+    );
     Ok(status_from_session(session, "命令已发送。"))
 }
 
@@ -317,9 +330,13 @@ pub fn stop_server_session() -> Result<ServerSessionStatus, String> {
     refresh_process_state(&mut session);
     if session.exit_code.is_none() {
         if let Some(stdin) = session.stdin.as_mut() {
-            let _ = writeln!(stdin, "exit");
+            let _ = stdin.write_all(b"exit\r\n");
             let _ = stdin.flush();
-            thread::sleep(Duration::from_millis(500));
+            push_log(
+                &session.logs,
+                "[联机助手] 已请求服务端正常 exit。".to_string(),
+            );
+            thread::sleep(Duration::from_millis(1500));
             refresh_process_state(&mut session);
         }
     }
@@ -619,7 +636,7 @@ fn snapshot_logs(logs: &Arc<Mutex<Vec<String>>>) -> Vec<String> {
 fn status_from_session(session: &mut ServerSession, message: &str) -> ServerSessionStatus {
     refresh_process_state(session);
     let running = session.exit_code.is_none();
-    let ready = running && is_local_port_open(session.port);
+    let ready = running && is_local_port_listening(session.port, session.process.id());
     if ready {
         session.ever_ready = true;
     }
@@ -638,7 +655,7 @@ fn status_from_session(session: &mut ServerSession, message: &str) -> ServerSess
         uptime_seconds
     ));
     if running && ready && uptime_seconds >= 30 {
-        logs.push("30 秒稳定性已通过：服务端仍在运行，并且端口仍可连接。".to_string());
+        logs.push("30 秒稳定性已通过：服务端仍在运行，并且端口处于监听状态。".to_string());
     }
     if !running {
         logs.push(format!(
@@ -689,7 +706,56 @@ fn empty_status(message: &str) -> ServerSessionStatus {
     }
 }
 
-fn is_local_port_open(port: u16) -> bool {
+#[cfg(windows)]
+fn is_local_port_listening(port: u16, pid: u32) -> bool {
+    let mut size = 0u32;
+    let first = unsafe {
+        GetExtendedTcpTable(
+            std::ptr::null_mut(),
+            &mut size,
+            0,
+            AF_INET as u32,
+            TCP_TABLE_OWNER_PID_LISTENER,
+            0,
+        )
+    };
+    if first != ERROR_INSUFFICIENT_BUFFER || size == 0 {
+        return false;
+    }
+
+    let mut buffer = vec![0u8; size as usize];
+    let result = unsafe {
+        GetExtendedTcpTable(
+            buffer.as_mut_ptr().cast(),
+            &mut size,
+            0,
+            AF_INET as u32,
+            TCP_TABLE_OWNER_PID_LISTENER,
+            0,
+        )
+    };
+    if result != 0 {
+        return false;
+    }
+
+    let count = u32::from_ne_bytes(buffer[0..4].try_into().unwrap_or_default()) as usize;
+    let rows_ptr =
+        unsafe { buffer.as_ptr().add(std::mem::size_of::<u32>()) as *const MIB_TCPROW_OWNER_PID };
+    for index in 0..count {
+        let row = unsafe { *rows_ptr.add(index) };
+        let local_port = u16::from_be((row.dwLocalPort & 0xffff) as u16);
+        if row.dwState == MIB_TCP_STATE_LISTEN as u32
+            && local_port == port
+            && row.dwOwningPid == pid
+        {
+            return true;
+        }
+    }
+    false
+}
+
+#[cfg(not(windows))]
+fn is_local_port_listening(port: u16, _pid: u32) -> bool {
     let Ok(mut addrs) = format!("127.0.0.1:{port}").to_socket_addrs() else {
         return false;
     };

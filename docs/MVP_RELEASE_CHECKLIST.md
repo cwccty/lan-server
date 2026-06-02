@@ -17,9 +17,10 @@
 
 - [ ] 点击“在程序内启动服务端”后，不弹出额外命令框。
 - [ ] 服务端显示 `Listening on port 7777` 后，等待 30 秒仍保持运行；界面显示“30 秒稳定性已通过”。
+- [ ] 等待 2-3 分钟，不应周期性出现由联机助手健康检查触发的 `127.0.0.1:<random> is connecting...`、`Saving world data`、`Backing up world file`。
 - [ ] 若服务端退出，内嵌控制台必须显示：最后日志、exit_code、退出时间、是否曾经监听端口。
 - [ ] 服务端退出后，自检不能显示通过。
-- [ ] `help` / `save` / `exit` 按钮能发送命令；`exit` 后状态应变为已退出，并保留诊断。
+- [ ] MVP 阶段不展示 `help` / `save` / `exit` 交互按钮；内嵌控制台只承诺日志观察、真实监听状态和停止托管。后续若引入 ConPTY，再恢复交互命令。
 
 ## C. 房主侧联机自检
 
@@ -38,7 +39,7 @@
 ## E. 诊断报告
 
 - [ ] “诊断报告”页可生成报告。
-- [ ] 报告包含 n2n edge、虚拟 IP、网络后端、内嵌服务端 running/ready/ever_ready/uptime_seconds/exit_code、服务端 IO 桥接，并给出 Terraria 30 秒稳定性结论。
+- [ ] 报告包含 n2n edge、虚拟 IP、网络后端、内嵌服务端 running/ready/ever_ready/uptime_seconds/exit_code、内嵌日志可观察性，并给出 Terraria 30 秒稳定性结论。
 - [ ] 报告不包含 Cookie、SSH Key、系统凭据或无关用户目录内容。
 
 只有以上项目通过，才能认为 MVP 达到可发布标准。

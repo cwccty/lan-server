@@ -45,12 +45,15 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
         })
         .unwrap_or(false);
 
-    let server_io_bridge_ok = server
+    let server_console_observable_ok = server
         .as_ref()
         .map(|item| {
-            item.logs
-                .iter()
-                .any(|line| line.contains("已重定向 stdin/stdout/stderr"))
+            !item.logs.is_empty()
+                && item.logs.iter().any(|line| {
+                    line.contains("后台启动")
+                        || line.contains("Listening on port")
+                        || line.contains("当前状态")
+                })
         })
         .unwrap_or(false);
 
@@ -76,7 +79,7 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
             label: "n2n edge 运行状态".to_string(),
             ok: n2n_running,
             detail: if n2n_running {
-                "检测到由联机助手记录或系统中正在运行的 n2n edge。".to_string()
+                "检测到联机助手记录或系统中正在运行的 n2n edge。".to_string()
             } else {
                 "尚未检测到正在运行的 n2n edge；发布前需要启动一次并确认 supernode 注册成功。"
                     .to_string()
@@ -99,13 +102,13 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
             required_for_mvp: true,
         },
         ReleaseCheck {
-            id: "server_io_bridge".to_string(),
-            label: "服务端输入输出桥接".to_string(),
-            ok: server_io_bridge_ok,
-            detail: if server_io_bridge_ok {
-                "检测到服务端 stdin/stdout/stderr 已重定向，内嵌控制台和命令按钮对应真实服务端进程。".to_string()
+            id: "server_console_observable".to_string(),
+            label: "内嵌服务端日志可观察".to_string(),
+            ok: server_console_observable_ok,
+            detail: if server_console_observable_ok {
+                "已检测到内嵌服务端会话日志；MVP 只承诺日志观察、真实监听状态和停止托管，不承诺 help/save/exit 交互命令。".to_string()
             } else {
-                "尚未检测到服务端 IO 桥接证据；请用新版 release 启动一次 Terraria 服务端后再生成诊断。".to_string()
+                "尚未检测到可观察的内嵌服务端日志；请用新版 release 启动一次 Terraria 服务端后再生成诊断。".to_string()
             },
             required_for_mvp: true,
         },
@@ -190,14 +193,7 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
         next_actions,
         release_checks,
         details: vec![
-            format!(
-                "发布前关键检查：
-{}",
-                release_lines.join(
-                    "
-"
-                )
-            ),
+            format!("发布前关键检查：\n{}", release_lines.join("\n")),
             format!(
                 "Steam 库路径：{}",
                 serde_json::to_string_pretty(

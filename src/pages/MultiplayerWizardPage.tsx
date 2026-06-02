@@ -2,7 +2,6 @@
 import {
   listNetworkBackends,
   readServerSession,
-  sendServerCommand,
   setupNetwork,
   startGameServerSession,
   startNetwork,
@@ -64,8 +63,7 @@ const t = {
   stopped: '\u672a\u8fd0\u884c',
   running: '\u8fd0\u884c\u4e2d',
   readyState: '\u5df2\u5c31\u7eea',
-  sendCommand: '\u53d1\u9001\u547d\u4ee4',
-  commandPlaceholder: '\u8f93\u5165\u670d\u52a1\u7aef\u547d\u4ee4\uff0c\u4f8b\u5982 help / save / exit',
+  consoleMvpNotice: 'MVP \u9636\u6bb5\u4e0d\u518d\u663e\u793a help/save/exit \u4ea4\u4e92\u6309\u94ae\uff1a\u5b9e\u6d4b TerrariaServer \u5728\u9690\u85cf\u540e\u53f0\u6a21\u5f0f\u4e0b\u4e0d\u7a33\u5b9a\u63a5\u6536 stdin \u547d\u4ee4\u3002\u5f53\u524d\u4f18\u5148\u4fdd\u8bc1\u540e\u53f0\u5e72\u51c0\u8fd0\u884c\u3001\u7aef\u53e3\u771f\u5b9e\u76d1\u542c\u3001\u65e5\u5fd7\u53ef\u89c2\u5bdf\u548c\u505c\u6b62\u670d\u52a1\u7aef\u53ef\u8bca\u65ad\u3002',
   noLogs: '\u6682\u65e0\u670d\u52a1\u7aef\u65e5\u5fd7\u3002',
   selfCheck: '\u4e00\u952e\u81ea\u68c0',
   copyCheck: '\u590d\u5236\u81ea\u68c0\u7ed3\u679c',
@@ -86,7 +84,6 @@ export function MultiplayerWizardPage() {
   const [maxPlayers, setMaxPlayers] = useState('8');
   const [password, setPassword] = useState('');
   const [autoForward, setAutoForward] = useState('n');
-  const [serverCommand, setServerCommand] = useState('help');
   const [statusMessage, setStatusMessage] = useState('');
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [selfCheck, setSelfCheck] = useState<SelfCheckResult | null>(null);
@@ -201,14 +198,6 @@ export function MultiplayerWizardPage() {
       const next = await stopServerSession();
       setSession(next);
       setStatusMessage(next.message);
-    });
-
-  const sendCommand = (command = serverCommand) =>
-    runAction(`\u53d1\u9001\u547d\u4ee4\uff1a${command}`, async () => {
-      const next = await sendServerCommand(command);
-      setSession(next);
-      setStatusMessage(next.message);
-      setServerCommand('');
     });
 
   const copyInvite = () =>
@@ -472,20 +461,7 @@ export function MultiplayerWizardPage() {
             <p>退出诊断：退出码 {session.exit_code ?? '未知'}，曾经监听端口：{session.ever_ready ? '是' : '否'}。</p>
           )}
         </div>
-        <div className="actions">
-          <input
-            value={serverCommand}
-            onChange={(event) => setServerCommand(event.target.value)}
-            placeholder={t.commandPlaceholder}
-            disabled={isBusy}
-          />
-          <button onClick={() => sendCommand()} disabled={isBusy || !session?.running || !serverCommand.trim()}>
-            {t.sendCommand}
-          </button>
-          <button onClick={() => sendCommand('help')} disabled={isBusy || !session?.running}>help</button>
-          <button onClick={() => sendCommand('save')} disabled={isBusy || !session?.running}>save</button>
-          <button onClick={() => sendCommand('exit')} disabled={isBusy || !session?.running}>exit</button>
-        </div>
+        <p className="muted">{t.consoleMvpNotice}</p>
         <pre className="console-panel">{session?.logs?.join('\n') || t.noLogs}</pre>
       </article>
     </section>
