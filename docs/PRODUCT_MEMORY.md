@@ -466,6 +466,19 @@ https://raw.githubusercontent.com/cwccty/lan-server/master/adapter-registry/inde
 
 验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。release exe：src-tauri\target\release\lan-helper.exe。
 
+## 2026-06-03 推荐页读取最近 n2n 配置
+
+已让推荐页可以读取最近一次保存的 n2n 配置，并把它用于“游戏邀请好友包”。
+
+- 后端新增 `n2n_backend::last_config()`，读取 `tools/n2n/last_config.json`。
+- Tauri 新增命令 `get_n2n_last_config`。
+- 前端 API 新增 `getN2nLastConfig()`。
+- 推荐页刷新执行清单时，会同时读取最近 n2n 配置。
+- 游戏邀请好友包现在会带入：n2n community、supernode、房主虚拟 IP、默认端口和检测摘要。
+- n2n 密钥默认隐藏，避免误复制泄露；用户可勾选“复制时包含 n2n 密钥”后生成完整邀请。
+
+验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。release exe：src-tauri\target\release\lan-helper.exe。
+
 ## 2026-06-03 推荐页游戏邀请好友包
 
 已在推荐页新增“游戏邀请好友包”，作为现有“通用组网配置”的游戏层补充，而不是替代 n2n 邀请。

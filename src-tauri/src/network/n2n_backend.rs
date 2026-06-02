@@ -326,6 +326,10 @@ pub fn diagnose() -> N2nDiagnostics {
     }
 }
 
+pub fn last_config() -> Result<NetworkConfig, String> {
+    load_config()
+}
+ 
 fn find_n2n_executable() -> Option<PathBuf> {
     candidate_n2n_dirs().into_iter().find_map(|dir| {
         ["edge.exe", "n2n.exe"]

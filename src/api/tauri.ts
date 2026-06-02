@@ -38,6 +38,7 @@ export const setupNetwork = (backendId: string, config: NetworkConfig) =>
 export const startNetwork = (backendId: string) => invoke<BackendRuntimeStatus>('start_network', { backendId });
 export const stopNetwork = (backendId: string) => invoke<BackendRuntimeStatus>('stop_network', { backendId });
 export const getN2nDiagnostics = () => invoke<N2nDiagnostics>('get_n2n_diagnostics');
+export const getN2nLastConfig = () => invoke<NetworkConfig>('get_n2n_last_config');
 export const testConnectivity = (target: ConnectivityTarget) =>
   invoke<ConnectivityReport>('test_connectivity', { target });
 export const recommendPlans = (gameId: string) => invoke<Recommendation[]>('recommend_plans', { gameId });

@@ -1,9 +1,9 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
-import { analyzeGame, getN2nDiagnostics, launchProfile, readServerSession, recommendPlans, testConnectivity } from '../api/tauri';
+import { analyzeGame, getN2nDiagnostics, getN2nLastConfig, launchProfile, readServerSession, recommendPlans, testConnectivity } from '../api/tauri';
 import { LoadingOverlay } from '../components/LoadingOverlay';
 import { RecommendationCard } from '../components/RecommendationCard';
 import type { GameAnalysis, LaunchProfile } from '../types/game';
-import type { N2nDiagnostics, ConnectivityReport } from '../types/network';
+import type { N2nDiagnostics, ConnectivityReport, NetworkConfig } from '../types/network';
 import type { LaunchConfig, LaunchResult, Recommendation } from '../types/recommendation';
 import type { ServerSessionStatus } from '../types/serverSession';
 import type { NetworkSetupPreset } from '../types/networkPreset';
@@ -196,7 +196,9 @@ function buildFriendInvitePacket(
   analysis: GameAnalysis | null,
   n2n: N2nDiagnostics | null,
   localPortReport: ConnectivityReport | null,
-  serverSession: ServerSessionStatus | null
+  serverSession: ServerSessionStatus | null,
+  n2nConfig: NetworkConfig | null,
+  includeSecret: boolean
 ) {
   const defaultPort = analysis?.default_ports[0] ?? 7777;
   const profile = analysis?.multiplayer_conversion;
@@ -213,6 +215,10 @@ function buildFriendInvitePacket(
     `推荐方式：${profile?.methods.map((method) => methodLabels[method] ?? method).join('、') || '暂无'}`,
     `默认端口：${defaultPort}`,
     `房主虚拟 IP：${hostVirtualIp}`,
+    `n2n community：${n2nConfig?.room_name || '待填写'}`,
+    `n2n supernode：${n2nConfig?.supernode || n2n?.supernode || '待填写'}`,
+    `分配给你的虚拟 IP：请让房主填写一个不重复地址，例如 10.10.10.3`,
+    `n2n 密钥：${includeSecret ? n2nConfig?.secret || '待填写' : '已隐藏，请让房主单独确认或勾选后复制'}`,
     '',
     '当前检测状态：',
     `- n2n 组网：${networkReady ? '已检测到 ACK/PONG' : '待确认 / 未完成'}`,
@@ -223,11 +229,13 @@ function buildFriendInvitePacket(
     '',
     '朋友操作：',
     '1. 先打开联机助手，进入通用组网中心。',
-    '2. 使用房主发来的 n2n community、密钥、supernode，并给自己分配一个不重复的虚拟 IP。',
+    '2. 使用上面的 n2n community、supernode 和密钥，并给自己分配一个不重复的虚拟 IP。',
     '3. 启动 n2n edge，等待 ACK/PONG。',
     `4. 打开游戏，在 LAN / Join via IP / 直连入口连接 ${hostVirtualIp}:${defaultPort}。`,
     '',
-    '注意：community 和密钥请从“通用组网中心 → 复制给朋友的通用组网配置”获取；推荐页只生成游戏层面的加入说明和当前检测摘要。'
+    includeSecret
+      ? '注意：这份邀请包含 n2n 密钥，请只发给要一起联机的人。'
+      : '注意：这份邀请默认隐藏 n2n 密钥；如果要一次性发完整配置，请勾选“复制时包含 n2n 密钥”，或使用“通用组网中心 → 复制给朋友的通用组网配置”。'
   ].join('\n');
 }
 
@@ -242,6 +250,8 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
   const [n2nDiagnostics, setN2nDiagnostics] = useState<N2nDiagnostics | null>(null);
   const [serverSession, setServerSession] = useState<ServerSessionStatus | null>(null);
   const [localPortReport, setLocalPortReport] = useState<ConnectivityReport | null>(null);
+  const [n2nConfig, setN2nConfig] = useState<NetworkConfig | null>(null);
+  const [includeSecretInInvite, setIncludeSecretInInvite] = useState(false);
   const [copyMessage, setCopyMessage] = useState('');
 
   const profilesById = useMemo(() => {
@@ -252,7 +262,7 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
 
   const defaultPort = analysis?.default_ports[0] ?? 7777;
   const checklist = buildChecklist(analysis, n2nDiagnostics, serverSession, localPortReport, launchResult);
-  const friendInvitePacket = buildFriendInvitePacket(analysis, n2nDiagnostics, localPortReport, serverSession);
+  const friendInvitePacket = buildFriendInvitePacket(analysis, n2nDiagnostics, localPortReport, serverSession, n2nConfig, includeSecretInInvite);
 
   const refreshExecutionChecklist = async (nextAnalysis = analysis) => {
     setIsRefreshingChecklist(true);
@@ -266,6 +276,7 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
       setN2nDiagnostics(n2n);
       setServerSession(session);
       setLocalPortReport(portReport);
+      setN2nConfig(await getN2nLastConfig().catch(() => null));
     } finally {
       setIsRefreshingChecklist(false);
     }
@@ -279,6 +290,7 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
     setN2nDiagnostics(null);
     setServerSession(null);
     setLocalPortReport(null);
+    setN2nConfig(null);
     if (!gameId) {
       setItems([]);
       return;
@@ -390,6 +402,11 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
             </span>
           </div>
           <pre>{friendInvitePacket}</pre>
+          <label>
+            <span>复制时包含 n2n 密钥</span>
+            <input type="checkbox" checked={includeSecretInInvite} onChange={(event) => setIncludeSecretInInvite(event.target.checked)} />
+            <small className="muted">默认隐藏密钥，避免把房间密码误发到公开位置；确认只发给朋友时再勾选。</small>
+          </label>
           <div className="actions">
             <button type="button" onClick={copyFriendInvitePacket}>复制游戏邀请好友包</button>
             <button type="button" className="secondary" onClick={() => refreshExecutionChecklist()} disabled={isRefreshingChecklist}>先刷新检测状态</button>

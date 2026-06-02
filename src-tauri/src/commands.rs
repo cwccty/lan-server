@@ -99,6 +99,11 @@ pub fn get_n2n_diagnostics() -> Result<N2nDiagnostics, String> {
 }
 
 #[tauri::command]
+pub fn get_n2n_last_config() -> Result<NetworkConfig, String> {
+    n2n_backend::last_config()
+}
+
+#[tauri::command]
 pub fn test_connectivity(target: ConnectivityTarget) -> Result<ConnectivityReport, String> {
     connectivity_tester::test_connectivity(target)
 }
