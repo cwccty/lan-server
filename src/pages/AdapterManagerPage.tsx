@@ -380,6 +380,56 @@ function csv(value: string) {
   return value.split(',').map((item) => item.trim()).filter(Boolean);
 }
 
+function registryFileName(gameId: string) {
+  const safe = gameId
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  return `${safe || 'game'}.json`;
+}
+
+async function sha256Hex(content: string) {
+  const bytes = new TextEncoder().encode(content);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function buildRegistrySubmitGuide(adapterJson: string) {
+  const adapter = JSON.parse(adapterJson) as GameAdapter;
+  const fileName = registryFileName(adapter.game_id);
+  const adapterPath = `adapter-registry/games/${fileName}`;
+  const hash = await sha256Hex(adapterJson.endsWith('\n') ? adapterJson : `${adapterJson}\n`);
+  const indexEntry = {
+    game_id: adapter.game_id,
+    steam_appid: adapter.steam_appid ?? null,
+    adapter_url: `games/${fileName}`,
+    sha256: hash
+  };
+  return [
+    '【共享适配器库提交说明】',
+    '',
+    `游戏：${adapter.display_name} (${adapter.game_id})`,
+    `适配器文件：${adapterPath}`,
+    `SHA256：${hash}`,
+    '',
+    '1. 把上方导出的 JSON 保存为：',
+    adapterPath,
+    '',
+    '2. 在 adapter-registry/index.json 的 games 数组中加入或更新：',
+    JSON.stringify(indexEntry, null, 2),
+    '',
+    '3. 提交到 GitHub 后，客户端可通过默认共享库地址同步：',
+    DEFAULT_ADAPTER_REGISTRY_URL,
+    '',
+    '4. 审核前请确认：',
+    '- 游戏身份、Steam AppID、exe 名准确。',
+    '- network_type 和 connection_plan 已人工验证。',
+    '- 没有误导性“一键联机”承诺。',
+    '- 没有下载未知 exe、绕过正版验证、绕过反作弊或模拟官方账号服务。'
+  ].join('\n');
+}
+
 export function AdapterManagerPage() {
   const [adapters, setAdapters] = useState<GameAdapter[]>([]);
   const [draft, setDraft] = useState<GameAdapter>(emptyAdapter());
@@ -391,6 +441,7 @@ export function AdapterManagerPage() {
   const [troubleshootingText, setTroubleshootingText] = useState('确认游戏是否支持 LAN/IP/专用服务端/广播发现/Mod。');
   const [importText, setImportText] = useState('');
   const [exportText, setExportText] = useState('');
+  const [registrySubmitGuide, setRegistrySubmitGuide] = useState('');
   const [registryUrl, setRegistryUrl] = useState('');
   const [lastRegistrySync, setLastRegistrySync] = useState('');
   const [registryResult, setRegistryResult] = useState<AdapterRegistrySyncResult | null>(null);
@@ -511,10 +562,13 @@ export function AdapterManagerPage() {
     setBusyLabel('导出适配器');
     setMessage('');
     try {
-      setExportText(await exportGameAdapterJson(gameId));
-      setMessage('已生成导出 JSON，可复制给管理员或其他用户。');
+      const exported = await exportGameAdapterJson(gameId);
+      setExportText(exported);
+      setRegistrySubmitGuide(await buildRegistrySubmitGuide(exported));
+      setMessage('已生成导出 JSON 和共享库提交说明，可复制给管理员或提交到 GitHub registry。');
     } catch (error) {
       setMessage(String(error));
+      setRegistrySubmitGuide('');
     } finally {
       setBusy(false);
       setBusyLabel('');
@@ -721,6 +775,10 @@ export function AdapterManagerPage() {
         <button disabled={busy || !importText.trim()} onClick={importAdapter}>导入并保存</button>
         <label>导出结果<textarea readOnly value={exportText} placeholder="点击上方表格中的导出按钮后，这里会出现 JSON。" /></label>
         <button disabled={!exportText} onClick={() => navigator.clipboard?.writeText(exportText)}>复制导出 JSON</button>
+        <label>共享库提交说明<textarea readOnly value={registrySubmitGuide} placeholder="导出适配器后，这里会生成 adapter-registry 路径、sha256 和 index.json 片段。" /></label>
+        <div className="actions">
+          <button disabled={!registrySubmitGuide} onClick={() => navigator.clipboard?.writeText(registrySubmitGuide)}>复制共享库提交说明</button>
+        </div>
       </article>
     </section>
   );

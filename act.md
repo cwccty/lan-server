@@ -879,3 +879,22 @@ npm run tauri:build
 ```
 
 下一步：把本地 custom adapter 草稿导出/同步流程再完善，便于把认定后的方案提交到共享 registry。
+
+## 2026-06-03 适配器导出生成共享库提交说明
+
+已完善 adapter 导出流程：
+
+- 适配器管理页导出 adapter JSON 时，会同时生成“共享库提交说明”。
+- 提交说明包含：`adapter-registry/games/xxx.json` 放置路径、SHA256、`adapter-registry/index.json` 需要加入/更新的 entry。
+- SHA256 在前端用 WebCrypto 对导出 JSON 计算，便于提交到静态 registry 后被客户端校验。
+- 提交说明会提醒审核边界：不要误导性一键联机，不允许未知 exe，不绕过正版验证/反作弊/官方账号服务。
+
+验证通过：
+
+```powershell
+npm run build
+cargo check --manifest-path src-tauri\Cargo.toml
+npm run tauri:build
+```
+
+下一步：补充/更新 `docs/ADAPTER_REGISTRY.md` 的实际提交步骤，确保管理员知道如何把本地 custom adapter 放入 GitHub 共享库。
