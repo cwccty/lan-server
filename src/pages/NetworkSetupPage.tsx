@@ -90,6 +90,19 @@ function NetworkStatusCard({ item }: { item: NetworkStatusCardData }) {
   );
 }
 
+function suggestAlternativeIps(currentIp: string) {
+  const trimmed = currentIp.trim();
+  const match = trimmed.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+  const base = match ? match.slice(1, 4).join('.') : '10.10.10';
+  const currentLast = match ? Number(match[4]) : 2;
+  const reserved = new Set([0, 1, 255, currentLast]);
+  const suggestions: string[] = [];
+  for (let last = 2; last <= 254 && suggestions.length < 4; last += 1) {
+    if (!reserved.has(last)) suggestions.push(base + '.' + last);
+  }
+  return suggestions.length > 0 ? suggestions : ['10.10.10.3', '10.10.10.4', '10.10.10.5'];
+}
+
 export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
   const [backends, setBackends] = useState<BackendSummary[]>([]);
   const [host, setHost] = useState('127.0.0.1');
@@ -187,6 +200,7 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
   const supernodeValue = supernode.trim();
   const supernodeOk = Boolean(n2nDiagnostics?.ok_link && !n2nDiagnostics.auth_error && !n2nDiagnostics.ip_mac_conflict);
   const supernodeProblem = Boolean(n2nDiagnostics?.auth_error || n2nDiagnostics?.ip_mac_conflict || n2nDiagnostics?.not_responding);
+  const alternativeLocalIps = suggestAlternativeIps(localIp);
   const networkStatusCards: NetworkStatusCardData[] = [
     {
       title: 'n2n edge',
@@ -263,6 +277,34 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
       <div className="notice-card">
         <strong>真实状态说明：</strong>edge、虚拟网卡、虚拟 IP 来自后端检测；supernode 必须从 edge 日志解析到 REGISTER_SUPER_ACK、PONG 或 [OK] 才显示正常。
       </div>
+
+      {n2nDiagnostics?.ip_mac_conflict && (
+        <article className="card error-card">
+          <div className="feature-card-title">
+            <h3>检测到 IP / MAC 冲突</h3>
+            <span className="badge bad">需要更换虚拟 IP</span>
+          </div>
+          <p>
+            edge 日志显示当前虚拟 IP 或 MAC 仍被 supernode 认为已占用。常见原因是：同一个虚拟 IP 被另一台电脑使用，
+            或上一次异常退出后 supernode 尚未释放旧注册。
+          </p>
+          <p className="muted">当前配置期望 IP：{localIp || '未填写'}。请给每台电脑分配不同虚拟 IP。</p>
+          <div className="actions">
+            {alternativeLocalIps.map((ip) => (
+              <button key={ip} type="button" className="secondary" onClick={() => setLocalIp(ip)} disabled={Boolean(busy)}>
+                改用 {ip}
+              </button>
+            ))}
+          </div>
+          <ol>
+            <li>点击上方候选 IP，或手动填写一个未被朋友使用的地址。</li>
+            <li>点击“保存 n2n 配置”。</li>
+            <li>点击“停止 n2n edge”，再重新“启动 n2n edge”。</li>
+            <li>等待 10~20 秒后刷新状态，确认 supernode 变为 ACK / PONG。</li>
+          </ol>
+          {n2nDiagnostics.last_error && <p className="muted">最近日志证据：{n2nDiagnostics.last_error}</p>}
+        </article>
+      )}
 
       <article className="card">
         <h3>当前网络后端</h3>

@@ -501,3 +501,15 @@ https://raw.githubusercontent.com/cwccty/lan-server/master/adapter-registry/inde
 - 当前 n2n 状态区新增“supernode 响应诊断”和最近 edge 日志折叠面板。
 
 验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml 通过。第一次 npm run tauri:build 因 release exe 正在运行导致拒绝覆盖，关闭 lan-helper.exe 后重新打包成功。release exe：src-tauri\target\release\lan-helper.exe。
+
+## 2026-06-02 n2n IP/MAC 冲突自动提示
+
+已在通用组网中心增加 n2n IP/MAC 冲突自动提示与换 IP 建议。
+
+- 触发条件：后端 n2n 诊断解析到 `ip_mac_conflict === true`，即 edge 日志出现 MAC 或 IP 已被占用相关错误。
+- 前端会显示“检测到 IP / MAC 冲突”错误卡片，解释可能原因：同一个虚拟 IP 被另一台电脑使用，或旧注册尚未被 supernode 释放。
+- 根据当前本机虚拟 IP 自动生成同网段候选地址，默认避开当前地址、0、1、255，例如 10.10.10.3、10.10.10.4 等。
+- 用户可一键点击“改用 x.x.x.x”填入本机虚拟 IP，然后保存 n2n 配置、停止 edge、重新启动 edge。
+- 该功能只基于真实 edge 日志诊断触发，不会在没有冲突证据时假提示。
+
+验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。release exe：src-tauri\target\release\lan-helper.exe。
