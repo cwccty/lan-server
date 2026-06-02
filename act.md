@@ -411,6 +411,20 @@ ConPTY 方案出现 `0xc0000142`。本轮回退为隐藏 `cmd.exe` 托管 Terrar
 
 验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。release exe：src-tauri\target\release\lan-helper.exe。
 
+## 2026-06-03 端口代理 MVP 架构设计
+
+已新增 `docs/PORT_PROXY_MVP.md`，明确端口代理作为第一项“联机能力转换”功能的架构和实施路线。
+
+- 端口代理定位：在 n2n/Radmin/已有局域网连通基础上，把朋友访问的 `房主虚拟 IP:端口` 转发到真实游戏服务端，例如 `127.0.0.1:端口`。
+- MVP 第一版只做 TCP 代理，不和 UDP 广播桥混在一起。
+- 后端规划：新增 `src-tauri/src/core/port_proxy.rs` 和 `src-tauri/src/models/port_proxy.rs`。
+- 命令规划：`start_port_proxy`、`stop_port_proxy`、`list_port_proxies`、`get_port_proxy_status`、`test_port_proxy`。
+- UI 规划：推荐页和通用组网中心增加端口代理卡片，默认使用 n2n 虚拟 IP、游戏默认端口和 `127.0.0.1` 目标地址。
+- 执行清单规划：后续在推荐页新增“端口代理”步骤，区分本机端口监听、代理监听、好友连接。
+- 安全边界：默认不监听公网地址、不自动开放防火墙、不代理敏感本地服务、不承诺绕过平台/反作弊。
+
+下一步推荐：先实现 TCP 端口代理后端 MVP，暂时只支持一个代理实例，完成启动、停止、状态、日志和真实连通性测试后再接 UI。
+
 ## 2026-06-03 好友连接检测入口
 
 已在推荐页的好友虚拟 IP 分配器中加入“检测好友连接”入口。
