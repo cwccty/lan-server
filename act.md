@@ -411,6 +411,18 @@ ConPTY 方案出现 `0xc0000142`。本轮回退为隐藏 `cmd.exe` 托管 Terrar
 
 验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。release exe：src-tauri\target\release\lan-helper.exe。
 
+## 2026-06-02 n2n 启动后自动刷新诊断
+
+已在通用组网中心增加 n2n 自动刷新诊断状态，减少用户手动反复点击“刷新网络后端状态”。
+
+- 点击“启动 n2n edge”后，前端会进入自动刷新状态。
+- 每 2.5 秒读取一次真实后端状态和 `tools/n2n/edge.log` 诊断结果。
+- 检测到 ACK/PONG、认证错误、IP/MAC 冲突、supernode 无响应、edge 停止，或 60 秒超时后自动停止刷新。
+- 页面会显示“正在自动刷新 n2n 状态”，但不会弹出全屏遮罩，因为这是后台轮询，不应阻塞用户查看日志。
+- 点击“停止 n2n edge”会立即取消自动刷新。
+
+验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml 通过。第一次 npm run tauri:build 因旧的 release exe 正在运行导致拒绝覆盖；关闭 `lan-helper.exe` 后重新打包通过。release exe：src-tauri\target\release\lan-helper.exe。
+
 ## 2026-06-02 全屏虚化加载遮罩
 
 已为需要等待后端结果的按钮增加统一加载遮罩，避免用户误以为程序卡死或重复点击。

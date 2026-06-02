@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import { getN2nDiagnostics, listNetworkBackends, setupNetwork, startNetwork, stopNetwork, testConnectivity } from '../api/tauri';
 import { BackendCard } from '../components/BackendCard';
 import { LoadingOverlay } from '../components/LoadingOverlay';
@@ -153,8 +153,10 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
   const [peerReport, setPeerReport] = useState<ConnectivityReport | null>(null);
   const [n2nResult, setN2nResult] = useState<SetupResult | BackendRuntimeStatus | null>(null);
   const [n2nDiagnostics, setN2nDiagnostics] = useState<N2nDiagnostics | null>(null);
+  const [n2nAutoRefresh, setN2nAutoRefresh] = useState<{ reason: string; startedAt: number } | null>(null);
   const [copyMessage, setCopyMessage] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
+  const autoRefreshInFlightRef = useRef(false);
   const [steamRelayDraft, setSteamRelayDraft] = useState<SteamRelayDraft>({
     appId: '',
     roomName: 'steam-relay-room-001',
@@ -269,6 +271,34 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
     }
   ];
 
+  useEffect(() => {
+    if (!n2nAutoRefresh) return;
+
+    const elapsedMs = Date.now() - n2nAutoRefresh.startedAt;
+    const shouldStop =
+      supernodeOk ||
+      supernodeProblem ||
+      (n2nDiagnostics !== null && !n2nDiagnostics.running) ||
+      elapsedMs > 60000;
+
+    if (shouldStop) {
+      setN2nAutoRefresh(null);
+      return;
+    }
+
+    const tick = () => {
+      if (autoRefreshInFlightRef.current) return;
+      autoRefreshInFlightRef.current = true;
+      refreshBackends().finally(() => {
+        autoRefreshInFlightRef.current = false;
+      });
+    };
+
+    tick();
+    const timer = window.setInterval(tick, 2500);
+    return () => window.clearInterval(timer);
+  }, [n2nAutoRefresh, supernodeOk, supernodeProblem, n2nDiagnostics?.running]);
+
   const steamRelayPacketText = [
     '【Steam 中继联机入口草案】',
     '状态：预留入口 / 研究功能，当前不会真正启动 Steamworks。',
@@ -312,6 +342,9 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
       </div>
 
       {busy && <div className="busy-banner">正在处理：{busy}，请稍等，不要重复点击。</div>}
+      {n2nAutoRefresh && !busy && (
+        <div className="busy-banner">正在自动刷新 n2n 状态：{n2nAutoRefresh.reason}。检测到 ACK/PONG、错误、进程停止或 60 秒超时后会自动停止。</div>
+      )}
 
       <div className="status-grid">
         {networkStatusCards.map((item) => <NetworkStatusCard key={item.title} item={item} />)}
@@ -367,8 +400,8 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
 
         <div className="actions">
           <button disabled={Boolean(busy)} onClick={() => runAction('保存 n2n 配置', () => setupNetwork('n2n', { room_name: roomName, secret, supernode, local_ip: localIp || undefined }), setN2nResult)}>保存 n2n 配置</button>
-          <button disabled={Boolean(busy)} onClick={() => runAction('启动 n2n edge', () => startNetwork('n2n'), setN2nResult)}>启动 n2n edge</button>
-          <button disabled={Boolean(busy)} onClick={() => runAction('停止 n2n edge', () => stopNetwork('n2n'), setN2nResult)}>停止 n2n edge</button>
+          <button disabled={Boolean(busy)} onClick={() => runAction('启动 n2n edge', () => startNetwork('n2n'), (value) => { setN2nResult(value); setN2nAutoRefresh({ reason: '等待 supernode ACK / PONG', startedAt: Date.now() }); })}>启动 n2n edge</button>
+          <button disabled={Boolean(busy)} onClick={() => runAction('停止 n2n edge', () => stopNetwork('n2n'), (value) => { setN2nResult(value); setN2nAutoRefresh(null); })}>停止 n2n edge</button>
         </div>
 
         <article className="config-panel">
