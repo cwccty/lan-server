@@ -8,7 +8,7 @@ use crate::models::network::{
     BackendRuntimeStatus, BackendSummary, ConnectivityReport, ConnectivityTarget, N2nDiagnostics,
     NetworkConfig, SetupResult,
 };
-use crate::models::port_proxy::{PortProxyConfig, PortProxyStatus};
+use crate::models::port_proxy::{PortProxyConfig, PortProxySelfTestReport, PortProxyStatus};
 use crate::models::recommendation::{LaunchResult, Recommendation};
 use crate::models::server_session::ServerSessionStatus;
 use crate::network::{manual_lan_backend, n2n_backend, radmin_backend};
@@ -175,4 +175,9 @@ pub fn get_port_proxy_status(id: String) -> Result<PortProxyStatus, String> {
 #[tauri::command]
 pub fn test_port_proxy(id: String) -> Result<ConnectivityReport, String> {
     port_proxy::test_port_proxy(&id)
+}
+
+#[tauri::command]
+pub fn self_test_port_proxy() -> Result<PortProxySelfTestReport, String> {
+    port_proxy::self_test_port_proxy()
 }

@@ -38,7 +38,8 @@ pub fn run() {
             commands::stop_port_proxy,
             commands::list_port_proxies,
             commands::get_port_proxy_status,
-            commands::test_port_proxy
+            commands::test_port_proxy,
+            commands::self_test_port_proxy
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

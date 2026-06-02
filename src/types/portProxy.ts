@@ -22,3 +22,16 @@ export interface PortProxyStatus {
   last_error?: string;
   logs: string[];
 }
+
+export interface PortProxySelfTestReport {
+  ok: boolean;
+  listen: string;
+  target: string;
+  sent: string;
+  received: string;
+  total_connections: number;
+  bytes_in: number;
+  bytes_out: number;
+  notes: string[];
+  status: PortProxyStatus;
+}

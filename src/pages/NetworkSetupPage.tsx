@@ -6,6 +6,7 @@ import {
   setupNetwork,
   startNetwork,
   startPortProxy,
+  selfTestPortProxy,
   stopNetwork,
   stopPortProxy,
   testConnectivity,
@@ -15,7 +16,7 @@ import { BackendCard } from '../components/BackendCard';
 import { LoadingOverlay } from '../components/LoadingOverlay';
 import type { BackendRuntimeStatus, BackendSummary, ConnectivityReport, N2nDiagnostics, SetupResult } from '../types/network';
 import type { NetworkSetupPreset } from '../types/networkPreset';
-import type { PortProxyStatus } from '../types/portProxy';
+import type { PortProxySelfTestReport, PortProxyStatus } from '../types/portProxy';
 
 type SteamRelayDraft = {
   appId: string;
@@ -86,6 +87,26 @@ function PortProxyStatusView({ status }: { status: PortProxyStatus }) {
           <pre className="console-panel">{status.logs.slice(-20).join('\n')}</pre>
         </details>
       )}
+    </div>
+  );
+}
+
+function PortProxySelfTestView({ report }: { report: PortProxySelfTestReport }) {
+  return (
+    <div className={report.ok ? 'result-ok' : 'result-bad'}>
+      <h4>{report.ok ? 'TCP 端口代理自测通过' : 'TCP 端口代理自测失败'}</h4>
+      <p>自测链路：{report.listen} → {report.target}</p>
+      <ul>
+        <li>发送内容：{report.sent}</li>
+        <li>收到内容：{report.received || '无返回'}</li>
+        <li>历史连接：{report.total_connections}</li>
+        <li>上行字节：{report.bytes_in}</li>
+        <li>下行字节：{report.bytes_out}</li>
+      </ul>
+      <h5>自测步骤</h5>
+      <ul>
+        {report.notes.map((note) => <li key={note}>{note}</li>)}
+      </ul>
     </div>
   );
 }
@@ -192,6 +213,7 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
   const [peerReport, setPeerReport] = useState<ConnectivityReport | null>(null);
   const [portProxyStatus, setPortProxyStatus] = useState<PortProxyStatus | null>(null);
   const [portProxyReport, setPortProxyReport] = useState<ConnectivityReport | null>(null);
+  const [portProxySelfTest, setPortProxySelfTest] = useState<PortProxySelfTestReport | null>(null);
   const [n2nResult, setN2nResult] = useState<SetupResult | BackendRuntimeStatus | null>(null);
   const [n2nDiagnostics, setN2nDiagnostics] = useState<N2nDiagnostics | null>(null);
   const [n2nAutoRefresh, setN2nAutoRefresh] = useState<{ reason: string; startedAt: number } | null>(null);
@@ -428,6 +450,9 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
   const testDefaultPortProxy = () =>
     runAction('测试 TCP 端口代理', () => testPortProxy(portProxyStatus?.id || 'default'), setPortProxyReport);
 
+  const runPortProxySelfTest = () =>
+    runAction('一键自测 TCP 端口代理', () => selfTestPortProxy(), setPortProxySelfTest);
+
   return (
     <section className="page-stack">
       <LoadingOverlay visible={Boolean(busy)} title={`正在处理：${busy ?? ''}`} message="请稍等，不要重复点击按钮或关闭程序。" />
@@ -594,10 +619,12 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
           <button type="button" disabled={Boolean(busy) || !proxyPortsValid} onClick={startDefaultPortProxy}>启动 TCP 端口代理</button>
           <button type="button" className="secondary" disabled={Boolean(busy)} onClick={stopDefaultPortProxy}>停止 TCP 端口代理</button>
           <button type="button" className="secondary" disabled={Boolean(busy) || !portProxyStatus?.running} onClick={testDefaultPortProxy}>测试代理监听</button>
+          <button type="button" className="secondary" disabled={Boolean(busy)} onClick={runPortProxySelfTest}>一键自测 TCP 代理</button>
           <button type="button" className="secondary" disabled={Boolean(busy)} onClick={refreshPortProxy}>刷新代理状态</button>
         </div>
         {portProxyStatus && <PortProxyStatusView status={portProxyStatus} />}
         {portProxyReport && <ConnectivityReportView report={portProxyReport} />}
+        {portProxySelfTest && <PortProxySelfTestView report={portProxySelfTest} />}
         <div className="notice-card">
           <strong>使用方式：</strong>房主启动 n2n 和游戏服务端后，再启动此代理；朋友仍然在游戏里连接房主虚拟 IP：
           <code>{localIp || '房主虚拟IP'}:{proxyListenPort || gamePort}</code>。

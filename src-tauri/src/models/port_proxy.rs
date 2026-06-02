@@ -26,3 +26,17 @@ pub struct PortProxyStatus {
     pub last_error: Option<String>,
     pub logs: Vec<String>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PortProxySelfTestReport {
+    pub ok: bool,
+    pub listen: String,
+    pub target: String,
+    pub sent: String,
+    pub received: String,
+    pub total_connections: u64,
+    pub bytes_in: u64,
+    pub bytes_out: u64,
+    pub notes: Vec<String>,
+    pub status: PortProxyStatus,
+}

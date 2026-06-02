@@ -624,3 +624,18 @@ ConPTY 方案出现 `0xc0000142`。本轮回退为隐藏 `cmd.exe` 托管 Terrar
 验证：cargo test --manifest-path src-tauri\Cargo.toml tcp_proxy_forwards_bytes_end_to_end、npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。Browser 打开 http://127.0.0.1:1420 并进入通用组网，已确认“房主 TCP 端口代理”卡片、启动按钮和默认代理说明可见。
 
 下一步推荐：做一次真实 Tauri 运行态手工测试：房主本机开一个临时 TCP 服务，使用页面启动代理，再用 Test-NetConnection 或另一台机器访问房主虚拟 IP:监听端口，确认 UI 连接数和字节统计增长。
+
+## 2026-06-03 TCP 端口代理一键自测
+
+已把手工 PowerShell Echo 测试固化成产品内的一键自测能力。
+
+- 新增 `PortProxySelfTestReport`，返回自测是否通过、监听地址、目标地址、发送内容、收到内容、连接数、上下行字节、步骤说明和代理状态快照。
+- 新增后端命令 `self_test_port_proxy`。
+- 后端自测流程：自动分配临时端口、启动临时 Echo 服务、启动临时 TCP 端口代理、发送 `hello proxy`、读取 Echo 返回、校验连接数和字节统计、自测结束后清理临时代理和 Echo 服务。
+- 新增 Rust 测试 `self_test_reports_success`，验证一键自测报告真实成功。
+- 通用组网中心“房主 TCP 端口代理”卡片新增“一键自测 TCP 代理”按钮。
+- 前端展示自测结果：通过/失败、链路、发送内容、收到内容、历史连接、上行字节、下行字节、自测步骤。
+
+验证：cargo test --manifest-path src-tauri\Cargo.toml port_proxy、npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。Browser 复查时本地浏览器拦截了 http://127.0.0.1:1420，但不影响编译和后端自测验证结果。
+
+下一步推荐：把“一键自测 TCP 代理”结果纳入诊断报告，让用户点击“开始诊断”时也能看到 TCP 代理自测是否通过。

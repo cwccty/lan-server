@@ -12,7 +12,7 @@ import type {
 } from '../types/network';
 import type { LaunchConfig, LaunchResult, Recommendation } from '../types/recommendation';
 import type { ServerSessionStatus } from '../types/serverSession';
-import type { PortProxyConfig, PortProxyStatus } from '../types/portProxy';
+import type { PortProxyConfig, PortProxySelfTestReport, PortProxyStatus } from '../types/portProxy';
 
 export const scanGames = () => invoke<GameSummary[]>('scan_games');
 export const analyzeGame = (gameId: string) => invoke<GameAnalysis>('analyze_game', { gameId });
@@ -62,3 +62,4 @@ export const getPortProxyStatus = (id: string) =>
   invoke<PortProxyStatus>('get_port_proxy_status', { id });
 export const testPortProxy = (id: string) =>
   invoke<ConnectivityReport>('test_port_proxy', { id });
+export const selfTestPortProxy = () => invoke<PortProxySelfTestReport>('self_test_port_proxy');

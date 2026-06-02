@@ -690,3 +690,24 @@ https://raw.githubusercontent.com/cwccty/lan-server/master/adapter-registry/inde
 验证：cargo test --manifest-path src-tauri\Cargo.toml tcp_proxy_forwards_bytes_end_to_end、npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过；Browser 已确认通用组网中心可见端口代理卡片。
 
 下一步推荐：真实 Tauri 运行态手工测试并把测试步骤固化到诊断报告或 README。
+
+## 2026-06-03 TCP 端口代理一键自测
+
+产品状态：TCP 端口代理已具备产品内自测能力，用户不再需要手动打开 PowerShell Echo 服务才能验证代理是否能真实转发数据。
+
+当前能力：
+
+- 后端 `self_test_port_proxy` 自动完成 Echo 服务、临时代理、测试发送、读取返回和清理。
+- 报告字段包含 ok、listen、target、sent、received、total_connections、bytes_in、bytes_out、notes、status。
+- 通用组网中心新增“一键自测 TCP 代理”按钮和结果展示。
+- 自测通过代表：代理能启动、监听能连接、数据能到达目标服务、目标服务返回的数据能经过代理返回、统计数据会增长。
+
+边界：
+
+- 自测只证明本机 TCP 代理功能正常，不证明朋友电脑、防火墙、n2n supernode、远端网络一定正常。
+- 自测使用临时本地 Echo 服务，不会替代真实游戏服务端测试。
+- 当前仍只覆盖 TCP，不覆盖 UDP 游戏、局域网广播发现或协议转换。
+
+验证：cargo test --manifest-path src-tauri\Cargo.toml port_proxy、npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。
+
+下一步推荐：把自测接入诊断报告，并在失败时给出“目标服务没开 / 监听端口被占用 / 代理不可启动”等分支建议。

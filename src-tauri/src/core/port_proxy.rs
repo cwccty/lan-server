@@ -4,11 +4,11 @@ use std::net::{Shutdown, TcpListener, TcpStream};
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::core::connectivity_tester;
 use crate::models::network::{ConnectivityReport, ConnectivityTarget};
-use crate::models::port_proxy::{PortProxyConfig, PortProxyStatus};
+use crate::models::port_proxy::{PortProxyConfig, PortProxySelfTestReport, PortProxyStatus};
 
 const DEFAULT_PROXY_ID: &str = "default";
 const MAX_LOGS: usize = 80;
@@ -167,6 +167,121 @@ pub fn test_port_proxy(id: &str) -> Result<ConnectivityReport, String> {
     })
 }
 
+pub fn self_test_port_proxy() -> Result<PortProxySelfTestReport, String> {
+    let target_listener =
+        TcpListener::bind(("127.0.0.1", 0)).map_err(|err| format!("启动临时 Echo 服务失败: {err}"))?;
+    let target_port = target_listener
+        .local_addr()
+        .map_err(|err| format!("读取临时 Echo 服务端口失败: {err}"))?
+        .port();
+    target_listener
+        .set_nonblocking(true)
+        .map_err(|err| format!("设置临时 Echo 服务非阻塞失败: {err}"))?;
+
+    let proxy_port = free_local_port()?;
+    let proxy_id = format!("self-test-{proxy_port}");
+    let echo_stop = Arc::new(AtomicBool::new(false));
+    let echo_stop_thread = echo_stop.clone();
+
+    thread::spawn(move || {
+        while !echo_stop_thread.load(Ordering::SeqCst) {
+            match target_listener.accept() {
+                Ok((mut stream, _)) => {
+                    let mut buffer = [0_u8; 256];
+                    match stream.read(&mut buffer) {
+                        Ok(0) => {}
+                        Ok(size) => {
+                            let _ = stream.write_all(&buffer[..size]);
+                        }
+                        Err(_) => {}
+                    }
+                }
+                Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => {
+                    thread::sleep(Duration::from_millis(40));
+                }
+                Err(_) => break,
+            }
+        }
+    });
+
+    let cleanup = |proxy_id: &str, echo_stop: &Arc<AtomicBool>| {
+        echo_stop.store(true, Ordering::SeqCst);
+        let _ = TcpStream::connect(("127.0.0.1", target_port));
+        let _ = stop_port_proxy(proxy_id);
+    };
+
+    let start_status = match start_port_proxy(PortProxyConfig {
+        id: Some(proxy_id.clone()),
+        protocol: "tcp".to_string(),
+        listen_host: "127.0.0.1".to_string(),
+        listen_port: proxy_port,
+        target_host: "127.0.0.1".to_string(),
+        target_port,
+        label: Some("TCP 端口代理自测".to_string()),
+        game_id: None,
+    }) {
+        Ok(status) => status,
+        Err(err) => {
+            cleanup(&proxy_id, &echo_stop);
+            return Err(err);
+        }
+    };
+
+    if let Err(err) = wait_for_tcp("127.0.0.1", proxy_port, Duration::from_secs(3)) {
+        cleanup(&proxy_id, &echo_stop);
+        return Err(err);
+    }
+
+    let sent = "hello proxy";
+    let mut client = match TcpStream::connect(("127.0.0.1", proxy_port)) {
+        Ok(stream) => stream,
+        Err(err) => {
+            cleanup(&proxy_id, &echo_stop);
+            return Err(format!("连接自测代理失败: {err}"));
+        }
+    };
+    client
+        .set_read_timeout(Some(Duration::from_secs(3)))
+        .map_err(|err| format!("设置自测读取超时失败: {err}"))?;
+    if let Err(err) = client.write_all(sent.as_bytes()) {
+        cleanup(&proxy_id, &echo_stop);
+        return Err(format!("向自测代理发送数据失败: {err}"));
+    }
+
+    let mut buffer = [0_u8; 256];
+    let size = match client.read(&mut buffer) {
+        Ok(size) => size,
+        Err(err) => {
+            cleanup(&proxy_id, &echo_stop);
+            return Err(format!("读取自测 Echo 返回失败: {err}"));
+        }
+    };
+    let received = String::from_utf8_lossy(&buffer[..size]).to_string();
+    thread::sleep(Duration::from_millis(120));
+    let status = get_port_proxy_status(&proxy_id).unwrap_or(start_status);
+    let ok = received == sent && status.total_connections >= 1 && status.bytes_in > 0 && status.bytes_out > 0;
+    let report = PortProxySelfTestReport {
+        ok,
+        listen: format!("127.0.0.1:{proxy_port}"),
+        target: format!("127.0.0.1:{target_port}"),
+        sent: sent.to_string(),
+        received,
+        total_connections: status.total_connections,
+        bytes_in: status.bytes_in,
+        bytes_out: status.bytes_out,
+        notes: vec![
+            "已自动启动临时 Echo 服务。".to_string(),
+            "已自动启动临时 TCP 端口代理。".to_string(),
+            "已通过代理发送测试字符串并读取 Echo 返回。".to_string(),
+            "自测结束后已停止临时代理和 Echo 服务。".to_string(),
+        ],
+        status: status.clone(),
+    };
+
+    cleanup(&proxy_id, &echo_stop);
+    Ok(report)
+}
+
 fn accept_loop(runtime: Arc<ProxyRuntime>, listener: TcpListener) {
     while !runtime.stop.load(Ordering::SeqCst) {
         match listener.accept() {
@@ -290,37 +405,35 @@ fn parse_host_port(value: &str) -> Result<(String, u16), String> {
     Ok((host.to_string(), port))
 }
 
+fn free_local_port() -> Result<u16, String> {
+    TcpListener::bind("127.0.0.1:0")
+        .map_err(|err| format!("分配临时端口失败: {err}"))?
+        .local_addr()
+        .map(|addr| addr.port())
+        .map_err(|err| format!("读取临时端口失败: {err}"))
+}
+
+fn wait_for_tcp(host: &str, port: u16, timeout: Duration) -> Result<(), String> {
+    let deadline = Instant::now() + timeout;
+    while Instant::now() < deadline {
+        if TcpStream::connect((host, port)).is_ok() {
+            return Ok(());
+        }
+        thread::sleep(Duration::from_millis(40));
+    }
+    Err(format!("TCP 监听未在超时时间内就绪: {host}:{port}"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::io::{Read, Write};
     use std::net::{TcpListener, TcpStream};
-    use std::time::{Duration, Instant};
-
-    fn free_port() -> u16 {
-        TcpListener::bind("127.0.0.1:0")
-            .expect("bind ephemeral port")
-            .local_addr()
-            .expect("read local addr")
-            .port()
-    }
-
-    fn wait_for_tcp(host: &str, port: u16) {
-        let deadline = Instant::now() + Duration::from_secs(3);
-        while Instant::now() < deadline {
-            if TcpStream::connect((host, port)).is_ok() {
-                return;
-            }
-            thread::sleep(Duration::from_millis(40));
-        }
-        panic!("tcp listener did not become ready on {host}:{port}");
-    }
-
     #[test]
     fn tcp_proxy_forwards_bytes_end_to_end() {
         let target_listener = TcpListener::bind(("127.0.0.1", 0)).expect("bind target");
         let target_port = target_listener.local_addr().expect("target addr").port();
-        let proxy_port = free_port();
+        let proxy_port = free_local_port().expect("free local port");
         let proxy_id = format!("test-proxy-{proxy_port}");
 
         thread::spawn(move || {
@@ -350,7 +463,7 @@ mod tests {
         assert!(status.running);
         assert_eq!(status.listen, format!("127.0.0.1:{proxy_port}"));
 
-        wait_for_tcp("127.0.0.1", proxy_port);
+        wait_for_tcp("127.0.0.1", proxy_port, Duration::from_secs(3)).expect("wait for proxy");
         let mut client = TcpStream::connect(("127.0.0.1", proxy_port)).expect("connect proxy");
         client.write_all(b"hello-proxy").expect("write proxy");
         let mut response = [0_u8; 32];
@@ -362,5 +475,16 @@ mod tests {
 
         let stopped = stop_port_proxy(&proxy_id).expect("stop proxy");
         assert!(!stopped.running);
+    }
+
+    #[test]
+    fn self_test_reports_success() {
+        let report = self_test_port_proxy().expect("self test proxy");
+        assert!(report.ok);
+        assert_eq!(report.sent, "hello proxy");
+        assert_eq!(report.received, "hello proxy");
+        assert!(report.total_connections >= 1);
+        assert!(report.bytes_in > 0);
+        assert!(report.bytes_out > 0);
     }
 }
