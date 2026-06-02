@@ -27,6 +27,12 @@ type SelfCheckResult = {
   notes: string[];
 };
 
+function recentSupernodeFromBackends(backends: BackendSummary[]) {
+  const n2n = backends.find((backend) => backend.id === 'n2n');
+  const note = n2n?.notes.find((item) => item.startsWith('最近一次 supernode:') || item.startsWith('最近一次 supernode：'));
+  return note?.replace(/^最近一次 supernode[:：]\s*/, '').trim() || '';
+}
+
 const t = {
   title: '\u8054\u673a\u5411\u5bfc',
   intro: '\u7b2c\u4e00\u7248\u5148\u56f4\u7ed5 Terraria + n2n\uff0c\u628a\u623f\u4e3b\u548c\u52a0\u5165\u8005\u6d41\u7a0b\u4e32\u6210\u4e00\u6761\u9f99\u3002',
@@ -93,6 +99,19 @@ export function MultiplayerWizardPage() {
   const localIp = role === 'host' ? hostIp : joinerIp;
   const portNumber = Number.parseInt(gamePort, 10) || 7777;
   const isBusy = busyAction !== null;
+
+  useEffect(() => {
+    listNetworkBackends()
+      .then((items) => {
+        const recentSupernode = recentSupernodeFromBackends(items);
+        if (recentSupernode) {
+          setSupernode((current) => current.trim() ? current : recentSupernode);
+        }
+      })
+      .catch(() => {
+        // Keep manual input available if backend state cannot be read.
+      });
+  }, []);
 
   useEffect(() => {
     let disposed = false;
@@ -467,6 +486,7 @@ export function MultiplayerWizardPage() {
     </section>
   );
 }
+
 
 
 

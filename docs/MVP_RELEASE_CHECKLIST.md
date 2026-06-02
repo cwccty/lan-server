@@ -39,8 +39,9 @@
 ## E. 诊断报告
 
 - [ ] “诊断报告”页可生成报告。
-- [ ] 报告包含 n2n edge、虚拟 IP、网络后端、内嵌服务端 running/ready/ever_ready/uptime_seconds/exit_code、内嵌日志可观察性，并给出 Terraria 30 秒稳定性结论。
+- [ ] 报告包含 n2n edge、虚拟 IP、网络后端、内嵌服务端 running/ready/ever_ready/uptime_seconds/exit_code、内嵌托管状态可观察性，并给出 Terraria 30 秒稳定性结论。
 - [ ] 报告不包含 Cookie、SSH Key、系统凭据或无关用户目录内容。
 
 只有以上项目通过，才能认为 MVP 达到可发布标准。
+
 

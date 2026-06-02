@@ -47,6 +47,12 @@ function SetupResultView({ result }: { result: SetupResult }) {
   );
 }
 
+function recentSupernodeFromBackends(backends: BackendSummary[]) {
+  const n2n = backends.find((backend) => backend.id === 'n2n');
+  const note = n2n?.notes.find((item) => item.startsWith('最近一次 supernode:') || item.startsWith('最近一次 supernode：'));
+  return note?.replace(/^最近一次 supernode[:：]\s*/, '').trim() || '';
+}
+
 export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
   const [backends, setBackends] = useState<BackendSummary[]>([]);
   const [host, setHost] = useState('127.0.0.1');
@@ -64,7 +70,16 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
   const [copyMessage, setCopyMessage] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
 
-  const refreshBackends = () => listNetworkBackends().then(setBackends).catch(() => setBackends([]));
+  const refreshBackends = () =>
+    listNetworkBackends()
+      .then((items) => {
+        setBackends(items);
+        const recentSupernode = recentSupernodeFromBackends(items);
+        if (recentSupernode) {
+          setSupernode((current) => current.trim() ? current : recentSupernode);
+        }
+      })
+      .catch(() => setBackends([]));
 
   useEffect(() => {
     refreshBackends();

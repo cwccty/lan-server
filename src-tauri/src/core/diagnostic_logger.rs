@@ -45,14 +45,15 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
         })
         .unwrap_or(false);
 
-    let server_console_observable_ok = server
+    let server_hosting_observable_ok = server
         .as_ref()
         .map(|item| {
             !item.logs.is_empty()
                 && item.logs.iter().any(|line| {
                     line.contains("后台启动")
-                        || line.contains("Listening on port")
+                        || line.contains("隐藏控制台")
                         || line.contains("当前状态")
+                        || line.contains("稳定后台模式")
                 })
         })
         .unwrap_or(false);
@@ -102,13 +103,13 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
             required_for_mvp: true,
         },
         ReleaseCheck {
-            id: "server_console_observable".to_string(),
-            label: "内嵌服务端日志可观察".to_string(),
-            ok: server_console_observable_ok,
-            detail: if server_console_observable_ok {
-                "已检测到内嵌服务端会话日志；MVP 只承诺日志观察、真实监听状态和停止托管，不承诺 help/save/exit 交互命令。".to_string()
+            id: "server_hosting_observable".to_string(),
+            label: "内嵌服务端托管状态可观察".to_string(),
+            ok: server_hosting_observable_ok,
+            detail: if server_hosting_observable_ok {
+                "已检测到内嵌服务端托管状态；MVP 只承诺真实进程、真实监听状态和停止托管，不承诺 help/save/exit 交互命令。".to_string()
             } else {
-                "尚未检测到可观察的内嵌服务端日志；请用新版 release 启动一次 Terraria 服务端后再生成诊断。".to_string()
+                "尚未检测到可观察的内嵌服务端托管状态；请用新版 release 启动一次 Terraria 服务端后再生成诊断。".to_string()
             },
             required_for_mvp: true,
         },

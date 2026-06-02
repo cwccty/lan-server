@@ -2,7 +2,9 @@ use std::collections::HashMap;
 use std::fs;
 #[cfg(windows)]
 use std::fs::File;
-use std::io::{BufRead, BufReader, Write};
+use std::io::Write;
+#[cfg(not(windows))]
+use std::io::{BufRead, BufReader};
 #[cfg(not(windows))]
 use std::net::{TcpStream, ToSocketAddrs};
 use std::path::{Path, PathBuf};
@@ -28,11 +30,7 @@ use crate::storage::adapter_store;
 #[cfg(windows)]
 use std::os::windows::ffi::OsStrExt;
 #[cfg(windows)]
-use std::os::windows::io::{FromRawHandle, RawHandle};
-#[cfg(windows)]
-use windows_sys::Win32::Foundation::{
-    CloseHandle, SetHandleInformation, ERROR_INSUFFICIENT_BUFFER, HANDLE, HANDLE_FLAG_INHERIT,
-};
+use windows_sys::Win32::Foundation::{CloseHandle, ERROR_INSUFFICIENT_BUFFER, HANDLE};
 #[cfg(windows)]
 use windows_sys::Win32::NetworkManagement::IpHelper::{
     GetExtendedTcpTable, MIB_TCPROW_OWNER_PID, MIB_TCP_STATE_LISTEN, TCP_TABLE_OWNER_PID_LISTENER,
@@ -40,13 +38,9 @@ use windows_sys::Win32::NetworkManagement::IpHelper::{
 #[cfg(windows)]
 use windows_sys::Win32::Networking::WinSock::AF_INET;
 #[cfg(windows)]
-use windows_sys::Win32::Security::SECURITY_ATTRIBUTES;
-#[cfg(windows)]
-use windows_sys::Win32::System::Pipes::CreatePipe;
-#[cfg(windows)]
 use windows_sys::Win32::System::Threading::{
     CreateProcessW, GetExitCodeProcess, TerminateProcess, CREATE_NEW_CONSOLE, PROCESS_INFORMATION,
-    STARTF_USESHOWWINDOW, STARTF_USESTDHANDLES, STARTUPINFOW,
+    STARTF_USESHOWWINDOW, STARTUPINFOW,
 };
 #[cfg(windows)]
 use windows_sys::Win32::UI::WindowsAndMessaging::SW_HIDE;
@@ -75,6 +69,7 @@ enum ManagedStdin {
     #[cfg(not(windows))]
     Std(ChildStdin),
     #[cfg(windows)]
+    #[allow(dead_code)]
     Windows(File),
 }
 
@@ -385,20 +380,10 @@ fn start_hidden_process(
     let application_w = wide_null(executable.as_os_str());
     let working_dir_w = wide_null(working_dir.as_os_str());
 
-    let (stdin_read, stdin_write) = create_pipe_pair("stdin")?;
-    let (stdout_read, stdout_write) = create_pipe_pair("stdout")?;
-    let (stderr_read, stderr_write) = create_pipe_pair("stderr")?;
-    make_non_inheritable(stdin_write, "stdin parent write")?;
-    make_non_inheritable(stdout_read, "stdout parent read")?;
-    make_non_inheritable(stderr_read, "stderr parent read")?;
-
     let mut startup: STARTUPINFOW = unsafe { std::mem::zeroed() };
     startup.cb = std::mem::size_of::<STARTUPINFOW>() as u32;
-    startup.dwFlags = STARTF_USESHOWWINDOW | STARTF_USESTDHANDLES;
+    startup.dwFlags = STARTF_USESHOWWINDOW;
     startup.wShowWindow = SW_HIDE as u16;
-    startup.hStdInput = stdin_read;
-    startup.hStdOutput = stdout_write;
-    startup.hStdError = stderr_write;
 
     let mut process_info: PROCESS_INFORMATION = unsafe { std::mem::zeroed() };
     let created = unsafe {
@@ -407,7 +392,7 @@ fn start_hidden_process(
             command_line_w.as_mut_ptr(),
             std::ptr::null(),
             std::ptr::null(),
-            1,
+            0,
             CREATE_NEW_CONSOLE,
             std::ptr::null(),
             working_dir_w.as_ptr(),
@@ -416,37 +401,19 @@ fn start_hidden_process(
         )
     };
 
-    unsafe {
-        let _ = CloseHandle(stdin_read);
-        let _ = CloseHandle(stdout_write);
-        let _ = CloseHandle(stderr_write);
-    }
-
     if created == 0 {
-        unsafe {
-            let _ = CloseHandle(stdin_write);
-            let _ = CloseHandle(stdout_read);
-            let _ = CloseHandle(stderr_read);
-        }
         return Err("启动后台服务端失败：CreateProcessW 返回失败。".to_string());
     }
 
     let logs = Arc::new(Mutex::new(Vec::new()));
     push_log(
         &logs,
-        "Windows 隐藏控制台模式：为 Terraria Server 创建隐藏控制台，避免 Console.Title/控制台句柄无效导致进程启动后退出。".to_string(),
+        "Windows 稳定后台模式：为 Terraria Server 创建隐藏控制台，但不重定向 stdin/stdout/stderr，避免服务端把输入结束当成退出并返回 exit_code=0。".to_string(),
     );
     push_log(
         &logs,
-        "已重定向 stdin/stdout/stderr：内嵌控制台会显示服务端输出，help/save/exit 会发送到真实服务端进程。"
-            .to_string(),
+        "MVP 当前以真实进程、PID 对应端口监听表和运行时长判断服务端状态；内嵌面板显示托管状态，不再伪装完整交互式控制台。".to_string(),
     );
-
-    let stdin = unsafe { File::from_raw_handle(stdin_write as RawHandle) };
-    let stdout = unsafe { File::from_raw_handle(stdout_read as RawHandle) };
-    let stderr = unsafe { File::from_raw_handle(stderr_read as RawHandle) };
-    spawn_output_reader(stdout, Arc::clone(&logs));
-    spawn_output_reader(stderr, Arc::clone(&logs));
 
     Ok(ManagedProcess {
         process: ManagedChild::Windows(WindowsProcess {
@@ -454,11 +421,10 @@ fn start_hidden_process(
             thread_handle: process_info.hThread,
             pid: process_info.dwProcessId,
         }),
-        stdin: Some(ManagedStdin::Windows(stdin)),
+        stdin: None,
         logs,
     })
 }
-
 #[cfg(not(windows))]
 fn start_hidden_process(
     executable: &PathBuf,
@@ -492,33 +458,6 @@ fn start_hidden_process(
         stdin,
         logs,
     })
-}
-
-#[cfg(windows)]
-fn create_pipe_pair(name: &str) -> Result<(HANDLE, HANDLE), String> {
-    let mut read: HANDLE = std::ptr::null_mut();
-    let mut write: HANDLE = std::ptr::null_mut();
-    let attrs = SECURITY_ATTRIBUTES {
-        nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
-        lpSecurityDescriptor: std::ptr::null_mut(),
-        bInheritHandle: 1,
-    };
-    let ok = unsafe { CreatePipe(&mut read, &mut write, &attrs, 0) };
-    if ok == 0 {
-        Err(format!("创建 {name} 管道失败：CreatePipe 返回失败。"))
-    } else {
-        Ok((read, write))
-    }
-}
-
-#[cfg(windows)]
-fn make_non_inheritable(handle: HANDLE, name: &str) -> Result<(), String> {
-    let ok = unsafe { SetHandleInformation(handle, HANDLE_FLAG_INHERIT, 0) };
-    if ok == 0 {
-        Err(format!("设置 {name} 管道继承属性失败。"))
-    } else {
-        Ok(())
-    }
 }
 
 #[cfg(windows)]
@@ -574,6 +513,7 @@ fn quote_windows_arg(arg: &str) -> String {
     quoted
 }
 
+#[cfg(not(windows))]
 fn spawn_output_reader<R>(reader: R, logs: Arc<Mutex<Vec<String>>>)
 where
     R: std::io::Read + Send + 'static,

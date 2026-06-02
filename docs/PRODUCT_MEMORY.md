@@ -142,3 +142,11 @@ Backing up world file
 这是健康检查副作用，不是游戏自然行为。MVP 修正为：Windows 下只读取系统 TCP LISTEN 表判断端口是否监听，不再主动连接 TerrariaServer；非 Windows 才保留 TCP connect 兜底。
 
 同时，`help/save/exit` 在隐藏后台托管模式下不能稳定证明被 TerrariaServer 接收。为避免发布产品出现“按钮可点但内部不可靠”的伪功能，MVP 阶段不再在联机向导暴露这些交互命令按钮。当前承诺范围调整为：后台干净运行、端口真实监听、日志可观察、退出诊断保留、停止托管可用。后续若实现 ConPTY/伪终端输入闭环，再恢复交互命令。
+
+## 2026-06-02 Terraria 后台稳定性二次修正
+
+用户实测显示：在隐藏后台模式下重定向 TerrariaServer 的 stdin/stdout/stderr 后，服务端会在 `Listening on port 7777` 和 `Type 'help' for a list of commands.` 之后以 `exit_code=0` 正常退出。这说明标准输入输出重定向本身会干扰 TerrariaServer 的控制台生命周期。
+
+MVP 修正为：Windows 下创建隐藏控制台，但不再重定向 stdin/stdout/stderr。联机助手只用真实进程句柄、PID 对应 TCP LISTEN 表和运行时长判断服务端状态。内嵌面板显示托管状态，不再承诺完整交互式控制台或 Terraria 原始 stdout 日志。这样优先保证“服务端能稳定留在后台并监听端口”。
+
+同时，n2n 的 `supernode` 输入框会从最近一次保存的配置中自动填入，减少用户重复输入；用户仍可手动覆盖。
