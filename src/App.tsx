@@ -31,6 +31,11 @@ export default function App() {
       {page === 'scan' && (
         <GameScanPage
           games={games}
+          onAdapterCreated={async () => {
+            const nextGames = await scanGames().catch(() => []);
+            setGames(nextGames);
+          }}
+          onOpenAdapters={() => setPage('adapters')}
           onSelectGame={(id) => {
             setSelectedGameId(id);
             setPage('detail');

@@ -839,3 +839,24 @@ npm run tauri:build
 ```
 
 下一步：继续完善“未知游戏认定 → 保存本地 adapter 草稿 → 同步共享库”的入口，让用户/管理员能把诊断中发现的 unknown_need_review 直接转成可复用方案。
+
+## 2026-06-03 扫描页未知游戏创建适配器草稿入口
+
+已在游戏扫描页加入“创建适配器草稿”入口：
+
+- 对未匹配、`unknown_need_review` 或缺少 `connection_plan` 的游戏显示“创建适配器草稿”按钮。
+- 点击后会把扫描到的游戏名、game_id、Steam AppID、扫描路径说明写入本地 custom adapter 草稿。
+- 草稿默认标记为 `network_type=unknown_need_review`，不会伪装为已支持。
+- 草稿自带待确认的 `connection_plan`，要求管理员后续认定 LAN/IP、专用服务端、TCP 代理、UDP 广播桥、Steam Relay、仅官方联机或暂不支持。
+- 创建后会刷新扫描结果，并提供进入“适配器管理”继续认定的入口。
+- 扫描页统计“需人工适配”现在会把 unknown/缺少 connection_plan 的游戏计入。
+
+验证通过：
+
+```powershell
+npm run build
+cargo check --manifest-path src-tauri\Cargo.toml
+npm run tauri:build
+```
+
+下一步：在适配器管理页增加“按游戏网络类型自动应用推荐模板/需求”的能力，减少管理员手动勾选错误。
