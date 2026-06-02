@@ -396,3 +396,17 @@ ConPTY 方案出现 `0xc0000142`。本轮回退为隐藏 `cmd.exe` 托管 Terrar
 - `.playwright-mcp/` ????????????????
 
 ???`npm run build`?`cargo check --manifest-path src-tauri\Cargo.toml`?`npm run tauri:build` ????release exe ?? `src-tauri\target\release\lan-helper.exe`?
+
+
+## 2026-06-02 修复前端中文显示为问号
+
+用户反馈前端所有汉语显示为问号。定位结论：不是字体问题，而是上次通过 PowerShell/管道写入部分 TSX 文件时，中文在源码层被替换成了问号；同时 PowerShell 直接 Get-Content 会以错误编码显示乱码，不能作为唯一判断。
+
+已修复：
+
+- 改用 Node 以 UTF-8 写回关键前端文件，恢复中文文案：Layout、HomePage、GameScanPage、RecommendationPage、DiagnosticsPage、MultiplayerWizardPage。
+- 修复 index.html 标题为“联机助手”。
+- 修复 DiagnosticsPage 中日志 join 的换行转义问题。
+- 用 UTF-8 读取构建产物验证：dist/assets 中包含“联机助手、首页、通用组网中心、Terraria 向导、游戏扫描、推荐方案、适配器管理、诊断报告”等中文，并且没有连续问号串。
+
+验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。release exe：src-tauri\target\release\lan-helper.exe。

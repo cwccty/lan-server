@@ -1,76 +1,11 @@
 import { GameCard } from '../components/GameCard';
 import type { GameSummary } from '../types/game';
 
-const capabilityFilters = ['?? LAN', '???????', '????', '??????', '?? Mod', '???????', '??'];
+const capabilityFilters = ['原生 LAN', '隐藏专用服务端', '广播发现', '端口代理可能', '社区 Mod', '官方服务器限定', '未知'];
 const sourceFilters = ['builtin', 'registry', 'custom', 'steam_scan'];
 
-export function GameScanPage({
-  games,
-  onSelectGame
-}: {
-  games: GameSummary[];
-  onSelectGame: (id: string) => void;
-}) {
+export function GameScanPage({ games, onSelectGame }: { games: GameSummary[]; onSelectGame: (id: string) => void; }) {
   const matchedCount = games.filter((game) => game.multiplayer_conversion).length;
   const manualCount = games.filter((game) => !game.multiplayer_conversion).length;
-
-  return (
-    <section className="page-stack">
-      <div className="page-header">
-        <div>
-          <span className="eyebrow">GAME SCAN</span>
-          <h2>????</h2>
-          <p className="muted">?????????????/????????????????????????</p>
-        </div>
-        <span className="badge">{games.length} ???</span>
-      </div>
-
-      <article className="card toolbar-card">
-        <div className="actions">
-          <button>????</button>
-          <button className="secondary">????</button>
-          <button className="secondary">?? Steam ??</button>
-          <button className="secondary">?????</button>
-        </div>
-        <p className="muted">??????????????? ? ?????builtin / registry / custom</p>
-      </article>
-
-      <div className="status-grid">
-        <article className="status-tile"><span>??????</span><strong>Steam / ????</strong><small>??????</small></article>
-        <article className="status-tile"><span>???</span><strong>{games.length}</strong><small>??????</small></article>
-        <article className="status-tile"><span>???</span><strong>{matchedCount}</strong><small>?????</small></article>
-        <article className="status-tile"><span>?????</span><strong>{manualCount}</strong><small>???????</small></article>
-      </div>
-
-      <div className="content-with-aside">
-        <div className="page-stack">
-          {games.length === 0 ? (
-            <article className="card empty-state">
-              <h3>??????</h3>
-              <p className="muted">???????????????????????/????????</p>
-              <p>???????????????????????????????????</p>
-            </article>
-          ) : (
-            <div className="feature-grid two">
-              {games.map((game) => <GameCard key={game.game_id} game={game} onSelect={() => onSelectGame(game.game_id)} />)}
-            </div>
-          )}
-        </div>
-
-        <aside className="right-panel">
-          <h3>??</h3>
-          <h4>????</h4>
-          <div className="filter-list">{capabilityFilters.map((item) => <span className="badge" key={item}>{item}</span>)}</div>
-          <h4>?????</h4>
-          <div className="filter-list">{sourceFilters.map((item) => <span className={`badge source-${item}`} key={item}>{item}</span>)}</div>
-          <h4>????</h4>
-          <div className="filter-list">
-            <span className="future-chip">??????</span>
-            <span className="future-chip">??????</span>
-            <span className="future-chip">??????</span>
-          </div>
-        </aside>
-      </div>
-    </section>
-  );
+  return <section className="page-stack"><div className="page-header"><div><span className="eyebrow">GAME SCAN</span><h2>游戏扫描</h2><p className="muted">识别已安装游戏，并匹配本地/共享适配器库。扫描到游戏不等于已经可以本地联机。</p></div><span className="badge">{games.length} 个游戏</span></div><article className="card toolbar-card"><div className="actions"><button>开始扫描</button><button className="secondary">选择目录</button><button className="secondary">刷新 Steam 游戏</button><button className="secondary">同步共享库</button></div><p className="muted">上次扫描：来自应用启动扫描任务 · 适配器库：builtin / registry / custom</p></article><div className="status-grid"><article className="status-tile"><span>正在扫描目录</span><strong>Steam / 手动目录</strong><small>来自扫描任务</small></article><article className="status-tile"><span>已发现</span><strong>{games.length}</strong><small>本机候选游戏</small></article><article className="status-tile"><span>已匹配</span><strong>{matchedCount}</strong><small>存在适配器</small></article><article className="status-tile"><span>需人工适配</span><strong>{manualCount}</strong><small>可由管理员认定</small></article></div><div className="content-with-aside"><div className="page-stack">{games.length === 0 ? <article className="card empty-state"><h3>暂未发现游戏</h3><p className="muted">可以先同步共享适配器库，或者到适配器管理中导入/创建游戏适配器。</p><p>管理员认定游戏类型并生成适配器后，其他用户之后遇到这个游戏就可以复用。</p></article> : <div className="feature-grid two">{games.map((game) => <GameCard key={game.game_id} game={game} onSelect={() => onSelectGame(game.game_id)} />)}</div>}</div><aside className="right-panel"><h3>筛选</h3><h4>能力类型</h4><div className="filter-list">{capabilityFilters.map((item) => <span className="badge" key={item}>{item}</span>)}</div><h4>适配器来源</h4><div className="filter-list">{sourceFilters.map((item) => <span className={'badge source-' + item} key={item}>{item}</span>)}</div><h4>未来入口</h4><div className="filter-list"><span className="future-chip">游戏封面图标</span><span className="future-chip">多语言游戏名</span><span className="future-chip">云端提交审核</span></div></aside></div></section>;
 }
