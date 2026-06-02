@@ -411,6 +411,17 @@ ConPTY 方案出现 `0xc0000142`。本轮回退为隐藏 `cmd.exe` 托管 Terrar
 
 验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。release exe：src-tauri\target\release\lan-helper.exe。
 
+## 2026-06-02 组网成功后返回推荐方案继续
+
+已补齐“推荐方案 → 通用组网 → 推荐方案继续”的流程闭环。
+
+- 当用户从推荐方案带入参数进入通用组网中心后，如果 n2n 诊断检测到 supernode ACK/PONG，会显示“组网已连上，可以继续游戏步骤”卡片。
+- 卡片提供“返回推荐方案继续”按钮，引导用户回到推荐页继续服务端启动、端口检测、邀请好友或其他游戏步骤。
+- 页面底部按钮会根据是否存在推荐页预设自动切换文案：普通进入时是“生成推荐方案”，从推荐页进入时是“返回推荐方案继续执行游戏步骤”。
+- 判断仍来自真实 `n2nDiagnostics.ok_link`，不是前端假成功。
+
+验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。release exe：src-tauri\target\release\lan-helper.exe。
+
 ## 2026-06-02 n2n 启动后自动刷新诊断
 
 已在通用组网中心增加 n2n 自动刷新诊断状态，减少用户手动反复点击“刷新网络后端状态”。

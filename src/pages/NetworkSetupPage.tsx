@@ -258,6 +258,8 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
   const supernodeValue = supernode.trim();
   const supernodeOk = Boolean(n2nDiagnostics?.ok_link && !n2nDiagnostics.auth_error && !n2nDiagnostics.ip_mac_conflict);
   const supernodeProblem = Boolean(n2nDiagnostics?.auth_error || n2nDiagnostics?.ip_mac_conflict || n2nDiagnostics?.not_responding);
+  const hasRecommendationPreset = Boolean(preset?.gameId || preset?.displayName);
+  const nextActionLabel = hasRecommendationPreset ? '返回推荐方案继续执行游戏步骤' : '生成推荐方案';
   const alternativeLocalIps = suggestAlternativeIps(localIp);
   const networkStatusCards: NetworkStatusCardData[] = [
     {
@@ -368,6 +370,22 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
         <div className="notice-card">
           <strong>推荐方案参数已带入：</strong>{presetNotice}。你仍然需要填写 supernode、确认每台电脑虚拟 IP 不重复，并启动 n2n edge。
         </div>
+      )}
+      {hasRecommendationPreset && supernodeOk && (
+        <article className="card conversion-card">
+          <div className="feature-card-title">
+            <div>
+              <h3>组网已连上，可以继续游戏步骤</h3>
+              <p className="muted">
+                已从 edge 日志检测到 supernode ACK/PONG。下一步回到推荐方案，继续执行该游戏的服务端启动、端口检测或邀请好友步骤。
+              </p>
+            </div>
+            <span className="badge good">ACK / PONG</span>
+          </div>
+          <div className="actions">
+            <button type="button" onClick={onNext} disabled={Boolean(busy)}>返回推荐方案继续</button>
+          </div>
+        </article>
       )}
 
       <div className="status-grid">
@@ -525,7 +543,7 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
         {report && <ConnectivityReportView report={report} />}
       </article>
 
-      <button onClick={onNext} disabled={Boolean(busy)}>生成推荐方案</button>
+      <button onClick={onNext} disabled={Boolean(busy)}>{nextActionLabel}</button>
     </section>
   );
 }
