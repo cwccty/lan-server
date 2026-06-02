@@ -18,6 +18,15 @@ type ChecklistItem = {
   detail: string;
 };
 
+type FriendIpAllocation = {
+  id: string;
+  name: string;
+  ip: string;
+  createdAt: number;
+};
+
+const FRIEND_ALLOCATIONS_STORAGE_KEY = 'lan-helper-friend-ip-allocations';
+
 function defaultConfig(profile?: LaunchProfile): LaunchConfig {
   const config: LaunchConfig = {};
   for (const field of profile?.config_fields ?? []) config[field.id] = field.default_value ?? '';
@@ -69,6 +78,34 @@ function badgeClass(kind: ChecklistKind) {
   if (kind === 'warn') return 'badge warn';
   if (kind === 'bad') return 'badge bad';
   return 'badge';
+}
+
+function parseIpv4(value?: string) {
+  const match = value?.trim().match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)(?:\/\d+)?$/);
+  if (!match) return null;
+  const parts = match.slice(1).map(Number);
+  if (parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return null;
+  return parts;
+}
+
+function suggestFriendIp(hostIp: string | undefined, allocations: FriendIpAllocation[]) {
+  const parsed = parseIpv4(hostIp);
+  const base = parsed ? parsed.slice(0, 3).join('.') : '10.10.10';
+  const hostLast = parsed ? parsed[3] : 2;
+  const used = new Set([0, 1, 255, hostLast, ...allocations.map((item) => parseIpv4(item.ip)?.[3]).filter((item): item is number => typeof item === 'number')]);
+  for (let last = 2; last <= 254; last += 1) {
+    if (!used.has(last)) return `${base}.${last}`;
+  }
+  return `${base}.254`;
+}
+
+function loadFriendAllocations() {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(FRIEND_ALLOCATIONS_STORAGE_KEY) || '[]') as FriendIpAllocation[];
+    return Array.isArray(parsed) ? parsed.filter((item) => item?.name && item?.ip) : [];
+  } catch {
+    return [];
+  }
 }
 
 function ConversionProfileView({ analysis }: { analysis: GameAnalysis }) {
@@ -198,7 +235,9 @@ function buildFriendInvitePacket(
   localPortReport: ConnectivityReport | null,
   serverSession: ServerSessionStatus | null,
   n2nConfig: NetworkConfig | null,
-  includeSecret: boolean
+  includeSecret: boolean,
+  friendName: string,
+  friendIp: string
 ) {
   const defaultPort = analysis?.default_ports[0] ?? 7777;
   const profile = analysis?.multiplayer_conversion;
@@ -217,7 +256,8 @@ function buildFriendInvitePacket(
     `房主虚拟 IP：${hostVirtualIp}`,
     `n2n community：${n2nConfig?.room_name || '待填写'}`,
     `n2n supernode：${n2nConfig?.supernode || n2n?.supernode || '待填写'}`,
-    `分配给你的虚拟 IP：请让房主填写一个不重复地址，例如 10.10.10.3`,
+    `邀请对象：${friendName || '未填写昵称'}`,
+    `分配给你的虚拟 IP：${friendIp || '请让房主先分配一个不重复地址，例如 10.10.10.3'}`,
     `n2n 密钥：${includeSecret ? n2nConfig?.secret || '待填写' : '已隐藏，请让房主单独确认或勾选后复制'}`,
     '',
     '当前检测状态：',
@@ -229,7 +269,7 @@ function buildFriendInvitePacket(
     '',
     '朋友操作：',
     '1. 先打开联机助手，进入通用组网中心。',
-    '2. 使用上面的 n2n community、supernode 和密钥，并给自己分配一个不重复的虚拟 IP。',
+    `2. 使用上面的 n2n community、supernode 和密钥；你的虚拟 IP 填 ${friendIp || '房主分配给你的地址'}，不要和别人重复。`,
     '3. 启动 n2n edge，等待 ACK/PONG。',
     `4. 打开游戏，在 LAN / Join via IP / 直连入口连接 ${hostVirtualIp}:${defaultPort}。`,
     '',
@@ -252,6 +292,9 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
   const [localPortReport, setLocalPortReport] = useState<ConnectivityReport | null>(null);
   const [n2nConfig, setN2nConfig] = useState<NetworkConfig | null>(null);
   const [includeSecretInInvite, setIncludeSecretInInvite] = useState(false);
+  const [friendName, setFriendName] = useState('');
+  const [selectedFriendIp, setSelectedFriendIp] = useState('');
+  const [friendAllocations, setFriendAllocations] = useState<FriendIpAllocation[]>([]);
   const [copyMessage, setCopyMessage] = useState('');
 
   const profilesById = useMemo(() => {
@@ -262,7 +305,9 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
 
   const defaultPort = analysis?.default_ports[0] ?? 7777;
   const checklist = buildChecklist(analysis, n2nDiagnostics, serverSession, localPortReport, launchResult);
-  const friendInvitePacket = buildFriendInvitePacket(analysis, n2nDiagnostics, localPortReport, serverSession, n2nConfig, includeSecretInInvite);
+  const hostVirtualIp = n2nConfig?.local_ip || n2nDiagnostics?.virtual_ip;
+  const nextSuggestedFriendIp = suggestFriendIp(hostVirtualIp, friendAllocations);
+  const friendInvitePacket = buildFriendInvitePacket(analysis, n2nDiagnostics, localPortReport, serverSession, n2nConfig, includeSecretInInvite, friendName, selectedFriendIp);
 
   const refreshExecutionChecklist = async (nextAnalysis = analysis) => {
     setIsRefreshingChecklist(true);
@@ -310,6 +355,19 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
       });
   }, [gameId]);
 
+  useEffect(() => {
+    const stored = loadFriendAllocations();
+    setFriendAllocations(stored);
+    if (stored[0]) {
+      setFriendName(stored[0].name);
+      setSelectedFriendIp(stored[0].ip);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(FRIEND_ALLOCATIONS_STORAGE_KEY, JSON.stringify(friendAllocations));
+  }, [friendAllocations]);
+
   const updateConfigValue = (profileId: string, fieldId: string, value: string | boolean) => {
     setProfileConfigs((current) => ({ ...current, [profileId]: { ...(current[profileId] ?? {}), [fieldId]: value } }));
   };
@@ -352,6 +410,35 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
   const copyFriendInvitePacket = async () => {
     await navigator.clipboard?.writeText(friendInvitePacket);
     setCopyMessage('游戏邀请好友包已复制。若还没有 community / 密钥，请再到通用组网中心复制完整组网配置。');
+  };
+
+  const allocateFriendIp = () => {
+    const name = friendName.trim() || `好友 ${friendAllocations.length + 1}`;
+    const existing = friendAllocations.find((item) => item.name === name);
+    if (existing) {
+      setSelectedFriendIp(existing.ip);
+      setFriendName(existing.name);
+      setCopyMessage(`已选择 ${existing.name} 的虚拟 IP：${existing.ip}`);
+      return;
+    }
+    const next: FriendIpAllocation = {
+      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      name,
+      ip: nextSuggestedFriendIp,
+      createdAt: Date.now()
+    };
+    setFriendAllocations((current) => [...current, next]);
+    setFriendName(next.name);
+    setSelectedFriendIp(next.ip);
+    setCopyMessage(`已为 ${next.name} 分配虚拟 IP：${next.ip}`);
+  };
+
+  const removeFriendAllocation = (id: string) => {
+    setFriendAllocations((current) => current.filter((item) => item.id !== id));
+    const removed = friendAllocations.find((item) => item.id === id);
+    if (removed?.ip === selectedFriendIp) {
+      setSelectedFriendIp('');
+    }
   };
 
   return (
@@ -400,6 +487,36 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
             <span className={n2nDiagnostics?.ok_link && localPortReport?.reachable ? 'badge good' : 'badge warn'}>
               {n2nDiagnostics?.ok_link && localPortReport?.reachable ? '可尝试邀请' : '证据待补齐'}
             </span>
+          </div>
+          <div className="config-panel">
+            <h4>好友虚拟 IP 分配器</h4>
+            <p className="muted">给每个好友分配不同的虚拟 IP，避免多人都填写 10.10.10.3 导致 n2n 冲突。</p>
+            <label>
+              好友昵称
+              <input value={friendName} onChange={(event) => setFriendName(event.target.value)} placeholder="例如 小明" />
+              <small className="muted">当前建议 IP：{nextSuggestedFriendIp}；房主 IP 基于最近 n2n 配置或当前虚拟网卡推断。</small>
+            </label>
+            <div className="actions">
+              <button type="button" onClick={allocateFriendIp}>分配 / 选择好友虚拟 IP</button>
+              {selectedFriendIp && <span className="badge good">当前邀请对象：{friendName || '未填写'} · {selectedFriendIp}</span>}
+            </div>
+            {friendAllocations.length > 0 && (
+              <table className="adapter-table">
+                <thead><tr><th>好友</th><th>虚拟 IP</th><th>操作</th></tr></thead>
+                <tbody>
+                  {friendAllocations.map((item) => (
+                    <tr key={item.id}>
+                      <td>{item.name}</td>
+                      <td>{item.ip}</td>
+                      <td>
+                        <button type="button" className="secondary" onClick={() => { setFriendName(item.name); setSelectedFriendIp(item.ip); }}>用于邀请</button>
+                        <button type="button" className="danger" onClick={() => removeFriendAllocation(item.id)}>删除</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
           <pre>{friendInvitePacket}</pre>
           <label>

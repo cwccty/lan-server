@@ -466,6 +466,19 @@ https://raw.githubusercontent.com/cwccty/lan-server/master/adapter-registry/inde
 
 验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。release exe：src-tauri\target\release\lan-helper.exe。
 
+## 2026-06-03 好友虚拟 IP 分配器
+
+已在推荐页的“游戏邀请好友包”中加入好友虚拟 IP 分配器。
+
+- 用户可以输入好友昵称，点击“分配 / 选择好友虚拟 IP”。
+- 分配器会根据房主最近 n2n 配置中的 `local_ip` 或当前检测到的 n2n 虚拟 IP 推断网段，默认从同网段分配不重复地址。
+- 自动避开 0、1、255、房主 IP 和已经分配给其他好友的地址。
+- 分配记录保存在 localStorage：`lan-helper-friend-ip-allocations`。
+- 可以从分配表中选择某个好友用于当前邀请，也可以删除分配记录。
+- 游戏邀请好友包会写入“邀请对象”和“分配给你的虚拟 IP”，减少多人填写同一个虚拟 IP 造成 IP/MAC 冲突。
+
+验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。release exe：src-tauri\target\release\lan-helper.exe。
+
 ## 2026-06-03 推荐页读取最近 n2n 配置
 
 已让推荐页可以读取最近一次保存的 n2n 配置，并把它用于“游戏邀请好友包”。
