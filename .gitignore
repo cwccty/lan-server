@@ -14,3 +14,4 @@ tools/n2n/n2n.pid
 heic_preview.png
 tools/n2n/source/
 adapters/games/registry_*.json
+.playwright-mcp/

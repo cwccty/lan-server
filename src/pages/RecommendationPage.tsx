@@ -8,48 +8,57 @@ type ProfileConfigState = Record<string, LaunchConfig>;
 
 function defaultConfig(profile?: LaunchProfile): LaunchConfig {
   const config: LaunchConfig = {};
-  for (const field of profile?.config_fields ?? []) {
-    config[field.id] = field.default_value ?? '';
-  }
+  for (const field of profile?.config_fields ?? []) config[field.id] = field.default_value ?? '';
   return config;
 }
 
 const capabilityLabels: Record<string, string> = {
-  native_lan_ip: '原生 LAN/IP 直连',
-  hidden_dedicated_server: '隐藏/独立服务端',
-  lan_discovery_broadcast: '局域网广播发现',
-  tcp_udp_proxy_possible: '可尝试端口代理',
-  community_mod: '社区 Mod 联机',
-  official_only: '仅官方/平台联机',
-  unsupported: '暂不支持转换',
-  unknown: '未知，需人工适配'
+  native_lan_ip: '?? LAN/IP ??',
+  hidden_dedicated_server: '?? / ?????',
+  lan_discovery_broadcast: '???????',
+  tcp_udp_proxy_possible: '???????',
+  community_mod: '?? Mod ??',
+  official_only: '??? / ????',
+  unsupported: '??????',
+  unknown: '?????????'
 };
 
 const methodLabels: Record<string, string> = {
-  virtual_lan: '虚拟局域网',
-  dedicated_server_launcher: '服务端启动器',
-  broadcast_bridge: '广播桥',
-  port_proxy: '端口代理',
-  mod_installer: 'Mod 安装器',
-  steam_relay_plugin: 'Steam Relay 插件',
-  manual_guide: '手动说明',
-  not_supported: '不支持'
+  virtual_lan: '?????',
+  dedicated_server_launcher: '??????',
+  broadcast_bridge: '???',
+  port_proxy: '????',
+  mod_installer: 'Mod ???',
+  steam_relay_plugin: 'Steam Relay ??',
+  manual_guide: '????',
+  not_supported: '???'
 };
 
 const sourceLabels: Record<string, string> = {
-  builtin: '内置适配器',
-  registry: '共享库适配器',
-  custom: '本地自定义适配器',
-  steam_scan: 'Steam 自动扫描'
+  builtin: '?????',
+  registry: '??????',
+  custom: '????????',
+  steam_scan: 'Steam ????'
 };
+
+const methodOrder = [
+  'virtual_lan',
+  'dedicated_server_launcher',
+  'broadcast_bridge',
+  'port_proxy',
+  'mod_installer',
+  'steam_relay_plugin',
+  'manual_guide',
+  'not_supported'
+];
 
 function ConversionProfileView({ analysis }: { analysis: GameAnalysis }) {
   const profile = analysis.multiplayer_conversion;
   if (!profile) {
     return (
       <article className="card error-card">
-        <h3>联机能力转换判断</h3>
-        <p>该游戏还没有转换画像，暂时不能判断能否转换成本地联机。</p>
+        <h3>????????</h3>
+        <p>???????????????????????? / ??????</p>
       </article>
     );
   }
@@ -57,28 +66,43 @@ function ConversionProfileView({ analysis }: { analysis: GameAnalysis }) {
   return (
     <article className={profile.can_convert_to_lan ? 'card conversion-card' : 'card error-card'}>
       <div className="feature-card-title">
-        <h3>联机能力转换判断</h3>
+        <div>
+          <h3>????????</h3>
+          <p className="muted">???????????????????????</p>
+        </div>
         <span className={profile.can_convert_to_lan ? 'badge good' : 'badge bad'}>
-          {profile.can_convert_to_lan ? '可转换' : '暂不承诺'}
+          {profile.can_convert_to_lan ? '???? LAN' : '??????'}
         </span>
       </div>
-      <p>能力类型：<strong>{capabilityLabels[profile.capability] ?? profile.capability}</strong></p>
-      {analysis.adapter_source && <p>适配器来源：<strong>{sourceLabels[analysis.adapter_source] ?? analysis.adapter_source}</strong></p>}
-      <p>风险等级：<strong>{profile.risk_level}</strong></p>
-      <p>转换方式：</p>
-      <div className="badge-row">
-        {profile.methods.map((method) => (
-          <span className="badge" key={method}>{methodLabels[method] ?? method}</span>
-        ))}
+      <div className="status-grid compact">
+        <div className="status-tile"><span>????</span><strong>{capabilityLabels[profile.capability] ?? profile.capability}</strong><small>{profile.capability}</small></div>
+        <div className="status-tile"><span>????</span><strong>{profile.risk_level}</strong><small>??????</small></div>
+        <div className="status-tile"><span>???</span><strong>{analysis.confidence}</strong><small>??????????</small></div>
+        <div className="status-tile"><span>?????</span><strong>{sourceLabels[analysis.adapter_source ?? ''] ?? analysis.adapter_source ?? '??'}</strong><small>custom &gt; registry &gt; builtin</small></div>
       </div>
-      <p>需要组件：</p>
-      <ul>
-        {profile.required_components.map((component) => <li key={component}>{component}</li>)}
-      </ul>
-      <p>判断说明：</p>
-      <ul>
-        {profile.notes.map((note) => <li key={note}>{note}</li>)}
-      </ul>
+
+      <h4>??????</h4>
+      <div className="badge-row">
+        {methodOrder.map((method) => {
+          const active = profile.methods.includes(method as never);
+          const future = ['broadcast_bridge', 'port_proxy', 'mod_installer', 'steam_relay_plugin'].includes(method) && !active;
+          return <span className={active ? 'badge good' : future ? 'badge warn' : 'badge'} key={method}>{methodLabels[method]} ? {active ? '??/??' : future ? '????' : '???'}</span>;
+        })}
+      </div>
+
+      <div className="content-with-aside">
+        <div>
+          <h4>????</h4>
+          <ul>{profile.required_components.map((component) => <li key={component}>{component}</li>)}</ul>
+          <h4>????</h4>
+          <ul>{profile.notes.map((note) => <li key={note}>{note}</li>)}</ul>
+        </div>
+        <aside className="right-panel">
+          <h3>????</h3>
+          <p>??????????? / ?????Mod ???????????????????</p>
+          <span className="badge warn">???????</span>
+        </aside>
+      </div>
     </article>
   );
 }
@@ -93,9 +117,7 @@ export function RecommendationPage({ gameId }: { gameId?: string }) {
 
   const profilesById = useMemo(() => {
     const map = new Map<string, LaunchProfile>();
-    for (const profile of analysis?.launch_profiles ?? []) {
-      map.set(profile.id, profile);
-    }
+    for (const profile of analysis?.launch_profiles ?? []) map.set(profile.id, profile);
     return map;
   }, [analysis]);
 
@@ -104,156 +126,118 @@ export function RecommendationPage({ gameId }: { gameId?: string }) {
     setLaunchError(null);
     setAnalysis(null);
     setProfileConfigs({});
-
-    if (!gameId) {
-      setItems([]);
-      return;
-    }
+    if (!gameId) { setItems([]); return; }
 
     Promise.all([recommendPlans(gameId), analyzeGame(gameId)])
       .then(([recommendations, nextAnalysis]) => {
         setItems(recommendations);
         setAnalysis(nextAnalysis);
-
         const nextConfigs: ProfileConfigState = {};
-        for (const profile of nextAnalysis.launch_profiles) {
-          nextConfigs[profile.id] = defaultConfig(profile);
-        }
+        for (const profile of nextAnalysis.launch_profiles) nextConfigs[profile.id] = defaultConfig(profile);
         setProfileConfigs(nextConfigs);
       })
-      .catch((error) => {
-        setItems([]);
-        setLaunchError(String(error));
-      });
+      .catch((error) => { setItems([]); setLaunchError(String(error)); });
   }, [gameId]);
 
   const updateConfigValue = (profileId: string, fieldId: string, value: string | boolean) => {
-    setProfileConfigs((current) => ({
-      ...current,
-      [profileId]: {
-        ...(current[profileId] ?? {}),
-        [fieldId]: value
-      }
-    }));
+    setProfileConfigs((current) => ({ ...current, [profileId]: { ...(current[profileId] ?? {}), [fieldId]: value } }));
   };
 
   const runLaunchProfile = (profileId: string) => {
-    if (!gameId) {
-      setLaunchError('请先选择游戏。');
-      return;
-    }
-
+    if (!gameId) { setLaunchError('???????'); return; }
     setIsLaunching(true);
     setLaunchError(null);
-    setLaunchResult({
-      ok: true,
-      message: `正在执行启动项：${profileId} ...`
-    });
-
+    setLaunchResult({ ok: true, message: `????????${profileId} ...` });
     launchProfile(gameId, profileId, profileConfigs[profileId] ?? {})
       .then(setLaunchResult)
-      .catch((error) => {
-        setLaunchResult(null);
-        setLaunchError(String(error));
-      })
+      .catch((error) => { setLaunchResult(null); setLaunchError(String(error)); })
       .finally(() => setIsLaunching(false));
   };
 
   return (
-    <section>
-      <h2>推荐方案</h2>
-      <p className="muted">
-        开服设置使用统一表单渲染：不同游戏只需要在适配器里声明参数，不需要为每个游戏单独写一个前端页面。
-      </p>
+    <section className="page-stack">
+      <div className="page-header">
+        <div>
+          <span className="eyebrow">RECOMMENDATION</span>
+          <h2>????</h2>
+          <p className="muted">???????????????? / ??????</p>
+        </div>
+        <span className="badge warn">??????</span>
+      </div>
 
       <article className="card pending-feature">
-        <h3>这里不是“一键已经联机”</h3>
-        <p>
-          推荐页的作用是把扫描到的游戏匹配到合适流程：虚拟局域网、启动客户端、启动本地服务端或查看说明。
-          真正能不能本地联机，还要看下面几个真实条件是否成立。
-        </p>
+        <h3>????????</h3>
+        <p>??????????????????????????????????????????????????????????????????????????????</p>
         <ol>
-          <li>双方已经在同一个 n2n / Radmin / 现有局域网里，并且虚拟 IP 不冲突。</li>
-          <li>房主已经启动游戏房间或 Dedicated Server，并且端口正在监听。</li>
-          <li>加入方在游戏内选择 LAN / IP 直连，连接房主虚拟 IP 和游戏端口。</li>
-          <li>如果这个游戏本身没有 LAN/IP/服务端能力，需要后续适配广播桥、端口代理、Mod 或平台网络插件，不能只靠“启动客户端”。</li>
+          <li>?????? n2n / Radmin / ??????????? IP ????</li>
+          <li>??????????? Dedicated Server???????? PID ???</li>
+          <li>????????? LAN / IP ????????? IP ??????</li>
+          <li>?????? LAN/IP/?????????????????????Mod ????????</li>
         </ol>
       </article>
 
+      {analysis && (
+        <article className="card">
+          <h3>????</h3>
+          <div className="status-grid">
+            <div className="status-tile"><span>??</span><strong>{analysis.display_name}</strong><small>{analysis.game_id}</small></div>
+            <div className="status-tile"><span>??</span><strong>{analysis.detected_path ?? '????'}</strong><small>????</small></div>
+            <div className="status-tile"><span>???</span><strong>{sourceLabels[analysis.adapter_source ?? ''] ?? analysis.adapter_source ?? '??'}</strong><small>??</small></div>
+            <div className="status-tile"><span>????</span><strong>{analysis.default_ports.join(', ') || '-'}</strong><small>??????</small></div>
+          </div>
+        </article>
+      )}
+
       {analysis && <ConversionProfileView analysis={analysis} />}
 
-      {items.length === 0 ? (
-        <p>暂无推荐，请先选择游戏。</p>
-      ) : (
-        items.map((item) => {
-          const profile = item.launch_profile_id ? profilesById.get(item.launch_profile_id) : undefined;
-          return (
-            <article className="card" key={item.id}>
-              <RecommendationCard
-                item={item}
-                launchProfileType={profile?.type}
-                onLaunch={
-                  gameId && item.launch_profile_id
-                    ? () => runLaunchProfile(item.launch_profile_id as string)
-                    : undefined
-                }
-                disabled={isLaunching}
-              />
-              {profile?.config_fields && profile.config_fields.length > 0 && (
-                <div className="config-panel">
-                  <h4>启动参数</h4>
-                  {profile.config_fields.map((field) => (
-                    <label key={field.id}>
-                      <span>
-                        {field.label}
-                        {field.required ? ' *' : ''}
-                      </span>
-                      {field.type === 'select' ? (
-                        <select
-                          value={String(profileConfigs[profile.id]?.[field.id] ?? field.default_value ?? '')}
-                          onChange={(event) => updateConfigValue(profile.id, field.id, event.target.value)}
-                        >
-                          {(field.options ?? []).map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </select>
-                      ) : field.type === 'checkbox' ? (
-                        <input
-                          type="checkbox"
-                          checked={Boolean(profileConfigs[profile.id]?.[field.id])}
-                          onChange={(event) => updateConfigValue(profile.id, field.id, event.target.checked)}
-                        />
-                      ) : (
-                        <input
-                          type={field.type === 'password' ? 'password' : field.type === 'number' ? 'number' : 'text'}
-                          value={String(profileConfigs[profile.id]?.[field.id] ?? field.default_value ?? '')}
-                          onChange={(event) => updateConfigValue(profile.id, field.id, event.target.value)}
-                        />
-                      )}
-                      {field.help && <small className="muted">{field.help}</small>}
-                    </label>
-                  ))}
-                </div>
-              )}
-            </article>
-          );
-        })
-      )}
+      <article className="card">
+        <h3>??????</h3>
+        <div className="feature-grid">
+          {['?????', '???????', '????', '?????'].map((title, index) => (
+            <div className="status-tile" key={title}><span>?? {index + 1}</span><strong>{title}</strong><small>?????</small></div>
+          ))}
+        </div>
+      </article>
 
-      {launchError && (
-        <article className="card error-card">
-          <h3>操作异常</h3>
-          <p>{launchError}</p>
-        </article>
-      )}
-      {launchResult && (
-        <article className="card">
-          <h3>{launchResult.ok ? '操作结果' : '操作失败'}</h3>
-          <p>{launchResult.message}</p>
-        </article>
-      )}
+      {items.length === 0 ? <article className="card empty-state"><h3>????</h3><p className="muted">???????????????</p></article> : items.map((item) => {
+        const profile = item.launch_profile_id ? profilesById.get(item.launch_profile_id) : undefined;
+        return (
+          <article className="card" key={item.id}>
+            <RecommendationCard item={item} launchProfileType={profile?.type} onLaunch={gameId && item.launch_profile_id ? () => runLaunchProfile(item.launch_profile_id as string) : undefined} disabled={isLaunching} />
+            {profile?.config_fields && profile.config_fields.length > 0 && (
+              <div className="config-panel">
+                <h4>???????</h4>
+                {profile.config_fields.map((field) => (
+                  <label key={field.id}>
+                    <span>{field.label}{field.required ? ' *' : ''}</span>
+                    {field.type === 'select' ? (
+                      <select value={String(profileConfigs[profile.id]?.[field.id] ?? field.default_value ?? '')} onChange={(event) => updateConfigValue(profile.id, field.id, event.target.value)}>
+                        {(field.options ?? []).map((option) => <option key={option} value={option}>{option}</option>)}
+                      </select>
+                    ) : field.type === 'checkbox' ? (
+                      <input type="checkbox" checked={Boolean(profileConfigs[profile.id]?.[field.id])} onChange={(event) => updateConfigValue(profile.id, field.id, event.target.checked)} />
+                    ) : (
+                      <input type={field.type === 'password' ? 'password' : field.type === 'number' ? 'number' : 'text'} value={String(profileConfigs[profile.id]?.[field.id] ?? field.default_value ?? '')} onChange={(event) => updateConfigValue(profile.id, field.id, event.target.value)} />
+                    )}
+                    {field.help && <small className="muted">{field.help}</small>}
+                  </label>
+                ))}
+                <p className="muted">????????????????????</p>
+              </div>
+            )}
+          </article>
+        );
+      })}
+
+      {launchError && <article className="card error-card"><h3>????</h3><p>{launchError}</p></article>}
+      {launchResult && <article className="card"><h3>{launchResult.ok ? '????' : '????'}</h3><p>{launchResult.message}</p></article>}
+
+      <article className="card">
+        <h3>??????</h3>
+        <div className="filter-list">
+          <span className="future-chip">Steam Relay ??</span><span className="future-chip">???</span><span className="future-chip">????</span><span className="future-chip">Mod ???</span>
+        </div>
+      </article>
     </section>
   );
 }

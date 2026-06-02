@@ -19,24 +19,25 @@ export function RecommendationCard({
         : '执行这个启动项';
 
   return (
-    <div>
-      <h3>{item.title}</h3>
-      <p>等级：{item.level}</p>
+    <div className="recommendation-card">
+      <div className="feature-card-title">
+        <h3>{item.title}</h3>
+        <span className="badge good">{item.level}</span>
+      </div>
       {item.launch_profile_id && (
-        <p>
+        <p className="muted">
           启动项：{item.launch_profile_id}
           {launchProfileType ? `（${launchProfileType}）` : ''}
         </p>
       )}
       <p className="muted">
-        注意：推荐方案是在告诉你“应该用哪种联机流程”。点击启动项只会启动游戏客户端或本地服务端，
-        不等于已经完成本地联机。
+        推荐方案表示“应该走哪种联机流程”，不等于点击后已经联机。真正联机仍需要组网、服务端监听和游戏内加入。
       </p>
-      <ul>
+      <ol className="step-list">
         {item.required_actions.map((action) => (
           <li key={action}>{action}</li>
         ))}
-      </ul>
+      </ol>
       {item.launch_profile_id && onLaunch && (
         <button onClick={onLaunch} disabled={disabled}>
           {disabled ? '执行中...' : launchLabel}

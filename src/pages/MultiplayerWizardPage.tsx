@@ -34,8 +34,8 @@ function recentSupernodeFromBackends(backends: BackendSummary[]) {
 }
 
 const t = {
-  title: '\u8054\u673a\u5411\u5bfc',
-  intro: '\u7b2c\u4e00\u7248\u5148\u56f4\u7ed5 Terraria + n2n\uff0c\u628a\u623f\u4e3b\u548c\u52a0\u5165\u8005\u6d41\u7a0b\u4e32\u6210\u4e00\u6761\u9f99\u3002',
+  title: 'Terraria ??',
+  intro: 'Terraria ????????????????????????????? PID ??????n2n ????????????????',
   busy: '\u6b63\u5728\u5904\u7406',
   wait: '\u8bf7\u7a0d\u7b49\uff0c\u4e0d\u8981\u91cd\u590d\u70b9\u51fb\u3002',
   role: '\u9009\u62e9\u8eab\u4efd',
@@ -344,7 +344,7 @@ export function MultiplayerWizardPage() {
     });
 
   return (
-    <section>
+    <section className="page-stack">
       <h2>{t.title}</h2>
       <p className="muted">{t.intro}</p>
 
