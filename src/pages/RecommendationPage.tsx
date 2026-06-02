@@ -14,6 +14,67 @@ function defaultConfig(profile?: LaunchProfile): LaunchConfig {
   return config;
 }
 
+const capabilityLabels: Record<string, string> = {
+  native_lan_ip: '原生 LAN/IP 直连',
+  hidden_dedicated_server: '隐藏/独立服务端',
+  lan_discovery_broadcast: '局域网广播发现',
+  tcp_udp_proxy_possible: '可尝试端口代理',
+  community_mod: '社区 Mod 联机',
+  official_only: '仅官方/平台联机',
+  unsupported: '暂不支持转换',
+  unknown: '未知，需人工适配'
+};
+
+const methodLabels: Record<string, string> = {
+  virtual_lan: '虚拟局域网',
+  dedicated_server_launcher: '服务端启动器',
+  broadcast_bridge: '广播桥',
+  port_proxy: '端口代理',
+  mod_installer: 'Mod 安装器',
+  steam_relay_plugin: 'Steam Relay 插件',
+  manual_guide: '手动说明',
+  not_supported: '不支持'
+};
+
+function ConversionProfileView({ analysis }: { analysis: GameAnalysis }) {
+  const profile = analysis.multiplayer_conversion;
+  if (!profile) {
+    return (
+      <article className="card error-card">
+        <h3>联机能力转换判断</h3>
+        <p>该游戏还没有转换画像，暂时不能判断能否转换成本地联机。</p>
+      </article>
+    );
+  }
+
+  return (
+    <article className={profile.can_convert_to_lan ? 'card conversion-card' : 'card error-card'}>
+      <div className="feature-card-title">
+        <h3>联机能力转换判断</h3>
+        <span className={profile.can_convert_to_lan ? 'badge good' : 'badge bad'}>
+          {profile.can_convert_to_lan ? '可转换' : '暂不承诺'}
+        </span>
+      </div>
+      <p>能力类型：<strong>{capabilityLabels[profile.capability] ?? profile.capability}</strong></p>
+      <p>风险等级：<strong>{profile.risk_level}</strong></p>
+      <p>转换方式：</p>
+      <div className="badge-row">
+        {profile.methods.map((method) => (
+          <span className="badge" key={method}>{methodLabels[method] ?? method}</span>
+        ))}
+      </div>
+      <p>需要组件：</p>
+      <ul>
+        {profile.required_components.map((component) => <li key={component}>{component}</li>)}
+      </ul>
+      <p>判断说明：</p>
+      <ul>
+        {profile.notes.map((note) => <li key={note}>{note}</li>)}
+      </ul>
+    </article>
+  );
+}
+
 export function RecommendationPage({ gameId }: { gameId?: string }) {
   const [items, setItems] = useState<Recommendation[]>([]);
   const [analysis, setAnalysis] = useState<GameAnalysis | null>(null);
@@ -110,6 +171,8 @@ export function RecommendationPage({ gameId }: { gameId?: string }) {
           <li>如果这个游戏本身没有 LAN/IP/服务端能力，需要后续适配广播桥、端口代理、Mod 或平台网络插件，不能只靠“启动客户端”。</li>
         </ol>
       </article>
+
+      {analysis && <ConversionProfileView analysis={analysis} />}
 
       {items.length === 0 ? (
         <p>暂无推荐，请先选择游戏。</p>

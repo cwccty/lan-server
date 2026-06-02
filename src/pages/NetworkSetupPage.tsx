@@ -3,20 +3,6 @@ import { listNetworkBackends, setupNetwork, startNetwork, stopNetwork, testConne
 import { BackendCard } from '../components/BackendCard';
 import type { BackendRuntimeStatus, BackendSummary, ConnectivityReport, SetupResult } from '../types/network';
 
-type RoomMember = {
-  id: string;
-  name: string;
-  virtualIp: string;
-  role: '房主' | '加入者';
-};
-
-type ChatMessage = {
-  id: string;
-  sender: string;
-  text: string;
-  createdAt: string;
-};
-
 type SteamRelayDraft = {
   appId: string;
   roomName: string;
@@ -90,12 +76,6 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
   const [n2nResult, setN2nResult] = useState<SetupResult | BackendRuntimeStatus | null>(null);
   const [copyMessage, setCopyMessage] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
-  const [playerName, setPlayerName] = useState('房主');
-  const [memberName, setMemberName] = useState('朋友');
-  const [memberIp, setMemberIp] = useState('10.10.10.3');
-  const [roomMembers, setRoomMembers] = useState<RoomMember[]>([]);
-  const [chatInput, setChatInput] = useState('');
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [steamRelayDraft, setSteamRelayDraft] = useState<SteamRelayDraft>({
     appId: '',
     roomName: 'steam-relay-room-001',
@@ -116,32 +96,21 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
 
   useEffect(() => {
     refreshBackends();
-    const saved = window.localStorage.getItem('lan-helper-room-state');
+    const saved = window.localStorage.getItem('lan-helper-steam-relay-draft');
     if (!saved) {
       return;
     }
     try {
-      const state = JSON.parse(saved) as {
-        playerName?: string;
-        members?: RoomMember[];
-        messages?: ChatMessage[];
-        steamRelayDraft?: SteamRelayDraft;
-      };
-      if (state.playerName) setPlayerName(state.playerName);
-      if (Array.isArray(state.members)) setRoomMembers(state.members);
-      if (Array.isArray(state.messages)) setChatMessages(state.messages);
-      if (state.steamRelayDraft) setSteamRelayDraft((current) => ({ ...current, ...state.steamRelayDraft }));
+      const state = JSON.parse(saved) as SteamRelayDraft;
+      setSteamRelayDraft((current) => ({ ...current, ...state }));
     } catch {
-      // Ignore incompatible old room state.
+      // Ignore incompatible old Steam relay draft state.
     }
   }, []);
 
   useEffect(() => {
-    window.localStorage.setItem(
-      'lan-helper-room-state',
-      JSON.stringify({ playerName, members: roomMembers, messages: chatMessages, steamRelayDraft })
-    );
-  }, [playerName, roomMembers, chatMessages, steamRelayDraft]);
+    window.localStorage.setItem('lan-helper-steam-relay-draft', JSON.stringify(steamRelayDraft));
+  }, [steamRelayDraft]);
 
   const runAction = async <T,>(label: string, action: () => Promise<T>, onDone?: (value: T) => void) => {
     if (busy) return;
@@ -191,55 +160,14 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
     '后续制作点：Steamworks SDK 封装、房间创建/加入、成员状态、聊天/信令、与端口代理或虚拟 LAN 的桥接。'
   ].join('\n');
 
-  const roomPacketText = [
-    '【联机助手房间信息】',
-    `房间名/community：${roomName}`,
-    `supernode：${supernode || '未填写'}`,
-    `房主虚拟 IP：${localIp}`,
-    `游戏端口：${gamePort}`,
-    '',
-    '成员：',
-    ...(roomMembers.length > 0 ? roomMembers.map((member) => `- ${member.role} ${member.name}：${member.virtualIp}`) : ['- 暂无成员，先添加自己和朋友。']),
-    '',
-    '置顶说明：双方 community、密钥、supernode 必须一致；每个人的虚拟 IP 必须不同。',
-    '',
-    '聊天记录：',
-    ...(chatMessages.length > 0 ? chatMessages.map((message) => `[${message.createdAt}] ${message.sender}：${message.text}`) : ['暂无聊天记录。'])
-  ].join('\n');
-
   const copyFriendConfig = async () => {
     await navigator.clipboard?.writeText(friendConfigText);
     setCopyMessage('通用组网配置已复制，可以发给朋友。');
   };
 
-  const copyRoomPacket = async () => {
-    await navigator.clipboard?.writeText(roomPacketText);
-    setCopyMessage('房间信息和聊天记录已复制，可以发给朋友。');
-  };
-
   const copySteamRelayDraft = async () => {
     await navigator.clipboard?.writeText(steamRelayPacketText);
     setCopyMessage('Steam 中继入口草案已复制，可作为后续插件制作说明。');
-  };
-
-  const addMember = (role: RoomMember['role'], name: string, virtualIp: string) => {
-    const trimmedName = name.trim();
-    const trimmedIp = virtualIp.trim();
-    if (!trimmedName || !trimmedIp) return;
-    setRoomMembers((current) => [
-      ...current.filter((member) => member.virtualIp !== trimmedIp),
-      { id: `${Date.now()}-${trimmedIp}`, name: trimmedName, virtualIp: trimmedIp, role }
-    ]);
-  };
-
-  const sendRoomMessage = () => {
-    const text = chatInput.trim();
-    if (!text) return;
-    setChatMessages((current) => [
-      ...current,
-      { id: `${Date.now()}`, sender: playerName.trim() || '我', text, createdAt: new Date().toLocaleString() }
-    ]);
-    setChatInput('');
   };
 
   return (
@@ -332,55 +260,6 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
           <pre>{steamRelayPacketText}</pre>
           <button type="button" onClick={copySteamRelayDraft} disabled={Boolean(busy)}>复制 Steam 中继制作草案</button>
         </details>
-      </article>
-
-      <article className="card">
-        <h3>房间与聊天</h3>
-        <p className="muted">当前是本地房间面板：用于整理成员、置顶配置和复制聊天记录。它不是实时联网聊天；未来接入信令/中继后可升级为实时房间。</p>
-        <div className="room-grid">
-          <section className="config-panel">
-            <h4>房间摘要</h4>
-            <p>房间名：<strong>{roomName}</strong></p>
-            <p>supernode：<strong>{supernode || '未填写'}</strong></p>
-            <p>房主虚拟 IP：<strong>{localIp}</strong></p>
-            <p>游戏端口：<strong>{gamePort}</strong></p>
-            <button type="button" onClick={() => addMember('房主', playerName || '房主', localIp)} disabled={Boolean(busy)}>把我加入房间</button>
-          </section>
-          <section className="config-panel">
-            <h4>成员</h4>
-            <label>我的昵称<input value={playerName} onChange={(event) => setPlayerName(event.target.value)} disabled={Boolean(busy)} /></label>
-            <div className="actions">
-              <input value={memberName} onChange={(event) => setMemberName(event.target.value)} placeholder="朋友昵称" disabled={Boolean(busy)} />
-              <input value={memberIp} onChange={(event) => setMemberIp(event.target.value)} placeholder="朋友虚拟 IP" disabled={Boolean(busy)} />
-              <button type="button" onClick={() => addMember('加入者', memberName, memberIp)} disabled={Boolean(busy)}>添加朋友</button>
-            </div>
-            {roomMembers.length === 0 ? <p className="muted">暂无成员。建议先添加自己，再添加朋友的虚拟 IP。</p> : (
-              <ul className="member-list">
-                {roomMembers.map((member) => (
-                  <li key={member.id}><span>{member.role}：{member.name}</span><strong>{member.virtualIp}</strong><button type="button" onClick={() => setRoomMembers((current) => current.filter((item) => item.id !== member.id))} disabled={Boolean(busy)}>移除</button></li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </div>
-        <section className="config-panel">
-          <h4>置顶配置</h4>
-          <pre>{roomPacketText}</pre>
-          <button type="button" onClick={copyRoomPacket} disabled={Boolean(busy)}>复制房间信息和聊天</button>
-          <button type="button" onClick={() => setChatMessages([])} disabled={Boolean(busy) || chatMessages.length === 0}>清空聊天</button>
-        </section>
-        <section className="config-panel">
-          <h4>聊天记录</h4>
-          <div className="chat-panel">
-            {chatMessages.length === 0 ? <p className="muted">暂无消息。可以先写“我已启动 n2n，虚拟 IP 是 10.10.10.2”。</p> : chatMessages.map((message) => (
-              <div className="chat-message" key={message.id}><span>{message.createdAt} · {message.sender}</span><p>{message.text}</p></div>
-            ))}
-          </div>
-          <div className="actions">
-            <input value={chatInput} onChange={(event) => setChatInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') sendRoomMessage(); }} placeholder="输入本地留言，例如：我已启动 n2n，等你加入。" disabled={Boolean(busy)} />
-            <button type="button" onClick={sendRoomMessage} disabled={Boolean(busy) || !chatInput.trim()}>发送到房间记录</button>
-          </div>
-        </section>
       </article>
 
       <article className="card">

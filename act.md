@@ -224,3 +224,23 @@ ConPTY 方案出现 `0xc0000142`。本轮回退为隐藏 `cmd.exe` 托管 Terrar
 - 推荐引擎的步骤中补充 client/server 启动项的边界说明。
 
 产品记忆：未来所有状态必须区分“已启动游戏/服务端”和“已完成组网/可联机”，不能用一个按钮暗示联机已经成功。
+
+## 2026-06-02 联机能力转换系统第一版 + 取消房间聊天
+
+本次按用户要求执行两件事：
+
+1. 推荐页升级为“联机能力转换判断页”：新增 `multiplayer_conversion` 模型，展示游戏是否能转换成本地联机、需要哪些方式/组件、风险等级和判断说明。
+2. 取消本地“房间与聊天”功能：移除房间成员、聊天记录、置顶聊天包，只保留通用组网配置复制。
+
+修改范围：
+
+- `src/types/game.ts`：新增 `MultiplayerCapability`、`ConversionMethod`、`MultiplayerConversionProfile`。
+- `src-tauri/src/models/game.rs`：同步新增转换画像模型。
+- `src-tauri/src/core/capability_engine.rs`：分析结果返回转换画像；未知 Steam 游戏标记为需要人工适配。
+- `src-tauri/src/core/game_detector.rs`：扫描结果携带适配器中的转换画像。
+- `adapters/games/*.json`：为 Terraria、Minecraft Java、Stardew Valley 填写转换画像。
+- `src/pages/RecommendationPage.tsx`：展示“联机能力转换判断”。
+- `src/pages/NetworkSetupPage.tsx`：移除房间与聊天面板。
+- `src/styles/globals.css`：删除聊天/成员样式，新增转换标签样式。
+
+验证：`npm run build` 和 `cargo check --manifest-path src-tauri\\Cargo.toml` 均通过。

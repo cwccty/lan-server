@@ -13,6 +13,42 @@ pub enum GameCapability {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MultiplayerCapability {
+    NativeLanIp,
+    HiddenDedicatedServer,
+    LanDiscoveryBroadcast,
+    TcpUdpProxyPossible,
+    CommunityMod,
+    OfficialOnly,
+    Unsupported,
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConversionMethod {
+    VirtualLan,
+    DedicatedServerLauncher,
+    BroadcastBridge,
+    PortProxy,
+    ModInstaller,
+    SteamRelayPlugin,
+    ManualGuide,
+    NotSupported,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MultiplayerConversionProfile {
+    pub capability: MultiplayerCapability,
+    pub methods: Vec<ConversionMethod>,
+    pub can_convert_to_lan: bool,
+    pub risk_level: String,
+    pub notes: Vec<String>,
+    pub required_components: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LaunchConfigField {
     pub id: String,
     pub label: String,
@@ -44,6 +80,7 @@ pub struct GameSummary {
     pub steam_appid: Option<String>,
     pub detected_path: Option<String>,
     pub capabilities: Vec<GameCapability>,
+    pub multiplayer_conversion: Option<MultiplayerConversionProfile>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -53,6 +90,7 @@ pub struct GameAnalysis {
     pub steam_appid: Option<String>,
     pub detected_path: Option<String>,
     pub capabilities: Vec<GameCapability>,
+    pub multiplayer_conversion: Option<MultiplayerConversionProfile>,
     pub confidence: String,
     pub notes: Vec<String>,
     pub launch_profiles: Vec<LaunchProfile>,
@@ -65,6 +103,7 @@ pub struct GameAdapter {
     pub display_name: String,
     pub steam_appid: Option<String>,
     pub capabilities: Vec<GameCapability>,
+    pub multiplayer_conversion: Option<MultiplayerConversionProfile>,
     pub executables: Vec<String>,
     pub default_ports: Vec<u16>,
     pub launch_profiles: Vec<LaunchProfile>,

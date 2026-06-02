@@ -7,6 +7,35 @@ export type GameCapability =
   | 'official_server'
   | 'unknown';
 
+export type MultiplayerCapability =
+  | 'native_lan_ip'
+  | 'hidden_dedicated_server'
+  | 'lan_discovery_broadcast'
+  | 'tcp_udp_proxy_possible'
+  | 'community_mod'
+  | 'official_only'
+  | 'unsupported'
+  | 'unknown';
+
+export type ConversionMethod =
+  | 'virtual_lan'
+  | 'dedicated_server_launcher'
+  | 'broadcast_bridge'
+  | 'port_proxy'
+  | 'mod_installer'
+  | 'steam_relay_plugin'
+  | 'manual_guide'
+  | 'not_supported';
+
+export interface MultiplayerConversionProfile {
+  capability: MultiplayerCapability;
+  methods: ConversionMethod[];
+  can_convert_to_lan: boolean;
+  risk_level: 'low' | 'medium' | 'high';
+  notes: string[];
+  required_components: string[];
+}
+
 export interface LaunchConfigField {
   id: string;
   label: string;
@@ -34,6 +63,7 @@ export interface GameSummary {
   steam_appid?: string;
   detected_path?: string;
   capabilities: GameCapability[];
+  multiplayer_conversion?: MultiplayerConversionProfile;
 }
 
 export interface GameAnalysis extends GameSummary {
@@ -48,6 +78,7 @@ export interface GameAdapter {
   display_name: string;
   steam_appid?: string;
   capabilities: GameCapability[];
+  multiplayer_conversion?: MultiplayerConversionProfile;
   executables: string[];
   default_ports: number[];
   launch_profiles: LaunchProfile[];

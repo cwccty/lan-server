@@ -20,6 +20,7 @@ pub fn scan_games() -> Result<Vec<GameSummary>, String> {
                 steam_appid: adapter.steam_appid,
                 detected_path,
                 capabilities: adapter.capabilities,
+                multiplayer_conversion: adapter.multiplayer_conversion,
             }
         })
         .collect();
@@ -218,6 +219,7 @@ fn append_unknown_steam_games(games: &mut Vec<GameSummary>, steam_libraries: &[P
                 steam_appid: Some(appid),
                 detected_path,
                 capabilities: vec![GameCapability::Unknown],
+                multiplayer_conversion: None,
             });
         }
     }

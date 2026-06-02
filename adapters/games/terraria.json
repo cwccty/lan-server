@@ -2,9 +2,18 @@
   "game_id": "terraria",
   "display_name": "Terraria",
   "steam_appid": "105600",
-  "capabilities": ["lan", "ip_join", "dedicated_server"],
-  "executables": ["Terraria.exe", "TerrariaServer.exe"],
-  "default_ports": [7777],
+  "capabilities": [
+    "lan",
+    "ip_join",
+    "dedicated_server"
+  ],
+  "executables": [
+    "Terraria.exe",
+    "TerrariaServer.exe"
+  ],
+  "default_ports": [
+    7777
+  ],
   "launch_profiles": [
     {
       "id": "client",
@@ -54,7 +63,10 @@
           "type": "select",
           "default_value": "y",
           "required": true,
-          "options": ["y", "n"],
+          "options": [
+            "y",
+            "n"
+          ],
           "help": "使用虚拟局域网时一般填 n 也可以；公网开服可尝试 y。"
         },
         {
@@ -72,5 +84,23 @@
       "name": "查看连接说明",
       "type": "docs"
     }
-  ]
+  ],
+  "multiplayer_conversion": {
+    "capability": "hidden_dedicated_server",
+    "methods": [
+      "virtual_lan",
+      "dedicated_server_launcher"
+    ],
+    "can_convert_to_lan": true,
+    "risk_level": "low",
+    "notes": [
+      "Terraria ?? IP ?????? TerrariaServer.exe?",
+      "??????? n2n ???????????????????????"
+    ],
+    "required_components": [
+      "n2n/Radmin/?????",
+      "TerrariaServer.exe",
+      "7777 ????????"
+    ]
+  }
 }

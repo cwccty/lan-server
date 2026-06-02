@@ -2,10 +2,40 @@
   "game_id": "stardew_valley",
   "display_name": "Stardew Valley",
   "steam_appid": "413150",
-  "capabilities": ["lan", "ip_join"],
-  "executables": ["Stardew Valley.exe"],
-  "default_ports": [24642],
+  "capabilities": [
+    "lan",
+    "ip_join"
+  ],
+  "executables": [
+    "Stardew Valley.exe"
+  ],
+  "default_ports": [
+    24642
+  ],
   "launch_profiles": [
-    { "id": "client", "name": "启动游戏", "type": "client", "exe": "Stardew Valley.exe" }
-  ]
+    {
+      "id": "client",
+      "name": "启动游戏",
+      "type": "client",
+      "exe": "Stardew Valley.exe"
+    }
+  ],
+  "multiplayer_conversion": {
+    "capability": "native_lan_ip",
+    "methods": [
+      "virtual_lan",
+      "manual_guide"
+    ],
+    "can_convert_to_lan": true,
+    "risk_level": "low",
+    "notes": [
+      "Stardew Valley ??????????????????????????",
+      "?????? IP/LAN ????????????????????"
+    ],
+    "required_components": [
+      "n2n/Radmin/?????",
+      "???????",
+      "?????????"
+    ]
+  }
 }
