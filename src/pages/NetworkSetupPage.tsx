@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState } from 'react';
 import { getN2nDiagnostics, listNetworkBackends, setupNetwork, startNetwork, stopNetwork, testConnectivity } from '../api/tauri';
 import { BackendCard } from '../components/BackendCard';
+import { LoadingOverlay } from '../components/LoadingOverlay';
 import type { BackendRuntimeStatus, BackendSummary, ConnectivityReport, N2nDiagnostics, SetupResult } from '../types/network';
 
 type SteamRelayDraft = {
@@ -297,6 +298,7 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
 
   return (
     <section className="page-stack">
+      <LoadingOverlay visible={Boolean(busy)} title={`正在处理：${busy ?? ''}`} message="请稍等，不要重复点击按钮或关闭程序。" />
       <div className="page-header">
         <div>
           <span className="eyebrow">NETWORK</span>

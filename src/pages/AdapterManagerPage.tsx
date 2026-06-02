@@ -8,6 +8,7 @@ import {
   syncLocalAdapterRegistryExample,
   type AdapterRegistrySyncResult
 } from '../api/tauri';
+import { LoadingOverlay } from '../components/LoadingOverlay';
 import type { ConversionMethod, GameAdapter, GameCapability, MultiplayerCapability } from '../types/game';
 
 const capabilityOptions: Array<[MultiplayerCapability, string]> = [
@@ -129,6 +130,7 @@ export function AdapterManagerPage() {
   const [registryResult, setRegistryResult] = useState<AdapterRegistrySyncResult | null>(null);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [busyLabel, setBusyLabel] = useState('');
 
   const refresh = () => listGameAdapters().then(setAdapters).catch((error) => setMessage(String(error)));
 
@@ -160,6 +162,7 @@ export function AdapterManagerPage() {
 
   const save = async () => {
     setBusy(true);
+    setBusyLabel('保存适配器');
     setMessage('');
     try {
       const next: GameAdapter = {
@@ -181,11 +184,13 @@ export function AdapterManagerPage() {
       setMessage(String(error));
     } finally {
       setBusy(false);
+      setBusyLabel('');
     }
   };
 
   const importAdapter = async () => {
     setBusy(true);
+    setBusyLabel('导入适配器');
     setMessage('');
     try {
       const saved = await importGameAdapterJson(importText);
@@ -197,11 +202,13 @@ export function AdapterManagerPage() {
       setMessage(String(error));
     } finally {
       setBusy(false);
+      setBusyLabel('');
     }
   };
 
   const exportAdapter = async (gameId: string) => {
     setBusy(true);
+    setBusyLabel('导出适配器');
     setMessage('');
     try {
       setExportText(await exportGameAdapterJson(gameId));
@@ -210,6 +217,7 @@ export function AdapterManagerPage() {
       setMessage(String(error));
     } finally {
       setBusy(false);
+      setBusyLabel('');
     }
   };
 
@@ -224,6 +232,7 @@ export function AdapterManagerPage() {
 
   const syncRegistry = async (url = registryUrl) => {
     setBusy(true);
+    setBusyLabel('同步共享适配器库');
     setMessage('');
     setRegistryResult(null);
     try {
@@ -236,11 +245,13 @@ export function AdapterManagerPage() {
       setMessage(String(error));
     } finally {
       setBusy(false);
+      setBusyLabel('');
     }
   };
 
   const syncLocalExample = async () => {
     setBusy(true);
+    setBusyLabel('同步本地示例库');
     setMessage('');
     setRegistryResult(null);
     try {
@@ -250,6 +261,7 @@ export function AdapterManagerPage() {
       setMessage(String(error));
     } finally {
       setBusy(false);
+      setBusyLabel('');
     }
   };
 
@@ -268,6 +280,7 @@ export function AdapterManagerPage() {
 
   return (
     <section>
+      <LoadingOverlay visible={busy} title={busyLabel ? `正在处理：${busyLabel}` : '正在处理'} message="正在更新适配器数据，请稍等，不要重复点击。" />
       <h2>游戏适配器管理</h2>
       <p className="muted">这是管理员/高级功能：认定一次游戏类型并保存适配器，后续其他用户扫描到同一游戏即可复用转换方案。</p>
       <p className="muted">页面版本：{ADAPTER_MANAGER_VERSION}</p>

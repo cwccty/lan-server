@@ -8,6 +8,7 @@ import {
   stopServerSession,
   testConnectivity
 } from '../api/tauri';
+import { LoadingOverlay } from '../components/LoadingOverlay';
 import type { BackendSummary, ConnectivityReport } from '../types/network';
 import type { LaunchConfig } from '../types/recommendation';
 import type { ServerSessionStatus } from '../types/serverSession';
@@ -345,6 +346,7 @@ export function MultiplayerWizardPage() {
 
   return (
     <section className="page-stack">
+      <LoadingOverlay visible={isBusy} title={`${t.busy}：${busyAction ?? ''}`} message={t.wait} />
       <h2>{t.title}</h2>
       <p className="muted">{t.intro}</p>
 

@@ -466,6 +466,17 @@ https://raw.githubusercontent.com/cwccty/lan-server/master/adapter-registry/inde
 
 验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。release exe：src-tauri\target\release\lan-helper.exe。
 
+## 2026-06-02 全屏虚化加载遮罩
+
+已为需要等待后端结果的按钮增加统一加载遮罩，避免用户误以为程序卡死或重复点击。
+
+- 新增 `LoadingOverlay` 组件：全屏半透明遮罩、背景虚化、中央加载卡片、旋转指示器。
+- 接入页面：通用组网中心、Terraria 向导、推荐方案、适配器管理、诊断报告。
+- 遮罩只绑定已有真实 busy / isLaunching / busyAction 状态，不做假进度；耗时任务结束后自动消失。
+- 适配器管理增加 `busyLabel`，同步/导入/导出/保存时显示当前正在处理的动作。
+
+验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。release exe：src-tauri\target\release\lan-helper.exe。
+
 ## 2026-06-02 n2n 管理员诊断摘要复制
 
 已在通用组网中心的“supernode 响应诊断”区域增加“复制给管理员的诊断摘要”按钮。
