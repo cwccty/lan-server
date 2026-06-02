@@ -237,7 +237,8 @@ function buildFriendInvitePacket(
   n2nConfig: NetworkConfig | null,
   includeSecret: boolean,
   friendName: string,
-  friendIp: string
+  friendIp: string,
+  friendConnectivityReport: ConnectivityReport | null
 ) {
   const defaultPort = analysis?.default_ports[0] ?? 7777;
   const profile = analysis?.multiplayer_conversion;
@@ -264,6 +265,7 @@ function buildFriendInvitePacket(
     `- n2n 组网：${networkReady ? '已检测到 ACK/PONG' : '待确认 / 未完成'}`,
     `- 本机游戏端口：${localPortReady ? `127.0.0.1:${defaultPort} 可连接` : `127.0.0.1:${defaultPort} 待确认 / 不可达`}`,
     `- 服务端状态：${serverSession?.ready ? '已就绪' : serverSession?.running ? '运行中，等待就绪' : '未检测到独立服务端就绪'}`,
+    `- 好友虚拟 IP 检测：${friendConnectivityReport ? (friendConnectivityReport.reachable ? `${friendConnectivityReport.target_host}:${defaultPort} 可达` : `${friendConnectivityReport.target_host}:${defaultPort} 不可达 / 待确认`) : '未检测'}`,
     '',
     canSendAsReady ? '结论：房主侧组网和本机端口已有可用证据，可以让朋友尝试加入。' : '结论：当前证据还不完整，建议先完成组网 ACK/PONG 和本机端口检测后再邀请。',
     '',
@@ -295,6 +297,8 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
   const [friendName, setFriendName] = useState('');
   const [selectedFriendIp, setSelectedFriendIp] = useState('');
   const [friendAllocations, setFriendAllocations] = useState<FriendIpAllocation[]>([]);
+  const [friendConnectivityReport, setFriendConnectivityReport] = useState<ConnectivityReport | null>(null);
+  const [isCheckingFriend, setIsCheckingFriend] = useState(false);
   const [copyMessage, setCopyMessage] = useState('');
 
   const profilesById = useMemo(() => {
@@ -307,7 +311,7 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
   const checklist = buildChecklist(analysis, n2nDiagnostics, serverSession, localPortReport, launchResult);
   const hostVirtualIp = n2nConfig?.local_ip || n2nDiagnostics?.virtual_ip;
   const nextSuggestedFriendIp = suggestFriendIp(hostVirtualIp, friendAllocations);
-  const friendInvitePacket = buildFriendInvitePacket(analysis, n2nDiagnostics, localPortReport, serverSession, n2nConfig, includeSecretInInvite, friendName, selectedFriendIp);
+  const friendInvitePacket = buildFriendInvitePacket(analysis, n2nDiagnostics, localPortReport, serverSession, n2nConfig, includeSecretInInvite, friendName, selectedFriendIp, friendConnectivityReport);
 
   const refreshExecutionChecklist = async (nextAnalysis = analysis) => {
     setIsRefreshingChecklist(true);
@@ -438,12 +442,42 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
     const removed = friendAllocations.find((item) => item.id === id);
     if (removed?.ip === selectedFriendIp) {
       setSelectedFriendIp('');
+      setFriendConnectivityReport(null);
+    }
+  };
+
+  const checkFriendConnectivity = async () => {
+    if (!selectedFriendIp) {
+      setCopyMessage('请先为好友分配或选择一个虚拟 IP。');
+      return;
+    }
+    setIsCheckingFriend(true);
+    setCopyMessage('');
+    try {
+      const report = await testConnectivity({
+        host: selectedFriendIp,
+        ports: [defaultPort],
+        timeout_ms: 1400,
+        mode: 'n2n_game_port'
+      });
+      setFriendConnectivityReport(report);
+      setCopyMessage(report.reachable ? `好友虚拟 IP ${selectedFriendIp}:${defaultPort} 当前可达。` : `好友虚拟 IP ${selectedFriendIp}:${defaultPort} 当前不可达；如果好友不是房主，这通常只表示好友没有监听游戏端口。`);
+    } catch (error) {
+      setFriendConnectivityReport({
+        target_host: selectedFriendIp,
+        reachable: false,
+        ports: [{ port: defaultPort, reachable: false, error: String(error) }],
+        notes: [`检测失败：${String(error)}`]
+      });
+      setCopyMessage(`好友连接检测失败：${String(error)}`);
+    } finally {
+      setIsCheckingFriend(false);
     }
   };
 
   return (
     <section className="page-stack">
-      <LoadingOverlay visible={isLaunching || isRefreshingChecklist} title={isLaunching ? '正在执行推荐启动项' : '正在刷新执行清单'} message={isLaunching ? '正在调用后端执行启动流程，请稍等。' : '正在读取 n2n、服务端会话和本机端口状态。'} />
+      <LoadingOverlay visible={isLaunching || isRefreshingChecklist || isCheckingFriend} title={isLaunching ? '正在执行推荐启动项' : isCheckingFriend ? '正在检测好友连接' : '正在刷新执行清单'} message={isLaunching ? '正在调用后端执行启动流程，请稍等。' : isCheckingFriend ? '正在测试好友虚拟 IP 和游戏端口，请稍等。' : '正在读取 n2n、服务端会话和本机端口状态。'} />
       <div className="page-header">
         <div>
           <span className="eyebrow">RECOMMENDATION</span>
@@ -498,8 +532,22 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
             </label>
             <div className="actions">
               <button type="button" onClick={allocateFriendIp}>分配 / 选择好友虚拟 IP</button>
+              <button type="button" className="secondary" onClick={checkFriendConnectivity} disabled={isCheckingFriend || !selectedFriendIp}>检测好友连接</button>
               {selectedFriendIp && <span className="badge good">当前邀请对象：{friendName || '未填写'} · {selectedFriendIp}</span>}
             </div>
+            {friendConnectivityReport && (
+              <div className={friendConnectivityReport.reachable ? 'result-ok' : 'result-idle'}>
+                <h4>好友连接检测结果</h4>
+                <p>
+                  {friendConnectivityReport.target_host}:{defaultPort}：
+                  {friendConnectivityReport.reachable ? '可达' : '不可达 / 待确认'}
+                </p>
+                <ul>
+                  {friendConnectivityReport.notes.map((note) => <li key={note}>{note}</li>)}
+                </ul>
+                <p className="muted">说明：如果好友不是房主，好友电脑通常不会监听游戏端口；不可达不一定代表 n2n 失败。后续可加入 ping/edge 成员检测。</p>
+              </div>
+            )}
             {friendAllocations.length > 0 && (
               <table className="adapter-table">
                 <thead><tr><th>好友</th><th>虚拟 IP</th><th>操作</th></tr></thead>

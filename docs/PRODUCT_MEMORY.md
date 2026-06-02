@@ -466,6 +466,18 @@ https://raw.githubusercontent.com/cwccty/lan-server/master/adapter-registry/inde
 
 验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。release exe：src-tauri\target\release\lan-helper.exe。
 
+## 2026-06-03 好友连接检测入口
+
+已在推荐页的好友虚拟 IP 分配器中加入“检测好友连接”入口。
+
+- 对当前选中的好友虚拟 IP 执行 `testConnectivity`，目标为 `好友虚拟 IP:游戏默认端口`，模式为 `n2n_game_port`。
+- 页面会展示好友连接检测结果：可达 / 不可达 / 待确认，并显示后端返回的诊断说明。
+- 检测结果会写入“游戏邀请好友包”的当前检测状态中。
+- 如果好友不是房主，好友电脑通常不会监听游戏端口；因此不可达不直接等于 n2n 失败，页面已明确提示这一点。
+- 检测期间复用全屏加载遮罩，避免重复点击。
+
+验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。release exe：src-tauri\target\release\lan-helper.exe。
+
 ## 2026-06-03 好友虚拟 IP 分配器
 
 已在推荐页的“游戏邀请好友包”中加入好友虚拟 IP 分配器。
