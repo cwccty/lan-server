@@ -2,6 +2,7 @@ use chrono::Utc;
 
 use crate::core::{game_detector, port_proxy, server_session, udp_broadcast_bridge, udp_proxy};
 use crate::models::diagnostics::{DiagnosticIssue, DiagnosticReport, ReleaseCheck};
+use crate::models::game::{GameAdapter, GameNetworkType};
 use crate::models::network::N2nDiagnostics;
 use crate::network::{manual_lan_backend, n2n_backend, radmin_backend};
 use crate::storage::adapter_store;
@@ -120,8 +121,20 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
         ),
         Err(err) => format!("UDP 广播桥自测失败: {err}"),
     };
+    let adapter_requirement_report = build_adapter_requirement_report(
+        &adapters,
+        &n2n_diagnostics,
+        tcp_proxy_self_test_ok,
+        udp_proxy_self_test_ok,
+        udp_broadcast_bridge_self_test_ok,
+        server_running || server_ready,
+    );
+    let adapter_requirement_ok = adapter_requirement_report
+        .checks
+        .iter()
+        .all(|item| item.ok);
 
-    let release_checks = vec![
+    let mut release_checks = vec![
         ReleaseCheck {
             id: "n2n_edge".to_string(),
             label: "n2n edge 可执行文件".to_string(),
@@ -178,6 +191,13 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
             label: "UDP 广播桥一键自测".to_string(),
             ok: udp_broadcast_bridge_self_test_ok,
             detail: udp_broadcast_bridge_detail.clone(),
+            required_for_mvp: false,
+        },
+        ReleaseCheck {
+            id: "adapter_requirement_alignment".to_string(),
+            label: "适配器需求与当前能力匹配".to_string(),
+            ok: adapter_requirement_ok,
+            detail: adapter_requirement_report.summary.clone(),
             required_for_mvp: false,
         },
         ReleaseCheck {
@@ -238,6 +258,7 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
             required_for_mvp: true,
         },
     ];
+    release_checks.extend(adapter_requirement_report.checks.clone());
 
     let required_total = release_checks
         .iter()
@@ -266,6 +287,7 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
     ));
 
     let mut issues = classify_n2n_issues(&n2n_diagnostics, n2n_available);
+    issues.extend(adapter_requirement_report.issues.clone());
     if let Err(err) = &tcp_proxy_self_test {
         issues.push(DiagnosticIssue {
             id: "tcp_proxy_self_test_failed".to_string(),
@@ -421,12 +443,294 @@ pub fn generate_diagnostic_report() -> Result<DiagnosticReport, String> {
                 }
             ),
             format!(
+                "适配器需求巡检：\n{}\n{}",
+                adapter_requirement_report.summary,
+                adapter_requirement_report.details.join("\n")
+            ),
+            format!(
                 "内嵌服务端会话：{}",
                 serde_json::to_string_pretty(&server).unwrap_or_default()
             ),
             "隐私说明：报告不包含凭据、Cookie、SSH Key、浏览器数据或无关用户目录内容。".to_string(),
         ],
     })
+}
+
+struct AdapterRequirementReport {
+    summary: String,
+    checks: Vec<ReleaseCheck>,
+    issues: Vec<DiagnosticIssue>,
+    details: Vec<String>,
+}
+
+fn build_adapter_requirement_report(
+    adapters: &[GameAdapter],
+    n2n_diagnostics: &N2nDiagnostics,
+    tcp_proxy_ok: bool,
+    udp_proxy_ok: bool,
+    udp_broadcast_bridge_ok: bool,
+    dedicated_server_observed: bool,
+) -> AdapterRequirementReport {
+    let mut checks = Vec::new();
+    let mut issues = Vec::new();
+    let mut details = Vec::new();
+
+    let virtual_lan_ok = n2n_diagnostics.ok_link
+        && !n2n_diagnostics.auth_error
+        && !n2n_diagnostics.ip_mac_conflict;
+
+    let virtual_lan_games = adapters
+        .iter()
+        .filter(|adapter| adapter.connection_plan.as_ref().map(|plan| plan.requires_virtual_lan).unwrap_or(false))
+        .collect::<Vec<_>>();
+    let tcp_proxy_games = adapters
+        .iter()
+        .filter(|adapter| adapter.connection_plan.as_ref().map(|plan| plan.requires_tcp_port_proxy).unwrap_or(false))
+        .collect::<Vec<_>>();
+    let udp_broadcast_games = adapters
+        .iter()
+        .filter(|adapter| adapter.connection_plan.as_ref().map(|plan| plan.requires_udp_broadcast_bridge).unwrap_or(false))
+        .collect::<Vec<_>>();
+    let dedicated_server_games = adapters
+        .iter()
+        .filter(|adapter| adapter.connection_plan.as_ref().map(|plan| plan.requires_dedicated_server).unwrap_or(false))
+        .collect::<Vec<_>>();
+    let unknown_games = adapters
+        .iter()
+        .filter(|adapter| matches!(adapter.network_type, Some(GameNetworkType::UnknownNeedReview)) || adapter.connection_plan.is_none())
+        .collect::<Vec<_>>();
+    let udp_proxy_candidate_games = adapters
+        .iter()
+        .filter(|adapter| matches!(adapter.network_type, Some(GameNetworkType::TcpPortProxyNeeded)))
+        .collect::<Vec<_>>();
+
+    push_adapter_check(
+        &mut checks,
+        "adapter_requires_virtual_lan",
+        "需要虚拟局域网的适配器",
+        virtual_lan_games.is_empty() || virtual_lan_ok,
+        format!(
+            "{} 个适配器声明需要虚拟局域网；当前 n2n ACK/PONG={}",
+            virtual_lan_games.len(),
+            virtual_lan_ok
+        ),
+    );
+    if !virtual_lan_games.is_empty() && !virtual_lan_ok {
+        issues.push(adapter_issue(
+            "adapter_virtual_lan_not_ready",
+            "error",
+            "有游戏方案需要虚拟局域网，但 n2n 尚未就绪",
+            "适配器声明需要虚拟局域网；当前诊断没有证明 n2n 已 ACK/PONG。",
+            vec![
+                "进入通用组网中心，启动 n2n edge。".to_string(),
+                "等待 supernode ACK/PONG 后重新生成诊断报告。".to_string(),
+                "确认每台电脑虚拟 IP 不重复。".to_string(),
+            ],
+            &virtual_lan_games,
+            vec![n2n_diagnostics.summary.clone()],
+        ));
+    }
+
+    push_adapter_check(
+        &mut checks,
+        "adapter_requires_tcp_proxy",
+        "需要 TCP 端口代理的适配器",
+        tcp_proxy_games.is_empty() || tcp_proxy_ok,
+        format!(
+            "{} 个适配器声明需要 TCP 代理；TCP 自测={}",
+            tcp_proxy_games.len(),
+            tcp_proxy_ok
+        ),
+    );
+    if !tcp_proxy_games.is_empty() && !tcp_proxy_ok {
+        issues.push(adapter_issue(
+            "adapter_tcp_proxy_not_ready",
+            "warn",
+            "有游戏方案需要 TCP 端口代理，但 TCP 代理能力未通过自测",
+            "适配器声明需要 TCP 端口代理；当前 TCP 代理一键自测未通过。",
+            vec![
+                "进入通用组网中心，运行“一键自测 TCP 代理”。".to_string(),
+                "如果自测失败，检查本机安全软件和端口占用。".to_string(),
+                "房主侧按游戏端口启动 TCP 端口代理后再邀请好友。".to_string(),
+            ],
+            &tcp_proxy_games,
+            Vec::new(),
+        ));
+    }
+
+    push_adapter_check(
+        &mut checks,
+        "adapter_requires_udp_broadcast_bridge",
+        "需要 UDP 广播桥的适配器",
+        udp_broadcast_games.is_empty() || udp_broadcast_bridge_ok,
+        format!(
+            "{} 个适配器声明需要 UDP 广播桥；广播桥自测={}",
+            udp_broadcast_games.len(),
+            udp_broadcast_bridge_ok
+        ),
+    );
+    if !udp_broadcast_games.is_empty() && !udp_broadcast_bridge_ok {
+        issues.push(adapter_issue(
+            "adapter_udp_broadcast_bridge_not_ready",
+            "warn",
+            "有游戏方案需要 UDP 广播桥，但广播桥能力未通过自测",
+            "适配器声明需要 UDP 广播桥；当前 UDP 广播桥一键自测未通过。",
+            vec![
+                "进入通用组网中心，运行“一键自测 UDP 广播桥”。".to_string(),
+                "如果游戏支持直接 IP 加入，优先使用房主虚拟 IP。".to_string(),
+                "如果游戏只能靠房间列表发现，广播桥自测失败时请提交诊断报告。".to_string(),
+            ],
+            &udp_broadcast_games,
+            Vec::new(),
+        ));
+    }
+
+    push_adapter_check(
+        &mut checks,
+        "adapter_requires_dedicated_server",
+        "需要专用服务端的适配器",
+        dedicated_server_games.is_empty() || dedicated_server_observed,
+        format!(
+            "{} 个适配器声明需要专用服务端；当前服务端会话 running/ready={}",
+            dedicated_server_games.len(),
+            dedicated_server_observed
+        ),
+    );
+    if !dedicated_server_games.is_empty() && !dedicated_server_observed {
+        issues.push(adapter_issue(
+            "adapter_dedicated_server_not_observed",
+            "warn",
+            "有游戏方案需要专用服务端，但当前没有观察到服务端会话",
+            "适配器声明需要专用服务端；诊断时没有检测到内嵌服务端会话 running/ready。",
+            vec![
+                "如果正在测试 Terraria，先在 Terraria 向导里启动服务端。".to_string(),
+                "如果是其他游戏，按 adapter 的房主步骤启动服务端后再生成诊断。".to_string(),
+                "如果游戏只需要游戏内开房，可在 adapter 中把 requires_dedicated_server 改为 false。".to_string(),
+            ],
+            &dedicated_server_games,
+            Vec::new(),
+        ));
+    }
+
+    push_adapter_check(
+        &mut checks,
+        "adapter_unknown_need_review",
+        "未知或未沉淀方案的适配器",
+        unknown_games.is_empty(),
+        format!("{} 个适配器仍需要管理员判断或缺少 connection_plan", unknown_games.len()),
+    );
+    if !unknown_games.is_empty() {
+        issues.push(adapter_issue(
+            "adapter_unknown_need_review",
+            "warn",
+            "存在未知或未沉淀连接方案的游戏",
+            "这些游戏不能伪装成已支持，需要管理员认定网络类型并补齐 connection_plan。",
+            vec![
+                "进入适配器管理页，选择游戏网络类型。".to_string(),
+                "填写房主步骤、加入者步骤、默认端口和是否需要代理/广播桥。".to_string(),
+                "保存为本地 adapter 草稿后再同步到共享库。".to_string(),
+            ],
+            &unknown_games,
+            Vec::new(),
+        ));
+    }
+
+    push_adapter_check(
+        &mut checks,
+        "adapter_udp_proxy_optional",
+        "UDP 单播代理候选适配器",
+        udp_proxy_candidate_games.is_empty() || udp_proxy_ok,
+        format!(
+            "{} 个适配器属于端口代理候选；UDP 单播代理自测={}",
+            udp_proxy_candidate_games.len(),
+            udp_proxy_ok
+        ),
+    );
+
+    details.push(format_adapter_group("需要虚拟局域网", &virtual_lan_games));
+    details.push(format_adapter_group("需要 TCP 代理", &tcp_proxy_games));
+    details.push(format_adapter_group("需要 UDP 广播桥", &udp_broadcast_games));
+    details.push(format_adapter_group("需要专用服务端", &dedicated_server_games));
+    details.push(format_adapter_group("未知/待判断", &unknown_games));
+
+    let failed = checks.iter().filter(|item| !item.ok).count();
+    AdapterRequirementReport {
+        summary: format!(
+            "适配器需求巡检：{} 个检查，{} 个未满足；n2n={} TCP自测={} UDP自测={} 广播桥自测={} 服务端观测={}",
+            checks.len(),
+            failed,
+            virtual_lan_ok,
+            tcp_proxy_ok,
+            udp_proxy_ok,
+            udp_broadcast_bridge_ok,
+            dedicated_server_observed
+        ),
+        checks,
+        issues,
+        details,
+    }
+}
+
+fn push_adapter_check(checks: &mut Vec<ReleaseCheck>, id: &str, label: &str, ok: bool, detail: String) {
+    checks.push(ReleaseCheck {
+        id: id.to_string(),
+        label: label.to_string(),
+        ok,
+        detail,
+        required_for_mvp: false,
+    });
+}
+
+fn adapter_issue(
+    id: &str,
+    severity: &str,
+    title: &str,
+    detail: &str,
+    next_actions: Vec<String>,
+    adapters: &[&GameAdapter],
+    extra_evidence: Vec<String>,
+) -> DiagnosticIssue {
+    let mut evidence = adapters
+        .iter()
+        .take(12)
+        .map(|adapter| {
+            let plan = adapter.connection_plan.as_ref();
+            format!(
+                "{}({}) source={} network_type={:?} plan={}",
+                adapter.display_name,
+                adapter.game_id,
+                adapter.adapter_source.as_deref().unwrap_or("unknown"),
+                adapter.network_type,
+                plan.map(|item| item.summary.as_str()).unwrap_or("无 connection_plan")
+            )
+        })
+        .collect::<Vec<_>>();
+    if adapters.len() > 12 {
+        evidence.push(format!("还有 {} 个适配器未展开。", adapters.len() - 12));
+    }
+    evidence.extend(extra_evidence);
+    DiagnosticIssue {
+        id: id.to_string(),
+        severity: severity.to_string(),
+        title: title.to_string(),
+        detail: detail.to_string(),
+        next_actions,
+        evidence,
+    }
+}
+
+fn format_adapter_group(label: &str, adapters: &[&GameAdapter]) -> String {
+    let names = adapters
+        .iter()
+        .take(20)
+        .map(|adapter| format!("{}({})", adapter.display_name, adapter.game_id))
+        .collect::<Vec<_>>();
+    let suffix = if adapters.len() > 20 {
+        format!("，另有 {} 个未列出", adapters.len() - 20)
+    } else {
+        String::new()
+    };
+    format!("{}：{} 个{}{}", label, adapters.len(), if names.is_empty() { String::new() } else { format!("：{}", names.join("、")) }, suffix)
 }
 
 fn classify_n2n_issues(diagnostics: &N2nDiagnostics, edge_available: bool) -> Vec<DiagnosticIssue> {

@@ -883,3 +883,25 @@ UDP 广播桥已经进入通用组网中心，并纳入诊断报告。
 - UDP 单播代理当前作为可选能力展示，供需要 UDP 直连端口的游戏使用。
 
 执行清单会新增“方案所需桥接/代理”项，邀请包也会带上当前能力摘要。这让用户能看到“这个游戏需要的能力是否真的准备好了”，而不是只看到静态说明。
+
+## 2026-06-03 诊断报告适配器需求巡检
+
+诊断报告现在不只检查 n2n、端口代理、广播桥本身，还会检查 adapter 声明的需求是否被当前能力满足。
+
+新增逻辑：
+
+- `requires_virtual_lan=true`：检查 n2n 是否 ACK/PONG。
+- `requires_tcp_port_proxy=true`：检查 TCP 代理自测是否通过。
+- `requires_udp_broadcast_bridge=true`：检查 UDP 广播桥自测是否通过。
+- `requires_dedicated_server=true`：检查是否观察到服务端会话 running/ready。
+- `network_type=unknown_need_review` 或缺少 `connection_plan`：生成未知游戏待认定问题。
+
+诊断报告新增 `adapter_requirement_alignment` 总检查，并把细分检查加入 `release_checks`。如果不满足，会生成结构化问题：
+
+- `adapter_virtual_lan_not_ready`
+- `adapter_tcp_proxy_not_ready`
+- `adapter_udp_broadcast_bridge_not_ready`
+- `adapter_dedicated_server_not_observed`
+- `adapter_unknown_need_review`
+
+这让“游戏类型识别与方案沉淀”和“发布级失败分类”真正合在一起：用户不只知道底层能力是否可用，也知道当前适配器库里哪些游戏方案还缺什么能力。

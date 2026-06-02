@@ -816,3 +816,26 @@ npm run tauri:build
 ```
 
 下一步：把同样的“适配器需求 vs 当前能力”检查扩展到诊断报告，生成更明确的失败分类。
+
+## 2026-06-03 诊断报告接入适配器需求巡检
+
+已把“适配器需求 vs 当前能力”纳入发布级诊断：
+
+- 诊断报告会巡检已加载 adapter 的 `connection_plan`。
+- 检查需要虚拟局域网的游戏是否有 n2n ACK/PONG。
+- 检查需要 TCP 端口代理的游戏是否通过 TCP 代理自测。
+- 检查端口代理候选游戏是否通过 UDP 单播代理自测。
+- 检查需要 UDP 广播桥的游戏是否通过广播桥自测。
+- 检查需要专用服务端的游戏是否观察到服务端会话 running/ready。
+- 检查未知或缺少 `connection_plan` 的游戏，并生成 `adapter_unknown_need_review` 问题。
+- 新增总检查 `adapter_requirement_alignment`，并把细分 adapter 检查并入 `release_checks`。
+
+验证通过：
+
+```powershell
+cargo check --manifest-path src-tauri\Cargo.toml
+npm run build
+npm run tauri:build
+```
+
+下一步：继续完善“未知游戏认定 → 保存本地 adapter 草稿 → 同步共享库”的入口，让用户/管理员能把诊断中发现的 unknown_need_review 直接转成可复用方案。
