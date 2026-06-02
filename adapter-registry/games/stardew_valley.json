@@ -1,0 +1,41 @@
+{
+  "game_id": "stardew_valley",
+  "display_name": "Stardew Valley",
+  "steam_appid": "413150",
+  "capabilities": [
+    "lan",
+    "ip_join"
+  ],
+  "executables": [
+    "Stardew Valley.exe"
+  ],
+  "default_ports": [
+    24642
+  ],
+  "launch_profiles": [
+    {
+      "id": "client",
+      "name": "启动游戏",
+      "type": "client",
+      "exe": "Stardew Valley.exe"
+    }
+  ],
+  "multiplayer_conversion": {
+    "capability": "native_lan_ip",
+    "methods": [
+      "virtual_lan",
+      "manual_guide"
+    ],
+    "can_convert_to_lan": true,
+    "risk_level": "low",
+    "notes": [
+      "Stardew Valley 已有原生联机能力，联机助手主要提供组网和连通性诊断。",
+      "是否能直接用 IP/LAN 加入，取决于游戏版本和房主创建的联机方式。"
+    ],
+    "required_components": [
+      "n2n/Radmin/已有局域网",
+      "游戏内合作模式",
+      "实际使用的游戏端口"
+    ]
+  }
+}

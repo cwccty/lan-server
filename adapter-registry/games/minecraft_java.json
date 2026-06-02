@@ -1,0 +1,43 @@
+{
+  "game_id": "minecraft_java",
+  "display_name": "Minecraft Java Edition",
+  "steam_appid": null,
+  "capabilities": [
+    "lan",
+    "ip_join",
+    "dedicated_server"
+  ],
+  "executables": [
+    "MinecraftLauncher.exe",
+    "java.exe"
+  ],
+  "default_ports": [
+    25565
+  ],
+  "launch_profiles": [
+    {
+      "id": "docs",
+      "name": "查看连接说明",
+      "type": "docs"
+    }
+  ],
+  "multiplayer_conversion": {
+    "capability": "hidden_dedicated_server",
+    "methods": [
+      "virtual_lan",
+      "dedicated_server_launcher",
+      "manual_guide"
+    ],
+    "can_convert_to_lan": true,
+    "risk_level": "low",
+    "notes": [
+      "Minecraft Java 支持 LAN 和独立服务端。",
+      "当前适配器先保留说明入口；后续可加入 server.jar 下载/版本选择/启动器。"
+    ],
+    "required_components": [
+      "n2n/Radmin/已有局域网",
+      "Minecraft server.jar 或游戏内开放到局域网",
+      "25565 或实际端口"
+    ]
+  }
+}

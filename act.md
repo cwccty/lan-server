@@ -287,3 +287,17 @@ ConPTY 方案出现 `0xc0000142`。本轮回退为隐藏 `cmd.exe` 托管 Terrar
 - 新增依赖：`reqwest` 用于 HTTPS 拉取，`sha2` 用于 hash 校验。
 
 验证：`npm run build` 和 `cargo check --manifest-path src-tauri\\Cargo.toml` 通过。
+
+## 2026-06-02 本地 adapter-registry 示例目录
+
+按用户要求新增本地 `adapter-registry/` 示例目录，用于后续上传 VPS 或 GitHub Pages 测试远程同步。
+
+已生成：
+
+- `adapter-registry/index.json`
+- `adapter-registry/games/terraria.json`
+- `adapter-registry/games/minecraft_java.json`
+- `adapter-registry/games/stardew_valley.json`
+- `adapter-registry/README.md`
+
+`index.json` 已包含每个适配器的 sha256。可通过 `python -m http.server 8088` 本地启动静态服务，然后在客户端同步 `http://127.0.0.1:8088/adapter-registry/index.json`。

@@ -1,0 +1,106 @@
+{
+  "game_id": "terraria",
+  "display_name": "Terraria",
+  "steam_appid": "105600",
+  "capabilities": [
+    "lan",
+    "ip_join",
+    "dedicated_server"
+  ],
+  "executables": [
+    "Terraria.exe",
+    "TerrariaServer.exe"
+  ],
+  "default_ports": [
+    7777
+  ],
+  "launch_profiles": [
+    {
+      "id": "client",
+      "name": "启动游戏客户端",
+      "type": "client",
+      "exe": "Terraria.exe"
+    },
+    {
+      "id": "server",
+      "name": "启动本地服务端",
+      "type": "server",
+      "exe": "TerrariaServer.exe",
+      "config_fields": [
+        {
+          "id": "world_choice",
+          "label": "世界编号",
+          "type": "number",
+          "default_value": "1",
+          "required": true,
+          "help": "联机助手会按本机 Terraria Worlds 目录中的 .wld 文件排序后选择，默认 1。"
+        },
+        {
+          "id": "world_path",
+          "label": "世界文件路径（可选）",
+          "type": "text",
+          "default_value": "",
+          "required": false,
+          "help": "如果世界编号不准确，可填写完整 .wld 路径，例如 C:\\Users\\你\\Documents\\My Games\\Terraria\\Worlds\\xxx.wld。"
+        },
+        {
+          "id": "max_players",
+          "label": "最大人数",
+          "type": "number",
+          "default_value": "8",
+          "required": true
+        },
+        {
+          "id": "port",
+          "label": "端口",
+          "type": "number",
+          "default_value": "7777",
+          "required": true
+        },
+        {
+          "id": "auto_forward",
+          "label": "自动端口转发 y/n",
+          "type": "select",
+          "default_value": "y",
+          "required": true,
+          "options": [
+            "y",
+            "n"
+          ],
+          "help": "使用虚拟局域网时一般填 n 也可以；公网开服可尝试 y。"
+        },
+        {
+          "id": "password",
+          "label": "服务器密码",
+          "type": "password",
+          "default_value": "",
+          "required": false,
+          "help": "留空表示不设置密码。"
+        }
+      ]
+    },
+    {
+      "id": "docs",
+      "name": "查看连接说明",
+      "type": "docs"
+    }
+  ],
+  "multiplayer_conversion": {
+    "capability": "hidden_dedicated_server",
+    "methods": [
+      "virtual_lan",
+      "dedicated_server_launcher"
+    ],
+    "can_convert_to_lan": true,
+    "risk_level": "low",
+    "notes": [
+      "Terraria 支持 IP 直连，并提供 TerrariaServer.exe。",
+      "联机助手可负责 n2n 组网、后台启动本地服务端、端口诊断和邀请信息。"
+    ],
+    "required_components": [
+      "n2n/Radmin/已有局域网",
+      "TerrariaServer.exe",
+      "7777 或自定义游戏端口"
+    ]
+  }
+}
