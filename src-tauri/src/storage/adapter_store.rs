@@ -149,6 +149,91 @@ pub fn sync_adapter_registry(registry_url: String) -> Result<AdapterRegistrySync
     })
 }
 
+
+pub fn sync_local_adapter_registry_example() -> Result<AdapterRegistrySyncResult, String> {
+    let root = locate_local_registry_dir()?;
+    sync_adapter_registry_from_dir(root)
+}
+
+pub fn sync_adapter_registry_from_dir(root: PathBuf) -> Result<AdapterRegistrySyncResult, String> {
+    let index_path = root.join("index.json");
+    let index_text = fs::read_to_string(&index_path).map_err(|err| format!("read {:?} failed: {err}", index_path))?;
+    let index: AdapterRegistryIndex =
+        serde_json::from_str(&index_text).map_err(|err| format!("parse {:?} failed: {err}", index_path))?;
+    let dir = writable_adapter_dir()?;
+    fs::create_dir_all(&dir).map_err(|err| format!("create adapter dir failed: {err}"))?;
+
+    let mut updated = 0usize;
+    let mut skipped = 0usize;
+    let mut messages = Vec::new();
+
+    for game in index.games {
+        let adapter_path = root.join(&game.adapter_url);
+        let adapter_text = match fs::read_to_string(&adapter_path) {
+            Ok(content) => content,
+            Err(err) => {
+                skipped += 1;
+                messages.push(format!("skip {}: read failed: {err}", game.game_id));
+                continue;
+            }
+        };
+
+        if let Some(expected_hash) = game.sha256.as_ref().filter(|value| !value.trim().is_empty()) {
+            let actual_hash = sha256_hex(adapter_text.as_bytes());
+            if !actual_hash.eq_ignore_ascii_case(expected_hash.trim()) {
+                skipped += 1;
+                messages.push(format!("skip {}: sha256 mismatch", game.game_id));
+                continue;
+            }
+        }
+
+        let adapter: GameAdapter = match serde_json::from_str(&adapter_text) {
+            Ok(adapter) => adapter,
+            Err(err) => {
+                skipped += 1;
+                messages.push(format!("skip {}: parse failed: {err}", game.game_id));
+                continue;
+            }
+        };
+        validate_adapter(&adapter)?;
+        let file_name = format!("registry_{}.json", sanitize_file_stem(&adapter.game_id));
+        let path = dir.join(file_name);
+        write_adapter(&path, &adapter)?;
+        updated += 1;
+        messages.push(format!("updated {}", adapter.game_id));
+    }
+
+    Ok(AdapterRegistrySyncResult {
+        ok: skipped == 0,
+        registry_url: index_path.to_string_lossy().to_string(),
+        updated,
+        skipped,
+        messages,
+    })
+}
+
+fn locate_local_registry_dir() -> Result<PathBuf, String> {
+    let mut starts = Vec::new();
+    if let Ok(cwd) = std::env::current_dir() {
+        starts.push(cwd);
+    }
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(parent) = exe.parent() {
+            starts.push(parent.to_path_buf());
+        }
+    }
+
+    for start in starts {
+        for ancestor in start.ancestors() {
+            let candidate = ancestor.join("adapter-registry");
+            if candidate.join("index.json").exists() {
+                return Ok(candidate);
+            }
+        }
+    }
+    Err("local adapter-registry/index.json not found".to_string())
+}
+
 fn validate_adapter(adapter: &GameAdapter) -> Result<(), String> {
     if adapter.game_id.trim().is_empty() {
         return Err("game_id is required".to_string());

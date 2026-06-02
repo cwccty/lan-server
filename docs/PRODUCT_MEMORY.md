@@ -344,3 +344,17 @@ http://127.0.0.1:8088/adapter-registry/index.json
 ```
 
 该目录后续可直接上传到 VPS 静态目录或 GitHub Pages，用于测试远程同步。
+
+## 2026-06-02 本地示例库同步按钮
+
+用户测试远程 URL `http://127.0.0.1:8088/adapter-registry/index.json` 时出现 `fetch registry index failed`。本机验证显示 8088 端口不可达，原因是本地静态 HTTP 服务未启动或已关闭。
+
+为降低测试门槛，本轮新增“同步本地示例库（无需 HTTP）”按钮：
+
+- 不需要运行 `python -m http.server 8088`。
+- 后端会自动从项目目录向上查找 `adapter-registry/index.json`。
+- 读取本地 `adapter-registry/games/*.json`。
+- 校验 index 中的 sha256。
+- 保存为 `adapters/games/registry_<game_id>.json`。
+
+远程 URL 同步仍保留，用于测试 VPS、GitHub Pages 或本地 HTTP 服务。

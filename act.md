@@ -301,3 +301,16 @@ ConPTY 方案出现 `0xc0000142`。本轮回退为隐藏 `cmd.exe` 托管 Terrar
 - `adapter-registry/README.md`
 
 `index.json` 已包含每个适配器的 sha256。可通过 `python -m http.server 8088` 本地启动静态服务，然后在客户端同步 `http://127.0.0.1:8088/adapter-registry/index.json`。
+
+## 2026-06-02 本地示例库同步按钮
+
+用户截图显示同步 `http://127.0.0.1:8088/adapter-registry/index.json` 失败。本机检查该 URL 无法连接，说明本地 HTTP 服务没有启动。
+
+已改进：
+
+- 新增后端命令 `sync_local_adapter_registry_example`。
+- 适配器管理页新增按钮“同步本地示例库（无需 HTTP）”。
+- 后端自动查找项目中的 `adapter-registry/index.json`，读取本地示例库并生成 `registry_*.json`。
+- 远程 URL 输入继续用于 VPS / GitHub Pages / 本地 HTTP 服务测试。
+
+验证：`npm run build` 和 `cargo check --manifest-path src-tauri\\Cargo.toml` 通过。

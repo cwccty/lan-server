@@ -5,6 +5,7 @@ import {
   listGameAdapters,
   saveGameAdapter,
   syncAdapterRegistry,
+  syncLocalAdapterRegistryExample,
   type AdapterRegistrySyncResult
 } from '../api/tauri';
 import type { ConversionMethod, GameAdapter, GameCapability, MultiplayerCapability } from '../types/game';
@@ -209,6 +210,22 @@ export function AdapterManagerPage() {
     }
   };
 
+  const syncLocalExample = async () => {
+    setBusy(true);
+    setMessage('');
+    setRegistryResult(null);
+    try {
+      const result = await syncLocalAdapterRegistryExample();
+      setRegistryResult(result);
+      await refresh();
+      setMessage(`本地示例库同步完成：更新 ${result.updated} 个，跳过 ${result.skipped} 个。`);
+    } catch (error) {
+      setMessage(String(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const conversion = draft.multiplayer_conversion ?? emptyAdapter().multiplayer_conversion!;
 
   return (
@@ -222,6 +239,12 @@ export function AdapterManagerPage() {
         <p className="muted">
           从管理员维护的 registry index 拉取适配器。远程适配器会保存为 registry_*.json；
           如果本地存在同 game_id 的 custom_*.json，本地自定义会优先。
+        </p>
+        <div className="actions">
+          <button disabled={busy} onClick={syncLocalExample}>同步本地示例库（无需 HTTP）</button>
+        </div>
+        <p className="muted">
+          如果只是测试项目内置的 adapter-registry 示例，优先点上面的按钮；只有测试 VPS / GitHub Pages / 本地 HTTP 服务时才需要填写 URL。
         </p>
         <label>Registry index URL
           <input

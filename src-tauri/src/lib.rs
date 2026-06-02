@@ -19,6 +19,7 @@ pub fn run() {
             commands::import_game_adapter_json,
             commands::export_game_adapter_json,
             commands::sync_adapter_registry,
+            commands::sync_local_adapter_registry_example,
             commands::list_network_backends,
             commands::setup_network,
             commands::start_network,

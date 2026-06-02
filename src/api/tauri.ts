@@ -29,6 +29,8 @@ export interface AdapterRegistrySyncResult {
 }
 export const syncAdapterRegistry = (registryUrl: string) =>
   invoke<AdapterRegistrySyncResult>('sync_adapter_registry', { registryUrl });
+export const syncLocalAdapterRegistryExample = () =>
+  invoke<AdapterRegistrySyncResult>('sync_local_adapter_registry_example');
 export const listNetworkBackends = () => invoke<BackendSummary[]>('list_network_backends');
 export const setupNetwork = (backendId: string, config: NetworkConfig) =>
   invoke<SetupResult>('setup_network', { backendId, config });

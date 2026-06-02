@@ -50,6 +50,11 @@ pub fn sync_adapter_registry(registry_url: String) -> Result<AdapterRegistrySync
 }
 
 #[tauri::command]
+pub fn sync_local_adapter_registry_example() -> Result<AdapterRegistrySyncResult, String> {
+    adapter_store::sync_local_adapter_registry_example()
+}
+
+#[tauri::command]
 pub fn list_network_backends() -> Result<Vec<BackendSummary>, String> {
     Ok(vec![
         manual_lan_backend::detect(),
