@@ -95,6 +95,27 @@ main {
   margin: 12px 0;
 }
 
+.feature-card {
+  position: relative;
+}
+
+.feature-card-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.feature-card-title h3 {
+  margin: 0;
+}
+
+.pending-feature {
+  border-color: #5a4d24;
+  background: linear-gradient(135deg, rgba(154, 118, 32, 0.14), rgba(26, 34, 53, 1) 42%);
+}
+
 .error-card {
   border-color: #9a2e2e;
 }

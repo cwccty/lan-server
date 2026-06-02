@@ -17,6 +17,13 @@ type ChatMessage = {
   createdAt: string;
 };
 
+type SteamRelayDraft = {
+  appId: string;
+  roomName: string;
+  relayMode: 'steam_datagram_relay' | 'steam_lobby_p2p';
+  notes: string;
+};
+
 function ConnectivityReportView({ report }: { report: ConnectivityReport }) {
   return (
     <div className={report.reachable ? 'result-ok' : 'result-bad'}>
@@ -89,6 +96,12 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
   const [roomMembers, setRoomMembers] = useState<RoomMember[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [steamRelayDraft, setSteamRelayDraft] = useState<SteamRelayDraft>({
+    appId: '',
+    roomName: 'steam-relay-room-001',
+    relayMode: 'steam_datagram_relay',
+    notes: '预留 connecttool-qt 类路线：通过 Steam Networking / Relay 做房间发现和中继。'
+  });
 
   const refreshBackends = () =>
     listNetworkBackends()
@@ -108,10 +121,16 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
       return;
     }
     try {
-      const state = JSON.parse(saved) as { playerName?: string; members?: RoomMember[]; messages?: ChatMessage[] };
+      const state = JSON.parse(saved) as {
+        playerName?: string;
+        members?: RoomMember[];
+        messages?: ChatMessage[];
+        steamRelayDraft?: SteamRelayDraft;
+      };
       if (state.playerName) setPlayerName(state.playerName);
       if (Array.isArray(state.members)) setRoomMembers(state.members);
       if (Array.isArray(state.messages)) setChatMessages(state.messages);
+      if (state.steamRelayDraft) setSteamRelayDraft((current) => ({ ...current, ...state.steamRelayDraft }));
     } catch {
       // Ignore incompatible old room state.
     }
@@ -120,9 +139,9 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
   useEffect(() => {
     window.localStorage.setItem(
       'lan-helper-room-state',
-      JSON.stringify({ playerName, members: roomMembers, messages: chatMessages })
+      JSON.stringify({ playerName, members: roomMembers, messages: chatMessages, steamRelayDraft })
     );
-  }, [playerName, roomMembers, chatMessages]);
+  }, [playerName, roomMembers, chatMessages, steamRelayDraft]);
 
   const runAction = async <T,>(label: string, action: () => Promise<T>, onDone?: (value: T) => void) => {
     if (busy) return;
@@ -160,6 +179,18 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
   const n2nRuntimeResult = n2nResult && 'running' in n2nResult ? n2nResult : null;
   const n2nSetupResult = n2nResult && 'ok' in n2nResult ? n2nResult : null;
 
+  const steamRelayPacketText = [
+    '【Steam 中继联机入口草案】',
+    '状态：预留入口 / 研究功能，当前不会真正启动 Steamworks。',
+    `Steam AppID：${steamRelayDraft.appId || '未填写'}`,
+    `房间名：${steamRelayDraft.roomName}`,
+    `模式：${steamRelayDraft.relayMode === 'steam_datagram_relay' ? 'Steam Datagram Relay' : 'Steam Lobby P2P'}`,
+    `说明：${steamRelayDraft.notes || '无'}`,
+    '',
+    '产品边界：只做官方 Steam Networking/Relay SDK 或用户自有 AppID 的可选插件入口；不做破解服务器、绕过正版验证、绕过反作弊或模拟官方账号服务。',
+    '后续制作点：Steamworks SDK 封装、房间创建/加入、成员状态、聊天/信令、与端口代理或虚拟 LAN 的桥接。'
+  ].join('\n');
+
   const roomPacketText = [
     '【联机助手房间信息】',
     `房间名/community：${roomName}`,
@@ -184,6 +215,11 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
   const copyRoomPacket = async () => {
     await navigator.clipboard?.writeText(roomPacketText);
     setCopyMessage('房间信息和聊天记录已复制，可以发给朋友。');
+  };
+
+  const copySteamRelayDraft = async () => {
+    await navigator.clipboard?.writeText(steamRelayPacketText);
+    setCopyMessage('Steam 中继入口草案已复制，可作为后续插件制作说明。');
   };
 
   const addMember = (role: RoomMember['role'], name: string, virtualIp: string) => {
@@ -256,6 +292,45 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
           <pre>{friendConfigText}</pre>
           <button type="button" onClick={copyFriendConfig} disabled={Boolean(busy)}>复制通用组网配置</button>
           {copyMessage && <p className="muted">{copyMessage}</p>}
+        </details>
+      </article>
+
+      <article className="card feature-card pending-feature">
+        <div className="feature-card-title">
+          <h3>Steam 中继联机入口（预留）</h3>
+          <span className="badge warn">研究 / 插件路线</span>
+        </div>
+        <p className="muted">
+          这里预留你之前提到的 connecttool-qt 类方向：借助 Steam Networking / Steam Relay 做房间发现、P2P 或中继。
+          当前它只是产品入口和制作草案，不会真正启动 Steamworks，也不会影响 n2n 主线。
+        </p>
+        <div className="room-grid">
+          <section className="config-panel">
+            <h4>制作入口参数</h4>
+            <label>Steam AppID / 测试 AppID<input value={steamRelayDraft.appId} onChange={(event) => setSteamRelayDraft((current) => ({ ...current, appId: event.target.value }))} placeholder="例如用户自有 AppID；测试阶段可留空" disabled={Boolean(busy)} /></label>
+            <label>Steam 房间名<input value={steamRelayDraft.roomName} onChange={(event) => setSteamRelayDraft((current) => ({ ...current, roomName: event.target.value }))} disabled={Boolean(busy)} /></label>
+            <label>中继模式
+              <select value={steamRelayDraft.relayMode} onChange={(event) => setSteamRelayDraft((current) => ({ ...current, relayMode: event.target.value as SteamRelayDraft['relayMode'] }))} disabled={Boolean(busy)}>
+                <option value="steam_datagram_relay">Steam Datagram Relay</option>
+                <option value="steam_lobby_p2p">Steam Lobby P2P</option>
+              </select>
+            </label>
+            <label>制作备注<input value={steamRelayDraft.notes} onChange={(event) => setSteamRelayDraft((current) => ({ ...current, notes: event.target.value }))} disabled={Boolean(busy)} /></label>
+          </section>
+          <section className="config-panel">
+            <h4>当前边界</h4>
+            <ul>
+              <li>适合作为未来“平台网络层”的可选插件，不作为 MVP 默认承诺。</li>
+              <li>只走官方 Steamworks / Steam Networking 能力或用户自有 AppID。</li>
+              <li>不做破解服务器、绕过正版验证、绕过反作弊、模拟官方账号服务。</li>
+              <li>后续先做最小 PoC：创建房间 → 加入房间 → 文本消息/信令 → 再接端口代理或游戏桥接。</li>
+            </ul>
+          </section>
+        </div>
+        <details>
+          <summary>查看 Steam 中继入口草案</summary>
+          <pre>{steamRelayPacketText}</pre>
+          <button type="button" onClick={copySteamRelayDraft} disabled={Boolean(busy)}>复制 Steam 中继制作草案</button>
         </details>
       </article>
 
