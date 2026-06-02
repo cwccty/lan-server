@@ -32,6 +32,10 @@ const methodOptions: Array<[ConversionMethod, string]> = [
   ['not_supported', '不支持']
 ];
 
+const DEFAULT_ADAPTER_REGISTRY_URL = 'http://127.0.0.1:8088/adapter-registry/index.json';
+const REGISTRY_URL_STORAGE_KEY = 'lan-helper-adapter-registry-url';
+const REGISTRY_LAST_SYNC_STORAGE_KEY = 'lan-helper-adapter-registry-last-sync';
+
 const templates: Record<string, Pick<GameAdapter, 'capabilities' | 'default_ports' | 'multiplayer_conversion' | 'launch_profiles'>> = {
   native_lan_ip: {
     capabilities: ['lan', 'ip_join'],
@@ -112,6 +116,7 @@ export function AdapterManagerPage() {
   const [importText, setImportText] = useState('');
   const [exportText, setExportText] = useState('');
   const [registryUrl, setRegistryUrl] = useState('');
+  const [lastRegistrySync, setLastRegistrySync] = useState('');
   const [registryResult, setRegistryResult] = useState<AdapterRegistrySyncResult | null>(null);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -120,7 +125,8 @@ export function AdapterManagerPage() {
 
   useEffect(() => {
     refresh();
-    setRegistryUrl(window.localStorage.getItem('lan-helper-adapter-registry-url') ?? '');
+    setRegistryUrl(window.localStorage.getItem(REGISTRY_URL_STORAGE_KEY) ?? DEFAULT_ADAPTER_REGISTRY_URL);
+    setLastRegistrySync(window.localStorage.getItem(REGISTRY_LAST_SYNC_STORAGE_KEY) ?? '');
   }, []);
 
   const adapterCount = useMemo(() => adapters.length, [adapters]);
@@ -193,16 +199,25 @@ export function AdapterManagerPage() {
     }
   };
 
-  const syncRegistry = async () => {
+  const finishRegistrySync = async (result: AdapterRegistrySyncResult, label: string) => {
+    setRegistryResult(result);
+    await refresh();
+    const summary = `${new Date().toLocaleString()}：${label}，更新 ${result.updated} 个，跳过 ${result.skipped} 个。`;
+    setLastRegistrySync(summary);
+    window.localStorage.setItem(REGISTRY_LAST_SYNC_STORAGE_KEY, summary);
+    setMessage(summary);
+  };
+
+  const syncRegistry = async (url = registryUrl) => {
     setBusy(true);
     setMessage('');
     setRegistryResult(null);
     try {
-      window.localStorage.setItem('lan-helper-adapter-registry-url', registryUrl);
-      const result = await syncAdapterRegistry(registryUrl);
-      setRegistryResult(result);
-      await refresh();
-      setMessage(`共享库同步完成：更新 ${result.updated} 个，跳过 ${result.skipped} 个。`);
+      const nextUrl = url.trim() || DEFAULT_ADAPTER_REGISTRY_URL;
+      setRegistryUrl(nextUrl);
+      window.localStorage.setItem(REGISTRY_URL_STORAGE_KEY, nextUrl);
+      const result = await syncAdapterRegistry(nextUrl);
+      await finishRegistrySync(result, '共享库同步完成');
     } catch (error) {
       setMessage(String(error));
     } finally {
@@ -216,14 +231,26 @@ export function AdapterManagerPage() {
     setRegistryResult(null);
     try {
       const result = await syncLocalAdapterRegistryExample();
-      setRegistryResult(result);
-      await refresh();
-      setMessage(`本地示例库同步完成：更新 ${result.updated} 个，跳过 ${result.skipped} 个。`);
+      await finishRegistrySync(result, '本地示例库同步完成');
     } catch (error) {
       setMessage(String(error));
     } finally {
       setBusy(false);
     }
+  };
+
+  const oneClickUpdateSharedAdapters = () => {
+    const url = registryUrl.trim();
+    if (!url || url === DEFAULT_ADAPTER_REGISTRY_URL) {
+      return syncLocalExample();
+    }
+    return syncRegistry(url);
+  };
+
+  const restoreDefaultRegistryUrl = () => {
+    setRegistryUrl(DEFAULT_ADAPTER_REGISTRY_URL);
+    window.localStorage.setItem(REGISTRY_URL_STORAGE_KEY, DEFAULT_ADAPTER_REGISTRY_URL);
+    setMessage('已恢复默认共享库地址。');
   };
 
   const conversion = draft.multiplayer_conversion ?? emptyAdapter().multiplayer_conversion!;
@@ -241,8 +268,12 @@ export function AdapterManagerPage() {
           如果本地存在同 game_id 的 custom_*.json，本地自定义会优先。
         </p>
         <div className="actions">
+          <button disabled={busy} onClick={oneClickUpdateSharedAdapters}>一键更新共享适配器</button>
           <button disabled={busy} onClick={syncLocalExample}>同步本地示例库（无需 HTTP）</button>
+          <button disabled={busy} onClick={restoreDefaultRegistryUrl}>恢复默认地址</button>
         </div>
+        <p className="muted">默认共享库地址：{DEFAULT_ADAPTER_REGISTRY_URL}</p>
+        {lastRegistrySync && <p className="muted">上次同步：{lastRegistrySync}</p>}
         <p className="muted">
           如果只是测试项目内置的 adapter-registry 示例，优先点上面的按钮；只有测试 VPS / GitHub Pages / 本地 HTTP 服务时才需要填写 URL。
         </p>
@@ -253,8 +284,9 @@ export function AdapterManagerPage() {
             placeholder="https://example.com/adapter-registry/index.json"
             disabled={busy}
           />
+          <small className="muted">这个地址会自动保存；留空时会使用默认地址。</small>
         </label>
-        <button disabled={busy || !registryUrl.trim()} onClick={syncRegistry}>同步共享适配器库</button>
+        <button disabled={busy} onClick={() => syncRegistry()}>同步共享适配器库</button>
         {registryResult && (
           <div className={registryResult.ok ? 'result-ok' : 'result-bad'}>
             <h4>{registryResult.ok ? '同步成功' : '同步完成但有跳过项'}</h4>

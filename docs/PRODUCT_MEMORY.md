@@ -384,3 +384,15 @@ http://127.0.0.1:8088/adapter-registry/index.json
 - `adapter-registry/` 是共享库示例，可提交。
 - `adapters/games/registry_*.json` 是用户同步缓存，不提交。
 - `adapters/games/custom_*.json` 是用户本地自定义，后续也应评估是否默认忽略或提供导出提交流程。
+
+## 2026-06-02 默认共享库地址与一键更新
+
+适配器管理页新增“一键更新共享适配器”与默认共享库地址逻辑：
+
+- 默认地址当前为开发/本地测试地址：`http://127.0.0.1:8088/adapter-registry/index.json`。
+- 用户手动填写的 registry URL 会保存到 localStorage。
+- 支持“恢复默认地址”。
+- 同步完成后保存并显示上次同步时间、更新数量、跳过数量。
+- 为避免开发默认地址在未启动 HTTP 服务时失败，若 URL 为空或仍为默认本地测试地址，“一键更新共享适配器”会直接走项目内置 `adapter-registry` 本地示例库同步；手动填写 VPS/GitHub Pages URL 后则走远程 HTTP 同步。
+
+后续如果有正式官方 registry URL，只需要替换 `DEFAULT_ADAPTER_REGISTRY_URL` 并保留本地示例库按钮作为测试入口。

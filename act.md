@@ -335,3 +335,15 @@ ConPTY 方案出现 `0xc0000142`。本轮回退为隐藏 `cmd.exe` 托管 Terrar
 - 验证 `npm run build` 与 `cargo check --manifest-path src-tauri\\Cargo.toml` 通过。
 
 目的：避免用户运行同步功能后污染 Git 工作区。
+
+## 2026-06-02 默认共享库地址与一键更新
+
+按要求增加默认共享库 URL 配置和一键更新：
+
+- 适配器管理页新增“一键更新共享适配器”。
+- 新增“恢复默认地址”。
+- registry URL 自动保存到 localStorage。
+- 同步成功后记录上次同步时间和更新/跳过数量。
+- 当前默认地址是本地开发测试 URL；一键更新在默认地址下会走无需 HTTP 的本地示例库同步，避免用户没启动 `python -m http.server` 时失败。
+
+验证：`npm run build` 和 `cargo check --manifest-path src-tauri\\Cargo.toml` 通过。
