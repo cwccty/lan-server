@@ -778,3 +778,17 @@ https://raw.githubusercontent.com/cwccty/lan-server/master/adapter-registry/inde
 验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。
 
 下一步推荐：将 `connection_plan` 接入推荐方案页，让扫描到游戏后自动显示沉淀方案。
+
+## 2026-06-03 connection_plan 推荐方案闭环
+
+适配器的 `connection_plan` 已经进入推荐页和邀请好友包，不再只是适配器管理页里的静态字段。
+
+当前推荐页会把管理员/适配器沉淀的信息转成用户能执行的步骤：
+
+- 游戏网络类型：例如 LAN/IP 直连、专用服务端、需要 TCP 端口代理、需要 UDP 广播桥、仅官方联机、未知需判断。
+- 房主该做什么：创建房间、启动专用服务端、启动端口代理或等待后续 UDP 能力。
+- 加入者该做什么：使用虚拟 IP 直连、加入专用服务端、按邀请包配置 n2n。
+- 方案需求：是否需要虚拟局域网、专用服务端、TCP 代理、UDP 广播桥。
+- 邀请包：包含方案摘要、房主/加入者步骤、默认连接端口、邀请模板和排错建议。
+
+产品意义：后续用户扫描到同一个游戏时，应直接复用已经认定过的 adapter 方案，而不是再次从零理解 n2n、端口、服务端、UDP 发现等概念。

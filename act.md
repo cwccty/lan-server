@@ -687,3 +687,15 @@ ConPTY 方案出现 `0xc0000142`。本轮回退为隐藏 `cmd.exe` 托管 Terrar
 验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。
 
 下一步推荐：把 `connection_plan` 接入推荐方案页和邀请包，让用户看到的推荐不只是 methods，而是明确的“房主做什么 / 加入者做什么 / 是否需要 TCP 代理或 UDP 广播桥”。
+
+## 2026-06-03 connection_plan 接入推荐方案页
+
+已把适配器沉淀的 `connection_plan` 接入推荐方案页和好友邀请包：
+
+- 推荐页显示游戏网络类型、沉淀连接方案、房主步骤、加入者步骤、默认连接主机/端口。
+- 显示方案需求：虚拟局域网、专用服务端、TCP 端口代理、UDP 广播桥。
+- 执行清单优先使用 `connection_plan` 的房主/加入者说明。
+- 好友邀请包包含 `connection_plan` 的邀请模板和排错建议。
+- 这让管理员认定过的游戏方案可以被后续用户直接复用，避免每个用户重复判断同一游戏该如何联机。
+
+下一阶段继续做“游戏类型识别与方案沉淀”：把未知游戏的管理员认定、本地 adapter 保存、共享库同步、推荐页复用和诊断提示串成闭环。

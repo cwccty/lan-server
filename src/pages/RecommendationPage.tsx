@@ -55,6 +55,19 @@ const methodLabels: Record<string, string> = {
   not_supported: '不支持'
 };
 
+const networkTypeLabels: Record<string, string> = {
+  lan_ip_direct: 'LAN/IP 直连',
+  dedicated_server: '专用服务端',
+  tcp_port_proxy_needed: '需要 TCP 端口代理',
+  udp_broadcast_needed: '需要 UDP 广播桥',
+  steam_lobby_direct_possible: 'Steam Lobby 发现但可直连',
+  steam_relay_plugin: 'Steam Relay 插件',
+  mod_required: '需要 Mod',
+  official_only: '仅官方/平台联机',
+  not_supported: '暂不支持',
+  unknown_need_review: '未知，需管理员判断'
+};
+
 const sourceLabels: Record<string, string> = {
   builtin: '内置适配器',
   registry: '共享库适配器',
@@ -110,6 +123,7 @@ function loadFriendAllocations() {
 
 function ConversionProfileView({ analysis }: { analysis: GameAnalysis }) {
   const profile = analysis.multiplayer_conversion;
+  const plan = analysis.connection_plan;
   if (!profile) {
     return (
       <article className="card error-card">
@@ -130,6 +144,7 @@ function ConversionProfileView({ analysis }: { analysis: GameAnalysis }) {
       </div>
       <div className="status-grid compact">
         <div className="status-tile"><span>能力类型</span><strong>{capabilityLabels[profile.capability] ?? profile.capability}</strong><small>{profile.capability}</small></div>
+        <div className="status-tile"><span>游戏类型</span><strong>{networkTypeLabels[analysis.network_type ?? ''] ?? analysis.network_type ?? '需判断'}</strong><small>管理员认定</small></div>
         <div className="status-tile"><span>风险等级</span><strong>{profile.risk_level}</strong><small>由适配器声明</small></div>
         <div className="status-tile"><span>置信度</span><strong>{analysis.confidence}</strong><small>扫描与适配器匹配结果</small></div>
         <div className="status-tile"><span>适配器来源</span><strong>{sourceLabels[analysis.adapter_source ?? ''] ?? analysis.adapter_source ?? '未知'}</strong><small>custom &gt; registry &gt; builtin</small></div>
@@ -144,15 +159,34 @@ function ConversionProfileView({ analysis }: { analysis: GameAnalysis }) {
       </div>
       <div className="content-with-aside">
         <div>
+          {plan && (
+            <>
+              <h4>沉淀连接方案</h4>
+              <p>{plan.summary}</p>
+              <ul>
+                <li>房主：{plan.host_role}</li>
+                <li>加入者：{plan.join_role}</li>
+                <li>默认连接：{plan.default_join_host || '按游戏实际提示'}{plan.default_join_port ? `:${plan.default_join_port}` : ''}</li>
+              </ul>
+            </>
+          )}
           <h4>所需组件</h4>
           <ul>{profile.required_components.map((component) => <li key={component}>{component}</li>)}</ul>
           <h4>判断说明</h4>
           <ul>{profile.notes.map((note) => <li key={note}>{note}</li>)}</ul>
         </div>
         <aside className="right-panel">
+          <h3>方案需求</h3>
+          {plan ? (
+            <div className="filter-list">
+              <span className={plan.requires_virtual_lan ? 'future-chip active' : 'future-chip'}>虚拟局域网：{plan.requires_virtual_lan ? '需要' : '不需要'}</span>
+              <span className={plan.requires_dedicated_server ? 'future-chip active' : 'future-chip'}>服务端：{plan.requires_dedicated_server ? '需要' : '不需要'}</span>
+              <span className={plan.requires_tcp_port_proxy ? 'future-chip active' : 'future-chip'}>TCP 代理：{plan.requires_tcp_port_proxy ? '需要' : '可选'}</span>
+              <span className={plan.requires_udp_broadcast_bridge ? 'future-chip active' : 'future-chip'}>UDP 广播桥：{plan.requires_udp_broadcast_bridge ? '需要' : '不需要'}</span>
+            </div>
+          ) : <p>该适配器尚未沉淀连接方案。</p>}
           <h3>风险提示</h3>
           <p>官方服务器限定、反作弊 / 账号风险、Mod 依赖、管理员审核等必须在这里明确展示。</p>
-          <span className="badge warn">应用前需要确认</span>
         </aside>
       </div>
     </article>
@@ -184,6 +218,7 @@ function buildChecklist(
 ): ChecklistItem[] {
   const defaultPort = analysis?.default_ports[0] ?? 7777;
   const hasServerProfile = Boolean(analysis?.launch_profiles.some((profile) => profile.type === 'server'));
+  const plan = analysis?.connection_plan;
   const networkReady = Boolean(n2n?.ok_link && !n2n.auth_error && !n2n.ip_mac_conflict);
   const localPortReady = Boolean(localPortReport?.reachable);
   const launchOk = Boolean(launchResult?.ok);
@@ -194,7 +229,7 @@ function buildChecklist(
       title: '1. 适配器判断',
       status: analysis?.multiplayer_conversion ? '已命中' : analysis ? '需人工适配' : '未选择',
       kind: analysis?.multiplayer_conversion ? 'good' : analysis ? 'warn' : 'idle',
-      detail: analysis ? `${analysis.display_name} · ${sourceLabels[analysis.adapter_source ?? ''] ?? analysis.adapter_source ?? '未知来源'}` : '请先从游戏扫描页选择游戏。'
+      detail: analysis ? `${analysis.display_name} · ${networkTypeLabels[analysis.network_type ?? ''] ?? analysis.network_type ?? '未认定'} · ${sourceLabels[analysis.adapter_source ?? ''] ?? analysis.adapter_source ?? '未知来源'}` : '请先从游戏扫描页选择游戏。'
     },
     {
       title: '2. 通用组网',
@@ -207,8 +242,8 @@ function buildChecklist(
       status: serverReady ? '已有迹象' : hasServerProfile ? '待启动' : '游戏内创建',
       kind: serverReady ? 'good' : hasServerProfile ? 'warn' : 'idle',
       detail: hasServerProfile
-        ? serverSession?.message || launchResult?.message || '该游戏适配器声明了服务端启动项，请执行启动项或进入对应向导。'
-        : '该游戏未声明独立服务端启动项，通常需要房主在游戏内创建房间或按说明操作。'
+        ? serverSession?.message || launchResult?.message || plan?.host_role || '该游戏适配器声明了服务端启动项，请执行启动项或进入对应向导。'
+        : plan?.host_role || '该游戏未声明独立服务端启动项，通常需要房主在游戏内创建房间或按说明操作。'
     },
     {
       title: '4. 本机端口监听',
@@ -223,7 +258,7 @@ function buildChecklist(
       status: networkReady && (localPortReady || !hasServerProfile) ? '可以准备' : '等待前置',
       kind: networkReady && (localPortReady || !hasServerProfile) ? 'good' : 'warn',
       detail: networkReady
-        ? `把房主虚拟 IP、端口 ${defaultPort} 和组网配置发给朋友；朋友仍需启动自己的 n2n。`
+        ? plan?.join_role || `把房主虚拟 IP、端口 ${defaultPort} 和组网配置发给朋友；朋友仍需启动自己的 n2n。`
         : '先完成组网 ACK/PONG，再邀请好友测试。'
     }
   ];
@@ -242,6 +277,7 @@ function buildFriendInvitePacket(
 ) {
   const defaultPort = analysis?.default_ports[0] ?? 7777;
   const profile = analysis?.multiplayer_conversion;
+  const plan = analysis?.connection_plan;
   const networkReady = Boolean(n2n?.ok_link && !n2n.auth_error && !n2n.ip_mac_conflict);
   const localPortReady = Boolean(localPortReport?.reachable);
   const hostVirtualIp = n2n?.virtual_ip || '待确认';
@@ -251,8 +287,10 @@ function buildFriendInvitePacket(
     '【联机助手 · 游戏邀请好友包】',
     '',
     `游戏：${analysis?.display_name || '未选择游戏'}`,
+    `游戏网络类型：${networkTypeLabels[analysis?.network_type ?? ''] ?? analysis?.network_type ?? '未认定'}`,
     `推荐判断：${profile ? capabilityLabels[profile.capability] ?? profile.capability : '暂无适配器判断'}`,
     `推荐方式：${profile?.methods.map((method) => methodLabels[method] ?? method).join('、') || '暂无'}`,
+    `沉淀方案：${plan?.summary || '暂无连接方案，请按推荐步骤人工确认。'}`,
     `默认端口：${defaultPort}`,
     `房主虚拟 IP：${hostVirtualIp}`,
     `n2n community：${n2nConfig?.room_name || '待填写'}`,
@@ -260,6 +298,15 @@ function buildFriendInvitePacket(
     `邀请对象：${friendName || '未填写昵称'}`,
     `分配给你的虚拟 IP：${friendIp || '请让房主先分配一个不重复地址，例如 10.10.10.3'}`,
     `n2n 密钥：${includeSecret ? n2nConfig?.secret || '待填写' : '已隐藏，请让房主单独确认或勾选后复制'}`,
+    '',
+    '适配器连接方案：',
+    `- 房主：${plan?.host_role || '按游戏内房主流程创建房间或启动服务端。'}`,
+    `- 加入者：${plan?.join_role || '在游戏内选择 LAN / Join via IP / 直连入口。'}`,
+    `- 需要虚拟局域网：${plan?.requires_virtual_lan ? '是' : '按实际情况'}`,
+    `- 需要专用服务端：${plan?.requires_dedicated_server ? '是' : '否 / 未声明'}`,
+    `- 需要 TCP 端口代理：${plan?.requires_tcp_port_proxy ? '是' : '否 / 可选'}`,
+    `- 需要 UDP 广播桥：${plan?.requires_udp_broadcast_bridge ? '是' : '否 / 尚未实现'}`,
+    ...(plan?.invite_template ?? []).map((line) => `- ${line}`),
     '',
     '当前检测状态：',
     `- n2n 组网：${networkReady ? '已检测到 ACK/PONG' : '待确认 / 未完成'}`,
@@ -273,7 +320,8 @@ function buildFriendInvitePacket(
     '1. 先打开联机助手，进入通用组网中心。',
     `2. 使用上面的 n2n community、supernode 和密钥；你的虚拟 IP 填 ${friendIp || '房主分配给你的地址'}，不要和别人重复。`,
     '3. 启动 n2n edge，等待 ACK/PONG。',
-    `4. 打开游戏，在 LAN / Join via IP / 直连入口连接 ${hostVirtualIp}:${defaultPort}。`,
+    `4. 打开游戏，在 LAN / Join via IP / 直连入口连接 ${hostVirtualIp}:${plan?.default_join_port || defaultPort}。`,
+    ...(plan?.troubleshooting?.length ? ['', '如果失败，优先检查：', ...plan.troubleshooting.map((line) => `- ${line}`)] : []),
     '',
     includeSecret
       ? '注意：这份邀请包含 n2n 密钥，请只发给要一起联机的人。'
