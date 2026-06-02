@@ -46,13 +46,14 @@ pub fn list_game_adapters() -> Result<Vec<GameAdapter>, String> {
     load_game_adapters()
 }
 
-pub fn save_game_adapter(adapter: GameAdapter) -> Result<GameAdapter, String> {
+pub fn save_game_adapter(mut adapter: GameAdapter) -> Result<GameAdapter, String> {
     validate_adapter(&adapter)?;
     let dir = writable_adapter_dir()?;
     fs::create_dir_all(&dir).map_err(|err| format!("create adapter dir failed: {err}"))?;
     let file_name = format!("custom_{}.json", sanitize_file_stem(&adapter.game_id));
     let path = dir.join(file_name);
     write_adapter(&path, &adapter)?;
+    adapter.adapter_source = Some("custom".to_string());
     Ok(adapter)
 }
 
@@ -248,7 +249,9 @@ fn validate_adapter(adapter: &GameAdapter) -> Result<(), String> {
 }
 
 fn write_adapter(path: &Path, adapter: &GameAdapter) -> Result<(), String> {
-    let content = serde_json::to_string_pretty(adapter).map_err(|err| format!("serialize adapter failed: {err}"))?;
+    let mut persisted = adapter.clone();
+    persisted.adapter_source = None;
+    let content = serde_json::to_string_pretty(&persisted).map_err(|err| format!("serialize adapter failed: {err}"))?;
     fs::write(path, format!("{content}\n")).map_err(|err| format!("write {:?} failed: {err}", path))
 }
 
@@ -293,8 +296,10 @@ fn load_game_adapters_from_dir(dir: &Path) -> Result<Vec<GameAdapter>, String> {
     let mut adapters: Vec<(GameAdapter, u8)> = Vec::new();
     for path in paths {
         let content = fs::read_to_string(&path).map_err(|err| format!("read {:?} failed: {err}", path))?;
-        let adapter: GameAdapter = serde_json::from_str(&content).map_err(|err| format!("parse {:?} failed: {err}", path))?;
+        let mut adapter: GameAdapter =
+            serde_json::from_str(&content).map_err(|err| format!("parse {:?} failed: {err}", path))?;
         let priority = adapter_file_priority(&path);
+        adapter.adapter_source = Some(adapter_file_source(&path).to_string());
 
         if let Some(index) = adapters
             .iter()
@@ -308,6 +313,21 @@ fn load_game_adapters_from_dir(dir: &Path) -> Result<Vec<GameAdapter>, String> {
         }
     }
     Ok(adapters.into_iter().map(|(adapter, _)| adapter).collect())
+}
+
+fn adapter_file_source(path: &Path) -> &'static str {
+    path.file_stem()
+        .and_then(|item| item.to_str())
+        .map(|stem| {
+            if stem.starts_with("custom_") {
+                "custom"
+            } else if stem.starts_with("registry_") {
+                "registry"
+            } else {
+                "builtin"
+            }
+        })
+        .unwrap_or("builtin")
 }
 
 fn adapter_file_priority(path: &Path) -> u8 {
@@ -383,6 +403,11 @@ fn load_builtin_game_adapters() -> Result<Vec<GameAdapter>, String> {
 
     builtin
         .into_iter()
-        .map(|content| serde_json::from_str(content).map_err(|err| format!("parse builtin adapter failed: {err}")))
+        .map(|content| {
+            let mut adapter: GameAdapter =
+                serde_json::from_str(content).map_err(|err| format!("parse builtin adapter failed: {err}"))?;
+            adapter.adapter_source = Some("builtin".to_string());
+            Ok(adapter)
+        })
         .collect()
 }

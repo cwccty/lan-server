@@ -81,6 +81,8 @@ pub struct GameSummary {
     pub detected_path: Option<String>,
     pub capabilities: Vec<GameCapability>,
     pub multiplayer_conversion: Option<MultiplayerConversionProfile>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub adapter_source: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -91,6 +93,8 @@ pub struct GameAnalysis {
     pub detected_path: Option<String>,
     pub capabilities: Vec<GameCapability>,
     pub multiplayer_conversion: Option<MultiplayerConversionProfile>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub adapter_source: Option<String>,
     pub confidence: String,
     pub notes: Vec<String>,
     pub launch_profiles: Vec<LaunchProfile>,
@@ -104,6 +108,8 @@ pub struct GameAdapter {
     pub steam_appid: Option<String>,
     pub capabilities: Vec<GameCapability>,
     pub multiplayer_conversion: Option<MultiplayerConversionProfile>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub adapter_source: Option<String>,
     pub executables: Vec<String>,
     pub default_ports: Vec<u16>,
     pub launch_profiles: Vec<LaunchProfile>,

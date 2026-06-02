@@ -367,3 +367,16 @@ ConPTY 方案出现 `0xc0000142`。本轮回退为隐藏 `cmd.exe` 托管 Terrar
 - 旧地址 `http://127.0.0.1:8088/adapter-registry/index.json` 会自动替换成 GitHub raw 默认地址。
 - 按钮改为“恢复 GitHub 默认地址”。
 - 页面显示版本 `adapter-manager-2026-06-02-github-default`，便于确认是否打开最新 exe。
+
+## 2026-06-02 适配器来源标识
+
+按计划实现适配器来源标识：
+
+- Rust `GameAdapter` / `GameSummary` / `GameAnalysis` 新增 `adapter_source`。
+- `adapter_store` 根据文件名前缀推断来源：builtin / registry / custom。
+- 未适配 Steam 扫描结果标记为 `steam_scan`。
+- 适配器管理页表格新增“来源”列。
+- 推荐页显示“适配器来源”。
+- 样式新增不同来源 badge。
+
+验证：`npm run build` 和 `cargo check --manifest-path src-tauri\\Cargo.toml` 通过。

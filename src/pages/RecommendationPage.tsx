@@ -36,6 +36,13 @@ const methodLabels: Record<string, string> = {
   not_supported: '不支持'
 };
 
+const sourceLabels: Record<string, string> = {
+  builtin: '内置适配器',
+  registry: '共享库适配器',
+  custom: '本地自定义适配器',
+  steam_scan: 'Steam 自动扫描'
+};
+
 function ConversionProfileView({ analysis }: { analysis: GameAnalysis }) {
   const profile = analysis.multiplayer_conversion;
   if (!profile) {
@@ -56,6 +63,7 @@ function ConversionProfileView({ analysis }: { analysis: GameAnalysis }) {
         </span>
       </div>
       <p>能力类型：<strong>{capabilityLabels[profile.capability] ?? profile.capability}</strong></p>
+      {analysis.adapter_source && <p>适配器来源：<strong>{sourceLabels[analysis.adapter_source] ?? analysis.adapter_source}</strong></p>}
       <p>风险等级：<strong>{profile.risk_level}</strong></p>
       <p>转换方式：</p>
       <div className="badge-row">

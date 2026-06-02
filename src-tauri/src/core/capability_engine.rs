@@ -32,6 +32,7 @@ pub fn analyze_game(game_id: &str) -> Result<GameAnalysis, String> {
                 ],
                 required_components: vec!["人工适配".to_string()],
             }),
+            adapter_source: game.adapter_source.or_else(|| Some("steam_scan".to_string())),
             confidence: "low".to_string(),
             notes: vec![
                 "该游戏来自 Steam appmanifest 自动扫描，但尚未进入联机助手适配库。".to_string(),
@@ -53,6 +54,7 @@ pub fn analyze_game(game_id: &str) -> Result<GameAnalysis, String> {
             .multiplayer_conversion
             .clone()
             .or_else(|| Some(infer_multiplayer_conversion(&adapter.capabilities))),
+        adapter_source: adapter.adapter_source,
         capabilities: adapter.capabilities,
         confidence: "medium".to_string(),
         notes: vec!["当前结果来自静态适配库，尚未完成本机安装路径扫描。".to_string()],

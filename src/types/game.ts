@@ -64,6 +64,7 @@ export interface GameSummary {
   detected_path?: string;
   capabilities: GameCapability[];
   multiplayer_conversion?: MultiplayerConversionProfile;
+  adapter_source?: 'builtin' | 'registry' | 'custom' | 'steam_scan' | string;
 }
 
 export interface GameAnalysis extends GameSummary {
@@ -79,6 +80,7 @@ export interface GameAdapter {
   steam_appid?: string;
   capabilities: GameCapability[];
   multiplayer_conversion?: MultiplayerConversionProfile;
+  adapter_source?: 'builtin' | 'registry' | 'custom' | 'steam_scan' | string;
   executables: string[];
   default_ports: number[];
   launch_profiles: LaunchProfile[];

@@ -178,6 +178,10 @@ main {
 .badge.good { background: #1d7f56; }
 .badge.warn { background: #9a7620; }
 .badge.bad { background: #9a2e2e; }
+.badge.source-builtin { background: #30384f; }
+.badge.source-registry { background: #1d5f7f; }
+.badge.source-custom { background: #7f4ead; }
+.badge.source-steam_scan { background: #58616f; }
 
 .badge-row {
   display: flex;

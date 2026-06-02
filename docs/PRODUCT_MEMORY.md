@@ -422,3 +422,16 @@ https://raw.githubusercontent.com/cwccty/lan-server/master/adapter-registry/inde
 - 适配器管理页显示版本号 `adapter-manager-2026-06-02-github-default`，用于确认用户打开的是最新 exe。
 
 如果页面版本号没有出现，说明运行的不是最新 release exe。
+
+## 2026-06-02 适配器来源标识
+
+适配器管理和推荐页新增来源标识，用于验证当前生效适配器来自哪里：
+
+- `builtin`：安装包/项目内置适配器。
+- `registry`：远程共享库或本地示例库同步生成的 `registry_<game_id>.json`。
+- `custom`：本地管理员/高级用户保存的 `custom_<game_id>.json`。
+- `steam_scan`：Steam 自动扫描但尚未适配。
+
+加载优先级仍然是：`custom > registry > builtin`。保存适配器时返回来源 `custom`，写入磁盘时不会把 `adapter_source` 固化到 JSON，来源由文件名前缀推断。
+
+适配器管理页表格新增“来源”列；推荐页的“联机能力转换判断”里也会显示适配器来源。

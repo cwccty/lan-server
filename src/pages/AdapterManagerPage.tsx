@@ -32,6 +32,13 @@ const methodOptions: Array<[ConversionMethod, string]> = [
   ['not_supported', '不支持']
 ];
 
+const sourceLabels: Record<string, string> = {
+  builtin: '内置',
+  registry: '共享库',
+  custom: '本地自定义',
+  steam_scan: 'Steam 扫描'
+};
+
 const DEFAULT_ADAPTER_REGISTRY_URL = 'https://raw.githubusercontent.com/cwccty/lan-server/master/adapter-registry/index.json';
 const LEGACY_LOCAL_REGISTRY_URL = 'http://127.0.0.1:8088/adapter-registry/index.json';
 const REGISTRY_URL_STORAGE_KEY = 'lan-helper-adapter-registry-url';
@@ -307,11 +314,12 @@ export function AdapterManagerPage() {
         <h3>当前适配器（{adapterCount}）</h3>
         {adapters.length === 0 ? <p className="muted">暂无适配器。</p> : (
           <table className="adapter-table">
-            <thead><tr><th>游戏</th><th>AppID</th><th>能力</th><th>端口</th><th>操作</th></tr></thead>
+            <thead><tr><th>游戏</th><th>来源</th><th>AppID</th><th>能力</th><th>端口</th><th>操作</th></tr></thead>
             <tbody>
               {adapters.map((adapter) => (
                 <tr key={adapter.game_id}>
                   <td>{adapter.display_name}<br /><small className="muted">{adapter.game_id}</small></td>
+                  <td><span className={`badge source-${adapter.adapter_source ?? 'unknown'}`}>{sourceLabels[adapter.adapter_source ?? ''] ?? adapter.adapter_source ?? '未知'}</span></td>
                   <td>{adapter.steam_appid || '-'}</td>
                   <td>{adapter.multiplayer_conversion?.capability || 'unknown'}</td>
                   <td>{adapter.default_ports.join(',') || '-'}</td>
