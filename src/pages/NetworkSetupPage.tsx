@@ -103,6 +103,40 @@ function suggestAlternativeIps(currentIp: string) {
   return suggestions.length > 0 ? suggestions : ['10.10.10.3', '10.10.10.4', '10.10.10.5'];
 }
 
+function buildN2nAdminSummary(
+  diagnostics: N2nDiagnostics | null,
+  localIp: string,
+  peerIp: string,
+  supernode: string,
+  roomName: string
+) {
+  const recentLogs = diagnostics?.recent_logs.slice(-20) ?? ['暂无'];
+  return [
+    '【联机助手 n2n 诊断摘要】',
+    `生成时间：${new Date().toLocaleString()}`,
+    '',
+    `supernode：${supernode.trim() || '未填写'}`,
+    `community：${roomName.trim() || '未填写'}`,
+    `本机期望虚拟 IP：${localIp.trim() || '未填写'}`,
+    `对方 / 房主虚拟 IP：${peerIp.trim() || '未填写'}`,
+    '',
+    `edge 运行：${diagnostics?.running ? '是' : '否'}`,
+    `supernode 已配置：${diagnostics?.supernode_configured ? '是' : '否'}`,
+    `ACK：${diagnostics?.ack ? '是' : '否'}`,
+    `PONG：${diagnostics?.pong ? '是' : '否'}`,
+    `认证错误：${diagnostics?.auth_error ? '是' : '否'}`,
+    `IP / MAC 冲突：${diagnostics?.ip_mac_conflict ? '是' : '否'}`,
+    `supernode 无响应：${diagnostics?.not_responding ? '是' : '否'}`,
+    '',
+    `结论：${diagnostics?.summary || '暂无诊断结果'}`,
+    diagnostics?.last_error ? `最近错误：${diagnostics.last_error}` : '',
+    `日志路径：${diagnostics?.log_path || '暂无'}`,
+    '',
+    '最近日志：',
+    ...recentLogs
+  ].filter(Boolean).join('\n');
+}
+
 export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
   const [backends, setBackends] = useState<BackendSummary[]>([]);
   const [host, setHost] = useState('127.0.0.1');
@@ -191,6 +225,8 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
     `5. 在游戏里选择 LAN / Join via IP，连接 ${localIp}:${gamePort}。`
   ].join('\n');
 
+  const n2nAdminSummary = buildN2nAdminSummary(n2nDiagnostics, localIp, peerIp, supernode, roomName);
+
   const parsedGamePort = Number(gamePort.trim()) || 7777;
   const n2nBackend = backends.find((backend) => backend.id === 'n2n');
   const n2nRuntimeResult = n2nResult && 'running' in n2nResult ? n2nResult : null;
@@ -247,6 +283,11 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
   const copyFriendConfig = async () => {
     await navigator.clipboard?.writeText(friendConfigText);
     setCopyMessage('通用组网配置已复制，可以发给朋友。');
+  };
+
+  const copyN2nAdminSummary = async () => {
+    await navigator.clipboard?.writeText(n2nAdminSummary);
+    setCopyMessage('n2n 诊断摘要已复制，可以发给管理员或发到项目 issue。');
   };
 
   const copySteamRelayDraft = async () => {
@@ -345,6 +386,11 @@ export function NetworkSetupPage({ onNext }: { onNext: () => void }) {
               <p>{n2nDiagnostics.summary}</p>
               <p>日志文件：{n2nDiagnostics.log_path}</p>
               {n2nDiagnostics.last_error && <p>最近错误：{n2nDiagnostics.last_error}</p>}
+              <div className="actions">
+                <button type="button" className="secondary" onClick={copyN2nAdminSummary} disabled={Boolean(busy)}>复制给管理员的诊断摘要</button>
+              </div>
+              <p className="muted">摘要不会包含 n2n 密钥，只包含 supernode、community、虚拟 IP、ACK/PONG、错误状态和最近日志。</p>
+              {copyMessage && <p className="muted">{copyMessage}</p>}
               <details>
                 <summary>查看最近 edge 日志</summary>
                 <pre className="console-panel">{n2nDiagnostics.recent_logs.join('\n') || '暂无 edge 日志。启动 n2n edge 后会自动捕获。'}</pre>

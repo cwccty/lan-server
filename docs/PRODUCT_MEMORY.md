@@ -466,6 +466,16 @@ https://raw.githubusercontent.com/cwccty/lan-server/master/adapter-registry/inde
 
 验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。release exe：src-tauri\target\release\lan-helper.exe。
 
+## 2026-06-02 n2n 管理员诊断摘要复制
+
+已在通用组网中心的“supernode 响应诊断”区域增加“复制给管理员的诊断摘要”按钮。
+
+- 摘要包含：生成时间、supernode、community、本机期望虚拟 IP、对方 / 房主虚拟 IP、edge 是否运行、supernode 是否配置、ACK、PONG、认证错误、IP / MAC 冲突、supernode 无响应、结论、最近错误、日志路径、最近 20 行 edge 日志。
+- 摘要明确不包含 n2n 密钥，避免用户把房间密码误发到公开 issue 或群聊。
+- 该功能用于把真实 edge 日志状态快速发给管理员或开发者排查，而不是只靠截图或前端颜色判断。
+
+验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。release exe：src-tauri\target\release\lan-helper.exe。
+
 
 ## 2026-06-02 通用组网中心真实状态卡
 
