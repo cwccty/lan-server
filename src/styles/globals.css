@@ -152,3 +152,54 @@ pre {
   max-height: 420px;
   white-space: pre-wrap;
 }
+
+.room-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.member-list {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.member-list li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid #2b3652;
+  border-radius: 10px;
+  background: #11182a;
+}
+
+.chat-panel {
+  display: grid;
+  gap: 8px;
+  min-height: 120px;
+  max-height: 260px;
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid #2b3652;
+  border-radius: 12px;
+  background: #0d1220;
+}
+
+.chat-message {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #151b2b;
+}
+
+.chat-message span {
+  color: #8d9ab7;
+  font-size: 12px;
+}
+
+.chat-message p {
+  margin: 6px 0 0;
+}
