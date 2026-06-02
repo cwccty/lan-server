@@ -21,6 +21,8 @@ pub fn recommend_plans(game_id: &str) -> Result<Vec<Recommendation>, String> {
                 "双方加入同一个 n2n/Radmin/Manual LAN 网络".to_string(),
                 "房主启动游戏或服务端".to_string(),
                 "其他玩家连接房主虚拟 IP".to_string(),
+                "注意：启动 client 只是打开游戏客户端，不代表已经完成联机；仍需在游戏内连接房主虚拟 IP。"
+                    .to_string(),
             ],
             launch_profile_id: Some("client".to_string()),
         });
@@ -41,6 +43,8 @@ pub fn recommend_plans(game_id: &str) -> Result<Vec<Recommendation>, String> {
                 "房主启动服务端配置".to_string(),
                 "检查默认端口是否可达".to_string(),
                 "其他玩家连接房主虚拟 IP 和端口".to_string(),
+                "注意：启动 server 只负责让房主侧开始监听端口，加入方仍需要先完成组网并在游戏内加入。"
+                    .to_string(),
             ],
             launch_profile_id: Some("server".to_string()),
         });

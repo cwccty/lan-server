@@ -97,6 +97,20 @@ export function RecommendationPage({ gameId }: { gameId?: string }) {
         开服设置使用统一表单渲染：不同游戏只需要在适配器里声明参数，不需要为每个游戏单独写一个前端页面。
       </p>
 
+      <article className="card pending-feature">
+        <h3>这里不是“一键已经联机”</h3>
+        <p>
+          推荐页的作用是把扫描到的游戏匹配到合适流程：虚拟局域网、启动客户端、启动本地服务端或查看说明。
+          真正能不能本地联机，还要看下面几个真实条件是否成立。
+        </p>
+        <ol>
+          <li>双方已经在同一个 n2n / Radmin / 现有局域网里，并且虚拟 IP 不冲突。</li>
+          <li>房主已经启动游戏房间或 Dedicated Server，并且端口正在监听。</li>
+          <li>加入方在游戏内选择 LAN / IP 直连，连接房主虚拟 IP 和游戏端口。</li>
+          <li>如果这个游戏本身没有 LAN/IP/服务端能力，需要后续适配广播桥、端口代理、Mod 或平台网络插件，不能只靠“启动客户端”。</li>
+        </ol>
+      </article>
+
       {items.length === 0 ? (
         <p>暂无推荐，请先选择游戏。</p>
       ) : (
@@ -106,6 +120,7 @@ export function RecommendationPage({ gameId }: { gameId?: string }) {
             <article className="card" key={item.id}>
               <RecommendationCard
                 item={item}
+                launchProfileType={profile?.type}
                 onLaunch={
                   gameId && item.launch_profile_id
                     ? () => runLaunchProfile(item.launch_profile_id as string)
