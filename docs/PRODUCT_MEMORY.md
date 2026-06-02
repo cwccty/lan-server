@@ -162,3 +162,7 @@ MVP 修正为：Windows 下创建隐藏控制台，但不再重定向 stdin/stdo
 继续测试后确认：Shell hidden 与普通隐藏控制台仍不足以让 TerrariaServer 长时间保持运行。当前结论是 TerrariaServer 需要的不是单纯“有/无控制台窗口”，而是接近真实交互终端的控制台环境。
 
 本轮改为 Windows ConPTY 伪终端托管：联机助手创建 Pseudo Console，把 TerrariaServer 绑定到伪终端启动，父进程保留输入/输出管道并在内嵌控制台读取输出。这样既不弹出白色命令框，又给 TerrariaServer 一个交互式控制台环境。ready 判断仍然来自真实进程 PID 对应的 TCP LISTEN 表和运行时长。
+
+## 2026-06-02 Terraria 后台稳定性第五次修正：隐藏 cmd 托管回退
+
+ConPTY 在当前 TerrariaServer 环境中触发 `0xc0000142` 启动错误。本轮改为隐藏 `cmd.exe` 托管：通过 `cmd.exe /d /s /c TerrariaServer.exe ...` 在隐藏的新控制台中运行服务端，避免 ConPTY 兼容性问题，同时继续不显示白色命令框。由于端口由 TerrariaServer 子进程监听，ready 判断改为“当前会话进程仍运行 + 目标端口存在监听”。

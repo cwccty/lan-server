@@ -174,3 +174,7 @@ SourceAddress：10.10.10.2
 ## 2026-06-02 发布阻断项第四次修正：ConPTY 伪终端托管
 
 Shell hidden 方式仍会 `exit_code=0` 自动退出。本轮改用 Windows ConPTY：创建 Pseudo Console，将 TerrariaServer 作为伪终端进程启动，并保留输入/输出管道用于内嵌控制台观察。目标是在不弹出白色命令框的前提下提供接近真实控制台的运行环境。
+
+## 2026-06-02 发布阻断项第五次修正：ConPTY 回退到隐藏 cmd 托管
+
+ConPTY 方案出现 `0xc0000142`。本轮回退为隐藏 `cmd.exe` 托管 TerrariaServer，利用 cmd/console host 提供普通控制台环境，联机助手继续通过进程生命周期和端口监听判断 ready。

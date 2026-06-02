@@ -3,6 +3,7 @@ use std::fs;
 #[cfg(windows)]
 use std::fs::File;
 use std::io::Write;
+#[cfg(not(windows))]
 use std::io::{BufRead, BufReader};
 #[cfg(not(windows))]
 use std::net::{TcpStream, ToSocketAddrs};
@@ -29,8 +30,6 @@ use crate::storage::adapter_store;
 #[cfg(windows)]
 use std::os::windows::ffi::OsStrExt;
 #[cfg(windows)]
-use std::os::windows::io::{FromRawHandle, RawHandle};
-#[cfg(windows)]
 use windows_sys::Win32::Foundation::{CloseHandle, ERROR_INSUFFICIENT_BUFFER, HANDLE};
 #[cfg(windows)]
 use windows_sys::Win32::NetworkManagement::IpHelper::{
@@ -39,18 +38,12 @@ use windows_sys::Win32::NetworkManagement::IpHelper::{
 #[cfg(windows)]
 use windows_sys::Win32::Networking::WinSock::AF_INET;
 #[cfg(windows)]
-use windows_sys::Win32::Security::SECURITY_ATTRIBUTES;
-#[cfg(windows)]
-use windows_sys::Win32::System::Console::{ClosePseudoConsole, CreatePseudoConsole, COORD, HPCON};
-#[cfg(windows)]
-use windows_sys::Win32::System::Pipes::CreatePipe;
-#[cfg(windows)]
 use windows_sys::Win32::System::Threading::{
-    CreateProcessW, DeleteProcThreadAttributeList, GetExitCodeProcess,
-    InitializeProcThreadAttributeList, TerminateProcess, UpdateProcThreadAttribute,
-    EXTENDED_STARTUPINFO_PRESENT, PROCESS_INFORMATION, PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
-    STARTUPINFOEXW,
+    CreateProcessW, GetExitCodeProcess, TerminateProcess, CREATE_NEW_CONSOLE, PROCESS_INFORMATION,
+    STARTF_USESHOWWINDOW, STARTUPINFOW,
 };
+#[cfg(windows)]
+use windows_sys::Win32::UI::WindowsAndMessaging::SW_HIDE;
 
 struct ServerSession {
     game_id: String,
@@ -114,7 +107,6 @@ const STILL_ACTIVE_EXIT_CODE: u32 = 259;
 struct WindowsProcess {
     process_handle: HANDLE,
     thread_handle: HANDLE,
-    hpc: HPCON,
     pid: u32,
 }
 
@@ -125,9 +117,6 @@ unsafe impl Send for WindowsProcess {}
 impl Drop for WindowsProcess {
     fn drop(&mut self) {
         unsafe {
-            if self.hpc != 0 {
-                ClosePseudoConsole(self.hpc);
-            }
             if !self.thread_handle.is_null() {
                 let _ = CloseHandle(self.thread_handle);
             }
@@ -386,89 +375,18 @@ fn start_hidden_process(
     working_dir: &PathBuf,
     args: &[String],
 ) -> Result<ManagedProcess, String> {
-    let (pty_input_read, pty_input_write) = create_pipe_pair("conpty input")?;
-    let (pty_output_read, pty_output_write) = create_pipe_pair("conpty output")?;
-
-    let mut hpc: HPCON = 0;
-    let hr = unsafe {
-        CreatePseudoConsole(
-            COORD { X: 120, Y: 40 },
-            pty_input_read,
-            pty_output_write,
-            0,
-            &mut hpc,
-        )
-    };
-    unsafe {
-        let _ = CloseHandle(pty_input_read);
-        let _ = CloseHandle(pty_output_write);
-    }
-    if hr < 0 || hpc == 0 {
-        unsafe {
-            let _ = CloseHandle(pty_input_write);
-            let _ = CloseHandle(pty_output_read);
-        }
-        return Err(format!(
-            "Failed to start server: CreatePseudoConsole returned HRESULT {hr:#x}."
-        ));
-    }
-
-    let mut attr_size = 0usize;
-    unsafe {
-        InitializeProcThreadAttributeList(std::ptr::null_mut(), 1, 0, &mut attr_size);
-    }
-    if attr_size == 0 {
-        unsafe {
-            ClosePseudoConsole(hpc);
-            let _ = CloseHandle(pty_input_write);
-            let _ = CloseHandle(pty_output_read);
-        }
-        return Err(
-            "Failed to start server: cannot initialize ConPTY attribute list size.".to_string(),
-        );
-    }
-    let mut attr_buffer = vec![0u8; attr_size];
-    let attr_list = attr_buffer.as_mut_ptr().cast();
-    let attr_ok = unsafe { InitializeProcThreadAttributeList(attr_list, 1, 0, &mut attr_size) };
-    if attr_ok == 0 {
-        unsafe {
-            ClosePseudoConsole(hpc);
-            let _ = CloseHandle(pty_input_write);
-            let _ = CloseHandle(pty_output_read);
-        }
-        return Err(
-            "Failed to start server: InitializeProcThreadAttributeList failed.".to_string(),
-        );
-    }
-
-    let update_ok = unsafe {
-        UpdateProcThreadAttribute(
-            attr_list,
-            0,
-            PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE as usize,
-            (&hpc as *const HPCON).cast(),
-            std::mem::size_of::<HPCON>(),
-            std::ptr::null_mut(),
-            std::ptr::null(),
-        )
-    };
-    if update_ok == 0 {
-        unsafe {
-            DeleteProcThreadAttributeList(attr_list);
-            ClosePseudoConsole(hpc);
-            let _ = CloseHandle(pty_input_write);
-            let _ = CloseHandle(pty_output_read);
-        }
-        return Err("Failed to start server: UpdateProcThreadAttribute ConPTY failed.".to_string());
-    }
-
-    let command_line = build_windows_command_line(executable, args);
+    let logs = Arc::new(Mutex::new(Vec::new()));
+    let cmd_exe =
+        std::env::var("COMSPEC").unwrap_or_else(|_| "C:\\Windows\\System32\\cmd.exe".to_string());
+    let command_line = build_cmd_command_line(executable, args);
     let mut command_line_w = wide_null(&command_line);
-    let application_w = wide_null(executable.as_os_str());
+    let application_w = wide_null(std::ffi::OsStr::new(&cmd_exe));
     let working_dir_w = wide_null(working_dir.as_os_str());
-    let mut startup: STARTUPINFOEXW = unsafe { std::mem::zeroed() };
-    startup.StartupInfo.cb = std::mem::size_of::<STARTUPINFOEXW>() as u32;
-    startup.lpAttributeList = attr_list;
+
+    let mut startup: STARTUPINFOW = unsafe { std::mem::zeroed() };
+    startup.cb = std::mem::size_of::<STARTUPINFOW>() as u32;
+    startup.dwFlags = STARTF_USESHOWWINDOW;
+    startup.wShowWindow = SW_HIDE as u16;
 
     let mut process_info: PROCESS_INFORMATION = unsafe { std::mem::zeroed() };
     let created = unsafe {
@@ -478,48 +396,36 @@ fn start_hidden_process(
             std::ptr::null(),
             std::ptr::null(),
             0,
-            EXTENDED_STARTUPINFO_PRESENT,
+            CREATE_NEW_CONSOLE,
             std::ptr::null(),
             working_dir_w.as_ptr(),
-            &mut startup.StartupInfo,
+            &startup,
             &mut process_info,
         )
     };
-    unsafe {
-        DeleteProcThreadAttributeList(attr_list);
-    }
 
     if created == 0 {
-        unsafe {
-            ClosePseudoConsole(hpc);
-            let _ = CloseHandle(pty_input_write);
-            let _ = CloseHandle(pty_output_read);
-        }
-        return Err("Failed to start server: CreateProcessW + ConPTY failed.".to_string());
+        return Err(
+            "Failed to start server: cmd.exe + hidden console returned failure.".to_string(),
+        );
     }
 
-    let logs = Arc::new(Mutex::new(Vec::new()));
     push_log(
         &logs,
-        "Windows ConPTY hosting mode: TerrariaServer is running inside a pseudo terminal, with no external white command window.".to_string(),
+        "Windows cmd hosting mode: TerrariaServer is launched through hidden cmd.exe so it receives a normal console host without showing a white command window.".to_string(),
     );
     push_log(
         &logs,
-        "The embedded panel reads ConPTY output; readiness still comes from the real process and its PID-owned listening port.".to_string(),
+        "Readiness is based on the game port listener and process lifetime; this mode avoids ConPTY startup error 0xc0000142.".to_string(),
     );
-
-    let stdin = unsafe { File::from_raw_handle(pty_input_write as RawHandle) };
-    let stdout = unsafe { File::from_raw_handle(pty_output_read as RawHandle) };
-    spawn_output_reader(stdout, Arc::clone(&logs));
 
     Ok(ManagedProcess {
         process: ManagedChild::Windows(WindowsProcess {
             process_handle: process_info.hProcess,
             thread_handle: process_info.hThread,
-            hpc,
             pid: process_info.dwProcessId,
         }),
-        stdin: Some(ManagedStdin::Windows(stdin)),
+        stdin: None,
         logs,
     })
 }
@@ -560,23 +466,6 @@ fn start_hidden_process(
 }
 
 #[cfg(windows)]
-fn create_pipe_pair(name: &str) -> Result<(HANDLE, HANDLE), String> {
-    let mut read: HANDLE = std::ptr::null_mut();
-    let mut write: HANDLE = std::ptr::null_mut();
-    let attrs = SECURITY_ATTRIBUTES {
-        nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
-        lpSecurityDescriptor: std::ptr::null_mut(),
-        bInheritHandle: 0,
-    };
-    let ok = unsafe { CreatePipe(&mut read, &mut write, &attrs, 0) };
-    if ok == 0 {
-        Err(format!("Failed to create {name} pipe: CreatePipe failed."))
-    } else {
-        Ok((read, write))
-    }
-}
-
-#[cfg(windows)]
 fn wide_null(value: impl AsRef<std::ffi::OsStr>) -> Vec<u16> {
     value
         .as_ref()
@@ -586,12 +475,13 @@ fn wide_null(value: impl AsRef<std::ffi::OsStr>) -> Vec<u16> {
 }
 
 #[cfg(windows)]
-fn build_windows_command_line(executable: &Path, args: &[String]) -> String {
-    std::iter::once(executable.to_string_lossy().to_string())
+fn build_cmd_command_line(executable: &Path, args: &[String]) -> String {
+    let child_command = std::iter::once(executable.to_string_lossy().to_string())
         .chain(args.iter().cloned())
         .map(|item| quote_windows_arg(&item))
         .collect::<Vec<_>>()
-        .join(" ")
+        .join(" ");
+    format!("cmd.exe /d /s /c \"{child_command}\"")
 }
 
 #[cfg(windows)]
@@ -627,19 +517,6 @@ fn quote_windows_arg(arg: &str) -> String {
     }
     quoted.push('"');
     quoted
-}
-
-#[cfg(windows)]
-fn spawn_output_reader<R>(reader: R, logs: Arc<Mutex<Vec<String>>>)
-where
-    R: std::io::Read + Send + 'static,
-{
-    thread::spawn(move || {
-        let reader = BufReader::new(reader);
-        for line in reader.lines().map_while(Result::ok) {
-            push_log(&logs, line);
-        }
-    });
 }
 
 #[cfg(not(windows))]
@@ -705,7 +582,7 @@ fn snapshot_logs(logs: &Arc<Mutex<Vec<String>>>) -> Vec<String> {
 fn status_from_session(session: &mut ServerSession, message: &str) -> ServerSessionStatus {
     refresh_process_state(session);
     let running = session.exit_code.is_none();
-    let ready = running && is_local_port_listening(session.port, session.process.id());
+    let ready = running && is_local_port_listening(session.port, 0);
     if ready {
         session.ever_ready = true;
     }
@@ -815,7 +692,7 @@ fn is_local_port_listening(port: u16, pid: u32) -> bool {
         let local_port = u16::from_be((row.dwLocalPort & 0xffff) as u16);
         if row.dwState == MIB_TCP_STATE_LISTEN as u32
             && local_port == port
-            && row.dwOwningPid == pid
+            && (pid == 0 || row.dwOwningPid == pid)
         {
             return true;
         }
