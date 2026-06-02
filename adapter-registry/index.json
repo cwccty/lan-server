@@ -4,12 +4,6 @@
   "description": "Lan Helper local adapter registry example. Can be hosted by VPS, static HTTP server, GitHub Pages, or any HTTPS static file hosting.",
   "games": [
     {
-      "game_id": "terraria",
-      "steam_appid": "105600",
-      "adapter_url": "games/terraria.json",
-      "sha256": "304032f5cd2cf00916b7d61ed728cf5aa4107d80a0bfd36c1cf31ea738b58715"
-    },
-    {
       "game_id": "minecraft_java",
       "steam_appid": null,
       "adapter_url": "games/minecraft_java.json",
@@ -20,6 +14,12 @@
       "steam_appid": "413150",
       "adapter_url": "games/stardew_valley.json",
       "sha256": "4ed34f221144fdd739bc6832c96a8c9b5def3b71908383280000360858552c19"
+    },
+    {
+      "game_id": "terraria",
+      "steam_appid": "105600",
+      "adapter_url": "games/terraria.json",
+      "sha256": "304032f5cd2cf00916b7d61ed728cf5aa4107d80a0bfd36c1cf31ea738b58715"
     }
   ]
 }

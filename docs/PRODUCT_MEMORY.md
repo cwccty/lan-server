@@ -967,3 +967,44 @@ UDP 广播桥已经进入通用组网中心，并纳入诊断报告。
 这让“本地认定 → 导出 JSON → 放入共享 registry → 其他用户同步复用”的流程更清晰。
 
 注意：共享适配器仍然只能是数据，不允许携带任意脚本或自动下载未知可执行文件；不能绕过正版验证、反作弊或官方账号服务。
+
+## 2026-06-03 下一大块规划：适配器共享库与方案沉淀闭环
+
+发布级诊断与失败分类完成后，下一大块不应继续优先堆单个联机按钮，而应进入“适配器共享库与方案沉淀闭环”。
+
+原因：项目的核心差异不是单纯提供 n2n、TCP 代理、UDP 代理或广播桥，而是把“某个游戏到底属于哪种联机类型、需要什么转换方案、用户该怎么操作”沉淀成可复用 adapter。管理员或高级用户认定一次后，后续普通用户扫描到同一个游戏时不需要重新判断。
+
+这一大块的目标：
+
+1. 本地 adapter-registry 生成工具：扫描 `adapter-registry/games/*.json`，自动计算 sha256，生成 `adapter-registry/index.json`。
+2. 共享库同步可信化：远程拉取 index，按 sha256 校验 adapter，失败不覆盖本地可用数据。
+3. 适配器版本与来源展示：明确 builtin/custom/registry/steam_scan，避免用户误以为未知游戏已经完整支持。
+4. 管理员提交闭环：本地认定 → 导出 JSON → 自动生成 index entry → 放到 GitHub Pages/VPS → 其他用户同步。
+5. 发布前端到端验证：至少用 Terraria 和 1 个 unknown 草稿模拟完整流程，证明“认定一次、多人复用”真实成立。
+
+阶段边界：这一阶段仍然只做数据化 adapter，不允许共享库携带任意脚本、未知 exe 自动下载、绕过正版验证/反作弊/官方账号服务。
+
+下一步推荐：先新增 `tools/update_adapter_registry_index.ps1`，自动生成本地共享库 `index.json`，让 GitHub Pages/VPS 同步流程可测试。
+
+
+## 2026-06-03 本地 adapter-registry index 自动生成工具
+
+已新增 `tools/update_adapter_registry_index.ps1`：
+
+- 扫描 `adapter-registry/games/*.json`。
+- 读取 adapter 的 `game_id` / `steam_appid`。
+- 计算每个 adapter JSON 的 SHA256。
+- 自动生成 `adapter-registry/index.json`。
+- 支持 `-NoWrite` 预览，支持 `-RegistryDir` 指定其他共享库目录。
+- 输出使用 UTF-8 无 BOM，避免共享库 JSON 被额外 BOM 干扰。
+
+已补充 `adapter-registry/README.md` 和 `docs/ADAPTER_REGISTRY.md` 的实际用法。
+
+验证通过：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\update_adapter_registry_index.ps1
+Get-Content adapter-registry\index.json -Raw -Encoding UTF8 | ConvertFrom-Json
+```
+
+下一步推荐：把共享库同步做成更强的“同步结果详情页/弹窗”，显示新增、更新、跳过、hash 失败、解析失败，方便发布前排查远程 registry 问题。

@@ -56,3 +56,32 @@ https://你的域名/adapter-registry/index.json
 ## 更新 sha256
 
 每次修改 `games/*.json` 后，需要重新生成 `index.json` 里的 sha256。可以重新运行项目里的生成脚本，或用任意 sha256 工具计算。
+
+## 自动生成 index.json
+
+项目现在提供本地生成脚本：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\update_adapter_registry_index.ps1
+```
+
+脚本会：
+
+1. 扫描 `adapter-registry/games/*.json`。
+2. 读取每个 adapter 的 `game_id` 和 `steam_appid`。
+3. 计算 adapter 文件的 SHA256。
+4. 生成或覆盖 `adapter-registry/index.json`。
+
+如果只想预览输出而不写入文件：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\update_adapter_registry_index.ps1 -NoWrite
+```
+
+如果你的 registry 目录不在默认位置：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\update_adapter_registry_index.ps1 -RegistryDir D:\registry\adapter-registry
+```
+
+每次新增或修改 `adapter-registry/games/*.json` 后，都应先运行这个脚本，再把 `games/*.json` 和新的 `index.json` 一起提交或上传到 GitHub Pages / VPS。

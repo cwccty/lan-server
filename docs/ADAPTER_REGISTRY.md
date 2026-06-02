@@ -166,3 +166,33 @@ adapter-registry/index.json
 - 默认端口、房主步骤、加入者步骤准确；
 - 需要 TCP 代理、UDP 单播代理、UDP 广播桥或专用服务端时，文案没有误导；
 - 不包含任意脚本、未知 exe 下载、绕过正版验证、绕过反作弊或模拟官方账号服务的内容。
+
+## 本地 index.json 自动生成工具（2026-06-03）
+
+为了避免管理员手工复制 sha256 出错，项目提供：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\update_adapter_registry_index.ps1
+```
+
+它会扫描 `adapter-registry/games/*.json`，自动生成 `adapter-registry/index.json`，并输出每个游戏的 hash。推荐流程变为：
+
+1. 把导出的 adapter JSON 放到 `adapter-registry/games/<game_id>.json`。
+2. 运行 `tools\update_adapter_registry_index.ps1`。
+3. 检查 `adapter-registry/index.json` 是否包含该游戏。
+4. 提交或上传整个 `adapter-registry/`。
+5. 客户端通过 GitHub raw、GitHub Pages 或 VPS 静态地址同步。
+
+预览但不写入：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\update_adapter_registry_index.ps1 -NoWrite
+```
+
+指定其他 registry 目录：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\update_adapter_registry_index.ps1 -RegistryDir D:\registry\adapter-registry
+```
+
+这个工具只生成数据索引，不执行 adapter 内容，也不会下载任何可执行文件。
