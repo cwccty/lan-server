@@ -178,3 +178,7 @@ Shell hidden 方式仍会 `exit_code=0` 自动退出。本轮改用 Windows ConP
 ## 2026-06-02 发布阻断项第五次修正：ConPTY 回退到隐藏 cmd 托管
 
 ConPTY 方案出现 `0xc0000142`。本轮回退为隐藏 `cmd.exe` 托管 TerrariaServer，利用 cmd/console host 提供普通控制台环境，联机助手继续通过进程生命周期和端口监听判断 ready。
+
+## 2026-06-02 发布阻断项第六次修正：接管端口监听 PID
+
+隐藏 cmd 托管后出现“cmd 退出但 TerrariaServer 仍监听端口”的状态冲突。本轮在状态刷新时读取 TCP LISTEN 表，发现目标端口监听 PID 后会自动接管该真实 PID，避免 UI 显示未运行而自检却通过。

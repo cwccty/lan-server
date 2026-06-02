@@ -39,7 +39,8 @@ use windows_sys::Win32::NetworkManagement::IpHelper::{
 use windows_sys::Win32::Networking::WinSock::AF_INET;
 #[cfg(windows)]
 use windows_sys::Win32::System::Threading::{
-    CreateProcessW, GetExitCodeProcess, TerminateProcess, CREATE_NEW_CONSOLE, PROCESS_INFORMATION,
+    CreateProcessW, GetExitCodeProcess, OpenProcess, TerminateProcess, CREATE_NEW_CONSOLE,
+    PROCESS_INFORMATION, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_TERMINATE,
     STARTF_USESHOWWINDOW, STARTUPINFOW,
 };
 #[cfg(windows)]
@@ -135,6 +136,28 @@ impl ManagedChild {
             #[cfg(windows)]
             ManagedChild::Windows(process) => process.pid,
         }
+    }
+
+    #[cfg(windows)]
+    fn adopt_windows_pid(&mut self, pid: u32) -> Result<(), String> {
+        let process_handle = unsafe {
+            OpenProcess(
+                PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE,
+                0,
+                pid,
+            )
+        };
+        if process_handle.is_null() {
+            return Err(format!(
+                "Failed to adopt TerrariaServer PID {pid}: OpenProcess returned null."
+            ));
+        }
+        *self = ManagedChild::Windows(WindowsProcess {
+            process_handle,
+            thread_handle: std::ptr::null_mut(),
+            pid,
+        });
+        Ok(())
     }
 
     fn try_exit_code(&mut self) -> Result<Option<Option<i32>>, String> {
@@ -536,19 +559,51 @@ fn refresh_process_state(session: &mut ServerSession) {
     if session.exit_code.is_some() {
         return;
     }
+
+    #[cfg(windows)]
+    if let Some(listener_pid) = local_port_listener_pid(session.port) {
+        if listener_pid != session.process.id() {
+            match session.process.adopt_windows_pid(listener_pid) {
+                Ok(()) => {
+                    push_log(
+                        &session.logs,
+                        format!("[Lan Helper] Adopted TerrariaServer listener PID {listener_pid}; wrapper process is no longer used for readiness."),
+                    );
+                    return;
+                }
+                Err(err) => push_log(&session.logs, err),
+            }
+        }
+    }
+
     match session.process.try_exit_code() {
         Ok(Some(code)) => {
+            #[cfg(windows)]
+            if let Some(listener_pid) = local_port_listener_pid(session.port) {
+                match session.process.adopt_windows_pid(listener_pid) {
+                    Ok(()) => {
+                        push_log(
+                            &session.logs,
+                            format!("[Lan Helper] Wrapper exited with {:?}, but TerrariaServer is still listening; adopted PID {listener_pid}.", code),
+                        );
+                        session.ever_ready = true;
+                        return;
+                    }
+                    Err(err) => push_log(&session.logs, err),
+                }
+            }
+
             session.exit_code = code;
             session.exited_at = Some(Utc::now().to_rfc3339());
             push_log(
                 &session.logs,
                 format!(
-                    "服务端进程已退出：exit_code={}，曾经监听端口={}。",
+                    "[Lan Helper] Server process exited: exit_code={}, ever_listened={}",
                     session
                         .exit_code
                         .map(|code| code.to_string())
-                        .unwrap_or_else(|| "未知/被信号终止".to_string()),
-                    if session.ever_ready { "是" } else { "否" }
+                        .unwrap_or_else(|| "unknown/signal".to_string()),
+                    if session.ever_ready { "yes" } else { "no" }
                 ),
             );
         }
@@ -654,6 +709,16 @@ fn empty_status(message: &str) -> ServerSessionStatus {
 
 #[cfg(windows)]
 fn is_local_port_listening(port: u16, pid: u32) -> bool {
+    local_port_listener_pid_matching(port, pid).is_some()
+}
+
+#[cfg(windows)]
+fn local_port_listener_pid(port: u16) -> Option<u32> {
+    local_port_listener_pid_matching(port, 0)
+}
+
+#[cfg(windows)]
+fn local_port_listener_pid_matching(port: u16, pid: u32) -> Option<u32> {
     let mut size = 0u32;
     let first = unsafe {
         GetExtendedTcpTable(
@@ -666,7 +731,7 @@ fn is_local_port_listening(port: u16, pid: u32) -> bool {
         )
     };
     if first != ERROR_INSUFFICIENT_BUFFER || size == 0 {
-        return false;
+        return None;
     }
 
     let mut buffer = vec![0u8; size as usize];
@@ -681,7 +746,7 @@ fn is_local_port_listening(port: u16, pid: u32) -> bool {
         )
     };
     if result != 0 {
-        return false;
+        return None;
     }
 
     let count = u32::from_ne_bytes(buffer[0..4].try_into().unwrap_or_default()) as usize;
@@ -694,10 +759,10 @@ fn is_local_port_listening(port: u16, pid: u32) -> bool {
             && local_port == port
             && (pid == 0 || row.dwOwningPid == pid)
         {
-            return true;
+            return Some(row.dwOwningPid);
         }
     }
-    false
+    None
 }
 
 #[cfg(not(windows))]

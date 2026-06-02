@@ -166,3 +166,7 @@ MVP 修正为：Windows 下创建隐藏控制台，但不再重定向 stdin/stdo
 ## 2026-06-02 Terraria 后台稳定性第五次修正：隐藏 cmd 托管回退
 
 ConPTY 在当前 TerrariaServer 环境中触发 `0xc0000142` 启动错误。本轮改为隐藏 `cmd.exe` 托管：通过 `cmd.exe /d /s /c TerrariaServer.exe ...` 在隐藏的新控制台中运行服务端，避免 ConPTY 兼容性问题，同时继续不显示白色命令框。由于端口由 TerrariaServer 子进程监听，ready 判断改为“当前会话进程仍运行 + 目标端口存在监听”。
+
+## 2026-06-02 Terraria 后台托管第六次修正：接管真实监听进程
+
+隐藏 `cmd.exe` 托管时，cmd 包装进程可能以 `exit_code=0` 退出，但 TerrariaServer 子进程仍在后台监听 `7777`。这会导致 UI 显示“未运行”，而自检端口又是可达的状态冲突。本轮增加真实监听进程接管：如果发现目标端口仍由某个 PID 监听，联机助手会打开该 PID 的进程句柄并把会话切换到真正的 TerrariaServer 进程，之后运行/停止/诊断都以该真实 PID 为准。

@@ -69,7 +69,7 @@ const t = {
   stopped: '\u672a\u8fd0\u884c',
   running: '\u8fd0\u884c\u4e2d',
   readyState: '\u5df2\u5c31\u7eea',
-  consoleMvpNotice: '当前使用 Windows ConPTY 伪终端托管 TerrariaServer：目标是不弹出白色命令框，同时给服务端提供交互式控制台环境。MVP 仍优先验证后台稳定运行、端口真实监听、日志可观察和停止服务端可诊断。',
+  consoleMvpNotice: '当前使用隐藏 cmd 托管 TerrariaServer：如果外层 cmd 正常退出但游戏端口仍在监听，程序会自动接管真正的 TerrariaServer PID。MVP 优先验证后台稳定运行、端口真实监听和停止服务端可诊断。',
   noLogs: '\u6682\u65e0\u670d\u52a1\u7aef\u65e5\u5fd7\u3002',
   selfCheck: '\u4e00\u952e\u81ea\u68c0',
   copyCheck: '\u590d\u5236\u81ea\u68c0\u7ed3\u679c',
@@ -486,6 +486,7 @@ export function MultiplayerWizardPage() {
     </section>
   );
 }
+
 
 
 
