@@ -411,6 +411,22 @@ ConPTY 方案出现 `0xc0000142`。本轮回退为隐藏 `cmd.exe` 托管 Terrar
 
 验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。release exe：src-tauri\target\release\lan-helper.exe。
 
+## 2026-06-02 推荐页执行清单状态化
+
+已把推荐页从单纯展示方案，升级为“执行清单”视角，帮助用户判断当前卡在哪一步。
+
+- 推荐页新增“执行清单”卡片，包含 5 个状态：适配器判断、通用组网、游戏启动 / 服务端、本机端口监听、邀请好友。
+- 状态来源尽量使用真实检测：
+  - n2n 组网状态来自 `get_n2n_diagnostics` 和 edge 日志解析。
+  - 服务端状态来自 `read_server_session`。
+  - 本机端口监听来自 `test_connectivity(127.0.0.1:默认端口)`。
+  - 适配器状态来自当前 `GameAnalysis`。
+- 新增“刷新执行清单”按钮，会重新读取 n2n、服务端会话和本机端口状态。
+- 推荐页源码已从单行压缩 JSX 整理为可维护结构，方便后续扩展端口代理、广播桥、Mod 和 Steam Relay 状态。
+- 清单仍不把“推荐方案”包装成“一键已联机”；每一步只显示已经检测到的真实证据或待处理状态。
+
+验证：npm run build、cargo check --manifest-path src-tauri\Cargo.toml、npm run tauri:build 均通过。release exe：src-tauri\target\release\lan-helper.exe。
+
 ## 2026-06-02 组网成功后返回推荐方案继续
 
 已补齐“推荐方案 → 通用组网 → 推荐方案继续”的流程闭环。

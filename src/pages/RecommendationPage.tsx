@@ -1,17 +1,415 @@
-import { useEffect, useMemo, useState } from 'react';
-import { analyzeGame, launchProfile, recommendPlans } from '../api/tauri';
+﻿import { useEffect, useMemo, useState } from 'react';
+import { analyzeGame, getN2nDiagnostics, launchProfile, readServerSession, recommendPlans, testConnectivity } from '../api/tauri';
 import { LoadingOverlay } from '../components/LoadingOverlay';
 import { RecommendationCard } from '../components/RecommendationCard';
 import type { GameAnalysis, LaunchProfile } from '../types/game';
+import type { N2nDiagnostics, ConnectivityReport } from '../types/network';
 import type { LaunchConfig, LaunchResult, Recommendation } from '../types/recommendation';
+import type { ServerSessionStatus } from '../types/serverSession';
 import type { NetworkSetupPreset } from '../types/networkPreset';
 
 type ProfileConfigState = Record<string, LaunchConfig>;
-function defaultConfig(profile?: LaunchProfile): LaunchConfig { const config: LaunchConfig = {}; for (const field of profile?.config_fields ?? []) config[field.id] = field.default_value ?? ''; return config; }
-const capabilityLabels: Record<string, string> = { native_lan_ip: '原生 LAN/IP 直连', hidden_dedicated_server: '隐藏 / 独立服务端', lan_discovery_broadcast: '局域网广播发现', tcp_udp_proxy_possible: '可尝试端口代理', community_mod: '社区 Mod 联机', official_only: '仅官方 / 平台联机', unsupported: '暂不支持转换', unknown: '未知，需要人工适配' };
-const methodLabels: Record<string, string> = { virtual_lan: '虚拟局域网', dedicated_server_launcher: '服务端启动器', broadcast_bridge: '广播桥', port_proxy: '端口代理', mod_installer: 'Mod 安装器', steam_relay_plugin: 'Steam Relay 插件', manual_guide: '手动说明', not_supported: '不支持' };
-const sourceLabels: Record<string, string> = { builtin: '内置适配器', registry: '共享库适配器', custom: '本地自定义适配器', steam_scan: 'Steam 自动扫描' };
-const methodOrder = ['virtual_lan','dedicated_server_launcher','broadcast_bridge','port_proxy','mod_installer','steam_relay_plugin','manual_guide','not_supported'];
-function ConversionProfileView({ analysis }: { analysis: GameAnalysis }) { const profile = analysis.multiplayer_conversion; if (!profile) return <article className="card error-card"><h3>联机能力转换判断</h3><p>该游戏还没有转换画像，暂时不能判断能否转换成本地 / 局域网体验。</p></article>; return <article className={profile.can_convert_to_lan ? 'card conversion-card' : 'card error-card'}><div className="feature-card-title"><div><h3>联机能力转换判断</h3><p className="muted">根据适配器画像给出判断，不等于点击后已经联机。</p></div><span className={profile.can_convert_to_lan ? 'badge good' : 'badge bad'}>{profile.can_convert_to_lan ? '可转换成 LAN' : '暂不承诺转换'}</span></div><div className="status-grid compact"><div className="status-tile"><span>能力类型</span><strong>{capabilityLabels[profile.capability] ?? profile.capability}</strong><small>{profile.capability}</small></div><div className="status-tile"><span>风险等级</span><strong>{profile.risk_level}</strong><small>由适配器声明</small></div><div className="status-tile"><span>置信度</span><strong>{analysis.confidence}</strong><small>扫描与适配器匹配结果</small></div><div className="status-tile"><span>适配器来源</span><strong>{sourceLabels[analysis.adapter_source ?? ''] ?? analysis.adapter_source ?? '未知'}</strong><small>custom &gt; registry &gt; builtin</small></div></div><h4>推荐转换方式</h4><div className="badge-row">{methodOrder.map((method) => { const active = profile.methods.includes(method as never); const future = ['broadcast_bridge','port_proxy','mod_installer','steam_relay_plugin'].includes(method) && !active; return <span className={active ? 'badge good' : future ? 'badge warn' : 'badge'} key={method}>{methodLabels[method]} · {active ? '推荐/可用' : future ? '未来入口' : '不适用'}</span>; })}</div><div className="content-with-aside"><div><h4>所需组件</h4><ul>{profile.required_components.map((component) => <li key={component}>{component}</li>)}</ul><h4>判断说明</h4><ul>{profile.notes.map((note) => <li key={note}>{note}</li>)}</ul></div><aside className="right-panel"><h3>风险提示</h3><p>官方服务器限定、反作弊 / 账号风险、Mod 依赖、管理员审核等必须在这里明确展示。</p><span className="badge warn">应用前需要确认</span></aside></div></article>; }
-export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string; onOpenNetwork?: (preset: NetworkSetupPreset) => void }) { const [items, setItems] = useState<Recommendation[]>([]); const [analysis, setAnalysis] = useState<GameAnalysis | null>(null); const [profileConfigs, setProfileConfigs] = useState<ProfileConfigState>({}); const [launchResult, setLaunchResult] = useState<LaunchResult | null>(null); const [isLaunching, setIsLaunching] = useState(false); const [launchError, setLaunchError] = useState<string | null>(null); const profilesById = useMemo(() => { const map = new Map<string, LaunchProfile>(); for (const profile of analysis?.launch_profiles ?? []) map.set(profile.id, profile); return map; }, [analysis]); useEffect(() => { setLaunchResult(null); setLaunchError(null); setAnalysis(null); setProfileConfigs({}); if (!gameId) { setItems([]); return; } Promise.all([recommendPlans(gameId), analyzeGame(gameId)]).then(([recommendations, nextAnalysis]) => { setItems(recommendations); setAnalysis(nextAnalysis); const nextConfigs: ProfileConfigState = {}; for (const profile of nextAnalysis.launch_profiles) nextConfigs[profile.id] = defaultConfig(profile); setProfileConfigs(nextConfigs); }).catch((error) => { setItems([]); setLaunchError(String(error)); }); }, [gameId]); const updateConfigValue = (profileId: string, fieldId: string, value: string | boolean) => setProfileConfigs((current) => ({ ...current, [profileId]: { ...(current[profileId] ?? {}), [fieldId]: value } })); const runLaunchProfile = (profileId: string) => { if (!gameId) { setLaunchError('请先选择游戏。'); return; } setIsLaunching(true); setLaunchError(null); setLaunchResult({ ok: true, message: '正在执行启动项：' + profileId + ' ...' }); launchProfile(gameId, profileId, profileConfigs[profileId] ?? {}).then(setLaunchResult).catch((error) => { setLaunchResult(null); setLaunchError(String(error)); }).finally(() => setIsLaunching(false)); }; const openNetworkWithPreset = () => { if (!analysis || !onOpenNetwork) return; const profile = analysis.multiplayer_conversion; onOpenNetwork({ gameId: analysis.game_id, displayName: analysis.display_name, defaultPort: analysis.default_ports[0] ?? 7777, capability: profile?.capability, recommendedMethods: profile?.methods ?? [], source: analysis.adapter_source, note: '来自推荐方案页的适配器判断', appliedAt: Date.now() }); };
-return <section className="page-stack"><LoadingOverlay visible={isLaunching} title="正在执行推荐启动项" message="正在调用后端执行启动流程，请稍等。" /><div className="page-header"><div><span className="eyebrow">RECOMMENDATION</span><h2>推荐方案</h2><p className="muted">根据适配器判断游戏能否转换成本地 / 局域网体验。</p></div><span className="badge warn">不是一键联机</span></div><article className="card pending-feature"><h3>推荐页的真实含义</h3><p>这里负责把扫描到的游戏匹配到合适流程：通用组网、启动本地服务端、查看说明或进入未来插件入口。真正能否联机仍取决于组网、端口监听、游戏内加入方式和适配器判断。</p><ol><li>双方在同一个 n2n / Radmin / 现有局域网中，并且虚拟 IP 不冲突。</li><li>房主已经启动游戏房间或 Dedicated Server，端口正在由真实 PID 监听。</li><li>加入方在游戏内选择 LAN / IP 直连，连接房主虚拟 IP 和游戏端口。</li><li>如果游戏没有 LAN/IP/服务端能力，需要后续适配广播桥、端口代理、Mod 或平台网络插件。</li></ol></article>{analysis && <article className="card"><h3>游戏摘要</h3><div className="status-grid"><div className="status-tile"><span>游戏</span><strong>{analysis.display_name}</strong><small>{analysis.game_id}</small></div><div className="status-tile"><span>路径</span><strong>{analysis.detected_path ?? '未检测到'}</strong><small>安装位置</small></div><div className="status-tile"><span>适配器</span><strong>{sourceLabels[analysis.adapter_source ?? ''] ?? analysis.adapter_source ?? '未知'}</strong><small>来源</small></div><div className="status-tile"><span>默认端口</span><strong>{analysis.default_ports.join(', ') || '-'}</strong><small>由适配器声明</small></div></div></article>}{analysis && <ConversionProfileView analysis={analysis} />}{analysis && <article className="card conversion-card"><div className="feature-card-title"><div><h3>下一步：先进入通用组网</h3><p className="muted">把该游戏的默认端口和适配器判断带入通用组网中心，减少重复填写。进入后仍需填写 supernode、启动 n2n，并验证 ACK/PONG 和端口监听。</p></div><span className="badge good">参数联动</span></div><div className="actions"><button type="button" onClick={openNetworkWithPreset}>带入参数并进入通用组网</button></div></article>}<article className="card"><h3>方案执行步骤</h3><div className="feature-grid">{['先通用组网','再执行游戏方案','邀请好友','诊断失败项'].map((title, index) => <div className="status-tile" key={title}><span>步骤 {index + 1}</span><strong>{title}</strong><small>按顺序执行</small></div>)}</div></article>{items.length === 0 ? <article className="card empty-state"><h3>暂无推荐</h3><p className="muted">请先在游戏扫描页选择一个游戏。</p></article> : items.map((item) => { const profile = item.launch_profile_id ? profilesById.get(item.launch_profile_id) : undefined; return <article className="card" key={item.id}><RecommendationCard item={item} launchProfileType={profile?.type} onLaunch={gameId && item.launch_profile_id ? () => runLaunchProfile(item.launch_profile_id as string) : undefined} disabled={isLaunching} />{profile?.config_fields && profile.config_fields.length > 0 && <div className="config-panel"><h4>推荐启动项参数</h4>{profile.config_fields.map((field) => <label key={field.id}><span>{field.label}{field.required ? ' *' : ''}</span>{field.type === 'select' ? <select value={String(profileConfigs[profile.id]?.[field.id] ?? field.default_value ?? '')} onChange={(event) => updateConfigValue(profile.id, field.id, event.target.value)}>{(field.options ?? []).map((option) => <option key={option} value={option}>{option}</option>)}</select> : field.type === 'checkbox' ? <input type="checkbox" checked={Boolean(profileConfigs[profile.id]?.[field.id])} onChange={(event) => updateConfigValue(profile.id, field.id, event.target.checked)} /> : <input type={field.type === 'password' ? 'password' : field.type === 'number' ? 'number' : 'text'} value={String(profileConfigs[profile.id]?.[field.id] ?? field.default_value ?? '')} onChange={(event) => updateConfigValue(profile.id, field.id, event.target.value)} />}{field.help && <small className="muted">{field.help}</small>}</label>)}<p className="muted">应用前会再次确认，不会直接乱改游戏文件。</p></div>}</article>; })}{launchError && <article className="card error-card"><h3>操作异常</h3><p>{launchError}</p></article>}{launchResult && <article className="card"><h3>{launchResult.ok ? '操作结果' : '操作失败'}</h3><p>{launchResult.message}</p></article>}<article className="card"><h3>未来功能入口</h3><div className="filter-list"><span className="future-chip">Steam Relay 插件</span><span className="future-chip">广播桥</span><span className="future-chip">端口代理</span><span className="future-chip">Mod 安装器</span></div></article></section>; }
+type ChecklistKind = 'good' | 'warn' | 'bad' | 'idle';
+
+type ChecklistItem = {
+  title: string;
+  status: string;
+  kind: ChecklistKind;
+  detail: string;
+};
+
+function defaultConfig(profile?: LaunchProfile): LaunchConfig {
+  const config: LaunchConfig = {};
+  for (const field of profile?.config_fields ?? []) config[field.id] = field.default_value ?? '';
+  return config;
+}
+
+const capabilityLabels: Record<string, string> = {
+  native_lan_ip: '原生 LAN/IP 直连',
+  hidden_dedicated_server: '隐藏 / 独立服务端',
+  lan_discovery_broadcast: '局域网广播发现',
+  tcp_udp_proxy_possible: '可尝试端口代理',
+  community_mod: '社区 Mod 联机',
+  official_only: '仅官方 / 平台联机',
+  unsupported: '暂不支持转换',
+  unknown: '未知，需要人工适配'
+};
+
+const methodLabels: Record<string, string> = {
+  virtual_lan: '虚拟局域网',
+  dedicated_server_launcher: '服务端启动器',
+  broadcast_bridge: '广播桥',
+  port_proxy: '端口代理',
+  mod_installer: 'Mod 安装器',
+  steam_relay_plugin: 'Steam Relay 插件',
+  manual_guide: '手动说明',
+  not_supported: '不支持'
+};
+
+const sourceLabels: Record<string, string> = {
+  builtin: '内置适配器',
+  registry: '共享库适配器',
+  custom: '本地自定义适配器',
+  steam_scan: 'Steam 自动扫描'
+};
+
+const methodOrder = [
+  'virtual_lan',
+  'dedicated_server_launcher',
+  'broadcast_bridge',
+  'port_proxy',
+  'mod_installer',
+  'steam_relay_plugin',
+  'manual_guide',
+  'not_supported'
+];
+
+function badgeClass(kind: ChecklistKind) {
+  if (kind === 'good') return 'badge good';
+  if (kind === 'warn') return 'badge warn';
+  if (kind === 'bad') return 'badge bad';
+  return 'badge';
+}
+
+function ConversionProfileView({ analysis }: { analysis: GameAnalysis }) {
+  const profile = analysis.multiplayer_conversion;
+  if (!profile) {
+    return (
+      <article className="card error-card">
+        <h3>联机能力转换判断</h3>
+        <p>该游戏还没有转换画像，暂时不能判断能否转换成本地 / 局域网体验。</p>
+      </article>
+    );
+  }
+
+  return (
+    <article className={profile.can_convert_to_lan ? 'card conversion-card' : 'card error-card'}>
+      <div className="feature-card-title">
+        <div>
+          <h3>联机能力转换判断</h3>
+          <p className="muted">根据适配器画像给出判断，不等于点击后已经联机。</p>
+        </div>
+        <span className={profile.can_convert_to_lan ? 'badge good' : 'badge bad'}>{profile.can_convert_to_lan ? '可转换成 LAN' : '暂不承诺转换'}</span>
+      </div>
+      <div className="status-grid compact">
+        <div className="status-tile"><span>能力类型</span><strong>{capabilityLabels[profile.capability] ?? profile.capability}</strong><small>{profile.capability}</small></div>
+        <div className="status-tile"><span>风险等级</span><strong>{profile.risk_level}</strong><small>由适配器声明</small></div>
+        <div className="status-tile"><span>置信度</span><strong>{analysis.confidence}</strong><small>扫描与适配器匹配结果</small></div>
+        <div className="status-tile"><span>适配器来源</span><strong>{sourceLabels[analysis.adapter_source ?? ''] ?? analysis.adapter_source ?? '未知'}</strong><small>custom &gt; registry &gt; builtin</small></div>
+      </div>
+      <h4>推荐转换方式</h4>
+      <div className="badge-row">
+        {methodOrder.map((method) => {
+          const active = profile.methods.includes(method as never);
+          const future = ['broadcast_bridge', 'port_proxy', 'mod_installer', 'steam_relay_plugin'].includes(method) && !active;
+          return <span className={active ? 'badge good' : future ? 'badge warn' : 'badge'} key={method}>{methodLabels[method]} · {active ? '推荐/可用' : future ? '未来入口' : '不适用'}</span>;
+        })}
+      </div>
+      <div className="content-with-aside">
+        <div>
+          <h4>所需组件</h4>
+          <ul>{profile.required_components.map((component) => <li key={component}>{component}</li>)}</ul>
+          <h4>判断说明</h4>
+          <ul>{profile.notes.map((note) => <li key={note}>{note}</li>)}</ul>
+        </div>
+        <aside className="right-panel">
+          <h3>风险提示</h3>
+          <p>官方服务器限定、反作弊 / 账号风险、Mod 依赖、管理员审核等必须在这里明确展示。</p>
+          <span className="badge warn">应用前需要确认</span>
+        </aside>
+      </div>
+    </article>
+  );
+}
+
+function ExecutionChecklist({ items }: { items: ChecklistItem[] }) {
+  return (
+    <div className="status-grid">
+      {items.map((item) => (
+        <article className={'status-tile status-' + item.kind} key={item.title}>
+          <div className="feature-card-title">
+            <span>{item.title}</span>
+            <span className={badgeClass(item.kind)}>{item.status}</span>
+          </div>
+          <strong>{item.detail}</strong>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function buildChecklist(
+  analysis: GameAnalysis | null,
+  n2n: N2nDiagnostics | null,
+  serverSession: ServerSessionStatus | null,
+  localPortReport: ConnectivityReport | null,
+  launchResult: LaunchResult | null
+): ChecklistItem[] {
+  const defaultPort = analysis?.default_ports[0] ?? 7777;
+  const hasServerProfile = Boolean(analysis?.launch_profiles.some((profile) => profile.type === 'server'));
+  const networkReady = Boolean(n2n?.ok_link && !n2n.auth_error && !n2n.ip_mac_conflict);
+  const localPortReady = Boolean(localPortReport?.reachable);
+  const launchOk = Boolean(launchResult?.ok);
+  const serverReady = Boolean(serverSession?.ready || serverSession?.running || localPortReady || launchOk);
+
+  return [
+    {
+      title: '1. 适配器判断',
+      status: analysis?.multiplayer_conversion ? '已命中' : analysis ? '需人工适配' : '未选择',
+      kind: analysis?.multiplayer_conversion ? 'good' : analysis ? 'warn' : 'idle',
+      detail: analysis ? `${analysis.display_name} · ${sourceLabels[analysis.adapter_source ?? ''] ?? analysis.adapter_source ?? '未知来源'}` : '请先从游戏扫描页选择游戏。'
+    },
+    {
+      title: '2. 通用组网',
+      status: networkReady ? 'ACK / PONG' : n2n?.running ? '等待确认' : '未完成',
+      kind: networkReady ? 'good' : n2n?.running ? 'warn' : 'idle',
+      detail: n2n?.summary || '进入通用组网中心，启动 n2n edge 并等待 supernode ACK/PONG。'
+    },
+    {
+      title: '3. 游戏启动 / 服务端',
+      status: serverReady ? '已有迹象' : hasServerProfile ? '待启动' : '游戏内创建',
+      kind: serverReady ? 'good' : hasServerProfile ? 'warn' : 'idle',
+      detail: hasServerProfile
+        ? serverSession?.message || launchResult?.message || '该游戏适配器声明了服务端启动项，请执行启动项或进入对应向导。'
+        : '该游戏未声明独立服务端启动项，通常需要房主在游戏内创建房间或按说明操作。'
+    },
+    {
+      title: '4. 本机端口监听',
+      status: localPortReady ? '可连接' : localPortReport ? '不可达' : '未检测',
+      kind: localPortReady ? 'good' : localPortReport ? 'bad' : 'idle',
+      detail: localPortReport
+        ? `${localPortReport.target_host}:${defaultPort} · ${localPortReport.notes.join('；')}`
+        : `点击刷新执行清单后检测 127.0.0.1:${defaultPort}。`
+    },
+    {
+      title: '5. 邀请好友',
+      status: networkReady && (localPortReady || !hasServerProfile) ? '可以准备' : '等待前置',
+      kind: networkReady && (localPortReady || !hasServerProfile) ? 'good' : 'warn',
+      detail: networkReady
+        ? `把房主虚拟 IP、端口 ${defaultPort} 和组网配置发给朋友；朋友仍需启动自己的 n2n。`
+        : '先完成组网 ACK/PONG，再邀请好友测试。'
+    }
+  ];
+}
+
+export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string; onOpenNetwork?: (preset: NetworkSetupPreset) => void }) {
+  const [items, setItems] = useState<Recommendation[]>([]);
+  const [analysis, setAnalysis] = useState<GameAnalysis | null>(null);
+  const [profileConfigs, setProfileConfigs] = useState<ProfileConfigState>({});
+  const [launchResult, setLaunchResult] = useState<LaunchResult | null>(null);
+  const [isLaunching, setIsLaunching] = useState(false);
+  const [isRefreshingChecklist, setIsRefreshingChecklist] = useState(false);
+  const [launchError, setLaunchError] = useState<string | null>(null);
+  const [n2nDiagnostics, setN2nDiagnostics] = useState<N2nDiagnostics | null>(null);
+  const [serverSession, setServerSession] = useState<ServerSessionStatus | null>(null);
+  const [localPortReport, setLocalPortReport] = useState<ConnectivityReport | null>(null);
+
+  const profilesById = useMemo(() => {
+    const map = new Map<string, LaunchProfile>();
+    for (const profile of analysis?.launch_profiles ?? []) map.set(profile.id, profile);
+    return map;
+  }, [analysis]);
+
+  const defaultPort = analysis?.default_ports[0] ?? 7777;
+  const checklist = buildChecklist(analysis, n2nDiagnostics, serverSession, localPortReport, launchResult);
+
+  const refreshExecutionChecklist = async (nextAnalysis = analysis) => {
+    setIsRefreshingChecklist(true);
+    try {
+      const port = nextAnalysis?.default_ports[0] ?? 7777;
+      const [n2n, session, portReport] = await Promise.all([
+        getN2nDiagnostics().catch(() => null),
+        readServerSession().catch(() => null),
+        testConnectivity({ host: '127.0.0.1', ports: [port], timeout_ms: 1000, mode: 'local_game_port' }).catch(() => null)
+      ]);
+      setN2nDiagnostics(n2n);
+      setServerSession(session);
+      setLocalPortReport(portReport);
+    } finally {
+      setIsRefreshingChecklist(false);
+    }
+  };
+
+  useEffect(() => {
+    setLaunchResult(null);
+    setLaunchError(null);
+    setAnalysis(null);
+    setProfileConfigs({});
+    setN2nDiagnostics(null);
+    setServerSession(null);
+    setLocalPortReport(null);
+    if (!gameId) {
+      setItems([]);
+      return;
+    }
+    Promise.all([recommendPlans(gameId), analyzeGame(gameId)])
+      .then(([recommendations, nextAnalysis]) => {
+        setItems(recommendations);
+        setAnalysis(nextAnalysis);
+        const nextConfigs: ProfileConfigState = {};
+        for (const profile of nextAnalysis.launch_profiles) nextConfigs[profile.id] = defaultConfig(profile);
+        setProfileConfigs(nextConfigs);
+        refreshExecutionChecklist(nextAnalysis);
+      })
+      .catch((error) => {
+        setItems([]);
+        setLaunchError(String(error));
+      });
+  }, [gameId]);
+
+  const updateConfigValue = (profileId: string, fieldId: string, value: string | boolean) => {
+    setProfileConfigs((current) => ({ ...current, [profileId]: { ...(current[profileId] ?? {}), [fieldId]: value } }));
+  };
+
+  const runLaunchProfile = (profileId: string) => {
+    if (!gameId) {
+      setLaunchError('请先选择游戏。');
+      return;
+    }
+    setIsLaunching(true);
+    setLaunchError(null);
+    setLaunchResult({ ok: true, message: '正在执行启动项：' + profileId + ' ...' });
+    launchProfile(gameId, profileId, profileConfigs[profileId] ?? {})
+      .then((result) => {
+        setLaunchResult(result);
+        refreshExecutionChecklist();
+      })
+      .catch((error) => {
+        setLaunchResult(null);
+        setLaunchError(String(error));
+      })
+      .finally(() => setIsLaunching(false));
+  };
+
+  const openNetworkWithPreset = () => {
+    if (!analysis || !onOpenNetwork) return;
+    const profile = analysis.multiplayer_conversion;
+    onOpenNetwork({
+      gameId: analysis.game_id,
+      displayName: analysis.display_name,
+      defaultPort,
+      capability: profile?.capability,
+      recommendedMethods: profile?.methods ?? [],
+      source: analysis.adapter_source,
+      note: '来自推荐方案页的适配器判断',
+      appliedAt: Date.now()
+    });
+  };
+
+  return (
+    <section className="page-stack">
+      <LoadingOverlay visible={isLaunching || isRefreshingChecklist} title={isLaunching ? '正在执行推荐启动项' : '正在刷新执行清单'} message={isLaunching ? '正在调用后端执行启动流程，请稍等。' : '正在读取 n2n、服务端会话和本机端口状态。'} />
+      <div className="page-header">
+        <div>
+          <span className="eyebrow">RECOMMENDATION</span>
+          <h2>推荐方案</h2>
+          <p className="muted">根据适配器判断游戏能否转换成本地 / 局域网体验。</p>
+        </div>
+        <span className="badge warn">不是一键联机</span>
+      </div>
+
+      <article className="card pending-feature">
+        <h3>推荐页的真实含义</h3>
+        <p>这里负责把扫描到的游戏匹配到合适流程：通用组网、启动本地服务端、查看说明或进入未来插件入口。真正能否联机仍取决于组网、端口监听、游戏内加入方式和适配器判断。</p>
+        <ol>
+          <li>双方在同一个 n2n / Radmin / 现有局域网中，并且虚拟 IP 不冲突。</li>
+          <li>房主已经启动游戏房间或 Dedicated Server，端口正在由真实 PID 监听。</li>
+          <li>加入方在游戏内选择 LAN / IP 直连，连接房主虚拟 IP 和游戏端口。</li>
+          <li>如果游戏没有 LAN/IP/服务端能力，需要后续适配广播桥、端口代理、Mod 或平台网络插件。</li>
+        </ol>
+      </article>
+
+      <article className="card">
+        <div className="feature-card-title">
+          <div>
+            <h3>执行清单</h3>
+            <p className="muted">清单来自真实检测：n2n 日志、服务端会话和本机端口，不用颜色假装成功。</p>
+          </div>
+          <button type="button" className="secondary" onClick={() => refreshExecutionChecklist()} disabled={isRefreshingChecklist}>刷新执行清单</button>
+        </div>
+        <ExecutionChecklist items={checklist} />
+      </article>
+
+      {analysis && (
+        <article className="card">
+          <h3>游戏摘要</h3>
+          <div className="status-grid">
+            <div className="status-tile"><span>游戏</span><strong>{analysis.display_name}</strong><small>{analysis.game_id}</small></div>
+            <div className="status-tile"><span>路径</span><strong>{analysis.detected_path ?? '未检测到'}</strong><small>安装位置</small></div>
+            <div className="status-tile"><span>适配器</span><strong>{sourceLabels[analysis.adapter_source ?? ''] ?? analysis.adapter_source ?? '未知'}</strong><small>来源</small></div>
+            <div className="status-tile"><span>默认端口</span><strong>{analysis.default_ports.join(', ') || '-'}</strong><small>由适配器声明</small></div>
+          </div>
+        </article>
+      )}
+
+      {analysis && <ConversionProfileView analysis={analysis} />}
+
+      {analysis && (
+        <article className="card conversion-card">
+          <div className="feature-card-title">
+            <div>
+              <h3>下一步：先进入通用组网</h3>
+              <p className="muted">把该游戏的默认端口和适配器判断带入通用组网中心，减少重复填写。进入后仍需填写 supernode、启动 n2n，并验证 ACK/PONG 和端口监听。</p>
+            </div>
+            <span className="badge good">参数联动</span>
+          </div>
+          <div className="actions">
+            <button type="button" onClick={openNetworkWithPreset}>带入参数并进入通用组网</button>
+          </div>
+        </article>
+      )}
+
+      <article className="card">
+        <h3>方案执行步骤</h3>
+        <div className="feature-grid">
+          {['先通用组网', '再执行游戏方案', '邀请好友', '诊断失败项'].map((title, index) => (
+            <div className="status-tile" key={title}><span>步骤 {index + 1}</span><strong>{title}</strong><small>按顺序执行</small></div>
+          ))}
+        </div>
+      </article>
+
+      {items.length === 0 ? (
+        <article className="card empty-state">
+          <h3>暂无推荐</h3>
+          <p className="muted">请先在游戏扫描页选择一个游戏。</p>
+        </article>
+      ) : items.map((item) => {
+        const profile = item.launch_profile_id ? profilesById.get(item.launch_profile_id) : undefined;
+        return (
+          <article className="card" key={item.id}>
+            <RecommendationCard item={item} launchProfileType={profile?.type} onLaunch={gameId && item.launch_profile_id ? () => runLaunchProfile(item.launch_profile_id as string) : undefined} disabled={isLaunching} />
+            {profile?.config_fields && profile.config_fields.length > 0 && (
+              <div className="config-panel">
+                <h4>推荐启动项参数</h4>
+                {profile.config_fields.map((field) => (
+                  <label key={field.id}>
+                    <span>{field.label}{field.required ? ' *' : ''}</span>
+                    {field.type === 'select' ? (
+                      <select value={String(profileConfigs[profile.id]?.[field.id] ?? field.default_value ?? '')} onChange={(event) => updateConfigValue(profile.id, field.id, event.target.value)}>
+                        {(field.options ?? []).map((option) => <option key={option} value={option}>{option}</option>)}
+                      </select>
+                    ) : field.type === 'checkbox' ? (
+                      <input type="checkbox" checked={Boolean(profileConfigs[profile.id]?.[field.id])} onChange={(event) => updateConfigValue(profile.id, field.id, event.target.checked)} />
+                    ) : (
+                      <input type={field.type === 'password' ? 'password' : field.type === 'number' ? 'number' : 'text'} value={String(profileConfigs[profile.id]?.[field.id] ?? field.default_value ?? '')} onChange={(event) => updateConfigValue(profile.id, field.id, event.target.value)} />
+                    )}
+                    {field.help && <small className="muted">{field.help}</small>}
+                  </label>
+                ))}
+                <p className="muted">应用前会再次确认，不会直接乱改游戏文件。</p>
+              </div>
+            )}
+          </article>
+        );
+      })}
+
+      {launchError && <article className="card error-card"><h3>操作异常</h3><p>{launchError}</p></article>}
+      {launchResult && <article className="card"><h3>{launchResult.ok ? '操作结果' : '操作失败'}</h3><p>{launchResult.message}</p></article>}
+
+      <article className="card">
+        <h3>未来功能入口</h3>
+        <div className="filter-list"><span className="future-chip">Steam Relay 插件</span><span className="future-chip">广播桥</span><span className="future-chip">端口代理</span><span className="future-chip">Mod 安装器</span></div>
+      </article>
+    </section>
+  );
+}
