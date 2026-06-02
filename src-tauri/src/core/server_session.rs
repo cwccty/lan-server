@@ -3,7 +3,6 @@ use std::fs;
 #[cfg(windows)]
 use std::fs::File;
 use std::io::Write;
-#[cfg(not(windows))]
 use std::io::{BufRead, BufReader};
 #[cfg(not(windows))]
 use std::net::{TcpStream, ToSocketAddrs};
@@ -28,6 +27,10 @@ use crate::models::server_session::ServerSessionStatus;
 use crate::storage::adapter_store;
 
 #[cfg(windows)]
+use std::os::windows::ffi::OsStrExt;
+#[cfg(windows)]
+use std::os::windows::io::{FromRawHandle, RawHandle};
+#[cfg(windows)]
 use windows_sys::Win32::Foundation::{CloseHandle, ERROR_INSUFFICIENT_BUFFER, HANDLE};
 #[cfg(windows)]
 use windows_sys::Win32::NetworkManagement::IpHelper::{
@@ -36,9 +39,17 @@ use windows_sys::Win32::NetworkManagement::IpHelper::{
 #[cfg(windows)]
 use windows_sys::Win32::Networking::WinSock::AF_INET;
 #[cfg(windows)]
+use windows_sys::Win32::Security::SECURITY_ATTRIBUTES;
+#[cfg(windows)]
+use windows_sys::Win32::System::Console::{ClosePseudoConsole, CreatePseudoConsole, COORD, HPCON};
+#[cfg(windows)]
+use windows_sys::Win32::System::Pipes::CreatePipe;
+#[cfg(windows)]
 use windows_sys::Win32::System::Threading::{
-    GetExitCodeProcess, OpenProcess, TerminateProcess, PROCESS_QUERY_LIMITED_INFORMATION,
-    PROCESS_TERMINATE,
+    CreateProcessW, DeleteProcThreadAttributeList, GetExitCodeProcess,
+    InitializeProcThreadAttributeList, TerminateProcess, UpdateProcThreadAttribute,
+    EXTENDED_STARTUPINFO_PRESENT, PROCESS_INFORMATION, PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
+    STARTUPINFOEXW,
 };
 
 struct ServerSession {
@@ -103,6 +114,7 @@ const STILL_ACTIVE_EXIT_CODE: u32 = 259;
 struct WindowsProcess {
     process_handle: HANDLE,
     thread_handle: HANDLE,
+    hpc: HPCON,
     pid: u32,
 }
 
@@ -113,6 +125,9 @@ unsafe impl Send for WindowsProcess {}
 impl Drop for WindowsProcess {
     fn drop(&mut self) {
         unsafe {
+            if self.hpc != 0 {
+                ClosePseudoConsole(self.hpc);
+            }
             if !self.thread_handle.is_null() {
                 let _ = CloseHandle(self.thread_handle);
             }
@@ -371,67 +386,140 @@ fn start_hidden_process(
     working_dir: &PathBuf,
     args: &[String],
 ) -> Result<ManagedProcess, String> {
-    let logs = Arc::new(Mutex::new(Vec::new()));
-    let script = format!(
-        "$p = Start-Process -FilePath {} -ArgumentList @({}) -WorkingDirectory {} -WindowStyle Hidden -PassThru; $p.Id",
-        ps_single_quote(&executable.to_string_lossy()),
-        args.iter()
-            .map(|item| ps_single_quote(item))
-            .collect::<Vec<_>>()
-            .join(", "),
-        ps_single_quote(&working_dir.to_string_lossy())
-    );
+    let (pty_input_read, pty_input_write) = create_pipe_pair("conpty input")?;
+    let (pty_output_read, pty_output_write) = create_pipe_pair("conpty output")?;
 
-    let mut command = Command::new("powershell");
-    command.args([
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-Command",
-        &script,
-    ]);
-    let output = hide_console_window(&mut command)
-        .output()
-        .map_err(|err| format!("?????????????? PowerShell Start-Process?{err}"))?;
-    if !output.status.success() {
+    let mut hpc: HPCON = 0;
+    let hr = unsafe {
+        CreatePseudoConsole(
+            COORD { X: 120, Y: 40 },
+            pty_input_read,
+            pty_output_write,
+            0,
+            &mut hpc,
+        )
+    };
+    unsafe {
+        let _ = CloseHandle(pty_input_read);
+        let _ = CloseHandle(pty_output_write);
+    }
+    if hr < 0 || hpc == 0 {
+        unsafe {
+            let _ = CloseHandle(pty_input_write);
+            let _ = CloseHandle(pty_output_read);
+        }
         return Err(format!(
-            "??????????Start-Process ?????{}",
-            String::from_utf8_lossy(&output.stderr)
+            "Failed to start server: CreatePseudoConsole returned HRESULT {hr:#x}."
         ));
     }
 
-    let pid_text = String::from_utf8_lossy(&output.stdout);
-    let pid = pid_text
-        .split_whitespace()
-        .find_map(|item| item.trim().parse::<u32>().ok())
-        .ok_or_else(|| format!("?????????????? Start-Process PID?{pid_text}"))?;
-    let process_handle = unsafe {
-        OpenProcess(
-            PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE,
-            0,
-            pid,
-        )
-    };
-    if process_handle.is_null() {
-        return Err(format!("??????????OpenProcess({pid}) ??????"));
+    let mut attr_size = 0usize;
+    unsafe {
+        InitializeProcThreadAttributeList(std::ptr::null_mut(), 1, 0, &mut attr_size);
+    }
+    if attr_size == 0 {
+        unsafe {
+            ClosePseudoConsole(hpc);
+            let _ = CloseHandle(pty_input_write);
+            let _ = CloseHandle(pty_output_read);
+        }
+        return Err(
+            "Failed to start server: cannot initialize ConPTY attribute list size.".to_string(),
+        );
+    }
+    let mut attr_buffer = vec![0u8; attr_size];
+    let attr_list = attr_buffer.as_mut_ptr().cast();
+    let attr_ok = unsafe { InitializeProcThreadAttributeList(attr_list, 1, 0, &mut attr_size) };
+    if attr_ok == 0 {
+        unsafe {
+            ClosePseudoConsole(hpc);
+            let _ = CloseHandle(pty_input_write);
+            let _ = CloseHandle(pty_output_read);
+        }
+        return Err(
+            "Failed to start server: InitializeProcThreadAttributeList failed.".to_string(),
+        );
     }
 
+    let update_ok = unsafe {
+        UpdateProcThreadAttribute(
+            attr_list,
+            0,
+            PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE as usize,
+            (&hpc as *const HPCON).cast(),
+            std::mem::size_of::<HPCON>(),
+            std::ptr::null_mut(),
+            std::ptr::null(),
+        )
+    };
+    if update_ok == 0 {
+        unsafe {
+            DeleteProcThreadAttributeList(attr_list);
+            ClosePseudoConsole(hpc);
+            let _ = CloseHandle(pty_input_write);
+            let _ = CloseHandle(pty_output_read);
+        }
+        return Err("Failed to start server: UpdateProcThreadAttribute ConPTY failed.".to_string());
+    }
+
+    let command_line = build_windows_command_line(executable, args);
+    let mut command_line_w = wide_null(&command_line);
+    let application_w = wide_null(executable.as_os_str());
+    let working_dir_w = wide_null(working_dir.as_os_str());
+    let mut startup: STARTUPINFOEXW = unsafe { std::mem::zeroed() };
+    startup.StartupInfo.cb = std::mem::size_of::<STARTUPINFOEXW>() as u32;
+    startup.lpAttributeList = attr_list;
+
+    let mut process_info: PROCESS_INFORMATION = unsafe { std::mem::zeroed() };
+    let created = unsafe {
+        CreateProcessW(
+            application_w.as_ptr(),
+            command_line_w.as_mut_ptr(),
+            std::ptr::null(),
+            std::ptr::null(),
+            0,
+            EXTENDED_STARTUPINFO_PRESENT,
+            std::ptr::null(),
+            working_dir_w.as_ptr(),
+            &mut startup.StartupInfo,
+            &mut process_info,
+        )
+    };
+    unsafe {
+        DeleteProcThreadAttributeList(attr_list);
+    }
+
+    if created == 0 {
+        unsafe {
+            ClosePseudoConsole(hpc);
+            let _ = CloseHandle(pty_input_write);
+            let _ = CloseHandle(pty_output_read);
+        }
+        return Err("Failed to start server: CreateProcessW + ConPTY failed.".to_string());
+    }
+
+    let logs = Arc::new(Mutex::new(Vec::new()));
     push_log(
         &logs,
-        "Windows Shell ??????? PowerShell Start-Process ??????? TerrariaServer????? stdin/stdout/stderr???????????? exit_code=0?".to_string(),
+        "Windows ConPTY hosting mode: TerrariaServer is running inside a pseudo terminal, with no external white command window.".to_string(),
     );
     push_log(
         &logs,
-        "MVP ????????PID ????????????????????????????????????????????".to_string(),
+        "The embedded panel reads ConPTY output; readiness still comes from the real process and its PID-owned listening port.".to_string(),
     );
+
+    let stdin = unsafe { File::from_raw_handle(pty_input_write as RawHandle) };
+    let stdout = unsafe { File::from_raw_handle(pty_output_read as RawHandle) };
+    spawn_output_reader(stdout, Arc::clone(&logs));
 
     Ok(ManagedProcess {
         process: ManagedChild::Windows(WindowsProcess {
-            process_handle,
-            thread_handle: std::ptr::null_mut(),
-            pid,
+            process_handle: process_info.hProcess,
+            thread_handle: process_info.hThread,
+            hpc,
+            pid: process_info.dwProcessId,
         }),
-        stdin: None,
+        stdin: Some(ManagedStdin::Windows(stdin)),
         logs,
     })
 }
@@ -472,8 +560,86 @@ fn start_hidden_process(
 }
 
 #[cfg(windows)]
-fn ps_single_quote(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "''"))
+fn create_pipe_pair(name: &str) -> Result<(HANDLE, HANDLE), String> {
+    let mut read: HANDLE = std::ptr::null_mut();
+    let mut write: HANDLE = std::ptr::null_mut();
+    let attrs = SECURITY_ATTRIBUTES {
+        nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
+        lpSecurityDescriptor: std::ptr::null_mut(),
+        bInheritHandle: 0,
+    };
+    let ok = unsafe { CreatePipe(&mut read, &mut write, &attrs, 0) };
+    if ok == 0 {
+        Err(format!("Failed to create {name} pipe: CreatePipe failed."))
+    } else {
+        Ok((read, write))
+    }
+}
+
+#[cfg(windows)]
+fn wide_null(value: impl AsRef<std::ffi::OsStr>) -> Vec<u16> {
+    value
+        .as_ref()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect()
+}
+
+#[cfg(windows)]
+fn build_windows_command_line(executable: &Path, args: &[String]) -> String {
+    std::iter::once(executable.to_string_lossy().to_string())
+        .chain(args.iter().cloned())
+        .map(|item| quote_windows_arg(&item))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+#[cfg(windows)]
+fn quote_windows_arg(arg: &str) -> String {
+    if arg.is_empty() {
+        return "\"\"".to_string();
+    }
+    let needs_quote = arg.chars().any(|ch| ch.is_whitespace() || ch == '"');
+    if !needs_quote {
+        return arg.to_string();
+    }
+    let mut quoted = String::from("\"");
+    let mut backslashes = 0;
+    for ch in arg.chars() {
+        match ch {
+            '\\' => backslashes += 1,
+            '"' => {
+                quoted.push_str(&"\\".repeat(backslashes * 2 + 1));
+                quoted.push('"');
+                backslashes = 0;
+            }
+            _ => {
+                if backslashes > 0 {
+                    quoted.push_str(&"\\".repeat(backslashes));
+                    backslashes = 0;
+                }
+                quoted.push(ch);
+            }
+        }
+    }
+    if backslashes > 0 {
+        quoted.push_str(&"\\".repeat(backslashes * 2));
+    }
+    quoted.push('"');
+    quoted
+}
+
+#[cfg(windows)]
+fn spawn_output_reader<R>(reader: R, logs: Arc<Mutex<Vec<String>>>)
+where
+    R: std::io::Read + Send + 'static,
+{
+    thread::spawn(move || {
+        let reader = BufReader::new(reader);
+        for line in reader.lines().map_while(Result::ok) {
+            push_log(&logs, line);
+        }
+    });
 }
 
 #[cfg(not(windows))]

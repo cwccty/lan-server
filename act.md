@@ -170,3 +170,7 @@ SourceAddress：10.10.10.2
 ## 2026-06-02 发布阻断项第三次修正：Shell 托管 TerrariaServer
 
 直接 `CreateProcessW + CREATE_NEW_CONSOLE` 仍会出现 `exit_code=0` 自动退出。本轮改用 PowerShell `Start-Process -WindowStyle Hidden -PassThru` 启动 TerrariaServer，并读取返回 PID 转为联机助手托管进程句柄；ready 判断仍来自 PID 对应端口监听表，而不是 UI 或 TCP 探测副作用。
+
+## 2026-06-02 发布阻断项第四次修正：ConPTY 伪终端托管
+
+Shell hidden 方式仍会 `exit_code=0` 自动退出。本轮改用 Windows ConPTY：创建 Pseudo Console，将 TerrariaServer 作为伪终端进程启动，并保留输入/输出管道用于内嵌控制台观察。目标是在不弹出白色命令框的前提下提供接近真实控制台的运行环境。

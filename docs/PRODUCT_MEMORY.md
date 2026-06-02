@@ -156,3 +156,9 @@ MVP 修正为：Windows 下创建隐藏控制台，但不再重定向 stdin/stdo
 继续跟踪用户截图后确认：直接 `CreateProcessW + CREATE_NEW_CONSOLE` 即使不重定向标准输入输出，仍可能让 TerrariaServer 在启动后以 `exit_code=0` 正常退出。说明从 GUI/Tauri 进程直接创建控制台子进程时，TerrariaServer 仍没有获得它期望的交互式控制台环境。
 
 本轮改为 Windows Shell 托管模式：通过 PowerShell `Start-Process -WindowStyle Hidden -PassThru` 启动 TerrariaServer，再用返回的 PID 打开真实进程句柄，并继续用 PID 对应 TCP LISTEN 表判断 ready。目标是让 Windows shell 负责创建更接近普通双击/命令行启动的控制台进程，同时保持窗口隐藏和状态可诊断。
+
+## 2026-06-02 Terraria 后台稳定性第四次修正：ConPTY 伪终端
+
+继续测试后确认：Shell hidden 与普通隐藏控制台仍不足以让 TerrariaServer 长时间保持运行。当前结论是 TerrariaServer 需要的不是单纯“有/无控制台窗口”，而是接近真实交互终端的控制台环境。
+
+本轮改为 Windows ConPTY 伪终端托管：联机助手创建 Pseudo Console，把 TerrariaServer 绑定到伪终端启动，父进程保留输入/输出管道并在内嵌控制台读取输出。这样既不弹出白色命令框，又给 TerrariaServer 一个交互式控制台环境。ready 判断仍然来自真实进程 PID 对应的 TCP LISTEN 表和运行时长。
