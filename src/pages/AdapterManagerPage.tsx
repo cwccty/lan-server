@@ -32,7 +32,7 @@ const methodOptions: Array<[ConversionMethod, string]> = [
   ['not_supported', '不支持']
 ];
 
-const DEFAULT_ADAPTER_REGISTRY_URL = 'http://127.0.0.1:8088/adapter-registry/index.json';
+const DEFAULT_ADAPTER_REGISTRY_URL = 'https://raw.githubusercontent.com/cwccty/lan-server/master/adapter-registry/index.json';
 const REGISTRY_URL_STORAGE_KEY = 'lan-helper-adapter-registry-url';
 const REGISTRY_LAST_SYNC_STORAGE_KEY = 'lan-helper-adapter-registry-last-sync';
 
@@ -241,10 +241,7 @@ export function AdapterManagerPage() {
 
   const oneClickUpdateSharedAdapters = () => {
     const url = registryUrl.trim();
-    if (!url || url === DEFAULT_ADAPTER_REGISTRY_URL) {
-      return syncLocalExample();
-    }
-    return syncRegistry(url);
+    return syncRegistry(url || DEFAULT_ADAPTER_REGISTRY_URL);
   };
 
   const restoreDefaultRegistryUrl = () => {
@@ -275,7 +272,7 @@ export function AdapterManagerPage() {
         <p className="muted">默认共享库地址：{DEFAULT_ADAPTER_REGISTRY_URL}</p>
         {lastRegistrySync && <p className="muted">上次同步：{lastRegistrySync}</p>}
         <p className="muted">
-          如果只是测试项目内置的 adapter-registry 示例，优先点上面的按钮；只有测试 VPS / GitHub Pages / 本地 HTTP 服务时才需要填写 URL。
+          默认会从公开 GitHub 仓库拉取共享适配器；如果只是离线测试项目内置的 adapter-registry 示例，可以点击“同步本地示例库”。
         </p>
         <label>Registry index URL
           <input
@@ -373,3 +370,4 @@ export function AdapterManagerPage() {
     </section>
   );
 }
+

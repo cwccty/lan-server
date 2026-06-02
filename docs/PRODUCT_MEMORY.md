@@ -396,3 +396,17 @@ http://127.0.0.1:8088/adapter-registry/index.json
 - 为避免开发默认地址在未启动 HTTP 服务时失败，若 URL 为空或仍为默认本地测试地址，“一键更新共享适配器”会直接走项目内置 `adapter-registry` 本地示例库同步；手动填写 VPS/GitHub Pages URL 后则走远程 HTTP 同步。
 
 后续如果有正式官方 registry URL，只需要替换 `DEFAULT_ADAPTER_REGISTRY_URL` 并保留本地示例库按钮作为测试入口。
+
+## 2026-06-02 GitHub 公开仓库与默认适配器连接
+
+用户提供公开仓库：`https://github.com/cwccty/lan-server.git`。
+
+当前默认共享适配器库 URL 已改为：
+
+```text
+https://raw.githubusercontent.com/cwccty/lan-server/master/adapter-registry/index.json
+```
+
+适配器管理页“一键更新共享适配器”现在默认走这个公开 GitHub raw 地址；“同步本地示例库（无需 HTTP）”按钮仍保留，用于离线/本地测试。
+
+注意：当前本机访问 GitHub 出现连接超时，推送或远程可达性验证可能受网络影响。代码侧已完成配置，成功推送到 GitHub 后该 URL 才能正常拉取。

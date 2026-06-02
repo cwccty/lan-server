@@ -347,3 +347,15 @@ ConPTY 方案出现 `0xc0000142`。本轮回退为隐藏 `cmd.exe` 托管 Terrar
 - 当前默认地址是本地开发测试 URL；一键更新在默认地址下会走无需 HTTP 的本地示例库同步，避免用户没启动 `python -m http.server` 时失败。
 
 验证：`npm run build` 和 `cargo check --manifest-path src-tauri\\Cargo.toml` 通过。
+
+## 2026-06-02 默认适配器连接改为 GitHub raw
+
+用户提供公开仓库 `https://github.com/cwccty/lan-server.git`。
+
+已修改：
+
+- 默认共享库地址改为 `https://raw.githubusercontent.com/cwccty/lan-server/master/adapter-registry/index.json`。
+- 一键更新默认走公开 GitHub raw。
+- 本地示例库按钮继续保留用于离线测试。
+
+本机 `git ls-remote` 访问 GitHub 超时，后续 push 可能需要用户网络/GitHub Desktop 协助。
