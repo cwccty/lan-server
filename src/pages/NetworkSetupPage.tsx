@@ -1,17 +1,21 @@
 ﻿import { useEffect, useRef, useState } from 'react';
 import {
   getN2nDiagnostics,
+  listUdpBroadcastBridges,
   listNetworkBackends,
   listPortProxies,
   listUdpProxies,
   setupNetwork,
   startNetwork,
   startPortProxy,
+  startUdpBroadcastBridge,
   startUdpProxy,
+  selfTestUdpBroadcastBridge,
   selfTestPortProxy,
   selfTestUdpProxy,
   stopNetwork,
   stopPortProxy,
+  stopUdpBroadcastBridge,
   stopUdpProxy,
   testConnectivity,
   testPortProxy
@@ -21,6 +25,7 @@ import { LoadingOverlay } from '../components/LoadingOverlay';
 import type { BackendRuntimeStatus, BackendSummary, ConnectivityReport, N2nDiagnostics, SetupResult } from '../types/network';
 import type { NetworkSetupPreset } from '../types/networkPreset';
 import type { PortProxySelfTestReport, PortProxyStatus } from '../types/portProxy';
+import type { UdpBroadcastBridgeSelfTestReport, UdpBroadcastBridgeStatus } from '../types/udpBroadcastBridge';
 import type { UdpProxySelfTestReport, UdpProxyStatus } from '../types/udpProxy';
 
 type SteamRelayDraft = {
@@ -35,6 +40,7 @@ type NetworkSetupCache = {
   n2nDiagnostics: N2nDiagnostics | null;
   portProxyStatus: PortProxyStatus | null;
   udpProxyStatus: UdpProxyStatus | null;
+  udpBroadcastBridgeStatus: UdpBroadcastBridgeStatus | null;
   savedAt: number;
 };
 
@@ -187,6 +193,52 @@ function UdpProxySelfTestView({ report }: { report: UdpProxySelfTestReport }) {
   );
 }
 
+function UdpBroadcastBridgeStatusView({ status }: { status: UdpBroadcastBridgeStatus }) {
+  return (
+    <div className={status.running ? 'result-ok' : 'result-idle'}>
+      <h4>{status.running ? 'UDP 广播桥正在运行' : 'UDP 广播桥未运行'}</h4>
+      <p>{status.listen || '未监听'} → {status.forward_targets.length ? status.forward_targets.join('，') : '未设置转发目标'}</p>
+      <ul>
+        <li>收到发现包：{status.received_packets}</li>
+        <li>转发发现包：{status.forwarded_packets}</li>
+        <li>丢弃包：{status.dropped_packets}</li>
+        <li>上行字节：{status.bytes_in}</li>
+        <li>下行字节：{status.bytes_out}</li>
+      </ul>
+      {status.last_error && <p className="muted">最近错误：{status.last_error}</p>}
+      {status.logs.length > 0 && (
+        <details>
+          <summary>查看 UDP 广播桥日志</summary>
+          <pre className="console-panel">{status.logs.slice(-20).join('\n')}</pre>
+        </details>
+      )}
+    </div>
+  );
+}
+
+function UdpBroadcastBridgeSelfTestView({ report }: { report: UdpBroadcastBridgeSelfTestReport }) {
+  return (
+    <div className={report.ok ? 'result-ok' : 'result-bad'}>
+      <h4>{report.ok ? 'UDP 广播桥自测通过' : 'UDP 广播桥自测失败'}</h4>
+      <p>自测监听：{report.listen}</p>
+      <p>转发目标：{report.forward_targets.join('，')}</p>
+      <ul>
+        <li>发送内容：{report.sent}</li>
+        <li>收到内容：{report.received || '无返回'}</li>
+        <li>收到发现包：{report.received_packets}</li>
+        <li>转发发现包：{report.forwarded_packets}</li>
+        <li>丢弃包：{report.dropped_packets}</li>
+        <li>上行字节：{report.bytes_in}</li>
+        <li>下行字节：{report.bytes_out}</li>
+      </ul>
+      <h5>自测步骤</h5>
+      <ul>
+        {report.notes.map((note) => <li key={note}>{note}</li>)}
+      </ul>
+    </div>
+  );
+}
+
 function recentSupernodeFromBackends(backends: BackendSummary[]) {
   const n2n = backends.find((backend) => backend.id === 'n2n');
   const note = n2n?.notes.find((item) => item.startsWith('最近一次 supernode:') || item.startsWith('最近一次 supernode：'));
@@ -290,6 +342,9 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
   const [udpProxyListenPort, setUdpProxyListenPort] = useState('7777');
   const [udpProxyTargetHost, setUdpProxyTargetHost] = useState('127.0.0.1');
   const [udpProxyTargetPort, setUdpProxyTargetPort] = useState('7777');
+  const [udpBridgeListenHost, setUdpBridgeListenHost] = useState('0.0.0.0');
+  const [udpBridgeListenPort, setUdpBridgeListenPort] = useState('7777');
+  const [udpBridgeTargets, setUdpBridgeTargets] = useState('10.10.10.3:7777');
   const [localReport, setLocalReport] = useState<ConnectivityReport | null>(null);
   const [peerReport, setPeerReport] = useState<ConnectivityReport | null>(null);
   const [portProxyStatus, setPortProxyStatus] = useState<PortProxyStatus | null>(cachedNetworkSetup?.portProxyStatus ?? null);
@@ -297,6 +352,8 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
   const [portProxySelfTest, setPortProxySelfTest] = useState<PortProxySelfTestReport | null>(null);
   const [udpProxyStatus, setUdpProxyStatus] = useState<UdpProxyStatus | null>(cachedNetworkSetup?.udpProxyStatus ?? null);
   const [udpProxySelfTest, setUdpProxySelfTest] = useState<UdpProxySelfTestReport | null>(null);
+  const [udpBroadcastBridgeStatus, setUdpBroadcastBridgeStatus] = useState<UdpBroadcastBridgeStatus | null>(cachedNetworkSetup?.udpBroadcastBridgeStatus ?? null);
+  const [udpBroadcastBridgeSelfTest, setUdpBroadcastBridgeSelfTest] = useState<UdpBroadcastBridgeSelfTestReport | null>(null);
   const [n2nResult, setN2nResult] = useState<SetupResult | BackendRuntimeStatus | null>(null);
   const [n2nDiagnostics, setN2nDiagnostics] = useState<N2nDiagnostics | null>(cachedNetworkSetup?.n2nDiagnostics ?? null);
   const [n2nAutoRefresh, setN2nAutoRefresh] = useState<{ reason: string; startedAt: number } | null>(null);
@@ -319,7 +376,8 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
     nextBackends = backends,
     nextDiagnostics = n2nDiagnostics,
     nextPortProxyStatus = portProxyStatus,
-    nextUdpProxyStatus = udpProxyStatus
+    nextUdpProxyStatus = udpProxyStatus,
+    nextUdpBroadcastBridgeStatus = udpBroadcastBridgeStatus
   ) => {
     const savedAt = Date.now();
     setLastRefreshAt(savedAt);
@@ -328,6 +386,7 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
       n2nDiagnostics: nextDiagnostics,
       portProxyStatus: nextPortProxyStatus,
       udpProxyStatus: nextUdpProxyStatus,
+      udpBroadcastBridgeStatus: nextUdpBroadcastBridgeStatus,
       savedAt
     });
   };
@@ -338,7 +397,7 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
         setBackends(items);
         setN2nDiagnostics(diagnostics);
         setNetworkLoadError('');
-        saveNetworkCache(items, diagnostics, portProxyStatus, udpProxyStatus);
+        saveNetworkCache(items, diagnostics, portProxyStatus, udpProxyStatus, udpBroadcastBridgeStatus);
         const recentSupernode = recentSupernodeFromBackends(items);
         if (recentSupernode) {
           setSupernode((current) => current.trim() ? current : recentSupernode);
@@ -355,7 +414,7 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
         const nextStatus = items.find((item) => item.id === 'default') ?? items[0] ?? null;
         setPortProxyStatus(nextStatus);
         setNetworkLoadError('');
-        saveNetworkCache(backends, n2nDiagnostics, nextStatus, udpProxyStatus);
+        saveNetworkCache(backends, n2nDiagnostics, nextStatus, udpProxyStatus, udpBroadcastBridgeStatus);
       })
       .catch((error) => {
         const message = error instanceof Error ? error.message : String(error || '未知错误');
@@ -368,11 +427,24 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
         const nextStatus = items.find((item) => item.id === 'default') ?? items[0] ?? null;
         setUdpProxyStatus(nextStatus);
         setNetworkLoadError('');
-        saveNetworkCache(backends, n2nDiagnostics, portProxyStatus, nextStatus);
+        saveNetworkCache(backends, n2nDiagnostics, portProxyStatus, nextStatus, udpBroadcastBridgeStatus);
       })
       .catch((error) => {
         const message = error instanceof Error ? error.message : String(error || '未知错误');
         setNetworkLoadError(`刷新 UDP 端口代理状态失败：${message}。已保留上次检测结果，请稍后重试。`);
+      });
+
+  const refreshUdpBroadcastBridge = () =>
+    listUdpBroadcastBridges()
+      .then((items) => {
+        const nextStatus = items.find((item) => item.id === 'default') ?? items[0] ?? null;
+        setUdpBroadcastBridgeStatus(nextStatus);
+        setNetworkLoadError('');
+        saveNetworkCache(backends, n2nDiagnostics, portProxyStatus, udpProxyStatus, nextStatus);
+      })
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : String(error || '未知错误');
+        setNetworkLoadError(`刷新 UDP 广播桥状态失败：${message}。已保留上次检测结果，请稍后重试。`);
       });
 
   useEffect(() => {
@@ -383,7 +455,7 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
         } else {
           setInitialLoading(true);
         }
-        await Promise.all([refreshBackends(), refreshPortProxy(), refreshUdpProxy()]);
+        await Promise.all([refreshBackends(), refreshPortProxy(), refreshUdpProxy(), refreshUdpBroadcastBridge()]);
       } finally {
         setInitialLoading(false);
         setBackgroundRefreshing(false);
@@ -433,7 +505,7 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
       setBusy(label);
       const value = await action();
       onDone?.(value);
-      await Promise.all([refreshBackends(), refreshPortProxy(), refreshUdpProxy()]);
+      await Promise.all([refreshBackends(), refreshPortProxy(), refreshUdpProxy(), refreshUdpBroadcastBridge()]);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error || '未知错误');
       setNetworkLoadError(`${label}失败：${message}`);
@@ -444,7 +516,7 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
 
   const refreshAllNetworkState = () =>
     runAction('刷新组网状态', async () => {
-      await Promise.all([refreshBackends(), refreshPortProxy(), refreshUdpProxy()]);
+      await Promise.all([refreshBackends(), refreshPortProxy(), refreshUdpProxy(), refreshUdpBroadcastBridge()]);
       return true;
     });
 
@@ -460,6 +532,7 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
     `房主虚拟 IP：${localIp}`,
     `房主 TCP 端口代理：${portProxyStatus?.running ? `${portProxyStatus.listen} -> ${portProxyStatus.target}` : '未启动 / 不需要时可忽略'}`,
     `房主 UDP 端口代理：${udpProxyStatus?.running ? `${udpProxyStatus.listen} -> ${udpProxyStatus.target}` : '未启动 / 不需要时可忽略'}`,
+    `UDP 广播桥：${udpBroadcastBridgeStatus?.running ? `${udpBroadcastBridgeStatus.listen} -> ${udpBroadcastBridgeStatus.forward_targets.join('、')}` : '未启动 / 只有房间列表发现不到时才需要'}`,
     `建议游戏端口：${gamePort}`,
     '',
     '操作：',
@@ -477,6 +550,11 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
   const parsedProxyTargetPort = Number(proxyTargetPort.trim());
   const parsedUdpProxyListenPort = Number(udpProxyListenPort.trim());
   const parsedUdpProxyTargetPort = Number(udpProxyTargetPort.trim());
+  const parsedUdpBridgeListenPort = Number(udpBridgeListenPort.trim());
+  const udpBridgeTargetList = udpBridgeTargets
+    .split(/[\n,，]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
   const proxyPortsValid =
     Number.isInteger(parsedProxyListenPort) &&
     parsedProxyListenPort > 0 &&
@@ -487,6 +565,10 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
     parsedUdpProxyListenPort > 0 &&
     Number.isInteger(parsedUdpProxyTargetPort) &&
     parsedUdpProxyTargetPort > 0;
+  const udpBridgeConfigValid =
+    Number.isInteger(parsedUdpBridgeListenPort) &&
+    parsedUdpBridgeListenPort > 0 &&
+    udpBridgeTargetList.length > 0;
   const n2nBackend = backends.find((backend) => backend.id === 'n2n');
   const n2nRuntimeResult = n2nResult && 'running' in n2nResult ? n2nResult : null;
   const n2nSetupResult = n2nResult && 'ok' in n2nResult ? n2nResult : null;
@@ -630,6 +712,28 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
 
   const runUdpProxySelfTest = () =>
     runAction('一键自测 UDP 端口代理', () => selfTestUdpProxy(), setUdpProxySelfTest);
+
+  const startDefaultUdpBroadcastBridge = () =>
+    runAction(
+      '启动 UDP 广播桥',
+      () => startUdpBroadcastBridge({
+        id: 'default',
+        listen_host: udpBridgeListenHost.trim() || '0.0.0.0',
+        listen_port: parsedUdpBridgeListenPort,
+        forward_targets: udpBridgeTargetList,
+        label: '通用 UDP 广播桥',
+        game_id: preset?.gameId,
+        allow_broadcast: true,
+        duplicate_ttl_ms: 800
+      }),
+      setUdpBroadcastBridgeStatus
+    );
+
+  const stopDefaultUdpBroadcastBridge = () =>
+    runAction('停止 UDP 广播桥', () => stopUdpBroadcastBridge(udpBroadcastBridgeStatus?.id || 'default'), setUdpBroadcastBridgeStatus);
+
+  const runUdpBroadcastBridgeSelfTest = () =>
+    runAction('一键自测 UDP 广播桥', () => selfTestUdpBroadcastBridge(), setUdpBroadcastBridgeSelfTest);
 
   return (
     <section className="page-stack">
@@ -863,6 +967,46 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
           <strong>使用方式：</strong>只有当游戏支持已知 IP/端口的 UDP 直连时才使用它。朋友连接：
           <code>{localIp || '房主虚拟IP'}:{udpProxyListenPort || gamePort}</code>。
           如果问题是“游戏列表看不到房间”，这通常是广播发现问题，不是 UDP 单播代理问题。
+        </div>
+      </article>
+
+      <article className="card feature-card pending-feature">
+        <div className="feature-card-title">
+          <h3>UDP 广播桥</h3>
+          <span className={udpBroadcastBridgeStatus?.running ? 'badge good' : 'badge warn'}>
+            {udpBroadcastBridgeStatus?.running ? '运行中' : '未启动'}
+          </span>
+        </div>
+        <p className="muted">
+          广播桥用于“游戏房间列表发现”：把本机收到的 UDP 发现包转发到指定虚拟 IP 或广播地址。
+          它只辅助发现房间，不保证最终加入成功；加入仍取决于游戏端口、协议、账号系统、反作弊和组网状态。
+        </p>
+        <div className="room-grid">
+          <section className="config-panel">
+            <h4>监听发现包</h4>
+            <label>监听地址<input value={udpBridgeListenHost} onChange={(event) => setUdpBridgeListenHost(event.target.value)} disabled={Boolean(busy)} /><small className="muted">通常填 0.0.0.0；测试时可填 127.0.0.1。</small></label>
+            <label>监听端口<input value={udpBridgeListenPort} onChange={(event) => setUdpBridgeListenPort(event.target.value)} disabled={Boolean(busy)} /><small className="muted">填写游戏用于 LAN 发现的 UDP 端口，不一定等于加入端口。</small></label>
+          </section>
+          <section className="config-panel">
+            <h4>转发目标</h4>
+            <label>目标列表
+              <textarea value={udpBridgeTargets} onChange={(event) => setUdpBridgeTargets(event.target.value)} disabled={Boolean(busy)} rows={4} />
+              <small className="muted">每行或逗号分隔一个目标，例如 10.10.10.3:7777、10.10.10.255:7777 或 255.255.255.255:7777。</small>
+            </label>
+          </section>
+        </div>
+        {!udpBridgeConfigValid && <p className="result-bad">UDP 广播桥需要大于 0 的监听端口，并至少填写一个 host:port 转发目标。</p>}
+        <div className="actions">
+          <button type="button" disabled={Boolean(busy) || !udpBridgeConfigValid} onClick={startDefaultUdpBroadcastBridge}>启动 UDP 广播桥</button>
+          <button type="button" className="secondary" disabled={Boolean(busy)} onClick={stopDefaultUdpBroadcastBridge}>停止 UDP 广播桥</button>
+          <button type="button" className="secondary" disabled={Boolean(busy)} onClick={runUdpBroadcastBridgeSelfTest}>一键自测 UDP 广播桥</button>
+          <button type="button" className="secondary" disabled={Boolean(busy)} onClick={refreshUdpBroadcastBridge}>刷新广播桥状态</button>
+        </div>
+        {udpBroadcastBridgeStatus && <UdpBroadcastBridgeStatusView status={udpBroadcastBridgeStatus} />}
+        {udpBroadcastBridgeSelfTest && <UdpBroadcastBridgeSelfTestView report={udpBroadcastBridgeSelfTest} />}
+        <div className="notice-card">
+          <strong>边界说明：</strong>如果游戏支持直接输入 IP，请优先连接房主虚拟 IP；只有“组网已通但房间列表看不到”时，再尝试广播桥。
+          广播桥与 UDP 端口代理不同：前者帮助发现房间，后者转发已知 IP/端口的 UDP 数据。
         </div>
       </article>
 

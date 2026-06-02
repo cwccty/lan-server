@@ -773,3 +773,26 @@ npm run tauri:build
 ```
 
 下一步：把 UDP 广播桥接入通用组网中心 UI，并加入诊断报告 `udp_broadcast_bridge_self_test`。
+
+## 2026-06-03 UDP 广播桥 UI 与诊断接入
+
+已把 UDP 广播桥接入通用组网中心和发布级诊断：
+
+- 通用组网中心新增“UDP 广播桥”卡片。
+- 支持配置监听地址/端口、多个转发目标、启动、停止、刷新状态和一键自测。
+- 状态来自真实后端广播桥：收到包数、转发包数、丢弃包数、收发字节、最近错误和日志。
+- 通用组网邀请文本加入 UDP 广播桥摘要。
+- 诊断报告新增 `udp_broadcast_bridge_self_test` 检查项。
+- 如果广播桥自测失败，会生成 `udp_broadcast_bridge_self_test_failed` 失败分类和下一步建议。
+- UI 明确提示：广播桥只辅助房间发现，不保证最终加入；如果游戏支持直接 IP，应优先连接房主虚拟 IP。
+
+验证通过：
+
+```powershell
+npm run build
+cargo check --manifest-path src-tauri\Cargo.toml
+cargo test --manifest-path src-tauri\Cargo.toml udp_broadcast_bridge -- --nocapture
+npm run tauri:build
+```
+
+下一步：把适配器 `requires_udp_broadcast_bridge` 与推荐页/诊断联动，遇到需要广播桥的游戏时显示能力是否就绪。
