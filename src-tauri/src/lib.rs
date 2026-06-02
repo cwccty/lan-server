@@ -44,7 +44,12 @@ pub fn run() {
             commands::stop_udp_proxy,
             commands::list_udp_proxies,
             commands::get_udp_proxy_status,
-            commands::self_test_udp_proxy
+            commands::self_test_udp_proxy,
+            commands::start_udp_broadcast_bridge,
+            commands::stop_udp_broadcast_bridge,
+            commands::list_udp_broadcast_bridges,
+            commands::get_udp_broadcast_bridge_status,
+            commands::self_test_udp_broadcast_bridge
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -55,4 +60,5 @@ fn cleanup_managed_processes() {
     let _ = network::n2n_backend::stop();
     core::port_proxy::stop_all_port_proxies();
     core::udp_proxy::stop_all_udp_proxies();
+    core::udp_broadcast_bridge::stop_all_udp_broadcast_bridges();
 }

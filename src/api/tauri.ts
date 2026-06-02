@@ -13,6 +13,11 @@ import type {
 import type { LaunchConfig, LaunchResult, Recommendation } from '../types/recommendation';
 import type { ServerSessionStatus } from '../types/serverSession';
 import type { PortProxyConfig, PortProxySelfTestReport, PortProxyStatus } from '../types/portProxy';
+import type {
+  UdpBroadcastBridgeConfig,
+  UdpBroadcastBridgeSelfTestReport,
+  UdpBroadcastBridgeStatus
+} from '../types/udpBroadcastBridge';
 import type { UdpProxyConfig, UdpProxySelfTestReport, UdpProxyStatus } from '../types/udpProxy';
 
 export const scanGames = () => invoke<GameSummary[]>('scan_games');
@@ -73,3 +78,14 @@ export const listUdpProxies = () => invoke<UdpProxyStatus[]>('list_udp_proxies')
 export const getUdpProxyStatus = (id: string) =>
   invoke<UdpProxyStatus>('get_udp_proxy_status', { id });
 export const selfTestUdpProxy = () => invoke<UdpProxySelfTestReport>('self_test_udp_proxy');
+
+export const startUdpBroadcastBridge = (config: UdpBroadcastBridgeConfig) =>
+  invoke<UdpBroadcastBridgeStatus>('start_udp_broadcast_bridge', { config });
+export const stopUdpBroadcastBridge = (id: string) =>
+  invoke<UdpBroadcastBridgeStatus>('stop_udp_broadcast_bridge', { id });
+export const listUdpBroadcastBridges = () =>
+  invoke<UdpBroadcastBridgeStatus[]>('list_udp_broadcast_bridges');
+export const getUdpBroadcastBridgeStatus = (id: string) =>
+  invoke<UdpBroadcastBridgeStatus>('get_udp_broadcast_bridge_status', { id });
+export const selfTestUdpBroadcastBridge = () =>
+  invoke<UdpBroadcastBridgeSelfTestReport>('self_test_udp_broadcast_bridge');

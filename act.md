@@ -750,3 +750,26 @@ npm run tauri:build
 ```
 
 下一步：进入 UDP 广播桥 MVP，实现受控广播/组播发现包转发，并在 adapter 中对 `udp_broadcast_needed` 游戏显示能力状态。
+
+## 2026-06-03 UDP 广播桥后端 MVP
+
+已实现 UDP 广播桥后端 MVP：
+
+- 新增 `src-tauri/src/core/udp_broadcast_bridge.rs` 和 `src-tauri/src/models/udp_broadcast_bridge.rs`。
+- 支持启动、停止、列表、读取状态、一键自测。
+- 支持监听指定 UDP 地址/端口，并把收到的发现包转发到一个或多个指定目标。
+- 状态包含收到包数、转发包数、丢弃包数、收发字节、最近错误和日志。
+- 加入简单防回环：对 payload 做签名，短 TTL 内重复包会丢弃。
+- 前端 API 和类型已接入：`src/types/udpBroadcastBridge.ts`、`src/api/tauri.ts`。
+- 客户端关闭时会停止由联机助手管理的 UDP 广播桥。
+
+验证通过：
+
+```powershell
+cargo test --manifest-path src-tauri\Cargo.toml udp_broadcast_bridge -- --nocapture
+npm run build
+cargo check --manifest-path src-tauri\Cargo.toml
+npm run tauri:build
+```
+
+下一步：把 UDP 广播桥接入通用组网中心 UI，并加入诊断报告 `udp_broadcast_bridge_self_test`。

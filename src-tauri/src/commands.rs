@@ -1,6 +1,6 @@
 use crate::core::{
     capability_engine, connectivity_tester, diagnostic_logger, game_detector, game_launcher,
-    port_proxy, recommendation_engine, server_session, udp_proxy,
+    port_proxy, recommendation_engine, server_session, udp_broadcast_bridge, udp_proxy,
 };
 use crate::models::diagnostics::DiagnosticReport;
 use crate::models::game::{GameAdapter, GameAnalysis, GameSummary};
@@ -9,6 +9,9 @@ use crate::models::network::{
     NetworkConfig, SetupResult,
 };
 use crate::models::port_proxy::{PortProxyConfig, PortProxySelfTestReport, PortProxyStatus};
+use crate::models::udp_broadcast_bridge::{
+    UdpBroadcastBridgeConfig, UdpBroadcastBridgeSelfTestReport, UdpBroadcastBridgeStatus,
+};
 use crate::models::udp_proxy::{UdpProxyConfig, UdpProxySelfTestReport, UdpProxyStatus};
 use crate::models::recommendation::{LaunchResult, Recommendation};
 use crate::models::server_session::ServerSessionStatus;
@@ -206,4 +209,31 @@ pub fn get_udp_proxy_status(id: String) -> Result<UdpProxyStatus, String> {
 #[tauri::command]
 pub fn self_test_udp_proxy() -> Result<UdpProxySelfTestReport, String> {
     udp_proxy::self_test_udp_proxy()
+}
+
+#[tauri::command]
+pub fn start_udp_broadcast_bridge(
+    config: UdpBroadcastBridgeConfig,
+) -> Result<UdpBroadcastBridgeStatus, String> {
+    udp_broadcast_bridge::start_udp_broadcast_bridge(config)
+}
+
+#[tauri::command]
+pub fn stop_udp_broadcast_bridge(id: String) -> Result<UdpBroadcastBridgeStatus, String> {
+    udp_broadcast_bridge::stop_udp_broadcast_bridge(&id)
+}
+
+#[tauri::command]
+pub fn list_udp_broadcast_bridges() -> Result<Vec<UdpBroadcastBridgeStatus>, String> {
+    Ok(udp_broadcast_bridge::list_udp_broadcast_bridges())
+}
+
+#[tauri::command]
+pub fn get_udp_broadcast_bridge_status(id: String) -> Result<UdpBroadcastBridgeStatus, String> {
+    udp_broadcast_bridge::get_udp_broadcast_bridge_status(&id)
+}
+
+#[tauri::command]
+pub fn self_test_udp_broadcast_bridge() -> Result<UdpBroadcastBridgeSelfTestReport, String> {
+    udp_broadcast_bridge::self_test_udp_broadcast_bridge()
 }
