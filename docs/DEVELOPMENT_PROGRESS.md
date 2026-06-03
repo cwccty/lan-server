@@ -1193,3 +1193,64 @@ cargo check --manifest-path src-tauri\Cargo.toml
 - 如果未来要把 `24ms`、`已连接`、假方案列表等替换成真实状态，需要作为“产品化阶段”处理，并重新确认是否允许偏离参考图。
 
 下一步推荐：开始创建 `src/reference-adapter/` 最小桥接层，先只读取真实后端状态并在不改变参考 UI 视觉的前提下验证数据可用，然后再决定哪些参考文案进入产品化替换。
+
+## 2026-06-04 Reference Adapter 最小后端桥接层
+
+本轮开始执行“完全一比一复原后再做前后端连接”的下一阶段，但继续遵守 reference-ui 锁定规则：不直接修改 `src/reference-ui` 任何视觉组件。
+
+新增目录：
+
+- `src/reference-adapter/`
+
+新增文件：
+
+- `src/reference-adapter/types.ts`
+  - 定义 `ReferenceRuntimeSnapshot` 和 `ReferenceStatusSummary`；
+  - 用统一快照承载 n2n、后端列表、游戏扫描、适配器列表、Terraria 会话和诊断报告。
+- `src/reference-adapter/runtimeStore.ts`
+  - 读取真实 Tauri 后端：
+    - `getN2nDiagnostics()`
+    - `getN2nLastConfig()`
+    - `listNetworkBackends()`
+    - `scanGames()`
+    - `listGameAdapters()`
+    - `readServerSession()`
+    - 可选 `generateDiagnosticReport()`
+  - 每个调用独立捕获错误，避免普通浏览器预览时直接破坏界面。
+- `src/reference-adapter/mappers.ts`
+  - 将真实快照映射成摘要结构；
+  - 提供调试输出 `snapshotForDebug()`。
+- `src/reference-adapter/bootstrap.ts`
+  - 提供 `startReferenceRuntimeBridge()`；
+  - 后台每 5 秒读取一次真实后端快照；
+  - 写入 `window.__LAN_HELPER_REFERENCE_RUNTIME__`；
+  - 发出 `lan-helper:reference-runtime-updated` 事件；
+  - 不改变页面视觉，不向用户显示任何状态。
+- `src/reference-adapter/globals.d.ts`
+  - 声明全局调试快照字段。
+- `src/reference-adapter/index.ts`
+  - 统一导出 adapter 能力。
+
+入口改动：
+
+- `src/main.tsx`
+  - 在渲染参考 UI 前调用 `startReferenceRuntimeBridge()`；
+  - 仍然渲染 `src/reference-ui/App`；
+  - 不修改 reference-ui DOM、class、布局或文案。
+
+验证：
+
+- `powershell -ExecutionPolicy Bypass -File tools\check_reference_ui_fidelity.ps1` 通过，`visual_diff_count=0`；
+- `npm run build` 通过；
+- `cargo check --manifest-path src-tauri\Cargo.toml` 通过；
+- `npm run tauri:build` 通过；
+- `npm run release:preflight` 通过；
+- `git diff --check` 通过。
+
+意义：
+
+- 这是前后端连接的第一步，但目前是“不可见桥接”；
+- 它证明真实后端数据可以在不破坏参考 UI 一比一视觉的情况下被读取；
+- 后续可以逐步把参考 UI 的状态从 adapter 注入，但每一步都要先跑 reference-ui fidelity check。
+
+下一步推荐：新增一个开发者专用的运行时调试入口，例如隐藏快捷键或设置页内部调试面板，用来查看 `window.__LAN_HELPER_REFERENCE_RUNTIME__`，仍不改变用户主界面；确认后再开始把 Header/首页状态接入真实数据。
