@@ -1947,3 +1947,37 @@ npm run release:preflight:full
 - 后续可以逐步把参考 UI 的状态从 adapter 注入，但每一步都要先跑 reference-ui fidelity check。
 
 下一步推荐：新增一个开发者专用的运行时调试入口，例如隐藏快捷键或设置页内部调试面板，用来查看 `window.__LAN_HELPER_REFERENCE_RUNTIME__`，仍不改变用户主界面；确认后再开始把 Header/首页状态接入真实数据。
+
+## 2026-06-04 Reference Runtime 隐藏调试入口
+
+本轮继续做“复原后再接后端”的准备工作：新增隐藏式 runtime 调试面板，用来查看上一轮 `src/reference-adapter/` 采集到的真实后端快照。
+
+新增/修改：
+
+- `src/reference-adapter/DebugPanel.tsx`
+  - 默认返回 `null`，不会改变用户看到的参考前端；
+  - 按 `Ctrl+Shift+D` 才显示调试面板；
+  - 面板展示 `window.__LAN_HELPER_REFERENCE_RUNTIME__` 的摘要和调试 JSON；
+  - 可查看 n2n running/ready、virtual_ip、supernode、Terraria session、game_count、adapter_count、release_ready、错误摘要等。
+- `src/reference-adapter/index.ts`
+  - 导出 `ReferenceRuntimeDebugPanel`。
+- `src/main.tsx`
+  - 在 `App` 后挂载 `<ReferenceRuntimeDebugPanel />`；
+  - 不修改 `src/reference-ui` 的任何组件、DOM、class、布局、文案或数据。
+
+验证：
+
+- `powershell -ExecutionPolicy Bypass -File tools\check_reference_ui_fidelity.ps1` 通过，`visual_diff_count=0`；
+- `npm run build` 通过；
+- `cargo check --manifest-path src-tauri\Cargo.toml` 通过；
+- `npm run tauri:build` 通过；
+- `npm run release:preflight` 通过；
+- `git diff --check` 通过。
+
+意义：
+
+- 默认用户界面仍保持参考前端一比一；
+- 开发时可以用隐藏入口确认真实后端快照是否存在；
+- 下一步可以基于该快照开始做产品化状态注入，但必须逐项确认是否允许偏离参考图。
+
+下一步推荐：先在 release 版里按 `Ctrl+Shift+D` 检查调试面板是否能看到真实 runtime 快照；确认后再开始做 Header/首页状态的产品化接入方案。

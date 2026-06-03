@@ -2,12 +2,13 @@
 import ReactDOM from 'react-dom/client';
 import App from './reference-ui/App';
 import './reference-ui/index.css';
-import { startReferenceRuntimeBridge } from './reference-adapter/bootstrap';
+import { ReferenceRuntimeDebugPanel, startReferenceRuntimeBridge } from './reference-adapter';
 
 startReferenceRuntimeBridge();
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <App />
+    <ReferenceRuntimeDebugPanel />
   </React.StrictMode>
 );
