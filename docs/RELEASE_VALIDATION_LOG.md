@@ -265,7 +265,20 @@ LastWriteTime : 2026/6/3 13:10:50
 
 | 项目 | 状态 | 证据 | 备注 |
 | --- | --- | --- | --- |
-| VPS supernode ACK/PONG | 待人工验证 | - | 需要用户 VPS 环境 |
+| VPS supernode ACK/PONG | 通过 | 用户确认 VPS/supernode/n2n 注册验证通过 | 已完成人工验证 |
+
+## 4.1 2026-06-03 VPS / supernode / n2n 注册验证
+
+用户已确认该阶段通过：
+
+| 项目 | 状态 | 证据 |
+| --- | --- | --- |
+| VPS supernode 监听 | 通过 | 用户确认 VPS / supernode 阶段通过 |
+| 客户端 n2n edge 注册 | 通过 | 用户确认客户端 n2n 注册验证通过 |
+| ACK/PONG/[OK] 日志判断 | 通过 | 用户确认 n2n 注册验证通过 |
+| 诊断报告 n2n 状态 | 通过 | 用户确认该阶段通过 |
+
+结论：VPS / supernode / n2n 注册链路已通过人工验证。
 | 双机 n2n 互通 | 待人工验证 | - | 需要两台电脑或虚拟机 |
 | Terraria Join via IP | 待人工验证 | - | 需要游戏内加入 |
 | Minecraft Java adapter 审核 | 待人工验证 | - | 需要实际游戏/服务端流程确认 |
@@ -274,6 +287,7 @@ LastWriteTime : 2026/6/3 13:10:50
 ## 5. 结论
 
 自动化单机验证已通过；发布结论仍待人工验证项补齐后给出。
+
 
 
 

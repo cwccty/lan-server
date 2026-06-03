@@ -1289,3 +1289,16 @@ cargo check --manifest-path src-tauri\Cargo.toml
 结果已写入 `docs/RELEASE_VALIDATION_LOG.md`。
 
 下一步推荐：进入 VPS / supernode / n2n 注册验证，然后再做双机或虚拟机加入验证。
+
+## 2026-06-03 VPS / supernode / n2n 注册验证通过
+
+用户已确认 VPS / supernode / n2n 注册验证通过。
+
+该阶段结果已写入 `docs/RELEASE_VALIDATION_LOG.md`，包括：
+
+- VPS supernode 监听；
+- 客户端 n2n edge 注册；
+- ACK/PONG/[OK] 日志判断；
+- 诊断报告 n2n 状态。
+
+下一步推荐：进入双机或虚拟机加入验证，确认加入者使用不同虚拟 IP 后能访问房主虚拟 IP 和游戏端口。
