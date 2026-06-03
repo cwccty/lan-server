@@ -1,0 +1,252 @@
+﻿# 发布前端到端验证日志
+
+创建时间：2026-06-03 13:07:04 +08:00
+
+本日志记录 `docs/RELEASE_VALIDATION_PLAN.md` 的实际执行结果。原则：只记录真实执行过的证据；没有执行的项目必须标记为待人工验证，不能写成通过。
+
+## 1. 本轮范围
+
+执行阶段：单机自动化验证 + 单机人工验证待办清单。
+
+本轮可自动化验证：
+
+- registry index 生成工具；
+- `adapter-registry/index.json` 解析；
+- 前端生产构建；
+- Rust 后端检查；
+- Tauri release 打包；
+- TCP 端口代理单元测试；
+- UDP 端口代理单元测试；
+- UDP 广播桥单元测试；
+- release 可执行文件存在性。
+
+本轮待人工验证：
+
+- 客户端启动后无白色命令框、透明残留窗口；
+- 页面逐项打开；
+- 适配器管理页同步本地示例库与 GitHub 默认共享库的 UI 明细；
+- 通用组网中心里的 TCP/UDP/广播桥按钮点击体验；
+- 当前游戏上下文诊断 UI；
+- Terraria 服务端 30 秒稳定性；
+- VPS/supernode 与双机联机。
+
+## 2. 自动化验证结果
+
+### registry index 生成工具
+
+状态：PASS
+耗时：0.71s
+
+```text
+updated E:\Documents\联机助手\adapter-registry\index.json
+games: 3
+- minecraft_java 0852d4e55475ff746e0570b0aebe7b63300b290d00ef3a52e9712d0d8d929ea1
+- stardew_valley 4ed34f221144fdd739bc6832c96a8c9b5def3b71908383280000360858552c19
+- terraria 304032f5cd2cf00916b7d61ed728cf5aa4107d80a0bfd36c1cf31ea738b58715
+```
+### registry index JSON 解析
+
+状态：PASS
+耗时：0.11s
+
+```text
+games=3
+minecraft_java games/minecraft_java.json 0852d4e55475ff746e0570b0aebe7b63300b290d00ef3a52e9712d0d8d929ea1
+stardew_valley games/stardew_valley.json 4ed34f221144fdd739bc6832c96a8c9b5def3b71908383280000360858552c19
+terraria games/terraria.json 304032f5cd2cf00916b7d61ed728cf5aa4107d80a0bfd36c1cf31ea738b58715
+```
+### 前端生产构建
+
+状态：PASS
+耗时：3.95s
+
+```text
+
+> lan-helper@0.1.0 build
+> tsc && vite build
+
+[36mvite v7.3.3 [32mbuilding client environment for production...[36m[39m
+transforming...
+[32m✓[39m 45 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist/[22m[32mindex.html                 [39m[1m[2m  0.40 kB[22m[1m[22m[2m │ gzip:  0.29 kB[22m
+[2mdist/[22m[35massets/index-nsB57BtH.css  [39m[1m[2m  8.69 kB[22m[1m[22m[2m │ gzip:  2.71 kB[22m
+[2mdist/[22m[36massets/index-sttUmNrL.js   [39m[1m[2m325.12 kB[22m[1m[22m[2m │ gzip: 96.86 kB[22m
+[32m✓ built in 934ms[39m
+```
+### Rust 后端检查
+
+状态：PASS
+耗时：2.28s
+
+```text
+cargo :    Compiling lan-helper v0.1.0 (E:\Documents\联机助手\src-tauri)
+At line:30 char:30
++ ... Step 'Rust 后端检查' { cargo check --manifest-path src-tauri\Cargo.toml }
++                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (   Compiling la...联机助手\src-tauri):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.19s
+```
+### TCP 端口代理单元测试
+
+状态：PASS
+耗时：10.72s
+
+```text
+cargo :    Compiling lan-helper v0.1.0 (E:\Documents\联机助手\src-tauri)
+At line:31 char:33
++ ... 端口代理单元测试' { cargo test --manifest-path src-tauri\Cargo.toml port_prox ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (   Compiling la...联机助手\src-tauri):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 10.21s
+     Running unittests src\lib.rs (src-tauri\target\debug\deps\lan_helper_lib-bcca3b97bd874acf.exe)
+
+running 2 tests
+test core::port_proxy::tests::tcp_proxy_forwards_bytes_end_to_end ... ok
+test core::port_proxy::tests::self_test_reports_success ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.24s
+
+     Running unittests src\main.rs (src-tauri\target\debug\deps\lan_helper-75cb69cd88bfb5ad.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+### UDP 端口代理单元测试
+
+状态：PASS
+耗时：10.62s
+
+```text
+cargo :    Compiling lan-helper v0.1.0 (E:\Documents\联机助手\src-tauri)
+At line:32 char:33
++ ... 端口代理单元测试' { cargo test --manifest-path src-tauri\Cargo.toml udp_proxy ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (   Compiling la...联机助手\src-tauri):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 10.14s
+     Running unittests src\lib.rs (src-tauri\target\debug\deps\lan_helper_lib-bcca3b97bd874acf.exe)
+
+running 2 tests
+test core::udp_proxy::tests::udp_proxy_forwards_datagrams_end_to_end ... ok
+test core::udp_proxy::tests::self_test_reports_success ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.23s
+
+     Running unittests src\main.rs (src-tauri\target\debug\deps\lan_helper-75cb69cd88bfb5ad.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+### UDP 广播桥单元测试
+
+状态：PASS
+耗时：12.94s
+
+```text
+cargo :    Compiling lan-helper v0.1.0 (E:\Documents\联机助手\src-tauri)
+At line:33 char:32
++ ...  广播桥单元测试' { cargo test --manifest-path src-tauri\Cargo.toml udp_broad ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (   Compiling la...联机助手\src-tauri):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 12.42s
+     Running unittests src\lib.rs (src-tauri\target\debug\deps\lan_helper_lib-bcca3b97bd874acf.exe)
+
+running 2 tests
+test core::udp_broadcast_bridge::tests::udp_broadcast_bridge_forwards_discovery_packet ... ok
+test core::udp_broadcast_bridge::tests::self_test_reports_success ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.21s
+
+     Running unittests src\main.rs (src-tauri\target\debug\deps\lan_helper-75cb69cd88bfb5ad.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+### Tauri release 打包
+
+状态：PASS
+耗时：45.38s
+
+```text
+
+> lan-helper@0.1.0 tauri:build
+> tauri build
+
+node.exe :         Info Looking up installed tauri packages to check mismatched versions...
+At line:1 char:1
++ & "C:\nvm4w\nodejs/node.exe" "C:\nvm4w\nodejs/node_modules/npm/bin/np ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (        Info Lo...hed versions...:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+     Running beforeBuildCommand `npm run build`
+
+> lan-helper@0.1.0 build
+> tsc && vite build
+
+[36mvite v7.3.3 [32mbuilding client environment for production...[36m[39m
+transforming...
+[32m✓[39m 45 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist/[22m[32mindex.html                 [39m[1m[2m  0.40 kB[22m[1m[22m[2m │ gzip:  0.29 kB[22m
+[2mdist/[22m[35massets/index-nsB57BtH.css  [39m[1m[2m  8.69 kB[22m[1m[22m[2m │ gzip:  2.71 kB[22m
+[2mdist/[22m[36massets/index-sttUmNrL.js   [39m[1m[2m325.12 kB[22m[1m[22m[2m │ gzip: 96.86 kB[22m
+[32m✓ built in 878ms[39m
+   Compiling lan-helper v0.1.0 (E:\Documents\联机助手\src-tauri)
+    Finished `release` profile [optimized] target(s) in 38.81s
+       Built application at: E:\Documents\联机助手\src-tauri\target\release\lan-helper.exe
+```
+### release exe 存在性
+
+状态：PASS
+耗时：0.02s
+
+```text
+
+
+FullName      : E:\Documents\联机助手\src-tauri\target\release\lan-helper.exe
+Length        : 12568064
+LastWriteTime : 2026/6/3 13:10:50
+```
+## 3. 单机人工验证记录
+
+| 项目 | 状态 | 证据 | 备注 |
+| --- | --- | --- | --- |
+| 客户端启动窗口检查 | 待人工验证 | - | 需要用户实际打开 release exe 观察 |
+| 页面逐项打开 | 待人工验证 | - | 首页、通用组网、Terraria 向导、扫描、推荐、适配器、诊断 |
+| 同步本地示例库 UI | 待人工验证 | - | 需要在适配器管理页点击 |
+| 同步 GitHub 默认共享库 UI | 待人工验证 | - | 需要网络与 UI 点击 |
+| 通用组网中心自测按钮 | 待人工验证 | - | TCP/UDP/广播桥按钮点击体验 |
+| 当前游戏上下文诊断 UI | 待人工验证 | - | 先选择 Terraria 再进入诊断页 |
+| Terraria 服务端 30 秒稳定性 | 待人工验证 | - | 需要本机 TerrariaServer.exe 和世界文件 |
+
+## 4. VPS / 双机 / 游戏内验证记录
+
+| 项目 | 状态 | 证据 | 备注 |
+| --- | --- | --- | --- |
+| VPS supernode ACK/PONG | 待人工验证 | - | 需要用户 VPS 环境 |
+| 双机 n2n 互通 | 待人工验证 | - | 需要两台电脑或虚拟机 |
+| Terraria Join via IP | 待人工验证 | - | 需要游戏内加入 |
+| Minecraft Java adapter 审核 | 待人工验证 | - | 需要实际游戏/服务端流程确认 |
+| Stardew Valley adapter 审核 | 待人工验证 | - | 需要确认是否误导 LAN/IP 转换 |
+
+## 5. 结论
+
+自动化单机验证已通过；发布结论仍待人工验证项补齐后给出。
+
+
+
+

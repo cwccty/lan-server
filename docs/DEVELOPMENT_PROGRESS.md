@@ -442,3 +442,33 @@ cargo test --manifest-path src-tauri\Cargo.toml udp_broadcast_bridge -- --nocapt
 同时修正侧边栏“未来功能入口”：端口代理和 UDP 广播桥已经是现有能力，不再作为未来功能展示；未来入口改为发布验证页、Mod 管理、Steam Relay 插件、supernode 管理、adapter 审核后台。
 
 下一步推荐：按 `docs/RELEASE_VALIDATION_PLAN.md` 先执行单机验证，并把真实结果写入 `docs/RELEASE_VALIDATION_LOG.md`。
+
+## 2026-06-03 发布验证日志：单机自动化项
+
+已新增 `docs/RELEASE_VALIDATION_LOG.md`，开始按 `docs/RELEASE_VALIDATION_PLAN.md` 记录真实验证结果。
+
+本轮已完成的自动化单机验证：
+
+- registry index 生成工具：PASS；
+- `adapter-registry/index.json` 解析：PASS，当前 3 个游戏；
+- 前端生产构建：PASS；
+- Rust 后端检查：PASS；
+- TCP 端口代理单元测试：PASS；
+- UDP 端口代理单元测试：PASS；
+- UDP 广播桥单元测试：PASS；
+- Tauri release 打包：PASS；
+- `src-tauri/target/release/lan-helper.exe` 存在性：PASS。
+
+本轮仍明确保留为待人工验证：
+
+- release 客户端实际启动后是否无白框/透明框；
+- 页面逐项打开；
+- 适配器管理页同步本地示例库与 GitHub 默认共享库的 UI 明细；
+- 通用组网中心里的 TCP/UDP/广播桥按钮点击体验；
+- 当前游戏上下文诊断 UI；
+- Terraria 服务端 30 秒稳定性；
+- VPS/supernode、双机互通、游戏内加入验证。
+
+注意：日志只记录真实执行结果，未执行的人工项不能写成通过。
+
+下一步推荐：让用户打开 `src-tauri/target/release/lan-helper.exe` 执行单机人工验证，把结果继续填入 `docs/RELEASE_VALIDATION_LOG.md`。
