@@ -966,3 +966,403 @@ pre,
   .stage-card:hover,
   .readiness-card:hover { transform: none; }
 }
+
+/* Imported visual direction from the user's downloaded frontend: iOS/macOS light shell.
+   Scope: app shell, sidebar, header, toast, base cards/buttons only. Backend/page logic is unchanged. */
+:root {
+  color-scheme: light;
+  --bg: oklch(98% 0.004 85);
+  --sidebar: oklch(97% 0.005 85);
+  --surface: oklch(99% 0.003 85 / 0.86);
+  --surface-2: oklch(96% 0.006 85 / 0.78);
+  --surface-3: oklch(92% 0.010 85 / 0.86);
+  --border: oklch(84% 0.018 82 / 0.72);
+  --border-strong: oklch(72% 0.045 82 / 0.80);
+  --text: oklch(24% 0.018 78);
+  --text-soft: oklch(38% 0.020 78);
+  --muted: oklch(56% 0.022 78);
+  --subtle: oklch(66% 0.018 78);
+  --primary: oklch(78% 0.105 82);
+  --primary-strong: oklch(68% 0.120 78);
+  --success: oklch(62% 0.145 154);
+  --warn: oklch(72% 0.135 76);
+  --danger: oklch(59% 0.170 25);
+  --info: oklch(58% 0.145 240);
+  --radius-lg: 24px;
+}
+
+html { background: var(--bg); }
+
+body {
+  background:
+    radial-gradient(circle at 16% -8%, oklch(88% 0.075 82 / 0.50), transparent 34rem),
+    radial-gradient(circle at 90% 10%, oklch(84% 0.040 205 / 0.30), transparent 28rem),
+    linear-gradient(180deg, oklch(99% 0.003 85), oklch(96% 0.006 85) 32rem, oklch(94% 0.008 85));
+  color: var(--text);
+}
+
+button {
+  border-color: oklch(73% 0.075 82 / 0.44);
+  background: linear-gradient(180deg, oklch(84% 0.10 82), oklch(76% 0.11 80));
+  color: oklch(25% 0.030 78);
+  box-shadow: 0 10px 22px oklch(48% 0.08 78 / 0.16), inset 0 1px 0 oklch(100% 0 0 / 0.55);
+}
+button:hover:not(:disabled) {
+  border-color: oklch(68% 0.11 82 / 0.70);
+  box-shadow: 0 14px 28px oklch(48% 0.08 78 / 0.22), inset 0 1px 0 oklch(100% 0 0 / 0.66);
+}
+button.secondary,
+.glass-button {
+  background: oklch(100% 0 0 / 0.62);
+  color: var(--text-soft);
+  border-color: var(--border);
+  box-shadow: 0 8px 18px oklch(40% 0.02 78 / 0.07), inset 0 1px 0 oklch(100% 0 0 / 0.70);
+  backdrop-filter: blur(16px) saturate(1.10);
+  -webkit-backdrop-filter: blur(16px) saturate(1.10);
+}
+button.secondary:hover:not(:disabled),
+.glass-button:hover:not(:disabled) { background: oklch(100% 0 0 / 0.86); }
+button.danger { color: white; background: oklch(56% 0.16 25); border-color: oklch(60% 0.16 25 / 0.50); }
+
+input, select, textarea {
+  background: oklch(100% 0 0 / 0.76);
+  color: var(--text);
+  border-color: var(--border);
+  box-shadow: inset 0 1px 2px oklch(40% 0.02 78 / 0.05);
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--primary-strong);
+  background: oklch(100% 0 0 / 0.96);
+  box-shadow: 0 0 0 3px oklch(78% 0.10 82 / 0.20);
+}
+
+.ios-shell {
+  grid-template-columns: 260px minmax(0, 1fr);
+  min-height: 100vh;
+  background: transparent;
+}
+
+.ios-sidebar {
+  padding: 24px 16px;
+  background: oklch(98% 0.004 85 / 0.82);
+  border-right: 1px solid oklch(88% 0.010 85);
+  box-shadow: 8px 0 26px oklch(45% 0.02 78 / 0.06);
+  backdrop-filter: blur(24px) saturate(1.08);
+  -webkit-backdrop-filter: blur(24px) saturate(1.08);
+}
+
+.ios-brand {
+  padding: 0 8px 22px;
+  border-bottom-color: oklch(88% 0.010 85);
+}
+.ios-brand h1 { color: var(--text); font-size: 20px; }
+.ios-brand p { color: var(--muted); max-width: none; }
+.ios-brand-mark {
+  border-radius: 14px;
+  background: oklch(84% 0.10 82 / 0.34);
+  color: oklch(54% 0.12 78);
+  box-shadow: 0 8px 18px oklch(55% 0.08 78 / 0.14), inset 0 1px 0 oklch(100% 0 0 / 0.7);
+}
+
+.premium-nav { gap: 18px; }
+.nav-group-title { color: oklch(62% 0.018 78); }
+.ios-nav-item {
+  min-height: 52px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  color: oklch(48% 0.020 78);
+  background: transparent;
+  box-shadow: none;
+}
+.nav-item-main { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.nav-icon {
+  width: 24px;
+  height: 24px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 9px;
+  color: oklch(58% 0.020 78);
+  background: oklch(94% 0.006 85 / 0.80);
+  font-weight: 850;
+}
+.ios-nav-item small { margin-left: 34px; color: oklch(62% 0.018 78); }
+.ios-nav-item:hover:not(:disabled) {
+  color: var(--text);
+  background: oklch(100% 0 0 / 0.58);
+  box-shadow: inset 0 0 0 1px oklch(88% 0.012 85), 0 8px 18px oklch(44% 0.02 78 / 0.05);
+}
+.ios-nav-item.active {
+  color: oklch(36% 0.045 78);
+  border-color: oklch(82% 0.07 82 / 0.55);
+  background: oklch(100% 0 0 / 0.82);
+  box-shadow: 0 12px 24px oklch(56% 0.06 78 / 0.12), inset 0 1px 0 oklch(100% 0 0 / 0.88);
+}
+.ios-nav-item.active .nav-icon { color: oklch(52% 0.12 78); background: oklch(84% 0.10 82 / 0.28); }
+.nav-alert-dot { width: 7px; height: 7px; border-radius: 999px; background: var(--danger); box-shadow: 0 0 0 4px oklch(59% 0.17 25 / 0.12); }
+
+.ios-sidebar-insight {
+  border-color: oklch(86% 0.018 85);
+  background: oklch(100% 0 0 / 0.62);
+  color: var(--text);
+  box-shadow: 0 12px 30px oklch(44% 0.02 78 / 0.08), inset 0 1px 0 oklch(100% 0 0 / 0.86);
+  backdrop-filter: blur(18px) saturate(1.08);
+  -webkit-backdrop-filter: blur(18px) saturate(1.08);
+}
+.ios-sidebar-insight p { color: var(--muted); }
+.insight-dot { background: var(--primary-strong); box-shadow: 0 0 0 5px oklch(78% 0.10 82 / 0.18); }
+
+.ios-main {
+  max-width: none;
+  padding: 24px 32px 44px;
+}
+.ios-command-bar {
+  top: 16px;
+  padding: 12px 16px;
+  border-color: oklch(87% 0.012 85);
+  background: oklch(100% 0 0 / 0.72);
+  box-shadow: 0 18px 40px oklch(40% 0.02 78 / 0.09), inset 0 1px 0 oklch(100% 0 0 / 0.90);
+  backdrop-filter: blur(22px) saturate(1.12);
+  -webkit-backdrop-filter: blur(22px) saturate(1.12);
+}
+.ios-command-bar strong { color: var(--text); }
+.ios-command-bar span,
+.ios-command-bar small { color: var(--muted); }
+.shell-status-pill {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 7px;
+  width: fit-content;
+  padding: 7px 11px;
+  border-radius: 999px;
+  border: 1px solid oklch(86% 0.014 85);
+  background: oklch(97% 0.005 85 / 0.78);
+  color: var(--text-soft) !important;
+  font-weight: 750;
+}
+.shell-status-pill span {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--warn);
+  box-shadow: 0 0 0 4px oklch(72% 0.13 76 / 0.14);
+}
+
+.card,
+.hero-panel,
+.hero-status-card,
+.right-panel,
+.status-tile,
+.flow-step,
+.notice-card,
+.future-box,
+.diagnostic-list li,
+.result-ok,
+.result-bad,
+.result-idle,
+.loading-modal,
+.primary-config-card,
+.advanced-card,
+.toolbar-card {
+  background: oklch(100% 0 0 / 0.74);
+  color: var(--text);
+  border-color: oklch(86% 0.014 85);
+  box-shadow: 0 14px 34px oklch(44% 0.02 78 / 0.08), inset 0 1px 0 oklch(100% 0 0 / 0.84);
+  backdrop-filter: blur(16px) saturate(1.04);
+  -webkit-backdrop-filter: blur(16px) saturate(1.04);
+}
+.card:hover,
+.status-tile:hover,
+.flow-step:hover {
+  border-color: oklch(80% 0.042 82 / 0.82);
+  box-shadow: 0 18px 42px oklch(44% 0.02 78 / 0.12), inset 0 1px 0 oklch(100% 0 0 / 0.92);
+}
+.hero-panel,
+.primary-config-card {
+  background:
+    linear-gradient(135deg, oklch(100% 0 0 / 0.84), oklch(96% 0.010 82 / 0.72)),
+    radial-gradient(circle at 16% 0%, oklch(84% 0.10 82 / 0.30), transparent 22rem);
+}
+pre,
+.console-panel {
+  background: oklch(22% 0.012 78);
+  color: oklch(91% 0.010 78);
+  border-color: oklch(32% 0.015 78);
+  box-shadow: inset 0 1px 0 oklch(100% 0 0 / 0.06);
+}
+.adapter-table th { background: oklch(95% 0.005 85); color: var(--text-soft); }
+.adapter-table th,
+.adapter-table td { border-bottom-color: oklch(88% 0.010 85); }
+.badge { background: oklch(94% 0.008 85); color: var(--text-soft); }
+.badge.good,
+.status-good,
+.check-ok,
+.result-ok { background: oklch(92% 0.045 154 / 0.66) !important; border-color: oklch(72% 0.12 154 / 0.50) !important; }
+.badge.warn,
+.status-warn { background: oklch(94% 0.050 76 / 0.72); border-color: oklch(76% 0.12 76 / 0.50); }
+.badge.bad,
+.status-bad,
+.check-bad,
+.result-bad { background: oklch(94% 0.042 25 / 0.72) !important; border-color: oklch(72% 0.14 25 / 0.46) !important; }
+.empty-state { background: oklch(100% 0 0 / 0.44); }
+.busy-banner,
+.status-banner {
+  background: oklch(100% 0 0 / 0.62);
+  color: var(--text-soft);
+  border-color: oklch(86% 0.014 85);
+}
+.loading-overlay { background: oklch(92% 0.008 85 / 0.64); }
+
+.global-toast {
+  position: fixed;
+  right: 26px;
+  bottom: 26px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(420px, calc(100vw - 40px));
+  padding: 13px 16px;
+  border: 1px solid oklch(86% 0.014 85);
+  border-radius: 18px;
+  background: oklch(100% 0 0 / 0.80);
+  color: var(--text);
+  box-shadow: 0 20px 46px oklch(40% 0.02 78 / 0.16), inset 0 1px 0 oklch(100% 0 0 / 0.92);
+  backdrop-filter: blur(22px) saturate(1.12);
+  -webkit-backdrop-filter: blur(22px) saturate(1.12);
+  animation: toast-in 180ms var(--ease-out);
+}
+.toast-icon {
+  width: 24px;
+  height: 24px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: oklch(91% 0.055 154);
+  color: oklch(42% 0.12 154);
+  font-weight: 900;
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 1100px) {
+  .ios-shell { grid-template-columns: 1fr; }
+  .ios-sidebar { position: relative; height: auto; }
+  .ios-command-bar { top: 0; }
+}
+
+/* Light shell compatibility overrides for the existing premium home/page-specific classes. */
+.premium-hero,
+.stage-card,
+.scenario-picker,
+.topology-card,
+.readiness-card,
+.diagnostics-strip,
+.journey-card,
+.scenario-option,
+.map-node {
+  background: oklch(100% 0 0 / 0.74) !important;
+  color: var(--text) !important;
+  border-color: oklch(86% 0.014 85) !important;
+  box-shadow: 0 14px 34px oklch(44% 0.02 78 / 0.08), inset 0 1px 0 oklch(100% 0 0 / 0.84) !important;
+  backdrop-filter: blur(16px) saturate(1.04);
+  -webkit-backdrop-filter: blur(16px) saturate(1.04);
+}
+
+.premium-hero {
+  background:
+    radial-gradient(circle at 90% 0%, oklch(84% 0.10 82 / 0.24), transparent 26rem),
+    linear-gradient(135deg, oklch(100% 0 0 / 0.86), oklch(96% 0.010 82 / 0.72)) !important;
+}
+
+.premium-hero::after,
+.hero-copy-block::before {
+  opacity: 0.35 !important;
+}
+
+.hero-copy-block,
+.hero-copy-block h2,
+.stage-card h3,
+.readiness-card h3,
+.topology-card h3,
+.journey-card h3,
+.card h2,
+.card h3,
+.card strong,
+.status-tile strong,
+.flow-step strong {
+  color: var(--text) !important;
+}
+
+.hero-copy-block p,
+.stage-card p,
+.readiness-card p,
+.topology-card p,
+.journey-card p,
+.card p,
+.status-tile span,
+.status-tile small,
+.flow-step small,
+.muted {
+  color: var(--muted) !important;
+}
+
+.role-switch,
+.path-list,
+.readiness-ring,
+.invite-preview,
+.terminal-preview {
+  background: oklch(96% 0.006 85 / 0.72) !important;
+  color: var(--text) !important;
+  border-color: oklch(86% 0.014 85) !important;
+}
+
+.scenario-option {
+  text-align: left;
+  box-shadow: none !important;
+}
+.scenario-option:hover:not(:disabled) {
+  background: oklch(100% 0 0 / 0.94) !important;
+  transform: translateY(-1px);
+}
+.scenario-option.active {
+  background: oklch(98% 0.018 82 / 0.92) !important;
+  border-color: oklch(72% 0.095 82 / 0.58) !important;
+}
+.scenario-option strong { color: var(--text) !important; }
+.scenario-option small { color: var(--muted) !important; }
+
+.readiness-card > span,
+.step-dot,
+.flow-step-index {
+  background: oklch(86% 0.085 82 / 0.48) !important;
+  color: oklch(42% 0.10 78) !important;
+  border-color: oklch(75% 0.08 82 / 0.42) !important;
+}
+
+.map-line {
+  background: linear-gradient(90deg, transparent, oklch(74% 0.095 82), transparent) !important;
+}
+
+.diagnostics-strip,
+.notice-card {
+  background: oklch(99% 0.006 82 / 0.78) !important;
+  border-color: oklch(82% 0.06 82 / 0.45) !important;
+  color: var(--text) !important;
+}
+
+/* Some older page-specific styles target dark Oklch surfaces after the generic card rule. Keep text readable in light mode. */
+.page-stack,
+.premium-home,
+.feature-grid,
+.content-with-aside,
+.room-grid {
+  color: var(--text);
+}
+
+@media (max-width: 640px) {
+  .ios-main { padding: 16px; }
+  .top-command-actions { width: 100%; }
+  .shell-status-pill { justify-content: center; }
+}

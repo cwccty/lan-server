@@ -1431,3 +1431,34 @@ cargo check --manifest-path src-tauri\Cargo.toml
 - 新 UI 可以更高级、更清爽，但不能牺牲真实状态和可排障性。
 
 下一步推荐：把 Stitch 生成的新界面先拆成 App Shell、通用组件、页面结构三层，再按 `docs/FRONTEND_BACKEND_API_MAP.md` 封装 hooks 接入真实 Tauri API。
+
+## 2026-06-03 迁移下载前端的 App Shell 视觉但保留真实后端逻辑
+
+用户提供了 `C:\Users\ty\Downloads\联机助手` 的新前端视觉稿，并要求先迁移 App Shell、Sidebar、Header、Toast、基础卡片样式，暂不替换当前项目后端逻辑。
+
+本次改动：
+
+- 重写 `src/components/Layout.tsx`：
+  - 保留当前项目页面路由与导航目标；
+  - 不引入下载前端的假状态和 `setTimeout` 业务逻辑；
+  - 新增浅色 macOS 风左侧侧栏；
+  - 新增顶部指挥栏；
+  - 新增轻量全局 Toast，仅用于页面切换反馈；
+  - 顶部状态显示为“待真实检测”，避免 UI 假绿。
+- 扩展 `src/styles/globals.css`：
+  - 增加 iOS/macOS 浅色玻璃视觉 token；
+  - 覆盖基础按钮、输入框、卡片、状态卡、表格、Toast、Loading Overlay 的浅色样式；
+  - 对首页已有专用 premium 类追加浅色兼容覆盖，提升可读性；
+  - 保留当前页面组件和 Tauri API 调用不变。
+
+验证：
+
+- `npm run build` 通过；
+- 使用浏览器打开 `http://127.0.0.1:5173` 检查首页；
+- 中文显示正常；
+- 侧栏、顶部栏、Toast 和基础卡片已呈现浅色高级风格；
+- 未替换后端接口，当前真实功能调用路径仍保留。
+
+说明：这一步只迁移外壳与基础视觉，不代表已经把下载前端的各页面完整一比一应用。后续如果用户认可风格，再逐页迁移页面结构，并按 `docs/FRONTEND_BACKEND_API_MAP.md` 接真实 Tauri API。
+
+下一步推荐：让用户先人工查看客户端整体观感；如果认可，再迁移“方案库”和“游戏扫描”两个低风险页面的视觉结构，同时继续保留真实 API。

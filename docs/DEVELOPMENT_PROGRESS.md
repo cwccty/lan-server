@@ -729,3 +729,21 @@ cargo check --manifest-path src-tauri\Cargo.toml
 - 下一步可以进入“新前端落地”：先做 App Shell 和通用组件，再逐页对接真实 API。
 
 下一步推荐：先实现新前端的基础设施：Toast、Loading Overlay、空状态、错误卡片、状态徽章、折叠高级区、页面缓存 hooks，然后再迁移各页面。
+
+## 2026-06-03 App Shell 视觉迁移进度
+
+完成：
+
+- 从用户下载的新前端中吸收 App Shell / Sidebar / Header / Toast / 基础卡片视觉方向；
+- 当前项目已实现浅色 iOS/macOS 风外壳；
+- 当前页面和后端逻辑未替换；
+- `npm run build` 验证通过。
+
+当前状态：
+
+- 可以让用户先看整体效果；
+- 还没有逐页迁移下载前端的页面结构；
+- 还没有引入下载前端依赖；
+- 还没有使用下载前端的静态假数据。
+
+下一步推荐：如果用户认可外壳风格，继续迁移“方案库”和“游戏扫描”的页面视觉，同时接现有 `listGameAdapters`、`syncAdapterRegistry`、`scanGames`、`analyzeGame` 等真实接口。
