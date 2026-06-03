@@ -45,6 +45,28 @@ type AdapterAbilityStatus = {
   udpBroadcastBridge: UdpBroadcastBridgeStatus | null;
 };
 
+type FlowStep = {
+  title: string;
+  detail: string;
+  state?: 'done' | 'active' | 'idle';
+};
+
+function FlowSteps({ steps }: { steps: FlowStep[] }) {
+  return (
+    <div className="flow-steps" aria-label="推荐方案操作步骤">
+      {steps.map((step, index) => (
+        <article className={`flow-step ${step.state ?? 'idle'}`} key={step.title}>
+          <span className="flow-step-index">{index + 1}</span>
+          <div>
+            <strong>{step.title}</strong>
+            <small>{step.detail}</small>
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+}
+
 const FRIEND_ALLOCATIONS_STORAGE_KEY = 'lan-helper-friend-ip-allocations';
 
 function defaultConfig(profile?: LaunchProfile): LaunchConfig {
@@ -632,18 +654,26 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
           <h2>推荐方案</h2>
           <p className="muted">根据当前游戏给出推荐联机步骤。</p>
         </div>
-        <span className="badge warn">不是一键联机</span>
+        <span className="badge warn">按步骤确认</span>
       </div>
 
-      <article className="card pending-feature">
-        <h3>使用说明</h3>
-        <p>这里会告诉你当前游戏下一步该做什么：先组网、开服务端、复制邀请，或者查看需要额外处理的项目。</p>
-        <ol>
-          <li>双方在同一个 n2n / Radmin / 现有局域网中，并且虚拟 IP 不冲突。</li>
-          <li>房主已经启动游戏房间或 Dedicated Server，端口正在由真实 PID 监听。</li>
-          <li>加入方在游戏内选择 LAN / IP 直连，连接房主虚拟 IP 和游戏端口。</li>
-          <li>如果游戏没有 LAN/IP/服务端能力，需要后续适配广播桥、端口代理、Mod 或平台网络插件。</li>
-        </ol>
+      <FlowSteps
+        steps={[
+          { title: '先组网', detail: '进入通用组网，启动 n2n 并确认 ACK / PONG。', state: n2nDiagnostics?.ok_link ? 'done' : 'active' },
+          { title: '开游戏服务', detail: '房主启动房间或 Dedicated Server，确认端口监听。', state: localPortReport?.reachable ? 'done' : n2nDiagnostics?.ok_link ? 'active' : 'idle' },
+          { title: '发邀请', detail: '分配好友虚拟 IP，复制游戏邀请包。', state: n2nDiagnostics?.ok_link && localPortReport?.reachable ? 'active' : 'idle' },
+          { title: '失败诊断', detail: '刷新执行清单，定位是组网、端口还是游戏步骤。', state: 'idle' }
+        ]}
+      />
+
+      <article className="card pending-feature compact-guidance">
+        <h3>开始前确认</h3>
+        <ul className="compact-list">
+          <li>双方虚拟 IP 不能重复。</li>
+          <li>房主需要先启动游戏房间或服务端。</li>
+          <li>支持直连 IP 的游戏，优先连接房主虚拟 IP。</li>
+          <li>房间列表看不到时，再考虑 UDP 广播桥或其他适配方案。</li>
+        </ul>
       </article>
 
       <article className="card">
@@ -658,10 +688,10 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
       </article>
 
       {analysis && (
-        <article className="card">
+        <article className="card primary-config-card">
           <div className="feature-card-title">
             <div>
-              <h3>游戏邀请好友包</h3>
+              <div className="section-kicker"><span>邀请</span><strong>游戏邀请好友包</strong></div>
               <p className="muted">
                 这是“游戏层”的邀请说明，会带入游戏名、端口、房主虚拟 IP 和当前检测摘要；n2n community / 密钥仍以通用组网中心复制内容为准。
               </p>

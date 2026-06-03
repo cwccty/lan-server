@@ -35,6 +35,28 @@ type SteamRelayDraft = {
   notes: string;
 };
 
+type FlowStep = {
+  title: string;
+  detail: string;
+  state?: 'done' | 'active' | 'idle';
+};
+
+function FlowSteps({ steps }: { steps: FlowStep[] }) {
+  return (
+    <div className="flow-steps" aria-label="页面操作步骤">
+      {steps.map((step, index) => (
+        <article className={`flow-step ${step.state ?? 'idle'}`} key={step.title}>
+          <span className="flow-step-index">{index + 1}</span>
+          <div>
+            <strong>{step.title}</strong>
+            <small>{step.detail}</small>
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+}
+
 type NetworkSetupCache = {
   backends: BackendSummary[];
   n2nDiagnostics: N2nDiagnostics | null;
@@ -760,6 +782,15 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
         <span className={n2nRunning ? 'badge good' : 'badge warn'}>{n2nRunning ? '组网进程运行中' : '等待启动组网'}</span>
       </div>
 
+      <FlowSteps
+        steps={[
+          { title: '填写房间信息', detail: '双方使用同一房间名、密钥和 supernode。', state: supernode.trim() && roomName.trim() && secret.trim() ? 'done' : 'active' },
+          { title: '启动 n2n', detail: '等待 ACK / PONG，确认虚拟 IP 已分配。', state: supernodeOk ? 'done' : n2nRunning ? 'active' : 'idle' },
+          { title: '复制邀请', detail: '把组网配置和游戏端口发给朋友。', state: supernodeOk ? 'active' : 'idle' },
+          { title: '失败时诊断', detail: '用下方检测区分组网、端口或游戏问题。', state: supernodeProblem ? 'active' : 'idle' }
+        ]}
+      />
+
       {busy && <div className="busy-banner">正在处理：{busy}，请稍等，不要重复点击。</div>}
       {backgroundRefreshing && !busy && !initialLoading && (
         <div className="busy-banner">正在后台刷新组网状态。页面先显示上次检测结果，刷新完成后会自动更新。</div>
@@ -842,8 +873,8 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
         <button onClick={refreshAllNetworkState} disabled={Boolean(busy) || initialLoading}>刷新组网状态</button>
       </article>
 
-      <article className="card">
-        <h3>n2n 内置组网</h3>
+      <article className="card primary-config-card">
+        <div className="section-kicker"><span>主要步骤</span><strong>n2n 内置组网</strong></div>
         <p className="muted">每台玩家电脑运行 edge；supernode 负责让这些 edge 找到彼此。双方必须填写相同的 community、密钥和 supernode，但本机虚拟 IP 必须不同。</p>
         <label>房间名 / community<input value={roomName} onChange={(event) => setRoomName(event.target.value)} disabled={Boolean(busy)} /><small className="muted">相当于房间号。朋友必须填写完全相同的值。</small></label>
         <label>密钥<input value={secret} onChange={(event) => setSecret(event.target.value)} disabled={Boolean(busy)} /><small className="muted">相当于房间密码。朋友必须填写完全相同的值。</small></label>
@@ -896,7 +927,14 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
         </details>
       </article>
 
-      <article className="card feature-card pending-feature">
+      <div className="section-header">
+        <div>
+          <h3>高级辅助能力</h3>
+          <p className="muted">只有推荐方案或诊断报告提示需要时，再打开这些能力。</p>
+        </div>
+      </div>
+
+      <article className="card feature-card pending-feature advanced-card">
         <div className="feature-card-title">
           <h3>房主 TCP 端口代理</h3>
           <span className={portProxyStatus?.running ? 'badge good' : 'badge warn'}>

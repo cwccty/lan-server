@@ -265,3 +265,82 @@ pre { background: oklch(15% 0.025 255); color: var(--text-soft); padding: var(--
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
   button:hover:not(:disabled) { transform: none; }
 }
+
+.flow-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.flow-step {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+  min-height: 104px;
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.flow-step-index {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  color: var(--text);
+  font-weight: 850;
+}
+
+.flow-step strong { display: block; color: var(--text); margin-bottom: 4px; }
+.flow-step small { display: block; color: var(--muted); line-height: 1.55; }
+.flow-step.done { border-color: oklch(67% 0.14 150 / 0.58); background: oklch(29% 0.04 150 / 0.35); }
+.flow-step.done .flow-step-index { background: oklch(39% 0.09 150); }
+.flow-step.active { border-color: oklch(72% 0.14 255 / 0.62); background: oklch(31% 0.055 255 / 0.42); }
+.flow-step.active .flow-step-index { background: var(--primary); color: oklch(15% 0.025 255); }
+.flow-step.idle { opacity: 0.82; }
+
+.primary-config-card {
+  border-color: oklch(72% 0.14 255 / 0.46);
+  background: linear-gradient(180deg, oklch(27% 0.04 255), var(--surface));
+}
+
+.section-kicker {
+  display: grid;
+  gap: 4px;
+  margin-bottom: var(--space-3);
+}
+
+.section-kicker span {
+  color: var(--success);
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+}
+
+.section-kicker strong {
+  color: var(--text);
+  font-size: 19px;
+  line-height: 1.25;
+}
+
+.compact-guidance {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.4fr) minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.advanced-card { background: oklch(23% 0.028 255); }
+
+@media (max-width: 1100px) {
+  .flow-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 640px) {
+  .flow-steps, .compact-guidance { grid-template-columns: 1fr; }
+  .flow-step { min-height: 0; }
+}
