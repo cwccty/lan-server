@@ -1720,3 +1720,13 @@ cargo check --manifest-path src-tauri\Cargo.toml
 - 关闭 product mode 并刷新后，`[真实后端摘要]` 消失，`data-lan-helper-action-hooked` 数量为 0，Sidebar 仍为 `position=fixed`。
 
 下一步推荐：继续把真实结果回填从“事件模拟验证”推进到“真实 Tauri 环境点击验证”：在 release 版里开启 product mode，实际点击扫描、同步、连通性测试，确认真实后端返回能稳定写回页面。
+## 2026-06-04 02:52:54 参考前端运行态复查与重新打包
+- 用户强调前端不能只是换颜色，必须完整实现参考前端效果。
+- 已确认当前入口 src/main.tsx 挂载 src/reference-ui/App，不是旧 src/App.tsx。
+- 已运行 	ools/check_reference_ui_fidelity.ps1，结果 PASS，isual_diff_count=0，说明 src/reference-ui 与 C:\Users\ty\Downloads\联机助手 (1)\src 视觉源码一致。
+- 已运行浏览器运行态检查，确认侧边栏 fixed、Header、主页卡片结构来自参考前端。
+- 已重新执行 
+pm run tauri:build，更新 release exe：src-tauri\target\release\lan-helper.exe。
+- 已执行 
+pm run release:preflight，发布前检查 PASS。
+- 后续如果用户仍看到旧界面，应优先确认打开的是否为最新 src-tauri\target\release\lan-helper.exe，或是否打开了旧安装包/旧快捷方式。
