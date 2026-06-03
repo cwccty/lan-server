@@ -651,7 +651,8 @@ export function AdapterManagerPage() {
       return;
     }
     try {
-      await navigator.clipboard?.writeText(content);
+      if (!navigator.clipboard) throw new Error('剪贴板不可用');
+      await navigator.clipboard.writeText(content);
       setMessage(`${label}已复制。`);
     } catch (error) {
       setMessage(`${label}失败：${error instanceof Error ? error.message : String(error || '剪贴板不可用')}`);

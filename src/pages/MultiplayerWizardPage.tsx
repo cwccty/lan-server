@@ -282,7 +282,8 @@ export function MultiplayerWizardPage() {
 
   const copyInvite = () =>
     runAction('\u590d\u5236\u9080\u8bf7\u4fe1\u606f', async () => {
-      await navigator.clipboard?.writeText(inviteText);
+      if (!navigator.clipboard) throw new Error('剪贴板不可用');
+      await navigator.clipboard.writeText(inviteText);
       setStatusMessage('\u9080\u8bf7\u4fe1\u606f\u5df2\u590d\u5236\u3002');
     });
 
@@ -407,7 +408,8 @@ export function MultiplayerWizardPage() {
 
   const copySelfCheck = () =>
     runAction(t.copyCheck, async () => {
-      await navigator.clipboard?.writeText(selfCheckText);
+      if (!navigator.clipboard) throw new Error('剪贴板不可用');
+      await navigator.clipboard.writeText(selfCheckText);
       setStatusMessage('\u81ea\u68c0\u7ed3\u679c\u5df2\u590d\u5236\u3002');
     });
 
@@ -582,7 +584,7 @@ export function MultiplayerWizardPage() {
             <span className="eyebrow">CONSOLE</span>
             <h3>{t.console}</h3>
           </div>
-          <span className={session?.ready || session?.running ? 'badge good' : session?.ever_ready || session?.exit_code != null ? 'badge bad' : 'badge'}>
+          <span className={session?.ready ? 'badge good' : session?.running ? 'badge warn' : session?.ever_ready || session?.exit_code != null ? 'badge bad' : 'badge'}>
             {session?.ready ? '已就绪' : session?.running ? '运行中' : '未运行'}
           </span>
         </div>
@@ -593,7 +595,7 @@ export function MultiplayerWizardPage() {
           <button className="secondary" onClick={() => sendConsoleCommand('save', t.sendSave)} disabled={isBusy || !session?.running}>{t.sendSave}</button>
           <button className="danger" onClick={() => sendConsoleCommand('exit', t.sendExit)} disabled={isBusy || !session?.running}>{t.sendExit}</button>
         </div>
-        <div className={session?.ready || session?.running ? 'result-ok' : session?.ever_ready || session?.exit_code != null ? 'result-bad' : 'result-idle'}>
+        <div className={session?.ready ? 'result-ok' : session?.running ? 'result-idle' : session?.ever_ready || session?.exit_code != null ? 'result-bad' : 'result-idle'}>
           <p>
             {t.status}：
             {session?.ready

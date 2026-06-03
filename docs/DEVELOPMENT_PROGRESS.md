@@ -845,3 +845,16 @@ cargo check --manifest-path src-tauri\Cargo.toml
 - 已重新打包 release exe。
 
 下一步推荐：进行全项目总体验收审查，搜索并修复剩余直接剪贴板调用、弱按钮反馈、假绿状态。
+
+## 2026-06-03 总体验收第五轮进度
+
+完成：
+
+- 全项目剪贴板调用审查；
+- AdapterManager、NetworkSetup、Recommendation、Terraria 向导复制失败反馈补齐；
+- Terraria `running` 状态从绿色降级；
+- Diagnostics “可发布”文案降级为“核心通过”；
+- 连续问号乱码搜索清理；
+- 已重新打包 release exe。
+
+下一步推荐：在 release exe 中执行发布级人工验收清单，逐页确认按钮、加载、真实后端状态和错误提示。

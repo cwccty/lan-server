@@ -583,8 +583,13 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
   };
 
   const copyFriendInvitePacket = async () => {
-    await navigator.clipboard?.writeText(friendInvitePacket);
-    setCopyMessage('游戏邀请好友包已复制。若还没有 community / 密钥，请再到通用组网中心复制完整组网配置。');
+    try {
+      if (!navigator.clipboard) throw new Error('剪贴板不可用');
+      await navigator.clipboard.writeText(friendInvitePacket);
+      setCopyMessage('游戏邀请好友包已复制。若还没有 community / 密钥，请再到通用组网中心复制完整组网配置。');
+    } catch (error) {
+      setCopyMessage(`复制游戏邀请好友包失败：${error instanceof Error ? error.message : String(error || '剪贴板不可用')}`);
+    }
   };
 
   const allocateFriendIp = () => {

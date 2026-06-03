@@ -175,7 +175,7 @@ export function DiagnosticsPage({ selectedGame }: { selectedGame?: GameSummary }
       {message && <div className="status-banner">{message}</div>}
 
       <div className="status-grid">
-        <article className="status-tile"><span>总体状态</span><strong>{report ? (mvpReady ? '可发布' : '需处理') : '未检测'}</strong><small>来自后端报告</small></article>
+        <article className="status-tile"><span>总体状态</span><strong>{report ? (mvpReady ? '核心通过' : '需处理') : '未检测'}</strong><small>来自后端报告；不等于已经完成发布</small></article>
         <article className="status-tile"><span>最近检测时间</span><strong>{report?.generated_at ?? '-'}</strong><small>真实生成时间</small></article>
         <article className="status-tile"><span>失败项数量</span><strong>{report ? failedRequiredChecks : '-'}</strong><small>MVP 必需项</small></article>
         <article className="status-tile"><span>失败分类</span><strong>{report ? issues.length : '-'}</strong><small>n2n / 代理 / 服务端</small></article>

@@ -1688,7 +1688,7 @@ C:\Users\ty\Downloads\联机助手 (1)
   - 生成报告成功后显示“诊断报告已生成”；
   - 复制完整报告、复制摘要加入成功/失败反馈；
   - 清空日志后显示“诊断报告已清空”；
-  - 修复本轮修改过程中出现的问号乱码风险，并重新检查无 `????` 残留。
+  - 修复本轮修改过程中出现的问号乱码风险，并重新检查无连续问号残留。
 
 验证：
 
@@ -1698,3 +1698,37 @@ C:\Users\ty\Downloads\联机助手 (1)
 - `git diff --check` 通过。
 
 下一步推荐：做第五轮总体验收审查，检查所有核心页面是否仍存在直接 `navigator.clipboard` 无反馈、按钮无 disabled、普通浏览器 invoke 误导、以及“可发布/可联机/已就绪”状态没有真实来源的问题。
+
+## 2026-06-03 总体验收第五轮修复
+
+本轮做全项目总体验收搜索，重点检查直接剪贴板调用、假绿状态和强承诺文案。
+
+修复内容：
+
+- `src/pages/AdapterManagerPage.tsx`
+  - 统一复制函数不再使用可选链静默跳过；
+  - `navigator.clipboard` 不存在时会抛出并显示“剪贴板不可用”，避免误报已复制。
+- `src/pages/MultiplayerWizardPage.tsx`
+  - 复制邀请信息、复制自检结果均显式检查剪贴板可用性；
+  - Terraria 服务端控制台不再把 `running` 显示为绿色成功；
+  - 只有 `session.ready` 才显示绿色，`running` 改为警告/待确认态，避免“进程启动中”被误认为“端口已就绪”。
+- `src/pages/NetworkSetupPage.tsx`
+  - 复制通用组网配置、n2n 管理员摘要、Steam 中继草案均加入剪贴板失败反馈。
+- `src/pages/RecommendationPage.tsx`
+  - 复制游戏邀请好友包加入剪贴板失败反馈。
+- `src/pages/DiagnosticsPage.tsx`
+  - “总体状态：可发布”改为“核心通过”；
+  - 补充说明“来自后端报告；不等于已经完成发布”，避免诊断通过被误解为产品可发布。
+- `act.md` / `docs/PRODUCT_MEMORY.md`
+  - 去掉用于说明的 `????` 字面量，避免后续乱码搜索误报。
+
+验证：
+
+- 全项目搜索直接剪贴板调用，剩余调用均有成功/失败反馈；
+- 全项目搜索连续问号，无源码乱码残留；
+- `npm run build` 通过；
+- `cargo check --manifest-path src-tauri\\Cargo.toml` 通过；
+- `npm run tauri:build` 通过；
+- `git diff --check` 通过。
+
+下一步推荐：做一次发布级人工验收清单回放：按首页 → 方案库 → 游戏扫描 → 推荐方案 → 通用组网 → Terraria 向导 → 诊断报告逐页在 release exe 中点击主要按钮，记录任何真实运行问题。

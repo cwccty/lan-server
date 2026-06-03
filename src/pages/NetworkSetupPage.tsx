@@ -707,18 +707,33 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
   ].join('\n');
 
   const copyFriendConfig = async () => {
-    await navigator.clipboard?.writeText(friendConfigText);
-    setCopyMessage('通用组网配置已复制，可以发给朋友。');
+    try {
+      if (!navigator.clipboard) throw new Error('剪贴板不可用');
+      await navigator.clipboard.writeText(friendConfigText);
+      setCopyMessage('通用组网配置已复制，可以发给朋友。');
+    } catch (error) {
+      setCopyMessage(`复制通用组网配置失败：${error instanceof Error ? error.message : String(error || '剪贴板不可用')}`);
+    }
   };
 
   const copyN2nAdminSummary = async () => {
-    await navigator.clipboard?.writeText(n2nAdminSummary);
-    setCopyMessage('n2n 诊断摘要已复制，可以发给管理员或发到项目 issue。');
+    try {
+      if (!navigator.clipboard) throw new Error('剪贴板不可用');
+      await navigator.clipboard.writeText(n2nAdminSummary);
+      setCopyMessage('n2n 诊断摘要已复制，可以发给管理员或发到项目 issue。');
+    } catch (error) {
+      setCopyMessage(`复制 n2n 诊断摘要失败：${error instanceof Error ? error.message : String(error || '剪贴板不可用')}`);
+    }
   };
 
   const copySteamRelayDraft = async () => {
-    await navigator.clipboard?.writeText(steamRelayPacketText);
-    setCopyMessage('Steam 中继入口草案已复制，可作为后续插件制作说明。');
+    try {
+      if (!navigator.clipboard) throw new Error('剪贴板不可用');
+      await navigator.clipboard.writeText(steamRelayPacketText);
+      setCopyMessage('Steam 中继入口草案已复制，可作为后续插件制作说明。');
+    } catch (error) {
+      setCopyMessage(`复制 Steam 中继入口草案失败：${error instanceof Error ? error.message : String(error || '剪贴板不可用')}`);
+    }
   };
 
   const startDefaultPortProxy = () =>
