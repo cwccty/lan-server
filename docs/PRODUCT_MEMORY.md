@@ -1851,3 +1851,38 @@ npm run release:preflight:full
 - 如果为了真实状态必须替换假文案，应先确认不会影响一比一视觉，或者单独建立“产品化版本”分支/阶段。
 
 下一步推荐：给 `src/reference-ui` 建立一个“参考 UI 锁定清单”和后端适配方案文档，明确哪些文件必须保持视觉等价，后端数据从哪里注入，避免再次把一比一参考前端改乱。
+
+## 2026-06-04 Reference UI 锁定清单与一致性检查脚本
+
+本轮在“一比一复原参考前端”的基础上新增保护机制，防止后续接后端时再次把参考 UI 改乱。
+
+新增文件：
+
+- `docs/REFERENCE_UI_LOCK_AND_BACKEND_PLAN.md`
+  - 记录当前 reference-ui 的锁定边界；
+  - 明确哪些文件是用户参考前端的视觉权威；
+  - 明确后端连接不应直接污染 `src/reference-ui`；
+  - 规划后续通过 `src/reference-adapter/` 做状态桥接和动作包装；
+  - 给出后端接入顺序、风险点和发布验证要求。
+- `tools/check_reference_ui_fidelity.ps1`
+  - 自动对比 `C:\Users\ty\Downloads\联机助手 (1)\src` 与 `src/reference-ui`；
+  - 忽略行尾空格和空白行；
+  - 输出 `visual_diff_count=0` 时说明视觉源码等价；
+  - 后续每次改前端或接后端前后都应运行。
+
+验证：
+
+- `powershell -ExecutionPolicy Bypass -File tools\check_reference_ui_fidelity.ps1` 通过，输出 `visual_diff_count=0`；
+- `npm run build` 通过；
+- `cargo check --manifest-path src-tauri\Cargo.toml` 通过；
+- `npm run tauri:build` 通过；
+- `npm run release:preflight` 通过；
+- `git diff --check` 通过。
+
+关键原则：
+
+- 当前阶段：优先保证参考前端一比一；
+- 下一阶段：接后端时新增 adapter/hook/state bridge，不直接大改 reference-ui；
+- 如果未来要把 `24ms`、`已连接`、假方案列表等替换成真实状态，需要作为“产品化阶段”处理，并重新确认是否允许偏离参考图。
+
+下一步推荐：开始创建 `src/reference-adapter/` 最小桥接层，先只读取真实后端状态并在不改变参考 UI 视觉的前提下验证数据可用，然后再决定哪些参考文案进入产品化替换。
