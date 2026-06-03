@@ -1,6 +1,11 @@
-import { useState, FormEvent } from 'react';
-import { INITIAL_SOLUTIONS } from '../data';
+import { useEffect, useState, FormEvent } from 'react';
 import { SyncSolution } from '../types';
+import {
+  listGameAdapters,
+  syncAdapterRegistry,
+  syncLocalAdapterRegistryExample
+} from '../../api/tauri';
+import type { GameAdapter } from '../../types/game';
 import {
   Link,
   RotateCcw,
@@ -24,11 +29,11 @@ export default function SolutionsView({
   solutionsUrl,
   onUpdateSolutionsUrl
 }: SolutionsViewProps) {
-  const [solutions, setSolutions] = useState<SyncSolution[]>(INITIAL_SOLUTIONS);
+  const [solutions, setSolutions] = useState<SyncSolution[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   
   // Cache and refresh states
-  const [lastSyncTime, setLastSyncTime] = useState('2026-06-03 14:32:15');
+  const [lastSyncTime, setLastSyncTime] = useState('尚未同步真实方案库');
   const [isSyncing, setIsSyncing] = useState(false);
 
   // Editor states
@@ -42,47 +47,79 @@ export default function SolutionsView({
     optimizeType: '直连透传加速'
   });
 
+  const defaultRegistryUrl = 'https://raw.githubusercontent.com/cwccty/lan-server/master/adapter-registry/index.json';
+
+  const mapAdapterToSolution = (adapter: GameAdapter): SyncSolution => ({
+    id: adapter.game_id,
+    name: adapter.display_name,
+    status: adapter.adapter_source === 'registry' ? 'synced' : adapter.adapter_source === 'custom' ? 'updated' : 'synced',
+    version: adapter.steam_appid ? `AppID ${adapter.steam_appid}` : adapter.network_type ?? 'unknown',
+    source: adapter.adapter_source ?? 'unknown'
+  });
+
+  const refreshAdapters = async () => {
+    try {
+      const adapters = await listGameAdapters();
+      setSolutions(adapters.map(mapAdapterToSolution));
+      return adapters.length;
+    } catch (error) {
+      onTriggerToast(error instanceof Error ? error.message : String(error || '读取适配器失败'));
+      return 0;
+    }
+  };
+
+  useEffect(() => {
+    void refreshAdapters();
+  }, []);
+
   const handleRestoreDefault = () => {
-    onUpdateSolutionsUrl('https://api.lianjizhushou.com/solutions/shared/v2');
-    onTriggerToast('共享方案库地址已重置为系统默认URL！');
+    onUpdateSolutionsUrl(defaultRegistryUrl);
+    onTriggerToast('共享方案库地址已恢复为当前项目 GitHub 默认地址。');
   };
 
-  const handleUpdateClick = (id: string, name: string) => {
-    setSolutions((prev) =>
-      prev.map((sol) => (sol.id === id ? { ...sol, status: 'synced', version: 'v47.0' } : sol))
-    );
-    onTriggerToast(`游戏方案 [${name}] 已成功更新至最新高稳定版本！`);
+  const handleUpdateClick = async (_id: string, name: string) => {
+    await handleCloudUpdateAll();
+    onTriggerToast(`已通过真实共享库同步刷新 [${name}]。`);
   };
 
-  const handleCloudUpdateAll = () => {
+  const handleCloudUpdateAll = async () => {
     setIsSyncing(true);
-    onTriggerToast('正在连接云端共享数据库并同步全网规则包...');
-    setTimeout(() => {
-      setSolutions((prev) => prev.map((sol) => ({ ...sol, status: 'synced' })));
+    onTriggerToast('正在调用真实后端同步共享适配器库...');
+    try {
+      const result = await syncAdapterRegistry(solutionsUrl.trim() || defaultRegistryUrl);
+      const count = await refreshAdapters();
       const now = new Date();
-      setLastSyncTime(now.toLocaleString());
+      setLastSyncTime(`${now.toLocaleString()}，总计 ${result.total}，新增 ${result.created}，更新 ${result.updated}，跳过 ${result.skipped}`);
+      onTriggerToast(`共享方案库同步完成：当前本地 ${count} 个适配器。`);
+    } catch (error) {
+      onTriggerToast(error instanceof Error ? error.message : String(error || '同步共享方案库失败'));
+    } finally {
       setIsSyncing(false);
-      onTriggerToast('全网 146 个热门主机联机规则一键更新及缓存对齐完成！');
-    }, 1200);
+    }
   };
 
-  const handleManualRefresh = () => {
+  const handleManualRefresh = async () => {
     setIsSyncing(true);
-    onTriggerToast('正在强制绕过本地DNS与配置缓存，拉取最新社区组网方案规则...');
-    setTimeout(() => {
+    onTriggerToast('正在同步项目内置本地示例适配器库...');
+    try {
+      const result = await syncLocalAdapterRegistryExample();
+      const count = await refreshAdapters();
       const now = new Date();
-      setLastSyncTime(now.toLocaleString());
+      setLastSyncTime(`${now.toLocaleString()}，本地示例总计 ${result.total}，当前 ${count} 个适配器`);
+      onTriggerToast('本地示例库同步完成。');
+    } catch (error) {
+      onTriggerToast(error instanceof Error ? error.message : String(error || '同步本地示例库失败'));
+    } finally {
       setIsSyncing(false);
-      onTriggerToast('共享方案缓存强制手动刷新成功！已对齐云上最佳匹配。');
-    }, 1000);
+    }
   };
 
   const handleImportConfig = () => {
-    onTriggerToast('在本地选择 JSON 单体配置文件导入成功 (1 组游戏规则增加)。');
+    onTriggerToast('导入 JSON 需要接入文件选择器；当前请先使用旧适配器管理页或后续版本。');
   };
 
   const handleExportConfig = () => {
-    onTriggerToast('方案备份导出成功！LianJi_Solutions_Backup_2026.json 已经保存。');
+    onTriggerToast('导出备份需要选择具体适配器；当前已保留入口，后续接入真实导出。');
   };
 
   // Submit new solution
@@ -100,7 +137,7 @@ export default function SolutionsView({
       source: `自建(${editorForm.protocol}:${editorForm.listenPort})`
     };
     setSolutions([newSolution, ...solutions]);
-    onTriggerToast(`共享方案 [${editorForm.name}] 自建并发布成功！已持久保存至本地方案库。`);
+    onTriggerToast(`已创建前端草稿 [${editorForm.name}]。保存到真实本地适配器库将在后续接入。`);
     setEditorForm({
       name: '',
       version: '1.0.0',

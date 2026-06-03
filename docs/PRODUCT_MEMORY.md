@@ -1759,3 +1759,49 @@ npm run release:preflight:full
 - 发布前必须把这些模拟状态接成真实 Tauri 后端状态或降级为“待诊断”，不能保留伪造在线结果。
 
 下一步推荐：在 `src/reference-ui/App.tsx` 建立真实后端状态适配层，优先替换网络状态、游戏扫描、方案库同步、Terraria 服务端和诊断报告。
+
+## 2026-06-04 参考 UI 真实后端适配第一轮
+
+本轮继续用户要求的“完全实现参考前端效果”，不再只换颜色。
+
+完成内容：
+
+- 保持 `src/reference-ui/App` 作为当前真实入口，继续使用用户提供的参考前端结构、Sidebar、Header、Toast、卡片布局和动效；
+- `src/reference-ui/App.tsx`
+  - 接入真实 n2n 诊断、最近配置、后端列表和 Terraria 后台服务端会话；
+  - 顶部状态不再默认 online/24ms，改为根据真实 `getN2nDiagnostics()` 派生；
+  - 全局“启动/停止组网”走真实 `setupNetwork/startNetwork/stopNetwork`。
+- `HomeView / Header`
+  - 移除假就绪、假延迟和固定“环境就绪”类文案；
+  - 首页显示真实 supernode、虚拟 IP 和诊断摘要，未知时显示待诊断。
+- `GameScanView`
+  - 从参考 UI 的假游戏列表改为真实 `scanGames()`；
+  - 根据后端游戏分析/适配信息映射卡片状态。
+- `SolutionsView`
+  - 从假方案列表改为真实 `listGameAdapters()`；
+  - 同步按钮接入 `syncAdapterRegistry()` 和本地示例同步；
+  - 默认共享库地址使用当前 GitHub Pages/raw registry 地址。
+- `UniversalNetworkView`
+  - 去掉 `isRunning=true`、`24ms`、假保存、假代理规则；
+  - n2n 启停和保存配置接入真实后端；
+  - TCP 端口代理、UDP 端口代理、UDP 广播桥规则接入真实后端进程列表和启动/停止 API。
+- `TerrariaGuideView`
+  - 启动/停止服务端接入 `startGameServerSession/readServerSession/stopServerSession`；
+  - 内嵌日志显示真实后台会话日志；
+  - 控制台命令改为真实 `sendServerCommand()` 尝试发送，不再前端模拟 help/save/exit 成功；
+  - 自检改为真实 `testConnectivity()` 端口检测；
+  - 去掉固定 `12ms` 和 `0.0%`。
+- `DiagnosticsView`
+  - 去掉固定 `INITIAL_DIAGNOSTICS`、`RAW_JSON_REPORT` 和假“一键修复成功”；
+  - 改为真实 `generateDiagnosticReport()` + `getN2nDiagnostics()`；
+  - “修复”改成处理建议入口，避免假修复。
+
+验证：
+
+- `npm run build` 通过；
+- `cargo check --manifest-path src-tauri\Cargo.toml` 通过；
+- `npm run tauri:build` 通过；
+- `npm run release:preflight` 通过；
+- `git diff --check` 通过。
+
+下一步推荐：用 release 版 `src-tauri\target\release\lan-helper.exe` 做参考 UI 七页人工走查，重点点一遍组网中心、Terraria 向导和诊断页，确认真实 Tauri 后端环境下按钮、Toast、日志和状态变化符合预期。

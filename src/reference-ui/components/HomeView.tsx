@@ -23,6 +23,9 @@ interface HomeViewProps {
   onNavigateTab: (tab: any) => void;
   onTriggerToast: (msg: string) => void;
   localIp: string;
+  latency?: number;
+  supernode?: string;
+  backendHint?: string;
 }
 
 export default function HomeView({
@@ -31,11 +34,18 @@ export default function HomeView({
   onRoleChange,
   onNavigateTab,
   onTriggerToast,
-  localIp
+  localIp,
+  latency = 0,
+  supernode = '',
+  backendHint = ''
 }: HomeViewProps) {
-  const [readinessProgress, setReadinessProgress] = useState(75);
+  const readinessProgress = netStatus === 'online' ? 100 : netStatus === 'connecting' ? 45 : netStatus === 'warning' ? 30 : 0;
   const [hasSentInvite, setHasSentInvite] = useState(false);
   const [inviteCode, setInviteCode] = useState('tr-connect://dGVzdGdyb3VwMTMyNDpzdXBlcm5vZGU=');
+  const isOnline = netStatus === 'online';
+  const isConnecting = netStatus === 'connecting';
+  const isWarning = netStatus === 'warning';
+  const statusLabel = isOnline ? '组网已连接' : isConnecting ? '组网连接中' : isWarning ? '需要诊断' : '等待真实检测';
 
   // SVG parameters for circular progress
   const radius = 40;
@@ -45,11 +55,6 @@ export default function HomeView({
   const handleCopyInvite = () => {
     navigator.clipboard.writeText(inviteCode);
     onTriggerToast('邀请码已成功复制到剪贴板！');
-  };
-
-  const handleCreateRoomSimulation = () => {
-    onTriggerToast('服主房间已启动！正在配置 UPnP 网络映射...');
-    setReadinessProgress(100);
   };
 
   return (
@@ -106,7 +111,7 @@ export default function HomeView({
 
           <div className="flex flex-wrap gap-3 mt-4">
             <button
-              onClick={handleCreateRoomSimulation}
+              onClick={() => onNavigateTab('network')}
               className="flex-1 bg-slate-800 hover:bg-slate-900 text-white py-3 rounded-lg font-sans text-xs font-semibold transition-colors shadow-sm cursor-pointer"
             >
               配置本地网桥
@@ -152,12 +157,12 @@ export default function HomeView({
             </svg>
             <div className="absolute flex flex-col items-center justify-center">
               <span className="font-heading text-2xl font-bold text-slate-800">{readinessProgress}%</span>
-              <span className="font-sans text-[10px] text-slate-400 font-medium">环境诊断</span>
+              <span className="font-sans text-[10px] text-slate-400 font-medium">{statusLabel}</span>
             </div>
           </div>
 
           <p className="font-sans text-xs text-slate-400 mt-2">
-            「网卡状态/游戏档案/系统补丁」检测通过。无需配置防火墙。
+            {backendHint || '尚未读取到真实诊断结果。请先进入通用组网中心填写 supernode 并启动 n2n。'}
           </p>
         </div>
 
@@ -170,9 +175,9 @@ export default function HomeView({
         <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm col-span-1 lg:col-span-2 relative">
           <div className="flex justify-between items-center mb-6">
             <h3 className="font-heading text-sm font-bold text-slate-800">网络拓扑状态</h3>
-            <span className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full text-[11px] font-semibold border border-emerald-100/50 flex items-center gap-1.5 font-mono">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              虚拟服主在线
+            <span className={`${isOnline ? 'bg-emerald-50 text-emerald-700 border-emerald-100/50' : isWarning ? 'bg-amber-50 text-amber-700 border-amber-100/50' : 'bg-slate-50 text-slate-500 border-slate-200'} px-3 py-1 rounded-full text-[11px] font-semibold border flex items-center gap-1.5 font-mono`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : isWarning ? 'bg-amber-500' : 'bg-slate-400'}`} />
+              {statusLabel}
             </span>
           </div>
 
@@ -201,11 +206,11 @@ export default function HomeView({
                 <div className="w-16 h-16 bg-slate-800 rounded-xl shadow-md flex items-center justify-center text-white relative transition-transform group-hover:scale-105">
                   <Network className="w-7 h-7" />
                   <span className="absolute -top-1.5 -right-1.5 bg-amber-500 text-amber-950 font-bold text-[9px] px-1.5 py-0.5 rounded-md">
-                    24ms
+                    {isOnline ? (latency > 0 ? `${latency}ms` : 'ACK') : '待测'}
                   </span>
                 </div>
                 <span className="font-sans text-xs text-slate-500 font-medium">超级节点 (Supernode)</span>
-                <span className="font-mono text-[10px] text-slate-400">n2n.edge.me:7777</span>
+                <span className="font-mono text-[10px] text-slate-400">{supernode || '未配置 supernode'}</span>
               </div>
 
               {/* Connecting line 2 */}
@@ -233,23 +238,23 @@ export default function HomeView({
               <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
               <div>
                 <p className="font-sans text-xs text-slate-700 font-semibold">虚拟局域网网卡</p>
-                <p className="font-sans text-[10px] text-slate-400">系统驱动检测完毕，正常启动。</p>
+                <p className="font-sans text-[10px] text-slate-400">{localIp ? `当前虚拟 IP：${localIp}` : '等待后端检测网卡。'}</p>
               </div>
             </div>
             <div className="w-full h-px bg-slate-100" />
             <div className="flex items-start gap-3">
               <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
               <div>
-                <p className="font-sans text-xs text-slate-700 font-semibold">超级代理及 UPnP</p>
-                <p className="font-sans text-[10px] text-slate-400">穿透环境评级为 [A级优质]</p>
+                <p className="font-sans text-xs text-slate-700 font-semibold">supernode 配置</p>
+                <p className="font-sans text-[10px] text-slate-400">{supernode || '未配置，请进入通用组网中心填写。'}</p>
               </div>
             </div>
             <div className="w-full h-px bg-slate-100" />
             <div className="flex items-start gap-3">
               <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
               <div>
-                <p className="font-sans text-xs text-slate-700 font-semibold">超级节点就绪</p>
-                <p className="font-sans text-[10px] text-slate-400">已自动分配最近北京联通服务器节点</p>
+                <p className="font-sans text-xs text-slate-700 font-semibold">超级节点响应</p>
+                <p className="font-sans text-[10px] text-slate-400">{isOnline ? '已检测到 ACK/PONG。' : backendHint || '等待真实诊断。'}</p>
               </div>
             </div>
           </div>

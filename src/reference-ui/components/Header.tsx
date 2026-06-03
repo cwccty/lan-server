@@ -18,6 +18,8 @@ export default function Header({
 }: HeaderProps) {
   const isOnline = netStatus === 'online';
   const isConnecting = netStatus === 'connecting';
+  const isWarning = netStatus === 'warning';
+  const isIdle = netStatus === 'idle';
 
   return (
     <header className="fixed top-0 right-0 w-[calc(100%-260px)] h-16 bg-white/70 backdrop-blur-lg border-b border-[#eeeef0] flex justify-between items-center px-8 z-45 shadow-sm">
@@ -41,11 +43,10 @@ export default function Header({
 
       {/* Control Triggers */}
       <div className="flex items-center gap-4">
-        {/* Latency badge when online */}
         {isOnline && (
           <div className="flex items-center gap-2 bg-emerald-50 text-emerald-800 text-xs px-3 py-1 rounded-full border border-emerald-100 font-mono">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span>就绪: {latency}ms</span>
+            <span>{latency > 0 ? `已连接: ${latency}ms` : '已连接'}</span>
           </div>
         )}
 
@@ -53,6 +54,20 @@ export default function Header({
           <div className="flex items-center gap-2 bg-amber-50 text-amber-800 text-xs px-3 py-1 rounded-full border border-amber-100 font-sans">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
             <span>网络连接中...</span>
+          </div>
+        )}
+
+        {isWarning && (
+          <div className="flex items-center gap-2 bg-amber-50 text-amber-800 text-xs px-3 py-1 rounded-full border border-amber-100 font-sans">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            <span>需要诊断</span>
+          </div>
+        )}
+
+        {isIdle && (
+          <div className="flex items-center gap-2 bg-slate-50 text-slate-600 text-xs px-3 py-1 rounded-full border border-slate-200 font-sans">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+            <span>待诊断</span>
           </div>
         )}
 
@@ -78,12 +93,12 @@ export default function Header({
           {isOnline ? (
             <>
               <WifiOff className="w-3.5 h-3.5" />
-              断开物理网
+              停止组网
             </>
           ) : (
             <>
               <Wifi className="w-3.5 h-3.5" />
-              开始联网
+              启动组网
             </>
           )}
         </button>
