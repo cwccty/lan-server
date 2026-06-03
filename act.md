@@ -2211,3 +2211,40 @@ C:\Users\ty\Downloads\联机助手 (1)
 - 下一步可以选择从 Header 或首页开始做“产品化状态接入”，但需要明确接受会替换参考图里的假状态文案。
 
 下一步推荐：先用 release 版 `Ctrl+Shift+D` 手动验证调试面板动作按钮，确认真实后端快照与安全动作可用；之后再决定是否进入 Header/首页真实状态替换阶段。
+
+## 2026-06-04 Reference Runtime Hook 与 Selectors
+
+本轮继续为“参考前端一比一复原之后再接后端”搭建可复用接口，仍不修改 `src/reference-ui`。
+
+新增：
+
+- `src/reference-adapter/selectors.ts`
+  - `getCurrentReferenceRuntimeSnapshot()`
+  - `getCurrentReferenceStatusSummary()`
+  - `subscribeReferenceRuntime()`
+  - `selectReferenceNetworkStatus()`
+  - `selectReferenceTerrariaStatus()`
+  - `selectReferenceLibraryStatus()`
+- `src/reference-adapter/useReferenceRuntime.ts`
+  - React hook，订阅 `lan-helper:reference-runtime-updated` 事件；
+  - 输出 snapshot、summary、debug、network、terraria、library、loaded、source、errors；
+  - 后续 Header/首页/诊断页产品化接入时，应优先使用该 hook，而不是把 Tauri API 直接写进 reference-ui 组件。
+- `src/reference-adapter/index.ts`
+  - 统一导出 hook 和 selectors。
+
+验证：
+
+- `powershell -ExecutionPolicy Bypass -File tools\check_reference_ui_fidelity.ps1` 通过，`visual_diff_count=0`；
+- `npm run build` 通过；
+- `cargo check --manifest-path src-tauri\Cargo.toml` 通过；
+- `npm run tauri:build` 通过；
+- `npm run release:preflight` 通过；
+- `git diff --check` 通过。
+
+意义：
+
+- 后端状态现在有了稳定的前端订阅接口；
+- reference-ui 默认视觉仍然和用户参考目录保持等价；
+- 下一步如果进入真实状态替换，可以先做 wrapper 或受控注入，避免直接污染 reference-ui。
+
+下一步推荐：新增“产品化接入开关”设计，默认关闭以保持一比一参考 UI；开启后再让 Header/首页从 `useReferenceRuntime()` 读取真实状态。

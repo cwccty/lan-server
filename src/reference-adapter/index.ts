@@ -4,6 +4,15 @@ export { readReferenceRuntimeSnapshot } from './runtimeStore';
 export { snapshotForDebug, summarizeReferenceRuntime } from './mappers';
 export { startReferenceRuntimeBridge, stopReferenceRuntimeBridge, REFERENCE_RUNTIME_EVENT } from './bootstrap';
 export { ReferenceRuntimeDebugPanel } from './DebugPanel';
+export { useReferenceRuntime } from './useReferenceRuntime';
+export {
+  getCurrentReferenceRuntimeSnapshot,
+  getCurrentReferenceStatusSummary,
+  selectReferenceLibraryStatus,
+  selectReferenceNetworkStatus,
+  selectReferenceTerrariaStatus,
+  subscribeReferenceRuntime
+} from './selectors';
 export {
   generateReferenceDiagnostics,
   readReferenceTerrariaServer,
