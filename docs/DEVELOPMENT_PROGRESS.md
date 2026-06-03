@@ -505,3 +505,18 @@ cargo check --manifest-path src-tauri\Cargo.toml
 结果已写入 `docs/RELEASE_VALIDATION_LOG.md`。
 
 下一步推荐：进入适配器管理页同步 UI 验证，以及通用组网中心 TCP/UDP/UDP 广播桥按钮验证。
+
+## 2026-06-03 单机人工复测通过：适配器同步、代理/广播桥、Terraria 30 秒
+
+用户已确认以下项目通过：
+
+- 适配器管理页同步本地示例库；
+- 适配器管理页同步 GitHub 默认共享库；
+- 通用组网中心 TCP 端口代理自测；
+- 通用组网中心 UDP 端口代理自测；
+- 通用组网中心 UDP 广播桥自测；
+- Terraria 服务端 30 秒稳定性测试。
+
+结果已写入 `docs/RELEASE_VALIDATION_LOG.md`。
+
+下一步推荐：进入 VPS / supernode / n2n 注册验证，然后再做双机或虚拟机加入验证。
