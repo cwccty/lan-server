@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './reference-ui/App';
 import './reference-ui/index.css';
 import {
+  ReferenceProductDiagnosticsPatcher,
   ReferenceProductHeaderPatcher,
   ReferenceProductHomePatcher,
   ReferenceRuntimeDebugPanel,
@@ -16,6 +17,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
     <App />
     <ReferenceProductHeaderPatcher />
     <ReferenceProductHomePatcher />
+    <ReferenceProductDiagnosticsPatcher />
     <ReferenceRuntimeDebugPanel />
   </React.StrictMode>
 );

@@ -2183,3 +2183,44 @@ npm run release:preflight:full
 - 所有替换都在 adapter wrapper 层完成，不污染 `src/reference-ui`。
 
 下一步推荐：在 release 版中开启 product mode，确认 Header 和首页状态替换是否符合预期；之后再考虑对“诊断页”做 product-mode 数据接入，而不是继续扩大 DOM patch 范围。
+
+## 2026-06-04 Product Mode 诊断页状态 Patcher 原型
+
+本轮实现第三个产品化接入原型：默认 reference mode 下诊断页完全保持用户参考前端一比一；只有隐藏调试面板开启 product mode 后，才把诊断页局部假状态/JSON 替换成真实 runtime 快照摘要。
+
+新增/修改：
+
+- `src/reference-adapter/ProductDiagnosticsPatcher.tsx`
+  - 不修改 `src/reference-ui/components/DiagnosticsView.tsx`；
+  - 默认 product mode 关闭时恢复/保持参考 UI 原文；
+  - product mode 开启时，通过 DOM patch 替换诊断页局部内容：
+    - `14.85 Mbps` -> `ACK/PONG OK` / `RUNNING` / `STOPPED`；
+    - `24.5 ms` -> ACK 状态；
+    - `1.22 ms` -> PONG 状态；
+    - `0.00 %` -> 真实虚拟 IP；
+    - `1400 bytes` -> supernode 配置状态；
+    - n2n 客户端/节点说明 -> 真实运行状态和 supernode；
+    - 原始 JSON `<pre>` -> `snapshotForDebug()` 的真实调试 JSON；
+    - 检测代码和部分证据说明 -> runtime 摘要。
+- `src/main.tsx`
+  - 在 `<App />` 后挂载 `<ReferenceProductDiagnosticsPatcher />`；
+  - 仍不触碰 reference-ui 组件源码。
+- `src/reference-adapter/index.ts`
+  - 导出 `ReferenceProductDiagnosticsPatcher`。
+
+验证：
+
+- `powershell -ExecutionPolicy Bypass -File tools\check_reference_ui_fidelity.ps1` 通过，`visual_diff_count=0`；
+- `npm run build` 通过；
+- `cargo check --manifest-path src-tauri\Cargo.toml` 通过；
+- `npm run tauri:build` 通过；
+- `npm run release:preflight` 通过；
+- `git diff --check` 通过。
+
+边界：
+
+- 默认 reference mode 仍是用户要求的一比一前端；
+- product mode 是实验/产品化通道，用于逐步验证真实状态接入；
+- 所有替换都在 adapter wrapper 层完成，不污染 `src/reference-ui`。
+
+下一步推荐：停止继续扩大 DOM patch 范围，先用 release 版手动验证 product mode 下 Header、首页、诊断页三处状态替换。如果体验可接受，再正式决定是否进入“产品化 UI 状态接入”阶段；否则保持 reference mode 作为默认发布界面。
