@@ -1318,3 +1318,18 @@ cargo check --manifest-path src-tauri\Cargo.toml
 该结果证明房主侧最小链路可用，但不能替代真实双机/虚拟机加入者验证。
 
 下一步推荐：如果暂时没有第二台电脑，可以开始整理首版发布说明；如果能借到电脑或开虚拟机，再补做加入者侧验证。
+
+## 2026-06-03 首版发布说明草稿
+
+已新增 `docs/RELEASE_NOTES_DRAFT.md`，用于对外发布前整理当前能力、验证结果和边界。
+
+草稿明确说明：
+
+- 当前已验证：自动化构建/测试、单机人工验证、VPS/supernode/n2n 注册、单机房主侧最小链路；
+- 当前未完成：真实双机互通、Terraria 双机 Join via IP、Minecraft Java 和 Stardew Valley adapter 真实审核；
+- 当前可用能力：n2n、TCP 代理、UDP 单播代理、UDP 广播桥、Terraria 服务端托管、共享适配器库、诊断报告、邀请好友包；
+- 当前不承诺：所有游戏一键联机、绕过正版/反作弊/官方账号、Steam Relay 插件已可用、单机验证等同双机验证。
+
+同时修正了 `docs/RELEASE_VALIDATION_LOG.md` 中 VPS 小节插入导致表格被打断的问题。
+
+下一步推荐：如果暂时没有第二台电脑，先补充 README 的“当前测试版说明”和下载/运行方式；如果能进行双机测试，则继续补齐真实加入者验证。
