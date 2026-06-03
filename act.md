@@ -1670,3 +1670,31 @@ C:\Users\ty\Downloads\联机助手 (1)
 - `git diff --check` 通过。
 
 下一步推荐：做第四轮审查 AdapterManager 和 Diagnostics 的按钮反馈与真实状态，包括复制按钮异常、同步失败信息、诊断缓存清空后状态是否准确。
+
+## 2026-06-03 方案库与诊断页真实反馈第四轮修复
+
+本轮审查 `AdapterManagerPage` 和 `DiagnosticsPage` 的按钮反馈、复制异常和缓存状态。
+
+修复内容：
+
+- `src/pages/AdapterManagerPage.tsx`
+  - 导出 JSON 的复制按钮改为走统一 `copyToClipboard`；
+  - 共享库提交说明复制按钮也改为统一反馈；
+  - 复制成功显示成功消息，复制失败显示剪贴板错误；
+  - 没有可复制内容时显示明确失败提示。
+- `src/pages/DiagnosticsPage.tsx`
+  - 诊断报告缓存现在按 `selectedGameId` 匹配；
+  - 切换游戏上下文时，不再展示不匹配的旧诊断报告，而是提示用户重新生成当前上下文报告；
+  - 生成报告成功后显示“诊断报告已生成”；
+  - 复制完整报告、复制摘要加入成功/失败反馈；
+  - 清空日志后显示“诊断报告已清空”；
+  - 修复本轮修改过程中出现的问号乱码风险，并重新检查无 `????` 残留。
+
+验证：
+
+- `npm run build` 通过；
+- `cargo check --manifest-path src-tauri\\Cargo.toml` 通过；
+- `npm run tauri:build` 通过；
+- `git diff --check` 通过。
+
+下一步推荐：做第五轮总体验收审查，检查所有核心页面是否仍存在直接 `navigator.clipboard` 无反馈、按钮无 disabled、普通浏览器 invoke 误导、以及“可发布/可联机/已就绪”状态没有真实来源的问题。

@@ -645,6 +645,19 @@ export function AdapterManagerPage() {
     setMessage('已恢复 GitHub 默认共享库地址。');
   };
 
+  const copyToClipboard = async (content: string, label: string) => {
+    if (!content.trim()) {
+      setMessage(`${label}失败：没有可复制的内容。`);
+      return;
+    }
+    try {
+      await navigator.clipboard?.writeText(content);
+      setMessage(`${label}已复制。`);
+    } catch (error) {
+      setMessage(`${label}失败：${error instanceof Error ? error.message : String(error || '剪贴板不可用')}`);
+    }
+  };
+
   const conversion = draft.multiplayer_conversion ?? emptyAdapter().multiplayer_conversion!;
 
   return (
@@ -817,10 +830,10 @@ export function AdapterManagerPage() {
         <label>导入适配器 JSON<textarea value={importText} onChange={(event) => setImportText(event.target.value)} placeholder="粘贴别人导出的适配器 JSON" /></label>
         <button disabled={busy || !importText.trim()} onClick={importAdapter}>导入并保存</button>
         <label>导出结果<textarea readOnly value={exportText} placeholder="点击上方表格中的导出按钮后，这里会出现 JSON。" /></label>
-        <button disabled={!exportText} onClick={() => navigator.clipboard?.writeText(exportText)}>复制导出 JSON</button>
+        <button disabled={!exportText} onClick={() => copyToClipboard(exportText, '复制导出 JSON')}>复制导出 JSON</button>
         <label>共享库提交说明<textarea readOnly value={registrySubmitGuide} placeholder="导出适配器后，这里会生成 adapter-registry 路径、sha256 和 index.json 片段。" /></label>
         <div className="actions">
-          <button disabled={!registrySubmitGuide} onClick={() => navigator.clipboard?.writeText(registrySubmitGuide)}>复制共享库提交说明</button>
+          <button disabled={!registrySubmitGuide} onClick={() => copyToClipboard(registrySubmitGuide, '复制共享库提交说明')}>复制共享库提交说明</button>
         </div>
       </article>
     </section>

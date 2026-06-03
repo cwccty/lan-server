@@ -834,3 +834,14 @@ cargo check --manifest-path src-tauri\Cargo.toml
 - 已重新打包 release exe。
 
 下一步推荐：审查 AdapterManager 与 Diagnostics 的按钮反馈、失败提示、复制异常和缓存状态。
+
+## 2026-06-03 第四轮真实反馈审查进度
+
+完成：
+
+- AdapterManager 复制导出 JSON / 共享库提交说明反馈；
+- Diagnostics 按游戏上下文隔离缓存；
+- Diagnostics 生成、复制、清空反馈；
+- 已重新打包 release exe。
+
+下一步推荐：进行全项目总体验收审查，搜索并修复剩余直接剪贴板调用、弱按钮反馈、假绿状态。

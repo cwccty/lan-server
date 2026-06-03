@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { generateDiagnosticReport, generateDiagnosticReportForGame } from '../api/tauri';
 import { LoadingOverlay } from '../components/LoadingOverlay';
 import type { DiagnosticIssue, DiagnosticReport } from '../types/diagnostics';
@@ -71,9 +71,16 @@ function IssueCard({ issue }: { issue: DiagnosticIssue }) {
 }
 
 export function DiagnosticsPage({ selectedGame }: { selectedGame?: GameSummary }) {
-  const [report, setReport] = useState<DiagnosticReport | null>(diagnosticsReportCache.report);
+  const selectedGameId = selectedGame?.game_id;
+  const cacheMatchesContext = diagnosticsReportCache.selectedGameId === selectedGameId;
+  const [report, setReport] = useState<DiagnosticReport | null>(cacheMatchesContext ? diagnosticsReportCache.report : null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(diagnosticsReportCache.error);
+  const [error, setError] = useState(cacheMatchesContext ? diagnosticsReportCache.error : '');
+  const [message, setMessage] = useState(
+    !cacheMatchesContext && diagnosticsReportCache.report
+      ? '\u5df2\u5207\u6362\u6e38\u620f\u4e0a\u4e0b\u6587\uff0c\u4e0a\u6b21\u8bca\u65ad\u62a5\u544a\u672a\u663e\u793a\u3002\u70b9\u51fb\u201c\u5f00\u59cb\u8bca\u65ad\u201d\u751f\u6210\u5f53\u524d\u4e0a\u4e0b\u6587\u62a5\u544a\u3002'
+      : ''
+  );
   const reportText = report ? JSON.stringify(report, null, 2) : '';
   const requiredChecks = report?.release_checks.filter((item) => item.required_for_mvp) ?? [];
   const passedRequiredChecks = requiredChecks.filter((item) => item.ok).length;
@@ -81,26 +88,40 @@ export function DiagnosticsPage({ selectedGame }: { selectedGame?: GameSummary }
   const mvpReady = report?.release_ready ?? (requiredChecks.length > 0 && passedRequiredChecks === requiredChecks.length);
   const mostLikely = report?.most_likely_cause;
   const issues = report?.issues ?? [];
+
+  useEffect(() => {
+    const matches = diagnosticsReportCache.selectedGameId === selectedGameId;
+    setReport(matches ? diagnosticsReportCache.report : null);
+    setError(matches ? diagnosticsReportCache.error : '');
+    setMessage(
+      !matches && diagnosticsReportCache.report
+        ? '\u5df2\u5207\u6362\u6e38\u620f\u4e0a\u4e0b\u6587\uff0c\u4e0a\u6b21\u8bca\u65ad\u62a5\u544a\u672a\u663e\u793a\u3002\u70b9\u51fb\u201c\u5f00\u59cb\u8bca\u65ad\u201d\u751f\u6210\u5f53\u524d\u4e0a\u4e0b\u6587\u62a5\u544a\u3002'
+        : ''
+    );
+  }, [selectedGameId]);
+
   const createReport = async () => {
     if (busy) return;
     setBusy(true);
     setError('');
+    setMessage('');
     try {
-      const nextReport = selectedGame?.game_id ? await generateDiagnosticReportForGame(selectedGame.game_id) : await generateDiagnosticReport();
+      const nextReport = selectedGameId ? await generateDiagnosticReportForGame(selectedGameId) : await generateDiagnosticReport();
       setReport(nextReport);
       diagnosticsReportCache = {
         report: nextReport,
         error: '',
-        selectedGameId: selectedGame?.game_id,
+        selectedGameId,
         savedAt: Date.now()
       };
+      setMessage('诊断报告已生成。');
     } catch (err) {
       const nextError = err instanceof Error ? err.message : String(err || '生成诊断报告失败');
       setError(nextError);
       diagnosticsReportCache = {
         ...diagnosticsReportCache,
         error: nextError,
-        selectedGameId: selectedGame?.game_id,
+        selectedGameId,
         savedAt: Date.now()
       };
     } finally {
@@ -115,6 +136,26 @@ export function DiagnosticsPage({ selectedGame }: { selectedGame?: GameSummary }
         report.summary
       ].join('\n')
     : '尚未生成诊断报告。';
+
+  const copyToClipboard = async (content: string, label: string) => {
+    if (!content.trim()) {
+      setMessage(`${label}失败：没有可复制的内容。`);
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(content);
+      setMessage(`${label}已复制。`);
+    } catch (err) {
+      setMessage(`${label}失败：${err instanceof Error ? err.message : String(err || '剪贴板不可用')}`);
+    }
+  };
+
+  const clearReport = () => {
+    diagnosticsReportCache = { report: null, error: '', selectedGameId: undefined, savedAt: 0 };
+    setReport(null);
+    setError('');
+    setMessage('诊断报告已清空。');
+  };
 
   return (
     <section className="page-stack modern-content-page diagnostics-page">
@@ -131,6 +172,7 @@ export function DiagnosticsPage({ selectedGame }: { selectedGame?: GameSummary }
       </div>
 
       {error && <div className="error-card"><strong>生成失败：</strong>{error}</div>}
+      {message && <div className="status-banner">{message}</div>}
 
       <div className="status-grid">
         <article className="status-tile"><span>总体状态</span><strong>{report ? (mvpReady ? '可发布' : '需处理') : '未检测'}</strong><small>来自后端报告</small></article>
@@ -142,9 +184,9 @@ export function DiagnosticsPage({ selectedGame }: { selectedGame?: GameSummary }
       <article className="card content-panel diagnostics-toolbar toolbar-card">
         <div className="actions">
           <button onClick={createReport} disabled={busy}>{busy ? '正在诊断...' : selectedGame ? '诊断当前游戏' : '开始诊断'}</button>
-          {report && <button className="secondary" onClick={() => navigator.clipboard.writeText(reportText)}>复制完整报告</button>}
-          {report && <button className="secondary" onClick={() => navigator.clipboard.writeText(summary)}>复制摘要</button>}
-          {report && <button className="secondary" onClick={() => { diagnosticsReportCache = { report: null, error: '', selectedGameId: undefined, savedAt: 0 }; setReport(null); setError(''); }}>清空日志</button>}
+          {report && <button className="secondary" onClick={() => copyToClipboard(reportText, '复制完整报告')}>复制完整报告</button>}
+          {report && <button className="secondary" onClick={() => copyToClipboard(summary, '复制摘要')}>复制摘要</button>}
+          {report && <button className="secondary" onClick={clearReport}>清空日志</button>}
         </div>
       </article>
 
