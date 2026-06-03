@@ -1,4 +1,4 @@
-﻿﻿﻿﻿# 开发进度快照
+﻿﻿﻿﻿﻿# 开发进度快照
 
 更新时间：2026-06-02
 
@@ -1623,3 +1623,38 @@ cargo check --manifest-path src-tauri\Cargo.toml
 结论：当前运行态已恢复为参考前端的侧栏、顶部栏、卡片布局和橙色高级感风格；“裸 HTML/只换颜色”的问题已消除。
 
 下一步推荐：由用户打开 release 版做主观视觉确认。如果确认满意，再进入正式前后端连接阶段；默认仍应保持 reference mode 一比一，真实状态接入走 `src/reference-adapter`。
+## 2026-06-04 Product Mode 首批真实动作接入
+
+本轮在“一比一参考前端已恢复并通过运行态验收”的前提下，开始第二阶段前后端连接，但仍保持默认 reference mode 不破坏参考 UI。
+
+已完成：
+
+- 新增 `src/reference-adapter/ProductActionPatcher.tsx`；
+- 默认 reference mode 下不拦截任何按钮，参考前端仍按原模拟交互运行；
+- 只有开启 product mode 后，才把部分参考 UI 按钮拦截到真实 Tauri 后端动作；
+- 挂载入口加入 `src/main.tsx`，导出加入 `src/reference-adapter/index.ts`。
+
+首批接入按钮：
+
+- 通用组网中心：
+  - `保存基础参数` -> `saveReferenceN2nConfig()`；
+  - `Start n2n Edge` -> `startReferenceN2n()`；
+  - `Stop n2n Edge` -> `stopReferenceN2n()`；
+  - `Refresh Node Status` -> 当前先触发真实 n2n 启动/刷新路径；
+- Terraria 向导：
+  - `启动自建服务` -> `startReferenceTerrariaServer()`；
+  - `停止服务` -> `stopReferenceTerrariaServer()`；
+  - `一键自检` -> `readReferenceTerrariaServer()`；
+- 诊断报告：
+  - `手动强制重扫 (刷新缓存)` -> `generateReferenceDiagnostics()`。
+
+浏览器验证：
+
+- reference mode 下：通用组网页面 `data-lan-helper-action-hooked` 数量为 0，未出现 Product Mode 提示，Sidebar 仍为 `position=fixed`；
+- product mode 下：
+  - 通用组网中心稳定挂载 `network-start-n2n`、`network-stop-n2n`、`network-refresh-runtime`、`network-save-config`；
+  - Terraria 向导稳定挂载 `terraria-start-server`、`terraria-stop-server`、`terraria-read-server`；
+  - 诊断报告稳定挂载 `diagnostics-generate`；
+- 在普通浏览器预览中点击 `保存基础参数` 会显示真实后端失败/未连接 Tauri 后端提示，证明按钮已走真实后端路径，而不是继续执行参考 UI 的 setTimeout 模拟成功。
+
+产品边界：product mode 仍是实验/产品化通道；默认发布界面必须保持 reference mode，一比一视觉优先。下一步如果用户确认视觉满意，可以继续扩展动作接入到游戏扫描、方案库同步、邀请包复制等功能。
