@@ -15,3 +15,14 @@ pub struct ServerSessionStatus {
     pub started_at: Option<String>,
     pub uptime_seconds: Option<u64>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GenericServerLaunchConfig {
+    pub game_name: Option<String>,
+    pub executable_path: String,
+    pub working_dir: Option<String>,
+    pub port: u16,
+    pub args: Option<Vec<String>>,
+    pub raw_args: Option<String>,
+    pub jar_memory_mb: Option<u32>,
+}

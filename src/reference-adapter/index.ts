@@ -9,6 +9,7 @@ export { ReferenceProductHomePatcher } from './ProductHomePatcher';
 export { ReferenceProductDiagnosticsPatcher } from './ProductDiagnosticsPatcher';
 export { ReferenceProductActionPatcher } from './ProductActionPatcher';
 export { ReferenceProductActionResultPatcher } from './ProductActionResultPatcher';
+export { ReferenceProductAdvancedToolsPatcher } from './ProductAdvancedToolsPatcher';
 export { ReferenceProductRuntimeBridgeController } from './ProductRuntimeBridgeController';
 export { useReferenceRuntime } from './useReferenceRuntime';
 export { useReferenceProductMode } from './useReferenceProductMode';

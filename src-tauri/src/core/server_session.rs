@@ -24,7 +24,7 @@ use serde_json::Value;
 
 use crate::core::game_detector;
 use crate::core::process_util::hide_console_window;
-use crate::models::server_session::ServerSessionStatus;
+use crate::models::server_session::{GenericServerLaunchConfig, ServerSessionStatus};
 use crate::storage::adapter_store;
 
 #[cfg(windows)]
@@ -287,6 +287,127 @@ pub fn start_game_server_session(
     Ok(status)
 }
 
+pub fn start_generic_server_session(
+    config: GenericServerLaunchConfig,
+) -> Result<ServerSessionStatus, String> {
+    let session_lock = SESSION.get_or_init(|| Mutex::new(None));
+    let mut current = session_lock
+        .lock()
+        .map_err(|_| "服务端会话锁已损坏。".to_string())?;
+
+    if let Some(session) = current.as_mut() {
+        refresh_process_state(session);
+        if session.exit_code.is_none() {
+            return Ok(status_from_session(session, "已有服务端会话正在运行。"));
+        }
+    }
+    *current = None;
+
+    let server_path = PathBuf::from(config.executable_path.trim());
+    if config.executable_path.trim().is_empty() {
+        return Err("服务端路径不能为空。".to_string());
+    }
+    if !server_path.exists() {
+        return Err(format!(
+            "未找到服务端文件：{}",
+            server_path.to_string_lossy()
+        ));
+    }
+    if !server_path.is_file() {
+        return Err(format!(
+            "服务端路径不是可执行文件或 Jar 文件：{}",
+            server_path.to_string_lossy()
+        ));
+    }
+
+    let working_dir = match config.working_dir.as_deref().map(str::trim).filter(|item| !item.is_empty()) {
+        Some(value) => PathBuf::from(value),
+        None => server_path
+            .parent()
+            .map(Path::to_path_buf)
+            .ok_or_else(|| "无法推断服务端工作目录。".to_string())?,
+    };
+    if !working_dir.exists() || !working_dir.is_dir() {
+        return Err(format!(
+            "服务端工作目录不可用：{}",
+            working_dir.to_string_lossy()
+        ));
+    }
+
+    let extension = server_path
+        .extension()
+        .and_then(|item| item.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    let is_jar = extension == "jar";
+    let is_exe = extension == "exe" || extension == "bat" || extension == "cmd" || extension == "jar";
+    if !is_exe {
+        return Err("通用服务端第一版仅允许启动 .exe / .bat / .cmd / .jar 文件。".to_string());
+    }
+
+    let mut args = Vec::new();
+    let executable = if is_jar {
+        let memory_mb = config.jar_memory_mb.unwrap_or(1024).clamp(256, 32768);
+        args.push(format!("-Xmx{memory_mb}M"));
+        args.push("-jar".to_string());
+        args.push(server_path.to_string_lossy().to_string());
+        PathBuf::from("java")
+    } else {
+        server_path.clone()
+    };
+    if let Some(extra_args) = config.args {
+        args.extend(extra_args.into_iter().filter(|item| !item.trim().is_empty()));
+    }
+    if let Some(raw_args) = config.raw_args.as_deref() {
+        args.extend(parse_command_line_args(raw_args)?);
+    }
+
+    let mut managed = start_hidden_process(&executable, &working_dir, &args)?;
+    let pid = managed.process.id();
+    let game_name = config
+        .game_name
+        .filter(|item| !item.trim().is_empty())
+        .unwrap_or_else(|| {
+            server_path
+                .file_stem()
+                .and_then(|item| item.to_str())
+                .unwrap_or("generic-server")
+                .to_string()
+        });
+
+    push_logs(
+        &managed.logs,
+        vec![
+            format!("通用服务端启动：{game_name}"),
+            format!("服务端文件：{}", server_path.to_string_lossy()),
+            format!("工作目录：{}", working_dir.to_string_lossy()),
+            format!("监听端口：{}", config.port),
+            format!("执行程序：{}", executable.to_string_lossy()),
+            format!("参数：{}", args.join(" ")),
+            format!("PID：{pid}"),
+            "通用 Jar/Exe 服务端已由联机助手托管，窗口保持后台隐藏。".to_string(),
+            "可用性以进程存活和本地端口监听状态为准，不伪造启动成功。".to_string(),
+        ],
+    );
+
+    let mut session = ServerSession {
+        game_id: "generic_server".to_string(),
+        profile_id: "custom_executable".to_string(),
+        port: config.port,
+        process: managed.process,
+        stdin: managed.stdin.take(),
+        logs: managed.logs,
+        exit_code: None,
+        exited_at: None,
+        ever_ready: false,
+        started_at: Utc::now().to_rfc3339(),
+        started_instant: Instant::now(),
+    };
+    let status = status_from_session(&mut session, "通用游戏服务端已在后台启动。");
+    *current = Some(session);
+    Ok(status)
+}
+
 pub fn read_server_session() -> Result<ServerSessionStatus, String> {
     let session_lock = SESSION.get_or_init(|| Mutex::new(None));
     let mut current = session_lock
@@ -540,6 +661,57 @@ fn quote_windows_arg(arg: &str) -> String {
     }
     quoted.push('"');
     quoted
+}
+
+fn parse_command_line_args(input: &str) -> Result<Vec<String>, String> {
+    let mut args = Vec::new();
+    let mut current = String::new();
+    let mut chars = input.chars().peekable();
+    let mut in_quotes = false;
+    let mut quote_char = '\0';
+
+    while let Some(ch) = chars.next() {
+        match ch {
+            '"' | '\'' => {
+                if in_quotes && ch == quote_char {
+                    in_quotes = false;
+                    quote_char = '\0';
+                } else if !in_quotes {
+                    in_quotes = true;
+                    quote_char = ch;
+                } else {
+                    current.push(ch);
+                }
+            }
+            '\\' => {
+                if let Some(next) = chars.peek().copied() {
+                    if next == '"' || next == '\'' || next == '\\' {
+                        current.push(next);
+                        let _ = chars.next();
+                    } else {
+                        current.push(ch);
+                    }
+                } else {
+                    current.push(ch);
+                }
+            }
+            ch if ch.is_whitespace() && !in_quotes => {
+                if !current.is_empty() {
+                    args.push(current.clone());
+                    current.clear();
+                }
+            }
+            _ => current.push(ch),
+        }
+    }
+
+    if in_quotes {
+        return Err("启动参数中的引号没有闭合。".to_string());
+    }
+    if !current.is_empty() {
+        args.push(current);
+    }
+    Ok(args)
 }
 
 #[cfg(not(windows))]

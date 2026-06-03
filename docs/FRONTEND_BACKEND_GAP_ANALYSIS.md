@@ -756,3 +756,32 @@ Terraria 向导
    - 参考卡片内没有绑定真实后端 ID。
    - 当前 Product Mode 依据卡片类型 TCP/UDP/Bridge 停止一个正在运行的真实实例。
    - 后续要做到精确停止，需要把真实 ID 渲染/绑定到 DOM 或改造参考适配层的数据注入。
+
+---
+
+## 2026-06-04 通用服务端启动器缺口关闭
+
+本轮已补齐最终参考前端(3)中“高级连接工具 / 通用游戏服务端”对应的后端命令，原先“缺少安全后端命令”的缺口更新为已关闭。
+
+### 新增真实后端能力
+
+- 新增模型：`GenericServerLaunchConfig`。
+- 新增 Tauri command：`start_generic_server_session(config)`。
+- 新增前端 API：`startGenericServerSession(config)`。
+- 支持启动类型：`.exe`、`.bat`、`.cmd`、`.jar`。
+- `.jar` 文件通过 `java -Xmx{memory}M -jar <path>` 启动，默认 `jar_memory_mb=1024`。
+- 工作目录默认取服务端文件所在目录，也允许后续通过配置指定。
+- 仍复用既有 `read_server_session`、`stop_server_session`、`send_server_command`，避免并行多套服务端会话状态。
+- 就绪判断仍以“进程存活 + 本地端口监听”为准，不根据点击按钮伪造成功。
+
+### Product Mode 前端接入
+
+- `高级连接工具 / 通用游戏服务端 / 挂载并运行专属服务端` 已接入 `start_generic_server_session`。
+- `安全停止并固化世界存档` 复用 `stop_server_session`。
+- `发送指令` 复用 `send_server_command`。
+- 新增 `ReferenceProductAdvancedToolsPatcher`：Product Mode 下在高级连接工具页插入“真实后端高级连接状态”面板，并将实例标题改为真实后端实例数量，避免参考示例卡片误导用户。
+
+### 仍需继续完善
+
+- 参考 UI 的通用服务端页面本身仍由参考前端本地 state 控制，真实状态通过 Product Mode 面板和动作结果回填展示。后续若要彻底替换，需要把该页面抽象为受控组件或继续扩展 DOM patcher。
+- 通用服务端当前只支持单会话托管，不支持同时开多个不同游戏专用服。

@@ -5,9 +5,10 @@ import {
   readReferenceTerrariaServer,
   saveReferenceN2nConfig,
   scanReferenceGames,
+  sendReferenceTerrariaCommand,
   selfTestReferenceAdvancedProxy,
   startReferenceAdvancedProxy,
-  startReferenceGenericServerPlaceholder,
+  startReferenceGenericServer,
   startReferenceN2n,
   startReferenceTerrariaServer,
   stopReferenceAdvancedProxy,
@@ -209,6 +210,26 @@ function readAdvancedProxyForm() {
   };
 }
 
+function readGenericServerForm() {
+  const gameName = findInputByLabel('拟承载的联机游戏名')?.value?.trim() || '通用游戏服务端';
+  const path = findInputByLabel('服务端物理 Jar/Exe 可执行路径')?.value?.trim() || '';
+  const portValue = findInputByLabel('运行服务绑定端口')?.value || '7777';
+  const port = Number(portValue);
+  return {
+    game_name: gameName,
+    executable_path: path,
+    port: Number.isFinite(port) ? port : 7777
+  };
+}
+
+function readGenericServerCommand() {
+  const root = findPageRoot('高级连接工具');
+  const input = Array.from(root?.querySelectorAll<HTMLInputElement>('input') ?? []).find((item) =>
+    (item.placeholder ?? '').includes('发送') || (item.placeholder ?? '').includes('指令')
+  );
+  return input?.value?.trim() || '';
+}
+
 function advancedProxyTypeFromButton(button: HTMLButtonElement): 'tcp' | 'udp' | 'bridge' {
   const card = button.closest('div[class*="rounded-2xl"]');
   const text = textOf(card ?? button);
@@ -248,7 +269,9 @@ function useAttachProductActions(enabled: boolean) {
         interceptButton(firstButton('一键连通自测', '高级连接工具'), 'advanced-self-test-proxy', (button) => selfTestReferenceAdvancedProxy(advancedProxyTypeFromButton(button))),
         interceptButton(firstButton('暂停代理', '高级连接工具'), 'advanced-stop-proxy', (button) => stopReferenceAdvancedProxy(advancedProxyTypeFromButton(button))),
         interceptButton(firstButton('完全卸载链路', '高级连接工具'), 'advanced-delete-proxy', (button) => stopReferenceAdvancedProxy(advancedProxyTypeFromButton(button))),
-        interceptButton(firstButton('挂载并运行专属服务端', '高级连接工具'), 'advanced-start-generic-server-missing', () => startReferenceGenericServerPlaceholder())
+        interceptButton(firstButton('挂载并运行专属服务端', '高级连接工具'), 'advanced-start-generic-server', () => startReferenceGenericServer(readGenericServerForm())),
+        interceptButton(firstButton('安全停止并固化世界存档', '高级连接工具'), 'advanced-stop-generic-server', () => stopReferenceTerrariaServer()),
+        interceptButton(firstButton('发送指令', '高级连接工具'), 'advanced-send-generic-server-command', () => sendReferenceTerrariaCommand(readGenericServerCommand()))
       ].filter(Boolean) as Array<() => void>;
     };
 

@@ -8,6 +8,7 @@
   scanGames,
   sendServerCommand,
   setupNetwork,
+  startGenericServerSession,
   startGameServerSession,
   startNetwork,
   startPortProxy,
@@ -28,6 +29,7 @@
 import type { ConnectivityTarget, NetworkConfig } from '../types/network';
 import type { PortProxyConfig } from '../types/portProxy';
 import type { LaunchConfig } from '../types/recommendation';
+import type { GenericServerLaunchConfig } from '../types/serverSession';
 import type { UdpBroadcastBridgeConfig } from '../types/udpBroadcastBridge';
 import type { UdpProxyConfig } from '../types/udpProxy';
 import { readReferenceRuntimeSnapshot } from './runtimeStore';
@@ -137,6 +139,12 @@ export interface ReferenceAdvancedProxyForm {
   target_port?: number;
 }
 
+export interface ReferenceGenericServerForm {
+  game_name: string;
+  executable_path: string;
+  port: number;
+}
+
 export function startReferenceAdvancedProxy(form: ReferenceAdvancedProxyForm) {
   return withSnapshot('启动高级连接链路', async () => {
     if (form.type === 'tcp') {
@@ -201,10 +209,14 @@ export function stopReferenceAdvancedProxy(type: ReferenceAdvancedProxyKind) {
   });
 }
 
-export function startReferenceGenericServerPlaceholder() {
-  return Promise.resolve<ReferenceActionResult>({
-    ok: false,
-    action: '启动通用游戏服务端',
-    message: '最终参考前端提供了“任意 Jar/Exe 服务端启动器”界面，但当前后端只有适配器/Profile 驱动的服务端会话命令，尚未提供按任意物理路径启动通用服务端的安全命令。已记录为前后端缺失项。'
+export function startReferenceGenericServer(config: ReferenceGenericServerForm) {
+  return withSnapshot('启动通用游戏服务端', () => {
+    const launchConfig: GenericServerLaunchConfig = {
+      game_name: config.game_name,
+      executable_path: config.executable_path,
+      port: config.port,
+      jar_memory_mb: 1024
+    };
+    return startGenericServerSession(launchConfig);
   });
 }

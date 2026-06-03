@@ -14,7 +14,7 @@ use crate::models::udp_broadcast_bridge::{
 };
 use crate::models::udp_proxy::{UdpProxyConfig, UdpProxySelfTestReport, UdpProxyStatus};
 use crate::models::recommendation::{LaunchResult, Recommendation};
-use crate::models::server_session::ServerSessionStatus;
+use crate::models::server_session::{GenericServerLaunchConfig, ServerSessionStatus};
 use crate::network::{manual_lan_backend, n2n_backend, radmin_backend};
 use crate::storage::adapter_store::{self, AdapterRegistrySyncResult};
 use serde_json::Value;
@@ -144,6 +144,13 @@ pub fn start_game_server_session(
     config: serde_json::Value,
 ) -> Result<ServerSessionStatus, String> {
     server_session::start_game_server_session(&game_id, &profile_id, config)
+}
+
+#[tauri::command]
+pub fn start_generic_server_session(
+    config: GenericServerLaunchConfig,
+) -> Result<ServerSessionStatus, String> {
+    server_session::start_generic_server_session(config)
 }
 
 #[tauri::command]
