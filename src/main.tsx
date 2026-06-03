@@ -8,15 +8,14 @@ import {
   ReferenceProductActionResultPatcher,
   ReferenceProductHeaderPatcher,
   ReferenceProductHomePatcher,
+  ReferenceProductRuntimeBridgeController,
   ReferenceRuntimeDebugPanel,
-  startReferenceRuntimeBridge
 } from './reference-adapter';
-
-startReferenceRuntimeBridge();
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <App />
+    <ReferenceProductRuntimeBridgeController />
     <ReferenceProductHeaderPatcher />
     <ReferenceProductHomePatcher />
     <ReferenceProductDiagnosticsPatcher />

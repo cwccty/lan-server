@@ -22,16 +22,23 @@ async function collect<T>(errors: string[], label: string, task: () => Promise<T
   }
 }
 
-export async function readReferenceRuntimeSnapshot(options: { includeDiagnostics?: boolean } = {}): Promise<ReferenceRuntimeSnapshot> {
+export async function readReferenceRuntimeSnapshot(options: { includeDiagnostics?: boolean; includeInventory?: boolean } = {}): Promise<ReferenceRuntimeSnapshot> {
   const errors: string[] = [];
   const includeDiagnostics = options.includeDiagnostics ?? false;
+  const includeInventory = options.includeInventory ?? false;
 
   const [n2n, n2nLastConfig, backends, games, adapters, serverSession, diagnosticReport] = await Promise.all([
     collect(errors, 'n2n diagnostics', getN2nDiagnostics, null),
     collect(errors, 'n2n last config', getN2nLastConfig, null),
-    collect(errors, 'network backends', listNetworkBackends, []),
-    collect(errors, 'game scan', scanGames, []),
-    collect(errors, 'game adapters', listGameAdapters, []),
+    includeInventory
+      ? collect(errors, 'network backends', listNetworkBackends, [])
+      : Promise.resolve([]),
+    includeInventory
+      ? collect(errors, 'game scan', scanGames, [])
+      : Promise.resolve([]),
+    includeInventory
+      ? collect(errors, 'game adapters', listGameAdapters, [])
+      : Promise.resolve([]),
     collect(errors, 'server session', readServerSession, null),
     includeDiagnostics
       ? collect(errors, 'diagnostic report', generateDiagnosticReport, null)

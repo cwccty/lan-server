@@ -2423,3 +2423,16 @@ pm run tauri:build，更新 release exe：src-tauri\target\release\lan-helper.ex
 - 已执行 
 pm run release:preflight，发布前检查 PASS。
 - 后续如果用户仍看到旧界面，应优先确认打开的是否为最新 src-tauri\target\release\lan-helper.exe，或是否打开了旧安装包/旧快捷方式。
+
+## 2026-06-04 03:05:54 修复参考前端 release 卡顿
+- 问题：视觉切到参考前端后，release exe 明显卡顿。定位到 src/main.tsx 启动时无条件调用 startReferenceRuntimeBridge()，后台每 5 秒读取真实 runtime；旧 eadReferenceRuntimeSnapshot() 同时执行 n2n 诊断、最近配置、网络后端、游戏扫描、适配器列表、Terraria 会话等，其中 scanGames() 属于重操作，容易造成 WebView/后端周期性卡顿。
+- 修复原则：默认 reference mode 只展示参考前端，不自动扫描、不轮询真实后端；真实接入只在 Product Mode 开启后启动。
+- 已新增 src/reference-adapter/ProductRuntimeBridgeController.tsx：Product Mode 关闭时停止 runtime bridge；开启时才以 15 秒间隔启动轻量轮询。
+- 已扩展 eadReferenceRuntimeSnapshot({ includeInventory })：默认不读取游戏扫描、适配器列表、网络后端等 inventory 重数据；只有明确请求时才读取。
+- 已移除 src/main.tsx 的无条件 startReferenceRuntimeBridge()，改为挂载 controller。
+- 验证通过：
+pm run build、cargo check --manifest-path src-tauri\\Cargo.toml、
+pm run tauri:build、
+pm run release:preflight。
+- 新 release exe：src-tauri\\target\\release\\lan-helper.exe。
+- 后续性能规则：禁止在默认入口、页面初次渲染、短周期轮询中调用 scanGames()、诊断报告生成、全量 registry 同步等重操作；这些必须由用户点击或带加载态的 Product Mode 动作触发。

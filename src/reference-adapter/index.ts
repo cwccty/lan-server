@@ -9,6 +9,7 @@ export { ReferenceProductHomePatcher } from './ProductHomePatcher';
 export { ReferenceProductDiagnosticsPatcher } from './ProductDiagnosticsPatcher';
 export { ReferenceProductActionPatcher } from './ProductActionPatcher';
 export { ReferenceProductActionResultPatcher } from './ProductActionResultPatcher';
+export { ReferenceProductRuntimeBridgeController } from './ProductRuntimeBridgeController';
 export { useReferenceRuntime } from './useReferenceRuntime';
 export { useReferenceProductMode } from './useReferenceProductMode';
 export { getReferenceProductMode, setReferenceProductMode, subscribeReferenceProductMode, REFERENCE_PRODUCT_MODE_EVENT, type ReferenceProductModeState } from './productMode';

@@ -8,8 +8,8 @@ const DEFAULT_INTERVAL_MS = 5000;
 let timer: number | null = null;
 let running = false;
 
-async function refresh(includeDiagnostics = false) {
-  const snapshot = await readReferenceRuntimeSnapshot({ includeDiagnostics });
+async function refresh(includeDiagnostics = false, includeInventory = false) {
+  const snapshot = await readReferenceRuntimeSnapshot({ includeDiagnostics, includeInventory });
   window.__LAN_HELPER_REFERENCE_RUNTIME__ = snapshot;
   window.dispatchEvent(
     new CustomEvent<ReferenceRuntimeSnapshot>(EVENT_NAME, {
@@ -25,16 +25,17 @@ async function refresh(includeDiagnostics = false) {
   return snapshot;
 }
 
-export function startReferenceRuntimeBridge(options: { intervalMs?: number; includeDiagnostics?: boolean } = {}) {
+export function startReferenceRuntimeBridge(options: { intervalMs?: number; includeDiagnostics?: boolean; includeInventory?: boolean } = {}) {
   if (running) return;
   running = true;
 
   const intervalMs = options.intervalMs ?? DEFAULT_INTERVAL_MS;
   const includeDiagnostics = options.includeDiagnostics ?? false;
+  const includeInventory = options.includeInventory ?? false;
 
-  void refresh(includeDiagnostics);
+  void refresh(includeDiagnostics, includeInventory);
   timer = window.setInterval(() => {
-    void refresh(includeDiagnostics);
+    void refresh(includeDiagnostics, includeInventory);
   }, intervalMs);
 }
 
