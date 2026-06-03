@@ -1462,3 +1462,33 @@ cargo check --manifest-path src-tauri\Cargo.toml
 说明：这一步只迁移外壳与基础视觉，不代表已经把下载前端的各页面完整一比一应用。后续如果用户认可风格，再逐页迁移页面结构，并按 `docs/FRONTEND_BACKEND_API_MAP.md` 接真实 Tauri API。
 
 下一步推荐：让用户先人工查看客户端整体观感；如果认可，再迁移“方案库”和“游戏扫描”两个低风险页面的视觉结构，同时继续保留真实 API。
+
+## 2026-06-03 继续迁移内容区样式：首页、方案库、游戏扫描
+
+用户确认浅色外壳颜色满意，但指出里面内容样式还没有换。本次继续把内容层往下载前端的浅色高级风格迁移，同时继续保留真实后端逻辑。
+
+本次改动：
+
+- `src/pages/AdapterManagerPage.tsx`
+  - 增加 `library-page modern-content-page` 页面 class；
+  - 增加方案库内容 Hero 区，展示“游戏方案库”、本地方案数量、上次同步状态；
+  - 给共享库同步、本地适配器、编辑器、导入导出区增加内容面板 class；
+  - 保留 `listGameAdapters`、`syncAdapterRegistry`、`syncLocalAdapterRegistryExample`、`saveGameAdapter`、导入导出等真实 API 调用不变。
+- `src/pages/GameScanPage.tsx`
+  - 增加 `scan-page modern-content-page` 页面 class；
+  - 增加游戏扫描内容 Hero 区，展示已发现数量和扫描状态；
+  - 给扫描操作栏、筛选侧栏增加新版内容样式 class；
+  - 保留 `scanGames` 由 App 层触发、`saveGameAdapter` 创建草稿等真实逻辑不变。
+- `src/styles/globals.css`
+  - 新增内容页 Hero、mini stats、内容面板、表格、过滤侧栏、游戏卡片等浅色高级样式；
+  - 修复方案库页脚本替换时误写入的字面量 `` `r`n ``；
+  - 把来源徽章 `builtin / registry / custom / steam_scan` 改成浅色风格，减少旧深色残留。
+
+验证：
+
+- `npm run build` 通过；
+- `cargo check --manifest-path src-tauri\Cargo.toml` 通过；
+- `npm run tauri:build` 通过；
+- 已重新生成新版 `src-tauri\target\release\lan-helper.exe`。
+
+下一步推荐：继续迁移“推荐方案”和“通用组网中心”两个核心执行页面的内容结构，重点是邀请包、n2n 诊断卡、TCP/UDP/广播桥高级区的视觉一致性。

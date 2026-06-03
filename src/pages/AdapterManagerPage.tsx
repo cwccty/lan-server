@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   exportGameAdapterJson,
   importGameAdapterJson,
@@ -648,14 +648,13 @@ export function AdapterManagerPage() {
   const conversion = draft.multiplayer_conversion ?? emptyAdapter().multiplayer_conversion!;
 
   return (
-    <section>
+    <section className="page-stack library-page modern-content-page">
       <LoadingOverlay visible={busy} title={busyLabel ? `正在处理：${busyLabel}` : '正在处理'} message="正在更新适配器数据，请稍等，不要重复点击。" />
-      <h2>游戏方案库</h2>
-      <p className="muted">从共享库更新游戏联机方案。普通用户一般只需要点击“一键更新共享方案”。</p>
+      <div className="content-hero library-hero"><div><span className="eyebrow">SOLUTION LIBRARY</span><h2>游戏方案库</h2><p className="muted">从共享库更新游戏联机方案。普通用户一般只需要点击“一键更新共享方案”。</p></div><div className="hero-mini-stats"><article><span>本地方案</span><strong>{adapterCount}</strong></article><article><span>上次同步</span><strong>{lastRegistrySync ? '已记录' : '未同步'}</strong></article></div></div>
       {message && <div className={busy ? 'busy-banner' : 'status-banner'}>{message}</div>}
 
-      <article className="card">
-        <h3>共享游戏方案库</h3>
+      <article className="card content-panel sync-panel">
+        <div className="panel-heading"><div><span className="eyebrow">SYNC</span><h3>共享游戏方案库</h3></div><span className="badge warn">真实同步</span></div>
         <p className="muted">
           从共享库拉取游戏联机方案。更新后，扫描游戏时会自动使用这些推荐步骤。
         </p>
@@ -721,8 +720,8 @@ export function AdapterManagerPage() {
         )}
       </article>
 
-      <article className="card">
-        <h3>当前适配器（{adapterCount}）</h3>
+      <article className="card content-panel adapter-list-panel">
+        <div className="panel-heading"><div><span className="eyebrow">LOCAL</span><h3>当前适配器（{adapterCount}）</h3></div><span className="badge">builtin / registry / custom</span></div>
         {adapters.length === 0 ? <p className="muted">暂无适配器。</p> : (
           <table className="adapter-table">
             <thead><tr><th>游戏</th><th>来源</th><th>AppID</th><th>游戏类型</th><th>能力</th><th>端口</th><th>操作</th></tr></thead>
@@ -746,8 +745,8 @@ export function AdapterManagerPage() {
         )}
       </article>
 
-      <article className="card">
-        <h3>新增 / 编辑适配器</h3>
+      <article className="card content-panel editor-panel">
+        <div className="panel-heading"><div><span className="eyebrow">EDITOR</span><h3>新增 / 编辑适配器</h3></div><span className="badge warn">管理员功能</span></div>
         <div className="actions">
           <button disabled={busy} onClick={() => syncDraftText(emptyAdapter())}>新建空白</button>
           <button disabled={busy} onClick={() => applyTemplate('native_lan_ip')}>模板：原生 LAN/IP</button>
@@ -813,8 +812,8 @@ export function AdapterManagerPage() {
         <button disabled={busy} onClick={save}>保存到本地适配器库</button>
       </article>
 
-      <article className="card">
-        <h3>导入 / 导出</h3>
+      <article className="card content-panel io-panel">
+        <div className="panel-heading"><div><span className="eyebrow">JSON</span><h3>导入 / 导出</h3></div><span className="badge">共享提交</span></div>
         <label>导入适配器 JSON<textarea value={importText} onChange={(event) => setImportText(event.target.value)} placeholder="粘贴别人导出的适配器 JSON" /></label>
         <button disabled={busy || !importText.trim()} onClick={importAdapter}>导入并保存</button>
         <label>导出结果<textarea readOnly value={exportText} placeholder="点击上方表格中的导出按钮后，这里会出现 JSON。" /></label>
