@@ -1323,3 +1323,21 @@ cargo check --manifest-path src-tauri\Cargo.toml
 保留原则：功能内部仍然基于真实检测，不做 UI 假绿；但面向用户的首屏文案不再展示过多开发规划和架构说明。
 
 下一步推荐：启动客户端人工看一遍首页、方案库、通用组网、Terraria 向导、推荐方案五个页面，确认文案没有乱码、没有过多内部术语，并且按钮路径清晰。
+
+## 2026-06-03 使用 impeccable 优化当前前端
+
+已按 impeccable 产品型 UI 工作流补充 `PRODUCT.md`，明确本项目默认 register 为 product，并记录用户、目的、品牌语气、反参考、设计原则和可访问性要求。
+
+本次前端优化重点：
+
+- 重构 `src/styles/globals.css` 为更克制、清晰、可信的产品型深色界面；
+- 统一 OKLCH 颜色 token、间距、圆角、状态色、focus、disabled、loading 和 reduced motion；
+- 降低装饰性阴影和过度渐变，减少“AI 生成感”；
+- 移除状态卡片/结果提示中的粗侧边条样式，改用完整边框和状态底色；
+- 优化桌面和窄屏响应式布局；
+- 给 `index.html` 增加内联 SVG favicon，消除浏览器 favicon 404；
+- 配置 `.impeccable/live/config.json`，方便后续使用 impeccable live 进行可视化迭代。
+
+已用浏览器检查首页桌面和移动宽度：页面可打开、控制台无错误、无明显横向溢出。
+
+下一步推荐：继续做一次页面级 polish，把“通用组网中心”和“推荐方案”里的密集配置区域改成更清晰的步骤式布局，让用户更少迷路。
