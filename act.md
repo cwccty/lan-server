@@ -1191,3 +1191,16 @@ cargo check --manifest-path src-tauri\Cargo.toml
 ```
 
 下一步推荐：重新打开 release 客户端，优先复测游戏扫描、通用组网中心、Terraria 向导、诊断报告四个页面的卡顿与缓存表现，并把结果补入 `docs/RELEASE_VALIDATION_LOG.md`。
+
+## 2026-06-03 单机人工复测通过：加载与缓存体验
+
+用户已复测并确认 4 项通过：
+
+- 游戏扫描加载动画；
+- 通用组网中心缓存与主动刷新；
+- Terraria 向导缓存与刷新入口；
+- 诊断报告保留上次内容。
+
+结果已写入 `docs/RELEASE_VALIDATION_LOG.md`。
+
+下一步推荐：进入适配器管理页同步 UI 验证，以及通用组网中心 TCP/UDP/UDP 广播桥按钮验证。
