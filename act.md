@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿# 联机助手开发行动记录
+﻿﻿﻿﻿﻿﻿﻿# 联机助手开发行动记录
 
 更新时间：2026-06-02
 
@@ -2571,3 +2571,31 @@ C:\Users\ty\Downloads\联机助手 (1)
 - 三页 Sidebar 仍为 `position=fixed`，默认参考前端视觉不受影响。
 
 下一步推荐：继续把 product mode 的真实动作结果写回页面局部文案/摘要区域，而不是只显示右下角 Product Mode toast；例如游戏扫描显示真实游戏数量，方案库显示真实同步结果，推荐页邀请包改为包含真实 n2n 配置和诊断摘要。
+## 2026-06-04 Product Mode 真实结果回填
+
+本轮继续“前后端连接”阶段：上一轮已经让按钮调用真实 Tauri 后端，本轮把真实动作结果回填到参考前端局部内容中，避免只显示右下角 toast。
+
+已完成：
+
+- `ProductActionPatcher` 发出的 `lan-helper:reference-product-action` 事件现在包含 `actionId`、`result`、`at`；
+- 新增 `src/reference-adapter/ProductActionResultPatcher.tsx`；
+- 默认 reference mode 下不改任何页面文本；
+- product mode 下监听真实动作结果，并写回当前页面局部摘要；
+- 关闭 product mode 后恢复原参考文案。
+
+回填范围：
+
+- 游戏扫描：把真实扫描结果数量/时间写回“上次全盘检索缓存”摘要行；
+- 方案库：把真实同步结果数量/时间写回“同步列表结果”摘要；
+- 推荐方案：
+  - 连接测试结果写回虚拟网通透度测试区域；
+  - n2n 配置/诊断结果写回邀请包 `pre` 区域，显示 `[真实后端摘要]`。
+
+浏览器验证：
+
+- product mode 下模拟 `games-scan-local`，页面出现 `真实后端成功: 扫描本地游戏｜数量 2`；
+- product mode 下模拟 `solutions-sync-remote`，页面出现 `真实后端成功: 同步共享方案库｜数量 3`；
+- product mode 下模拟 `recommendation-read-n2n-config`，推荐页邀请包区域出现 `[真实后端摘要]`，包含 supernode 与 local_ip；
+- 关闭 product mode 并刷新后，`[真实后端摘要]` 消失，`data-lan-helper-action-hooked` 数量为 0，Sidebar 仍为 `position=fixed`。
+
+下一步推荐：继续把真实结果回填从“事件模拟验证”推进到“真实 Tauri 环境点击验证”：在 release 版里开启 product mode，实际点击扫描、同步、连通性测试，确认真实后端返回能稳定写回页面。

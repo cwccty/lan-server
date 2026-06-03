@@ -1,10 +1,11 @@
-﻿import React from 'react';
+﻿﻿import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './reference-ui/App';
 import './reference-runtime.css';
 import {
   ReferenceProductDiagnosticsPatcher,
   ReferenceProductActionPatcher,
+  ReferenceProductActionResultPatcher,
   ReferenceProductHeaderPatcher,
   ReferenceProductHomePatcher,
   ReferenceRuntimeDebugPanel,
@@ -20,6 +21,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
     <ReferenceProductHomePatcher />
     <ReferenceProductDiagnosticsPatcher />
     <ReferenceProductActionPatcher />
+    <ReferenceProductActionResultPatcher />
     <ReferenceRuntimeDebugPanel />
   </React.StrictMode>
 );

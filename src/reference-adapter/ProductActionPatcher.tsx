@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   generateReferenceDiagnostics,
   readReferenceN2nLastConfig,
@@ -122,8 +122,8 @@ function setBusy(button: HTMLButtonElement, busy: boolean, label?: string) {
   }
 }
 
-function dispatchProductNotice(result: ReferenceActionResult) {
-  window.dispatchEvent(new CustomEvent('lan-helper:reference-product-action', { detail: result }));
+function dispatchProductNotice(actionId: string, result: ReferenceActionResult) {
+  window.dispatchEvent(new CustomEvent('lan-helper:reference-product-action', { detail: { actionId, result, at: new Date().toISOString() } }));
 }
 
 function interceptButton(
@@ -142,7 +142,7 @@ function interceptButton(
     setBusy(button, true, '正在调用真实后端...');
     try {
       const result = await handler();
-      dispatchProductNotice(result);
+      dispatchProductNotice(actionId, result);
     } finally {
       setBusy(button, false);
     }
@@ -171,8 +171,10 @@ function useProductActionToast() {
 
   useEffect(() => {
     const handleAction = (event: Event) => {
-      const custom = event as CustomEvent<ReferenceActionResult>;
-      const result = custom.detail;
+      const custom = event as CustomEvent<{ result?: ReferenceActionResult } | ReferenceActionResult>;
+      const detail = custom.detail;
+      const result: ReferenceActionResult | undefined =
+        detail && 'ok' in detail ? detail : detail?.result;
       if (!result) return;
       setMessage(`${result.ok ? '真实后端完成' : '真实后端失败'}：${result.action}｜${result.message}`);
     };

@@ -1,4 +1,4 @@
-export type { ReferenceRuntimeSnapshot, ReferenceStatusSummary } from './types';
+﻿﻿export type { ReferenceRuntimeSnapshot, ReferenceStatusSummary } from './types';
 export { emptyReferenceRuntimeSnapshot } from './types';
 export { readReferenceRuntimeSnapshot } from './runtimeStore';
 export { snapshotForDebug, summarizeReferenceRuntime } from './mappers';
@@ -8,6 +8,7 @@ export { ReferenceProductHeaderPatcher } from './ProductHeaderPatcher';
 export { ReferenceProductHomePatcher } from './ProductHomePatcher';
 export { ReferenceProductDiagnosticsPatcher } from './ProductDiagnosticsPatcher';
 export { ReferenceProductActionPatcher } from './ProductActionPatcher';
+export { ReferenceProductActionResultPatcher } from './ProductActionResultPatcher';
 export { useReferenceRuntime } from './useReferenceRuntime';
 export { useReferenceProductMode } from './useReferenceProductMode';
 export { getReferenceProductMode, setReferenceProductMode, subscribeReferenceProductMode, REFERENCE_PRODUCT_MODE_EVENT, type ReferenceProductModeState } from './productMode';
