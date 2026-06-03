@@ -2652,3 +2652,13 @@
 - 验证通过：
 pm.cmd run build、cargo check --manifest-path src-tauri\Cargo.toml、
 pm.cmd run release:preflight。
+
+## 2026-06-04 04:39:47 Product Mode 真实库存/推荐数据面板
+- 新增 ReferenceProductInventoryPatcher，只在 Product Mode 生效，不修改最终参考前端 (3) 的源码结构。
+- 游戏扫描页新增真实后端扫描结果面板：读取 scanGames() 与 listGameAdapters()，展示真实游戏、方案匹配、能力标签、默认端口/摘要，并标注参考卡片仅为演示。
+- 方案库页新增真实本地共享方案面板：读取 listGameAdapters()，展示真实 adapter 的来源、端口、方案摘要。
+- 推荐方案页新增真实推荐与邀请摘要面板：读取 scanGames()、ecommendPlans(gameId)、getN2nLastConfig()、eadServerSession()，生成真实推荐列表和邀请摘要。
+- 普通浏览器预览没有 Tauri 后端时，面板会明确提示“未连接 Tauri 后端”，不再把失败静默显示成真实扫描为空。
+- 验证通过：
+pm.cmd run build、cargo check --manifest-path src-tauri\Cargo.toml、
+pm.cmd run release:preflight。

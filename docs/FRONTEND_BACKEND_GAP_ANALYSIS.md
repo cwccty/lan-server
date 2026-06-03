@@ -785,3 +785,21 @@ Terraria 向导
 
 - 参考 UI 的通用服务端页面本身仍由参考前端本地 state 控制，真实状态通过 Product Mode 面板和动作结果回填展示。后续若要彻底替换，需要把该页面抽象为受控组件或继续扩展 DOM patcher。
 - 通用服务端当前只支持单会话托管，不支持同时开多个不同游戏专用服。
+
+---
+
+## 2026-06-04 Product Mode 真实库存/推荐覆盖
+
+最终参考前端(3)的游戏扫描、方案库、推荐方案页面仍保留原设计中的演示卡片。为保持视觉一比一，不直接改 `src/reference-ui`，本轮通过 Product Mode patcher 增加真实后端数据面板：
+
+- 游戏扫描：`scanGames()` + `listGameAdapters()`。
+- 方案库：`listGameAdapters()`。
+- 推荐方案：`scanGames()` + `recommendPlans(gameId)` + `getN2nLastConfig()` + `readServerSession()`。
+
+普通浏览器预览无法连接 Tauri 后端时，面板会显示后端未连接提示；真实数据验证应在 `lan-helper.exe` 中进行。
+
+仍需继续完善：
+
+1. 将真实游戏选择状态贯通到推荐页，而不是默认取扫描结果第一项。
+2. 将“查看分析与推荐方案 / 创建局域网组网草稿 / 自建共享方案编辑器”进一步接入 `analyzeGame()` 和 `saveGameAdapter()`。
+3. 推荐页“立即启动本地游戏实体”仍需要接入 `launchProfile(gameId, profileId, config)`，当前还不是完整真实启动链路。
