@@ -2224,3 +2224,37 @@ npm run release:preflight:full
 - 所有替换都在 adapter wrapper 层完成，不污染 `src/reference-ui`。
 
 下一步推荐：停止继续扩大 DOM patch 范围，先用 release 版手动验证 product mode 下 Header、首页、诊断页三处状态替换。如果体验可接受，再正式决定是否进入“产品化 UI 状态接入”阶段；否则保持 reference mode 作为默认发布界面。
+
+## 2026-06-04 Reference/Product Mode 手动验证文档
+
+本轮停止继续扩大 DOM patch 范围，转入验证阶段。
+
+新增：
+
+- `docs/REFERENCE_PRODUCT_MODE_VALIDATION.md`
+
+文档内容：
+
+- release 版启动方式；
+- 默认 reference mode 验证项：
+  - Header 应保持 `就绪: 24ms` / `断开物理网`；
+  - 首页应保持 `桌面大厅`、`75%`、`虚拟服主在线`、`24ms`、`n2n.edge.me:7777` 等参考文案；
+  - 诊断页应保持 `14.85 Mbps`、`24.5 ms`、`1.22 ms`、`0.00 %`、`1400 bytes`、`N2N_D_CODE_301XT` 等参考文案。
+- 隐藏调试面板打开方式：`Ctrl + Shift + D`；
+- product mode 验证项：
+  - Header 状态应替换为真实状态；
+  - 首页拓扑和检查单应替换为真实 runtime 摘要；
+  - 诊断页右侧 N2N 卡和 JSON 区域应替换为真实 runtime debug JSON；
+- 关闭 product mode 后应恢复参考文案；
+- 失败记录模板。
+
+验证：
+
+- `powershell -ExecutionPolicy Bypass -File tools\check_reference_ui_fidelity.ps1` 通过，`visual_diff_count=0`；
+- `npm run build` 通过；
+- `cargo check --manifest-path src-tauri\Cargo.toml` 通过；
+- `npm run tauri:build` 通过；
+- `npm run release:preflight` 通过；
+- `git diff --check` 通过。
+
+下一步推荐：按 `docs/REFERENCE_PRODUCT_MODE_VALIDATION.md` 用 release 版做一次人工验证。只有 Header、首页、诊断页三处 product mode 替换体验确认可接受后，再进入正式产品化 UI 状态接入阶段。
