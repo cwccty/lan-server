@@ -1609,3 +1609,30 @@ npm run release:preflight:full
 ```
 
 预检用于发布前自动确认：关键文档、release exe、adapter registry、连续问号乱码、静默剪贴板调用、强承诺文案。它不替代人工验收，只是保证进入人工回放前没有明显项目级风险。
+
+## 2026-06-03 加入者邀请包导入入口
+
+本轮补齐加入者流程中的一个前后端连接缺口：好友收到房主复制的邀请包后，不应再手动拆字段填写 n2n 表单。
+
+改动：
+
+- `src/types/networkPreset.ts`
+  - `NetworkSetupPreset` 预留 roomName、secret、supernode、localIp、peerIp 字段，便于后续从推荐页、邀请包、深链或远程配置直接带入通用组网中心。
+- `src/pages/NetworkSetupPage.tsx`
+  - 新增“加入者：粘贴好友邀请包自动填入”区域；
+  - 支持解析“通用组网邀请”和“游戏邀请好友包”中的 community、密钥、supernode、你的虚拟 IP、房主虚拟 IP、游戏端口；
+  - 导入只填表，不自动启动 n2n，避免用户未确认前改变真实运行状态；
+  - 导入后提示用户确认虚拟 IP 不重复，再保存 n2n 配置并启动 edge。
+
+意义：
+
+- 加入者从“看到邀请说明后手动复制字段”变成“粘贴邀请包 → 自动填表 → 保存并启动”；
+- 这不是假连接，而是把前端导入流程连接到已有真实 `setupNetwork('n2n')` / `startNetwork('n2n')` 后端命令；
+- 为后续一键邀请包、深链、二维码、远程 adapter registry 的加入者路径预留了统一入口。
+
+验证：
+
+- `npm run build` 通过；
+- `npm run release:preflight` 通过。
+
+下一步推荐：补充发布回放中“加入者粘贴邀请包导入”的人工测试项，并重新完整打包 release exe。

@@ -41,6 +41,16 @@ type FlowStep = {
   state?: 'done' | 'active' | 'idle';
 };
 
+type ImportedInviteConfig = {
+  roomName?: string;
+  secret?: string;
+  supernode?: string;
+  localIp?: string;
+  peerIp?: string;
+  gamePort?: string;
+  gameName?: string;
+};
+
 function FlowSteps({ steps }: { steps: FlowStep[] }) {
   return (
     <div className="flow-steps" aria-label="页面操作步骤">
@@ -84,6 +94,44 @@ function writeNetworkSetupCache(cache: NetworkSetupCache) {
   } catch {
     // Ignore localStorage quota or compatibility failures.
   }
+}
+
+function fieldFromInvite(text: string, labels: string[]) {
+  for (const label of labels) {
+    const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const match = text.match(new RegExp(`^\\s*${escaped}\\s*[:：]\\s*(.+?)\\s*$`, 'im'));
+    const value = match?.[1]?.trim();
+    if (
+      value &&
+      !value.includes('待填写') &&
+      !value.includes('未填写') &&
+      !value.includes('先填写') &&
+      !value.includes('已隐藏')
+    ) {
+      return value;
+    }
+  }
+  return '';
+}
+
+function parseInviteConfig(text: string): ImportedInviteConfig {
+  const roomName = fieldFromInvite(text, ['community', 'n2n community', '房间名', 'room', 'room_name']);
+  const secret = fieldFromInvite(text, ['密钥', 'n2n 密钥', 'secret', 'password']);
+  const supernode = fieldFromInvite(text, ['supernode', 'n2n supernode', 'supernode 地址']);
+  const localIp = fieldFromInvite(text, ['你的虚拟 IP', '分配给你的虚拟 IP', '本机虚拟 IP']);
+  const peerIp = fieldFromInvite(text, ['房主虚拟 IP', '对方虚拟 IP', '房主 IP']);
+  const gamePort = fieldFromInvite(text, ['建议游戏端口', '默认端口', '游戏端口', '端口']);
+  const gameName = fieldFromInvite(text, ['游戏', '游戏名']);
+
+  return {
+    roomName,
+    secret,
+    supernode,
+    localIp,
+    peerIp,
+    gamePort: gamePort && /^\d+$/.test(gamePort) ? gamePort : undefined,
+    gameName
+  };
 }
 
 function ConnectivityReportView({ report }: { report: ConnectivityReport }) {
@@ -381,6 +429,8 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
   const [n2nDiagnostics, setN2nDiagnostics] = useState<N2nDiagnostics | null>(cachedNetworkSetup?.n2nDiagnostics ?? null);
   const [n2nAutoRefresh, setN2nAutoRefresh] = useState<{ reason: string; startedAt: number } | null>(null);
   const [presetNotice, setPresetNotice] = useState('');
+  const [inviteText, setInviteText] = useState('');
+  const [inviteImportMessage, setInviteImportMessage] = useState('');
   const [copyMessage, setCopyMessage] = useState('');
   const [actionMessage, setActionMessage] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
@@ -511,6 +561,11 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
 
   useEffect(() => {
     if (!preset) return;
+    if (preset.roomName) setRoomName(preset.roomName);
+    if (preset.secret) setSecret(preset.secret);
+    if (preset.supernode) setSupernode(preset.supernode);
+    if (preset.localIp) setLocalIp(preset.localIp);
+    if (preset.peerIp) setPeerIp(preset.peerIp);
     if (preset.defaultPort && Number.isInteger(preset.defaultPort) && preset.defaultPort > 0) {
       const nextPort = String(preset.defaultPort);
       setGamePort(nextPort);
@@ -522,6 +577,10 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
       [
         `已从推荐方案带入：${preset.displayName || preset.gameId || '未知游戏'}`,
         preset.defaultPort ? `默认端口 ${preset.defaultPort}` : '未声明默认端口',
+        preset.supernode ? '已带入 supernode' : '',
+        preset.roomName ? '已带入 community' : '',
+        preset.localIp ? `本机虚拟 IP ${preset.localIp}` : '',
+        preset.peerIp ? `对方虚拟 IP ${preset.peerIp}` : '',
         preset.capability ? `能力类型 ${preset.capability}` : '',
         preset.recommendedMethods?.length ? `推荐方式 ${preset.recommendedMethods.join(', ')}` : ''
       ].filter(Boolean).join('；')
@@ -556,6 +615,49 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
       await Promise.all([refreshBackends(), refreshPortProxy(), refreshUdpProxy(), refreshUdpBroadcastBridge()]);
       return true;
     });
+
+  const importInviteText = () => {
+    const parsed = parseInviteConfig(inviteText);
+    const changed: string[] = [];
+
+    if (parsed.roomName) {
+      setRoomName(parsed.roomName);
+      changed.push('community');
+    }
+    if (parsed.secret) {
+      setSecret(parsed.secret);
+      changed.push('密钥');
+    }
+    if (parsed.supernode) {
+      setSupernode(parsed.supernode);
+      changed.push('supernode');
+    }
+    if (parsed.localIp) {
+      setLocalIp(parsed.localIp);
+      changed.push('本机虚拟 IP');
+    }
+    if (parsed.peerIp) {
+      setPeerIp(parsed.peerIp);
+      changed.push('房主/对方虚拟 IP');
+    }
+    if (parsed.gamePort) {
+      setGamePort(parsed.gamePort);
+      setPorts(parsed.gamePort);
+      setProxyListenPort(parsed.gamePort);
+      setProxyTargetPort(parsed.gamePort);
+      setUdpProxyListenPort(parsed.gamePort);
+      setUdpProxyTargetPort(parsed.gamePort);
+      setUdpBridgeListenPort(parsed.gamePort);
+      changed.push('游戏端口');
+    }
+
+    if (changed.length === 0) {
+      setInviteImportMessage('没有识别到可导入字段。请粘贴“通用组网邀请”或“游戏邀请好友包”的完整文本。');
+      return;
+    }
+
+    setInviteImportMessage(`已导入：${changed.join('、')}。请检查每台电脑虚拟 IP 不能重复，然后点击“保存 n2n 配置”。`);
+  };
 
   const refreshPortProxyWithFeedback = () =>
     runAction('刷新 TCP 端口代理状态', async () => {
@@ -922,6 +1024,29 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
       <article className="card primary-config-card network-config-panel">
         <div className="section-kicker"><span>主要步骤</span><strong>n2n 内置组网</strong></div>
         <p className="muted">每台玩家电脑运行 edge；supernode 负责让这些 edge 找到彼此。双方必须填写相同的 community、密钥和 supernode，但本机虚拟 IP 必须不同。</p>
+        <section className="config-panel">
+          <h4>加入者：粘贴好友邀请包自动填入</h4>
+          <p className="muted">
+            如果你是加入者，可以把房主发来的“通用组网邀请”或“游戏邀请好友包”粘贴到这里。
+            客户端会自动提取 community、密钥、supernode、你的虚拟 IP、房主虚拟 IP 和游戏端口；不会自动启动 n2n，导入后仍需你确认并点击保存/启动。
+          </p>
+          <textarea
+            value={inviteText}
+            onChange={(event) => setInviteText(event.target.value)}
+            placeholder="粘贴房主发来的邀请文本，例如包含 n2n community、n2n supernode、分配给你的虚拟 IP、房主虚拟 IP……"
+            rows={7}
+            disabled={Boolean(busy)}
+          />
+          <div className="actions">
+            <button type="button" className="secondary" onClick={importInviteText} disabled={Boolean(busy) || !inviteText.trim()}>
+              从邀请包导入到下方表单
+            </button>
+            <button type="button" className="secondary" onClick={() => { setInviteText(''); setInviteImportMessage('已清空邀请包输入。'); }} disabled={Boolean(busy) || !inviteText}>
+              清空
+            </button>
+          </div>
+          {inviteImportMessage && <p className="muted">{inviteImportMessage}</p>}
+        </section>
         <label>房间名 / community<input value={roomName} onChange={(event) => setRoomName(event.target.value)} disabled={Boolean(busy)} /><small className="muted">相当于房间号。朋友必须填写完全相同的值。</small></label>
         <label>密钥<input value={secret} onChange={(event) => setSecret(event.target.value)} disabled={Boolean(busy)} /><small className="muted">相当于房间密码。朋友必须填写完全相同的值。</small></label>
         <label>supernode 地址<input value={supernode} onChange={(event) => setSupernode(event.target.value)} placeholder="host:port" disabled={Boolean(busy)} /><small className="muted">例如：你的 VPS IP:7777。没有 supernode 时，n2n 无法完成异地发现。</small></label>
