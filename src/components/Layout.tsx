@@ -94,7 +94,7 @@ export function Layout({
           <div className="top-command-actions">
             <span className="shell-status-pill"><span /> 待真实检测</span>
             <button type="button" className="secondary glass-button" onClick={() => navigateWithToast('diagnostics')}>打开诊断</button>
-            <button type="button" onClick={() => navigateWithToast('network')}>启动组网</button>
+            <button type="button" onClick={() => navigateWithToast('network')}>打开组网</button>
           </div>
         </div>
         {children}

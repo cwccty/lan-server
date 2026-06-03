@@ -292,7 +292,8 @@ function buildChecklist(
   const networkReady = Boolean(n2n?.ok_link && !n2n.auth_error && !n2n.ip_mac_conflict);
   const localPortReady = Boolean(localPortReport?.reachable);
   const launchOk = Boolean(launchResult?.ok);
-  const serverReady = Boolean(serverSession?.ready || serverSession?.running || localPortReady || launchOk);
+  const serverStarted = Boolean(serverSession?.running || launchOk);
+  const serverReady = Boolean(serverSession?.ready || localPortReady);
   const tcpProxyReady = Boolean(abilityStatus.tcpProxy?.running);
   const udpBroadcastBridgeReady = Boolean(abilityStatus.udpBroadcastBridge?.running);
   const requiresTcpProxy = Boolean(plan?.requires_tcp_port_proxy);
@@ -316,8 +317,8 @@ function buildChecklist(
     },
     {
       title: '3. 游戏启动 / 服务端',
-      status: serverReady ? '已有迹象' : hasServerProfile ? '待启动' : '游戏内创建',
-      kind: serverReady ? 'good' : hasServerProfile ? 'warn' : 'idle',
+      status: serverReady ? '端口已确认' : serverStarted ? '启动中' : hasServerProfile ? '待启动' : '游戏内创建',
+      kind: serverReady ? 'good' : serverStarted || hasServerProfile ? 'warn' : 'idle',
       detail: hasServerProfile
         ? serverSession?.message || launchResult?.message || plan?.host_role || '该游戏适配器声明了服务端启动项，请执行启动项或进入对应向导。'
         : plan?.host_role || '该游戏未声明独立服务端启动项，通常需要房主在游戏内创建房间或按说明操作。'

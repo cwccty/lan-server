@@ -1613,3 +1613,30 @@ C:\Users\ty\Downloads\联机助手 (1)
 - `npm run tauri:build` 通过。
 
 下一步推荐：继续第二轮真实状态审查，重点检查 `GameDetailPage`、`Layout` 顶部状态、推荐页和组网页中是否还有“待真实检测/可发布/可联机”等状态没有接真实后端，必要时改为真实诊断入口或中性文案。
+
+## 2026-06-03 真实状态审查第二轮修复
+
+本轮继续审查 Layout、GameDetail、Recommendation 等页面，修复弱反馈和可能误导用户的状态：
+
+- `src/pages/GameDetailPage.tsx`
+  - 新增真实加载遮罩，调用 `analyzeGame` 时显示“正在分析游戏”；
+  - 分析失败不再静默清空，而是显示“分析失败”错误；
+  - 详情页改为统一浅色内容 Hero / 内容面板；
+  - “继续配置网络”按钮只有拿到真实分析结果后才可点击。
+- `src/pages/RecommendationPage.tsx`
+  - 执行清单中“游戏启动 / 服务端”不再把 `serverSession.running` 直接当成绿色可用；
+  - 只有 `serverSession.ready` 或本机端口真实可连才显示“端口已确认”；
+  - `running` / `launchOk` 只显示为“启动中”警告态，避免假绿。
+- `src/components/Layout.tsx`
+  - 顶部按钮从“启动组网”改成“打开组网”，避免导航按钮暗示已经启动后端服务。
+- `src/styles/globals.css`
+  - 新增 GameDetail 页面浅色内容样式。
+
+验证：
+
+- `npm run build` 通过；
+- `cargo check --manifest-path src-tauri\\Cargo.toml` 通过；
+- `npm run tauri:build` 通过；
+- `git diff --check` 通过。
+
+下一步推荐：继续第三轮审查通用组网页和推荐页剩余状态，包括顶部 shell 状态是否需要接诊断缓存、组网页刷新失败提示、以及代理/广播桥停止按钮在未运行时的用户反馈。

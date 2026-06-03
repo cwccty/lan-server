@@ -812,3 +812,14 @@ cargo check --manifest-path src-tauri\Cargo.toml
 - 已重新打包 release exe。
 
 下一步推荐：继续审查 GameDetail、Layout、Recommendation、Network 页面状态文案和按钮反馈，逐个消除假状态和弱反馈。
+
+## 2026-06-03 第二轮真实状态审查进度
+
+完成：
+
+- GameDetail 页加载/错误/按钮可用性修复；
+- Recommendation 执行清单服务端状态降级，避免 running 假绿；
+- Layout 顶部“启动组网”改为“打开组网”；
+- 已重新打包 release exe。
+
+下一步推荐：继续第三轮审查 NetworkSetup 页，重点检查 n2n、TCP/UDP 代理、广播桥的停止/刷新/失败反馈是否都能准确反映真实后端状态。
