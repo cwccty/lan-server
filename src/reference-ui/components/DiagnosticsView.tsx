@@ -31,7 +31,7 @@ export default function DiagnosticsView({ onTriggerToast }: DiagnosticsViewProps
   const handleStartDiagnosis = () => {
     setIsDiagnosing(true);
     onTriggerToast('正在部署底层测试套件进行本地链路和驱动安全核验并刷新缓存，请稍候...');
-
+    
     // Simulate updating log steps
     setTimeout(() => {
       setTimeline((prev) => [
@@ -70,7 +70,7 @@ export default function DiagnosticsView({ onTriggerToast }: DiagnosticsViewProps
   const handleFixWarning = (id: string, name: string) => {
     setRepairingId(id);
     onTriggerToast(`正在重置并注入虚拟 TAP 地址，尝试修复 [${name}] 适配...`);
-
+    
     setTimeout(() => {
       setDiagnostics((prev) =>
         prev.map((item) =>
@@ -105,7 +105,7 @@ export default function DiagnosticsView({ onTriggerToast }: DiagnosticsViewProps
           </div>
           <p className="text-[11px] text-slate-400 font-mono mt-1">上次自愈分析缓存: <strong className="text-slate-600">{lastDiagnosisTime}</strong> ｜ (当前直接呈现本地内存缓存数据)</p>
         </div>
-
+        
         <div className="flex flex-wrap gap-2">
           <button
             onClick={handleStartDiagnosis}
@@ -115,7 +115,7 @@ export default function DiagnosticsView({ onTriggerToast }: DiagnosticsViewProps
             <RefreshCw className={`w-3.5 h-3.5 ${isDiagnosing ? 'animate-spin' : ''}`} />
             {isDiagnosing ? '正在深度重测试...' : '手动强制重扫 (刷新缓存)'}
           </button>
-
+          
           <button
             onClick={handleExportJson}
             className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-sans text-xs font-semibold px-4 py-2 rounded-lg flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
@@ -140,14 +140,14 @@ export default function DiagnosticsView({ onTriggerToast }: DiagnosticsViewProps
 
       {/* Grid structure details */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
+        
         {/* Left column elements lists */}
         <div className="lg:col-span-8 space-y-6">
-
+          
           {/* Main Item List */}
           <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
             <h3 className="font-heading text-sm font-bold text-slate-800 mb-5">诊断明细表</h3>
-
+            
             <div className="divide-y divide-slate-100">
               {diagnostics.map((item) => {
                 const isError = item.status === 'error';
@@ -162,7 +162,7 @@ export default function DiagnosticsView({ onTriggerToast }: DiagnosticsViewProps
                         {isWarning && <AlertTriangle className="w-5 h-5 text-amber-500" />}
                         {isError && <ShieldAlert className="w-5 h-5 text-rose-500" />}
                       </div>
-
+                      
                       <div>
                         <h4 className="font-heading text-sm font-bold text-slate-800">{item.name}</h4>
                         <p className="font-sans text-xs text-slate-500 mt-0.5">{item.detail}</p>
@@ -200,7 +200,7 @@ export default function DiagnosticsView({ onTriggerToast }: DiagnosticsViewProps
           {/* Interactive Timeline logs */}
           <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm font-sans">
             <h3 className="font-heading text-sm font-bold text-slate-800 mb-5">诊断执行事务流 (Timeline)</h3>
-
+            
             <div className="relative border-l border-slate-200 pl-6 ml-1.5 space-y-6">
               {timeline.map((evt, i) => (
                 <div key={i} className="relative">
@@ -212,7 +212,7 @@ export default function DiagnosticsView({ onTriggerToast }: DiagnosticsViewProps
                       ? 'border-red-500'
                       : 'border-amber-400'
                   }`} />
-
+                  
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-[10px] text-slate-400 font-semibold">{evt.time}</span>
@@ -266,7 +266,7 @@ export default function DiagnosticsView({ onTriggerToast }: DiagnosticsViewProps
 
         {/* Right column element: n2n Real-Time Diagnostic Card & JSON */}
         <div className="lg:col-span-4 flex flex-col gap-6">
-
+          
           {/* Feature 3: n2n Real-Time Diagnostic Card */}
           <div className="bg-slate-900 text-slate-100 rounded-2xl p-6 border border-slate-800 shadow-md font-sans space-y-4">
             <div className="border-b border-slate-800 pb-3 flex justify-between items-center">
@@ -316,7 +316,7 @@ export default function DiagnosticsView({ onTriggerToast }: DiagnosticsViewProps
             <div className="w-full">
               <h3 className="font-heading text-sm font-bold text-slate-800 mb-2">原始诊断报告清单 (JSON)</h3>
               <p className="font-sans text-xs text-slate-400 mb-4">异常事件触发对应的原始调试结构体代码，可打包提交系统运维校验。</p>
-
+              
               <div className="bg-slate-900 rounded-xl p-4 font-mono text-[11px] text-[#A6ACCD] leading-loose max-h-[300px] overflow-y-auto shadow-inner relative group select-all">
                 <button
                   onClick={handleExportJson}

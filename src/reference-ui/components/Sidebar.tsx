@@ -10,7 +10,8 @@ import {
   Settings,
   RefreshCw,
   User,
-  Sparkles
+  Sparkles,
+  Sliders
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -35,6 +36,7 @@ export default function Sidebar({ currentTab, onChangeTab, status, onShowVersion
     { id: 'games', label: '游戏扫描', icon: Target },
     { id: 'protocol', label: '推荐方案', icon: ShieldCheck },
     { id: 'network', label: '通用组网中心', icon: Globe },
+    { id: 'advanced_tools', label: '高级连接工具', icon: Sliders },
     { id: 'terraria', label: 'Terraria 向导', icon: Wand2, badge: 'New' },
     { id: 'diagnostics', label: '诊断报告', icon: Activity, alert: true },
     { id: 'settings', label: '设置与帮助', icon: Settings },

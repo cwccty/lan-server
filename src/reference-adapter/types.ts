@@ -1,7 +1,10 @@
 ﻿import type { DiagnosticReport } from '../types/diagnostics';
 import type { GameAdapter, GameSummary } from '../types/game';
 import type { BackendSummary, N2nDiagnostics, NetworkConfig } from '../types/network';
+import type { PortProxyStatus } from '../types/portProxy';
 import type { ServerSessionStatus } from '../types/serverSession';
+import type { UdpBroadcastBridgeStatus } from '../types/udpBroadcastBridge';
+import type { UdpProxyStatus } from '../types/udpProxy';
 
 export type ReferenceRuntimeSource = 'tauri' | 'unavailable';
 
@@ -14,6 +17,9 @@ export interface ReferenceRuntimeSnapshot {
   games: GameSummary[];
   adapters: GameAdapter[];
   server_session: ServerSessionStatus | null;
+  port_proxies: PortProxyStatus[];
+  udp_proxies: UdpProxyStatus[];
+  udp_broadcast_bridges: UdpBroadcastBridgeStatus[];
   diagnostic_report: DiagnosticReport | null;
   errors: string[];
 }
@@ -41,6 +47,9 @@ export const emptyReferenceRuntimeSnapshot = (errors: string[] = []): ReferenceR
   games: [],
   adapters: [],
   server_session: null,
+  port_proxies: [],
+  udp_proxies: [],
+  udp_broadcast_bridges: [],
   diagnostic_report: null,
   errors
 });

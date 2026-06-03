@@ -1,5 +1,5 @@
 ﻿param(
-  [string]$ReferenceSrc = "C:\Users\ty\Downloads\联机助手 (1)\src",
+  [string]$ReferenceSrc = "C:\Users\ty\Downloads\联机助手 (3)\src",
   [string]$CurrentSrc = "src\reference-ui"
 )
 
@@ -12,6 +12,7 @@ $files = @(
   'components\GameScanView.tsx',
   'components\SolutionsView.tsx',
   'components\UniversalNetworkView.tsx',
+  'components\AdvancedToolsView.tsx',
   'components\TerrariaGuideView.tsx',
   'components\DiagnosticsView.tsx',
   'components\Sidebar.tsx',

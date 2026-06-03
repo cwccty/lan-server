@@ -5,8 +5,12 @@ import {
   readReferenceTerrariaServer,
   saveReferenceN2nConfig,
   scanReferenceGames,
+  selfTestReferenceAdvancedProxy,
+  startReferenceAdvancedProxy,
+  startReferenceGenericServerPlaceholder,
   startReferenceN2n,
   startReferenceTerrariaServer,
+  stopReferenceAdvancedProxy,
   stopReferenceN2n,
   stopReferenceTerrariaServer,
   syncReferenceAdapterRegistry,
@@ -129,7 +133,7 @@ function dispatchProductNotice(actionId: string, result: ReferenceActionResult) 
 function interceptButton(
   button: HTMLButtonElement | null,
   actionId: string,
-  handler: () => Promise<ReferenceActionResult>
+  handler: (button: HTMLButtonElement) => Promise<ReferenceActionResult>
 ) {
   if (!button) return () => undefined;
   button.setAttribute(HOOK_ATTR, actionId);
@@ -141,7 +145,7 @@ function interceptButton(
 
     setBusy(button, true, '正在调用真实后端...');
     try {
-      const result = await handler();
+      const result = await handler(button);
       dispatchProductNotice(actionId, result);
     } finally {
       setBusy(button, false);
@@ -185,6 +189,34 @@ function useProductActionToast() {
   return message;
 }
 
+function readAdvancedProxyForm() {
+  const root = findPageRoot('高级连接工具');
+  const select = root?.querySelector('select') as HTMLSelectElement | null;
+  const type = (select?.value === 'udp' || select?.value === 'bridge' ? select.value : 'tcp') as 'tcp' | 'udp' | 'bridge';
+  const listenValue =
+    findInputByLabel('本地端监听')?.value ||
+    findInputByLabel('接收广播帧本地监听')?.value ||
+    '7777';
+  const targetHost = findInputByLabel('对端目的地 IPv4')?.value?.trim() || '10.0.8.2';
+  const targetPortValue = findInputByLabel('对端目标游戏映射端口')?.value || listenValue;
+  const listenPort = Number(listenValue);
+  const targetPort = Number(targetPortValue);
+  return {
+    type,
+    listen_port: Number.isFinite(listenPort) ? listenPort : 7777,
+    target_host: type === 'bridge' ? targetHost || '10.0.8.255' : targetHost,
+    target_port: Number.isFinite(targetPort) ? targetPort : undefined
+  };
+}
+
+function advancedProxyTypeFromButton(button: HTMLButtonElement): 'tcp' | 'udp' | 'bridge' {
+  const card = button.closest('div[class*="rounded-2xl"]');
+  const text = textOf(card ?? button);
+  if (text.includes('BroadcastBridge') || text.includes('广播') || text.includes('BRIDGE')) return 'bridge';
+  if (text.includes('UDP')) return 'udp';
+  return 'tcp';
+}
+
 function useAttachProductActions(enabled: boolean) {
   const cleanupRef = useRef<Array<() => void>>([]);
 
@@ -211,7 +243,12 @@ function useAttachProductActions(enabled: boolean) {
         interceptButton(firstButton('恢复默认', '方案库'), 'solutions-read-local-example', () => syncReferenceLocalAdapterRegistry()),
         interceptButton(firstButton('重新测试', '推荐方案'), 'recommendation-test-connectivity', () => testReferenceConnectivity({ host: readHostIpFromRecommendationPage(), ports: [readGamePortFromNetworkForm()], timeout_ms: 1200, mode: 'n2n_game_port' })),
         interceptButton(firstButton('复制主IP', '推荐方案'), 'recommendation-read-n2n-config', () => readReferenceN2nLastConfig()),
-        interceptButton(firstButton('一键拷制专属密信包', '推荐方案'), 'recommendation-generate-diagnostics', () => generateReferenceDiagnostics())
+        interceptButton(firstButton('一键拷制专属密信包', '推荐方案'), 'recommendation-generate-diagnostics', () => generateReferenceDiagnostics()),
+        interceptButton(firstButton('挂载并上线该高速链路', '高级连接工具'), 'advanced-start-proxy', () => startReferenceAdvancedProxy(readAdvancedProxyForm())),
+        interceptButton(firstButton('一键连通自测', '高级连接工具'), 'advanced-self-test-proxy', (button) => selfTestReferenceAdvancedProxy(advancedProxyTypeFromButton(button))),
+        interceptButton(firstButton('暂停代理', '高级连接工具'), 'advanced-stop-proxy', (button) => stopReferenceAdvancedProxy(advancedProxyTypeFromButton(button))),
+        interceptButton(firstButton('完全卸载链路', '高级连接工具'), 'advanced-delete-proxy', (button) => stopReferenceAdvancedProxy(advancedProxyTypeFromButton(button))),
+        interceptButton(firstButton('挂载并运行专属服务端', '高级连接工具'), 'advanced-start-generic-server-missing', () => startReferenceGenericServerPlaceholder())
       ].filter(Boolean) as Array<() => void>;
     };
 

@@ -92,10 +92,28 @@ function patchRecommendation(detail: ProductActionEventDetail) {
   rememberAndSet(pre, 'recommendation-invite-summary', `[真实后端摘要]\n动作: ${detail.result.action}\n状态: ${detail.result.ok ? '成功' : '失败'}\n时间: ${new Date(detail.at).toLocaleString()}\n\n${dataText}`);
 }
 
+function patchAdvancedTools(detail: ProductActionEventDetail) {
+  const root = findPageRoot('高级连接工具');
+  if (!root) return;
+
+  const statusLine = Array.from(root.querySelectorAll<HTMLElement>('h3, p, span, div')).find((node) =>
+    textOf(node).includes('当前运行中的高级代理实例') || node.getAttribute(PATCH_ATTR) === 'advanced-tools-summary'
+  );
+  rememberAndSet(statusLine, 'advanced-tools-summary', actionSummary(detail));
+
+  const consoleBox = Array.from(root.querySelectorAll<HTMLElement>('div')).find((node) =>
+    textOf(node).includes('[Server Launcher]') || textOf(node).includes('[Proxy]') || node.getAttribute(PATCH_ATTR) === 'advanced-tools-console-summary'
+  );
+  if (consoleBox && detail.actionId.includes('generic-server')) {
+    rememberAndSet(consoleBox, 'advanced-tools-console-summary', `[真实后端状态]\n${detail.result.ok ? '成功' : '未完成'}：${detail.result.message}`);
+  }
+}
+
 function patchByAction(detail: ProductActionEventDetail) {
   if (detail.actionId.startsWith('games-')) patchGameScan(detail);
   if (detail.actionId.startsWith('solutions-')) patchSolutions(detail);
   if (detail.actionId.startsWith('recommendation-')) patchRecommendation(detail);
+  if (detail.actionId.startsWith('advanced-')) patchAdvancedTools(detail);
 }
 
 export function ReferenceProductActionResultPatcher() {

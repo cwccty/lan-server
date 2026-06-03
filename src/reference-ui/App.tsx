@@ -7,6 +7,7 @@ import SolutionsView from './components/SolutionsView';
 import GameScanView from './components/GameScanView';
 import RecommendProtocolView from './components/RecommendProtocolView';
 import UniversalNetworkView from './components/UniversalNetworkView';
+import AdvancedToolsView from './components/AdvancedToolsView';
 import TerrariaGuideView from './components/TerrariaGuideView';
 import DiagnosticsView from './components/DiagnosticsView';
 import SettingsView from './components/SettingsView';
@@ -23,24 +24,24 @@ export default function App() {
     packetLoss: 0.0,
     localVirtualIp: '10.0.8.1',
     friendVirtualIp: '10.0.8.2',
-
+    
     roomName: 'Terraria_Night_Squad',
     roomKey: 'a8f9-2b4c-99e1',
     supernode: 'supernode.n2n.edge.me:7777',
     virtualIpInput: '10.0.8.1',
     gamePort: '7777',
-
+    
     tcpProxy: false,
     udpProxy: true,
     udpBroadcastBridge: true,
-
+    
     terrariaWorld: 'World_1 (大型 / 腐化 / 专家)',
     terrariaPort: 7777,
     terrariaPasswordInput: '',
     terrariaMaxPlayers: 8,
     terrariaRunning: false,
     terrariaLogs: [],
-
+    
     edgePath: 'C:/Program Files/N2N/edge.exe',
     supernode_default: 'backup.supernode.me:7778',
     solutions_url: 'https://api.lianjizhushou.com/solutions/shared/v2'
@@ -78,7 +79,7 @@ export default function App() {
     } else {
       updateStateValue('netStatus', 'connecting');
       handleTriggerToast('正在连接公共中继节点，正在拉起 TAP 仿真网卡组网进程...');
-
+      
       setTimeout(() => {
         setState((prev) => ({
           ...prev,
@@ -109,6 +110,7 @@ export default function App() {
             tab === 'games' ? '游戏扫描' :
             tab === 'protocol' ? '推荐方案' :
             tab === 'network' ? '通用组网中心' :
+            tab === 'advanced_tools' ? '高级连接工具' :
             tab === 'terraria' ? 'Terraria 向导' :
             tab === 'diagnostics' ? '诊断报告' : '设置与帮助'
           }`);
@@ -185,6 +187,10 @@ export default function App() {
                 udpBroadcastBridge={state.udpBroadcastBridge}
                 onUpdateState={updateStateValue}
               />
+            )}
+
+            {state.currentTab === 'advanced_tools' && (
+              <AdvancedToolsView onTriggerToast={handleTriggerToast} />
             )}
 
             {state.currentTab === 'terraria' && (

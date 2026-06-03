@@ -107,10 +107,10 @@ export default function TerrariaGuideView({
       onTriggerToast('泰拉服务器已在后台稳定运行。');
       return;
     }
-
+    
     onTriggerToast('正在调配独立虚拟空间并加载 TShock 泰拉内核...');
     onUpdateState('terrariaRunning', true);
-
+    
     // Clear and build live feed streaming logs
     const initialFeed = [
       '[Info]  2026-06-03 14:32:01 - Initializing Terraria Wizard...',
@@ -193,7 +193,7 @@ export default function TerrariaGuideView({
           </h2>
           <p className="font-sans text-sm text-slate-500 mt-1">一键配对泰拉瑞亚服务器与虚拟组网，打通大型Mod联机高墙。</p>
         </div>
-
+        
         {/* Role Selector */}
         <div className="bg-slate-100 p-1 rounded-lg border border-slate-200/60 flex items-center shadow-sm w-fit font-sans text-xs">
           <button
@@ -219,7 +219,7 @@ export default function TerrariaGuideView({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1">
           {/* Left Column: Form setup */}
           <div className="lg:col-span-8 flex flex-col gap-6">
-
+            
             {/* Base Server Config */}
             <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
               <div className="flex items-center gap-3 border-b border-slate-100 pb-4 mb-6">
@@ -228,7 +228,7 @@ export default function TerrariaGuideView({
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-
+                
                 {/* World map selection dropdown */}
                 <div className="flex flex-col gap-1">
                   <label className="font-sans text-xs text-slate-400 font-medium">选择要开启的世界地图</label>
@@ -325,11 +325,11 @@ export default function TerrariaGuideView({
 
           {/* Right Column: Actions controls & Status info */}
           <div className="lg:col-span-4 flex flex-col gap-6 font-sans">
-
+            
             {/* Control Panel */}
             <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm flex flex-col gap-4">
               <h3 className="font-heading text-slate-800 font-bold text-sm">开服控制台</h3>
-
+              
               <button
                 onClick={handleStartServer}
                 className="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white font-semibold text-xs rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2 cursor-pointer"
@@ -379,7 +379,7 @@ export default function TerrariaGuideView({
             <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm flex flex-col justify-between">
               <div>
                 <h3 className="font-heading text-sm font-bold text-slate-800 mb-4">并网链路状态</h3>
-
+                
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className={`h-2.5 w-2.5 rounded-full ${terrariaRunning ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
@@ -410,7 +410,7 @@ export default function TerrariaGuideView({
         <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm max-w-xl">
           <h3 className="font-heading text-slate-800 font-bold text-sm mb-2">一键加入好友的主机服务器</h3>
           <p className="font-sans text-xs text-slate-400 mb-6">您无需充当服主，直接在下方粘贴好友发送给您的“直连联机码”或“邀请密信”一键拼合世界！</p>
-
+          
           <div className="space-y-4 font-sans text-xs">
             <div className="flex flex-col gap-1.5">
               <label className="text-slate-400 pl-1">输入或粘贴联机码</label>
@@ -450,7 +450,7 @@ export default function TerrariaGuideView({
             </button>
           </div>
         </div>
-
+        
         <div className="p-4 h-48 overflow-y-auto font-mono text-[11px] leading-relaxed text-[#A9B1D6] scroll-smooth space-y-1">
           {logs.length === 0 ? (
             <p className="text-slate-500 text-center py-12">控制台为空。开启并网开服服务后将在此处实时透出世界渲染运行日志...</p>

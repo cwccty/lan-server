@@ -9,11 +9,13 @@ export type AppTab =
   | 'games'
   | 'protocol'
   | 'network'
+  | 'advanced_tools'
   | 'terraria'
   | 'diagnostics'
   | 'settings';
 
 export type NetworkStatus = 'idle' | 'testing' | 'ready' | 'connecting' | 'online' | 'warning';
+export type NetworkBackendType = 'n2n' | 'radmin' | 'manual_lan';
 
 export interface GameScan {
   id: string;

@@ -703,3 +703,56 @@ Terraria 向导
 ## 6. 最关键的缺口一句话总结
 
 当前参考前端已经有漂亮的基础页面，但缺少对“高级连接工具、适配器认定、通用服务端会话、结构化推荐方案、多网络后端选择”的完整承载。下一轮前端设计应以后端功能矩阵为准补空间，而不是继续只优化颜色和卡片。
+
+---
+
+## 2026-06-04 最终参考前端(3)对接审计
+
+参考来源：`C:\Users\ty\Downloads\联机助手 (3)\src`。
+
+### 已复刻并纳入保真检查
+
+- `src/reference-ui` 已同步最终参考前端(3)。
+- `tools/check_reference_ui_fidelity.ps1` 默认参考路径已改为 `(3)`。
+- 新增页面 `components/AdvancedToolsView.tsx` 已纳入一比一差异检查。
+- 由于最终参考前端自带 `main.tsx` 使用 `import App from './App.tsx'`，会触发当前 TypeScript 构建限制；该文件仅作为参考源码保留，不作为项目入口使用，因此已在 `tsconfig.json` 中排除 `src/reference-ui/main.tsx`，实际入口仍为 `src/main.tsx`。
+
+### 最终参考前端(3)新增/强化的能力入口
+
+- 新增侧边栏入口：`高级连接工具`。
+- 高级连接工具内包含：
+  - TCP 端口代理配置与实例列表；
+  - UDP 单播代理配置与实例列表；
+  - UDP 广播大厅桥配置与实例列表；
+  - 代理/广播桥一键自测；
+  - 通用游戏服务端启动器 UI。
+- 推荐方案、方案库、通用组网中心页面包含更多高级说明和入口。
+
+### 已接入真实后端的新增入口，Product Mode
+
+保持 reference mode 一比一不动；Product Mode 下新增拦截：
+
+| 页面 | 前端按钮 | 后端动作 |
+|---|---|---|
+| 高级连接工具 | 挂载并上线该高速链路 | 按选择调用 `start_port_proxy` / `start_udp_proxy` / `start_udp_broadcast_bridge` |
+| 高级连接工具 | 一键连通自测 | 按当前卡片类型调用 `self_test_port_proxy` / `self_test_udp_proxy` / `self_test_udp_broadcast_bridge` |
+| 高级连接工具 | 暂停代理 | 按当前卡片类型停止一个正在运行的真实代理/广播桥 |
+| 高级连接工具 | 完全卸载链路 | 当前等价于停止对应真实代理/广播桥，后续可扩展为持久规则删除 |
+
+### 仍存在的前后端缺口
+
+1. **通用游戏服务端启动器缺后端命令**
+   - 参考前端提供“任意 Jar/Exe 可执行路径 + 端口 + 控制台”的 UI。
+   - 当前后端只有基于 `game_id + profile_id + adapter` 的 `start_game_server_session`，没有“按任意物理路径启动通用服务端”的安全命令。
+   - Product Mode 下已拦截“挂载并运行专属服务端”，返回真实失败说明，而不是伪造启动成功。
+   - 后续如要完成该功能，需要新增后端命令，例如：`start_generic_server_session(config)`、`read_generic_server_session()`、`stop_generic_server_session()`，并定义路径白名单/参数模板/工作目录/日志编码/进程清理策略。
+
+2. **高级连接工具真实实例列表尚未完全替换参考假实例**
+   - 后端已能 `list_port_proxies`、`list_udp_proxies`、`list_udp_broadcast_bridges`。
+   - 当前 Product Mode 已把三类列表纳入 runtime snapshot，并能把动作结果回填到页面摘要。
+   - 但参考 UI 的实例卡片仍来自参考前端本地 state。后续应在 Product Mode 下进一步用真实列表覆盖卡片内容，避免用户把参考示例实例当成真实运行实例。
+
+3. **高级连接工具停止/删除当前只能按类型停止一个真实实例**
+   - 参考卡片内没有绑定真实后端 ID。
+   - 当前 Product Mode 依据卡片类型 TCP/UDP/Bridge 停止一个正在运行的真实实例。
+   - 后续要做到精确停止，需要把真实 ID 渲染/绑定到 DOM 或改造参考适配层的数据注入。

@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState } from 'react';
 import {
   Settings,
   HelpCircle,
@@ -6,11 +6,12 @@ import {
   Square,
   RefreshCw,
   Cpu,
-  Info,
   Save,
-  Lock,
   Eye,
-  EyeOff
+  EyeOff,
+  Zap,
+  ArrowRight,
+  Layers
 } from 'lucide-react';
 
 interface UniversalNetworkViewProps {
@@ -40,73 +41,8 @@ export default function UniversalNetworkView({
 }: UniversalNetworkViewProps) {
   const [isRunning, setIsRunning] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
-
-  // Feature 4: TCP proxy config rules list
-  const [tcpRules, setTcpRules] = useState<Array<{id: string, listen: string, targetIp: string, targetPort: string}>>([
-    { id: 'tcp_default', listen: '7777', targetIp: '10.0.8.2', targetPort: '7777' }
-  ]);
-  const [tcpInput, setTcpInput] = useState({ listen: '', targetIp: '10.0.8.10', targetPort: '' });
-
-  // Feature 5: UDP proxy config rules list
-  const [udpRules, setUdpRules] = useState<Array<{id: string, listen: string, targetIp: string, targetPort: string}>>([
-    { id: 'udp_default', listen: '27015', targetIp: '10.0.8.3', targetPort: '27015' }
-  ]);
-  const [udpInput, setUdpInput] = useState({ listen: '', targetIp: '10.0.8.10', targetPort: '' });
-
-  // Feature 6: UDP broadcast bridge custom inputs
-  const [broadcastConfig, setBroadcastConfig] = useState({
-    targetRange: '10.0.8.255',
-    adapter: 'TAP-Windows Virtual Device V9 (10.0.8.1)',
-    rateLimit: '350'
-  });
-
-  const handleAddTcpRule = (e: FormEvent) => {
-    e.preventDefault();
-    if (!tcpInput.listen || !tcpInput.targetIp || !tcpInput.targetPort) {
-      onTriggerToast('请完整输入 TCP 监听端口、目标IP及转发端口！');
-      return;
-    }
-    const newRule = {
-      id: `tcp_${Date.now()}`,
-      listen: tcpInput.listen,
-      targetIp: tcpInput.targetIp,
-      targetPort: tcpInput.targetPort
-    };
-    setTcpRules([...tcpRules, newRule]);
-    onTriggerToast(`成功注入 TCP 转发链路：[${tcpInput.listen} -> ${tcpInput.targetIp}:${tcpInput.targetPort}]`);
-    setTcpInput({ listen: '', targetIp: '10.0.8.10', targetPort: '' });
-  };
-
-  const handleDeleteTcpRule = (id: string, listen: string) => {
-    setTcpRules(tcpRules.filter(r => r.id !== id));
-    onTriggerToast(`已卸载 TCP 映射端口：${listen}`);
-  };
-
-  const handleAddUdpRule = (e: FormEvent) => {
-    e.preventDefault();
-    if (!udpInput.listen || !udpInput.targetIp || !udpInput.targetPort) {
-      onTriggerToast('请完整输入 UDP 监听端口、目标IP及转发端口！');
-      return;
-    }
-    const newRule = {
-      id: `udp_${Date.now()}`,
-      listen: udpInput.listen,
-      targetIp: udpInput.targetIp,
-      targetPort: udpInput.targetPort
-    };
-    setUdpRules([...udpRules, newRule]);
-    onTriggerToast(`成功配置 UDP 极速转发链路：[${udpInput.listen} -> ${udpInput.targetIp}:${udpInput.targetPort}]`);
-    setUdpInput({ listen: '', targetIp: '10.0.8.10', targetPort: '' });
-  };
-
-  const handleDeleteUdpRule = (id: string, listen: string) => {
-    setUdpRules(udpRules.filter(r => r.id !== id));
-    onTriggerToast(`已停止 UDP 分发端口绑定：${listen}`);
-  };
-
-  const handleApplyBroadcastConfig = () => {
-    onTriggerToast(`UDP 广播网桥路由策略重写成功！对齐网段: ${broadcastConfig.targetRange} ｜ 帧速率上限: ${broadcastConfig.rateLimit} pkts/sec`);
-  };
+  const [selectedBackend, setSelectedBackend] = useState<'n2n' | 'radmin' | 'manual_lan'>('n2n');
+  const [activeN2nErrorCode, setActiveN2nErrorCode] = useState<string | null>(null);
 
   const handleStartEdge = () => {
     if (isRunning) {
@@ -142,10 +78,10 @@ export default function UniversalNetworkView({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
+        
         {/* Left Column: Status panel & Actions */}
         <div className="lg:col-span-4 flex flex-col gap-6">
-
+          
           {/* Status Panel Card */}
           <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center h-[200px] relative overflow-hidden">
             <div className="absolute top-4 right-4 flex items-center gap-2">
@@ -170,14 +106,14 @@ export default function UniversalNetworkView({
             <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-600 mb-4 shadow-sm">
               <Cpu className={`w-6 h-6 ${isRunning ? 'animate-pulse' : ''}`} />
             </div>
-
+            
             <h3 className="font-heading text-base font-bold text-slate-800">
               {isRunning ? 'n2n Edge 并网核心运行中' : 'n2n Edge 处于离线状态'}
             </h3>
-
+            
             {isRunning && (
               <p className="font-sans text-xs text-slate-400 mt-2 flex items-center gap-1 font-mono">
-                数据吞吐正常 |
+                数据吞吐正常 | 
                 <span className="text-slate-600 font-bold ml-1">延迟: 24ms</span>
               </p>
             )}
@@ -192,7 +128,7 @@ export default function UniversalNetworkView({
               <Play className="w-3.5 h-3.5 fill-current" />
               Start n2n Edge
             </button>
-
+            
             <button
               onClick={handleStopEdge}
               className="w-full py-3 rounded-lg bg-slate-100/80 hover:bg-slate-200/80 text-slate-700 font-sans text-xs font-semibold transition-colors flex justify-center items-center gap-2 border border-slate-200/60 cursor-pointer"
@@ -200,9 +136,9 @@ export default function UniversalNetworkView({
               <Square className="w-3.5 h-3.5 fill-current" />
               Stop n2n Edge
             </button>
-
+            
             <div className="h-px bg-slate-100 my-1" />
-
+            
             <button
               onClick={() => {
                 onTriggerToast('正在实时探测超级中继节点延迟评测列表...');
@@ -218,87 +154,289 @@ export default function UniversalNetworkView({
 
         {/* Right Column: Configuration Forms */}
         <div className="lg:col-span-8 flex flex-col gap-6">
+          
+          {/* Basic Form config (Item 3.5 & Item 3.6 integrated) */}
+          <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm space-y-5">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 pb-3 gap-3">
+              <h3 className="font-heading text-sm font-bold text-slate-800 flex items-center gap-2">
+                <Settings className="w-4 h-4 text-amber-500" />
+                虚拟网并网底层核心技术架构 & 接口设定
+              </h3>
 
-          {/* Basic Form config */}
-          <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-            <h3 className="font-heading text-sm font-bold text-slate-800 border-b border-slate-100 pb-3 mb-5 flex items-center gap-2">
-              <Settings className="w-4 h-4 text-amber-500" />
-              基准参数配置
-            </h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-              {/* Field 1 */}
-              <div className="flex flex-col gap-1">
-                <label className="font-sans text-xs text-slate-400 font-medium pl-1">Room Name (社区大厅名)</label>
-                <input
-                  type="text"
-                  value={roomName}
-                  onChange={(e) => onUpdateState('roomName', e.target.value)}
-                  className="bg-slate-50/50 border border-slate-200 focus:border-amber-500 focus:bg-white focus:ring-1 focus:ring-amber-500/10 rounded-lg px-4 py-2.5 font-sans text-xs text-slate-700 outline-none transition-all"
-                  placeholder="请输入共同约定的房间名称"
-                />
-              </div>
-
-              {/* Field 2 */}
-              <div className="flex flex-col gap-1">
-                <label className="font-sans text-xs text-slate-400 font-medium pl-1">Key (通信共享密码)</label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={roomKey}
-                    onChange={(e) => onUpdateState('roomKey', e.target.value)}
-                    className="w-full bg-slate-50/50 border border-slate-200 focus:border-amber-500 focus:bg-white focus:ring-1 focus:ring-amber-500/10 rounded-lg pl-4 pr-10 py-2.5 font-sans text-xs text-slate-700 outline-none transition-all"
-                    placeholder="通信群组密码"
-                  />
-                  <button
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Field 3 */}
-              <div className="flex flex-col gap-1 md:col-span-2">
-                <label className="font-sans text-xs text-slate-400 font-medium pl-1">Supernode (超级节点公网地址)</label>
-                <input
-                  type="text"
-                  value={supernode}
-                  onChange={(e) => onUpdateState('supernode', e.target.value)}
-                  className="bg-slate-50/50 border border-slate-200 focus:border-amber-500 focus:bg-white focus:ring-1 focus:ring-amber-500/10 rounded-lg px-4 py-2.5 font-sans text-xs text-slate-700 outline-none transition-all"
-                  placeholder="supernode.n2n.edge.me:7777"
-                />
-              </div>
-
-              {/* Field 4 */}
-              <div className="flex flex-col gap-1">
-                <label className="font-sans text-xs text-slate-400 font-medium pl-1">Virtual IP (期望分配的IP) - 选填</label>
-                <input
-                  type="text"
-                  value={virtualIpInput}
-                  onChange={(e) => onUpdateState('virtualIpInput', e.target.value)}
-                  className="bg-slate-50/50 border border-slate-200 focus:border-amber-500 focus:bg-white focus:ring-1 focus:ring-amber-500/10 rounded-lg px-4 py-2.5 font-sans text-xs text-slate-700 outline-none transition-all font-mono"
-                  placeholder="留空即由中继DHCP自动协商"
-                />
-              </div>
-
-              {/* Field 5 */}
-              <div className="flex flex-col gap-1">
-                <label className="font-sans text-xs text-slate-400 font-medium pl-1">Game Port (本地游戏运行端口)</label>
-                <input
-                  type="text"
-                  value={gamePort}
-                  onChange={(e) => onUpdateState('gamePort', e.target.value)}
-                  className="bg-slate-50/50 border border-slate-200 focus:border-amber-500 focus:bg-white focus:ring-1 focus:ring-amber-500/10 rounded-lg px-4 py-2.5 font-sans text-xs text-slate-700 outline-none transition-all font-mono"
-                  placeholder="如: 7777"
-                />
-              </div>
-
+              {/* Selector of connection tech block (Item 3.5) */}
+              <select
+                value={selectedBackend}
+                onChange={(e) => {
+                  const val = e.target.value as any;
+                  setSelectedBackend(val);
+                  onTriggerToast(`底层技术内核切换成功：使用 ${
+                    val === 'n2n' ? 'n2n Edge (高速对等P2P中继)' :
+                    val === 'radmin' ? 'Radmin VPN (大型中继专网)' : '手动局域网/局域网IP直接访问'
+                  } 模式配合联机。`);
+                }}
+                className="bg-slate-50 border border-slate-200 text-xs text-slate-800 font-sans font-bold px-3 py-1.5 rounded-lg outline-none cursor-pointer"
+              >
+                <option value="n2n">n2n Edge v3.0 (首选极速打孔对等网)</option>
+                <option value="radmin">Radmin VPN (传统 Windows 主机中继网)</option>
+                <option value="manual_lan">手动直连 / 同房/宿区局域网物理网直接访问</option>
+              </select>
             </div>
 
-            <div className="mt-6 flex justify-end">
+            {/* Conditionally render forms based on selected network backend */}
+            {selectedBackend === 'n2n' && (
+              <div className="space-y-4 animate-fade-in text-xs font-sans">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="flex flex-col gap-1">
+                    <label className="font-sans text-[10.5px] text-slate-400 font-bold pl-1">Room Name (n2n 专属大厅社区名)</label>
+                    <input
+                      type="text"
+                      value={roomName}
+                      onChange={(e) => onUpdateState('roomName', e.target.value)}
+                      className="bg-slate-50 border border-slate-200 focus:border-amber-500 focus:bg-white rounded-lg px-4 py-2.5 text-xs text-slate-700 outline-none transition-all"
+                      placeholder="共同约定的社区名称"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="font-sans text-[10.5px] text-slate-400 font-bold pl-1">Key (大厅并网通信共享密码)</label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={roomKey}
+                        onChange={(e) => onUpdateState('roomKey', e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 focus:border-amber-500 focus:bg-white rounded-lg pl-4 pr-10 py-2.5 text-xs text-slate-700 outline-none transition-all"
+                        placeholder="通信授权密码"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-750 cursor-pointer"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1 md:col-span-2">
+                    <label className="font-sans text-[10.5px] text-slate-400 font-bold pl-1">Supernode Server (超级节点握手服务器地址)</label>
+                    <input
+                      type="text"
+                      value={supernode}
+                      onChange={(e) => onUpdateState('supernode', e.target.value)}
+                      className="bg-slate-50 border border-slate-200 focus:border-amber-500 focus:bg-white rounded-lg px-4 py-2.5 font-mono text-xs text-slate-700 outline-none transition-all"
+                      placeholder="例如: supernode.n2n.edge.me:7777"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="font-sans text-[10.5px] text-slate-400 font-bold pl-1">Virtual IPv4 Expectation (期望分配的对口IP) - 选填</label>
+                    <input
+                      type="text"
+                      value={virtualIpInput}
+                      onChange={(e) => onUpdateState('virtualIpInput', e.target.value)}
+                      className="bg-slate-50 border border-slate-200 focus:border-amber-500 focus:bg-white rounded-lg px-4 py-2.5 font-mono text-xs text-slate-700 outline-none transition-all"
+                      placeholder="未输入时自动进行 DHCP 协商获取"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="font-sans text-[10.5px] text-slate-400 font-bold pl-1">Base Game Port (拟代理游戏本机启动端口)</label>
+                    <input
+                      type="text"
+                      value={gamePort}
+                      onChange={(e) => onUpdateState('gamePort', e.target.value)}
+                      className="bg-slate-50 border border-slate-200 focus:border-amber-500 focus:bg-white rounded-lg px-4 py-2.5 font-mono text-xs text-slate-700 outline-none transition-all"
+                      placeholder="如 7777"
+                    />
+                  </div>
+                </div>
+
+                {/* N2N Interactive error codes dashboard (Item 3.6 - Core n2n failures categories) */}
+                <div className="p-4 bg-slate-50 border border-slate-150 rounded-xl space-y-3.5 mt-2">
+                  <div className="flex justify-between items-center">
+                    <h4 className="font-bold text-slate-700 flex items-center gap-1">
+                      <Cpu className="w-4 h-4 text-amber-500" />
+                      n2n 失败分类与异常秒修复诊台 (n2n Diagnostic Lookup)
+                    </h4>
+                    <span className="text-[10px] text-slate-400 font-bold">请点击对应异常代码：</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-[10px] font-bold">
+                    <button
+                      type="button"
+                      onClick={() => setActiveN2nErrorCode('tap_driver')}
+                      className={`py-1.5 px-1 rounded-lg border transition-all cursor-pointer ${activeN2nErrorCode === 'tap_driver' ? 'border-red-400 bg-red-50 text-red-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'}`}
+                    >
+                      -d (TAP网卡错误)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveN2nErrorCode('key_mismatch')}
+                      className={`py-1.5 px-1 rounded-lg border transition-all cursor-pointer ${activeN2nErrorCode === 'key_mismatch' ? 'border-red-400 bg-red-50 text-red-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'}`}
+                    >
+                      -k (共享密钥冲突)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveN2nErrorCode('room_invalid')}
+                      className={`py-1.5 px-1 rounded-lg border transition-all cursor-pointer ${activeN2nErrorCode === 'room_invalid' ? 'border-red-400 bg-red-50 text-red-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'}`}
+                    >
+                      -c (房间大厅名不合规)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveN2nErrorCode('supernode_offline')}
+                      className={`py-1.5 px-1 rounded-lg border transition-all cursor-pointer ${activeN2nErrorCode === 'supernode_offline' ? 'border-red-400 bg-red-50 text-red-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'}`}
+                    >
+                      -l (中继宿主未响应)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveN2nErrorCode('dhcp_failed')}
+                      className={`py-1.5 px-1 rounded-lg border transition-all cursor-pointer ${activeN2nErrorCode === 'dhcp_failed' ? 'border-red-400 bg-red-50 text-red-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'}`}
+                    >
+                      -a (IP被锁占用)
+                    </button>
+                  </div>
+
+                  {activeN2nErrorCode && (
+                    <div className="bg-white border border-slate-150 p-3 rounded-lg text-[11px] text-slate-600 leading-relaxed font-sans relative animate-fade-in">
+                      <button
+                        type="button"
+                        onClick={() => setActiveN2nErrorCode(null)}
+                        className="absolute top-1 right-2 hover:text-slate-900 font-bold text-slate-400 text-xs"
+                      >
+                        ×
+                      </button>
+                      {activeN2nErrorCode === 'tap_driver' && (
+                        <div>
+                          <strong className="text-red-700 font-bold">[诊断报错] TAP-Windows Virtual Device setup failed / cannot find NIC interfaces</strong>
+                          <p className="text-slate-500 mt-1">
+                            <span className="font-bold text-slate-700">根源原因：</span> 本机缺少虚拟局域网 TAP 网卡驱动程序，或者现存旧适配器被其他加速软件强行锁定。
+                          </p>
+                          <p className="text-slate-500">
+                            <span className="font-bold text-amber-600">极速修复法：</span> 重新运行本软件的 <strong>-d 安装驱动极速一键通</strong>，或者在设备管理器中卸载并重装 TAP 核心适配器，确保本地网络连接中有名为 『LianJi』的虚拟仿真网卡。
+                          </p>
+                        </div>
+                      )}
+                      {activeN2nErrorCode === 'key_mismatch' && (
+                        <div>
+                          <strong className="text-red-700 font-bold">[诊断报错] Cipher verification failed / packet frame decryption mismatch</strong>
+                          <p className="text-slate-500 mt-1">
+                            <span className="font-bold text-slate-700">根源原因：</span> 您与好友输入的「大厅并网通信共享密码 (Key)」不一致，导致 N2N Edge 二层隧道在解密报包时因散列校验不符合而主动丢包断网。
+                          </p>
+                          <p className="text-slate-500">
+                            <span className="font-bold text-amber-600">极速修复法：</span> 复制房主统一生成的特邀密码哈希，覆盖您本地设定中 Key 栏，确保全员大小写、减号完全对齐。
+                          </p>
+                        </div>
+                      )}
+                      {activeN2nErrorCode === 'room_invalid' && (
+                        <div>
+                          <strong className="text-red-700 font-bold">[诊断报错] Supernode reject: group name exceeds 16-byte limit / invalid characters detected</strong>
+                          <p className="text-slate-500 mt-1">
+                            <span className="font-bold text-slate-700">根源原因：</span> N2N 的社区账户房间参数最大仅允许 16 字节（且不可存储中文字符）。
+                          </p>
+                          <p className="text-slate-500">
+                            <span className="font-bold text-amber-600">极速修复法：</span> 请将「Room Name」缩短到 4-12 位纯英文数字，不可带特殊标点或中文全角。
+                          </p>
+                        </div>
+                      )}
+                      {activeN2nErrorCode === 'supernode_offline' && (
+                        <div>
+                          <strong className="text-red-700 font-bold">[诊断报错] Resolve host timeout / cannot handshake on supernode port UDP</strong>
+                          <p className="text-slate-500 mt-1">
+                            <span className="font-bold text-slate-700">根源原因：</span> 底层中继节点超级握手站故障，或者被本机第三方防毒安全大管家阻断了对应的 UDP 出站端口。
+                          </p>
+                          <p className="text-slate-500">
+                            <span className="font-bold text-amber-600">极速修复法：</span> 请退回「设置」面板，将超级中继节点地址换为备份端，例如 <code>backup.supernode.me:7778</code>，或者切入防火墙单列程序许可白放行。
+                          </p>
+                        </div>
+                      )}
+                      {activeN2nErrorCode === 'dhcp_failed' && (
+                        <div>
+                          <strong className="text-red-700 font-bold">[诊断报错] Subnet IP pool exhausted / requested virtual IPv4 exists with other nodes</strong>
+                          <p className="text-slate-500 mt-1">
+                            <span className="font-bold text-slate-700">根源原因：</span> 您手动分配的期望分配 IP（例如 <code>10.0.8.2</code>）目前正被该大厅中的其他玩家好友占用。
+                          </p>
+                          <p className="text-slate-500">
+                            <span className="font-bold text-amber-600">极速修复法：</span> 请在「期望分配的 IP (Virtual IP)」框中留空。下一次连接时，系统会完美启用 DHCP 专属机制自动挑选无损的空闲 IP 分流绑定。
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {selectedBackend === 'radmin' && (
+              <div className="space-y-4 animate-fade-in text-xs font-sans">
+                <div className="p-4 bg-slate-50 border border-slate-150 rounded-xl">
+                  <span className="font-bold text-indigo-700 block mb-1">💡 传统 Radmin VPN 大厅并嵌说明：</span>
+                  <p className="text-slate-500 leading-relaxed text-[11px]">
+                    Radmin VPN 组网依赖于 Windows 特有服务控制栈。切换到此模式，联机助手前端将完美与您电脑上已运行的 Radmin VPN 后台服务代理钩子建立 API 对开。所有的 IP 会自动落入经典的 <strong>26.x.x.x 网域段</strong>（Radmin 的宿主物理绑定网卡段）。
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="flex flex-col gap-1">
+                    <label className="font-sans text-[10.5px] text-slate-400 font-bold pl-1">Radmin 网域虚拟大厅 ID (UUID / 房间名)</label>
+                    <input
+                      type="text"
+                      className="bg-slate-50 border border-slate-200 focus:border-amber-500 focus:bg-white rounded-lg px-4 py-2.5 text-xs text-slate-700 outline-none transition-all font-mono"
+                      defaultValue="c8e03b9f-8a21-4f99-9ea2-2b498f3cbb42"
+                      placeholder="e.g. xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="font-sans text-[10.5px] text-slate-400 font-bold pl-1">Radmin 房间进入通行密码</label>
+                    <input
+                      type="password"
+                      className="bg-slate-50 border border-slate-200 focus:border-amber-500 focus:bg-white rounded-lg px-4 py-2.5 text-xs text-slate-700 outline-none transition-all"
+                      defaultValue="123456"
+                      placeholder="请输入房间密码"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {selectedBackend === 'manual_lan' && (
+              <div className="space-y-4 animate-fade-in text-xs font-sans">
+                <div className="p-4 bg-amber-500/5 border border-amber-300/20 rounded-xl">
+                  <strong className="text-amber-800 block mb-1">🛡️ 手动物理局域网网关免代理极速开联说明：</strong>
+                  <p className="text-slate-600 leading-relaxed text-[11px]">
+                    当您与好友身处同一个<strong>真实局域网段下</strong>（如同一路由器、校园网宿舍同一路由器、或网吧处于相同交换机同子网 <code>192.168.1.x</code>）时，<strong>彻底无须任何 Edge / Radmin / 中继代理转发服务</strong>。
+                    由于减少了虚拟 TAP 网卡的数据复制开销，联机延迟将达到可怕的 0.1ms ~ 1ms 本地传输极限！
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="flex flex-col gap-1">
+                    <label className="font-sans text-[10.5px] text-slate-400 pr-1 pl-1">本机网卡真实局域网 IPv4 地址 (检测分配)</label>
+                    <input
+                      type="text"
+                      readOnly
+                      defaultValue="192.168.1.135"
+                      className="bg-slate-100 border border-slate-200 rounded-lg px-4 py-2.5 font-mono text-xs text-slate-500 outline-none"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="font-sans text-[10.5px] text-slate-400 pr-1 pl-1">指定局域网网卡接口直连绑定</label>
+                    <select
+                      className="bg-slate-50 border border-slate-200 text-xs text-slate-800 font-sans px-3 py-2.5 rounded-lg outline-none cursor-pointer"
+                    >
+                      <option>WiFi 无线模块：Intel Wi-Fi 6E AX211</option>
+                      <option>有限网络主控：Realtek PCIe 2.5GbE Family Controller</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-4 flex justify-end">
               <button
                 onClick={handleSaveConfig}
                 className="px-5 py-2.5 rounded-lg bg-amber-500 text-amber-950 font-sans text-xs font-bold hover:bg-amber-450 transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer"
@@ -309,275 +447,61 @@ export default function UniversalNetworkView({
             </div>
           </div>
 
-          {/* Advanced Configurations */}
-          <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm space-y-6">
-            <h3 className="font-heading text-sm font-bold text-slate-800 border-b border-slate-100 pb-3 mb-2 flex items-center gap-2">
-              <Lock className="w-4 h-4 text-amber-500 animate-pulse" />
-              高级网络路由与代理选项
-            </h3>
+          {/* 高级连接增强 */}
+          <div className="bg-gradient-to-br from-slate-50 to-amber-50/20 rounded-2xl p-6 border border-slate-200/80 shadow-sm relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl pointer-events-none" />
+            <div className="flex items-center gap-2 pb-3 border-b border-slate-100 mb-4">
+              <Zap className="w-5 h-5 text-amber-500 animate-pulse" />
+              <h4 className="font-heading text-sm font-bold text-slate-800">高级连接自愈与端口映射增强 (联机兼容修复)</h4>
+            </div>
 
-            <div className="space-y-6">
-
-              {/* Feature 4: TCP 端口代理完整配置 */}
-              <div className="p-4 bg-slate-50/50 rounded-xl border border-slate-200/60 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-sans text-xs font-bold text-slate-800">TCP 端口代理 (TCP Proxy Forwarding)</h4>
-                    <p className="font-sans text-[10px] text-slate-400 mt-0.5">高打通级自定义端口代理中继。支持在多点对称制沙盒NAT限制下，通过手动配置链路透传进行握手避封。</p>
-                  </div>
-                  <div className="relative inline-block w-10 mr-2 align-middle select-none">
-                    <input
-                      type="checkbox"
-                      checked={tcpProxy}
-                      onChange={(e) => {
-                        onUpdateState('tcpProxy', e.target.checked);
-                        onTriggerToast(e.target.checked ? '已部署 TCP 自定义端口代理转发内核。' : '关闭 TCP 中继，强制使用原生 P2P 直达。');
-                      }}
-                      className="mr-2 cursor-pointer w-4 h-4 rounded text-amber-600 focus:ring-amber-500"
-                    />
-                  </div>
-                </div>
-
-                {tcpProxy && (
-                  <div className="border-t border-slate-200/50 pt-4 space-y-4 animate-fade-in text-xs">
-                    {/* Inline Form */}
-                    <form onSubmit={handleAddTcpRule} className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-white p-3 rounded-lg border border-slate-100 shadow-inner">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[10px] text-slate-400">本机监听端口</span>
-                        <input
-                          type="text"
-                          value={tcpInput.listen}
-                          onChange={e => setTcpInput({ ...tcpInput, listen: e.target.value })}
-                          placeholder="例如: 27015"
-                          className="px-2 py-1.5 border border-slate-200 rounded font-mono text-xs outline-none"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[10px] text-slate-400">目标联机友方虚拟IP</span>
-                        <input
-                          type="text"
-                          value={tcpInput.targetIp}
-                          onChange={e => setTcpInput({ ...tcpInput, targetIp: e.target.value })}
-                          placeholder="例如: 10.0.8.2"
-                          className="px-2 py-1.5 border border-slate-200 rounded font-mono text-xs outline-none"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[10px] text-slate-400">目标对应映射端口</span>
-                        <input
-                          type="text"
-                          value={tcpInput.targetPort}
-                          onChange={e => setTcpInput({ ...tcpInput, targetPort: e.target.value })}
-                          placeholder="例如: 27015"
-                          className="px-2 py-1.5 border border-slate-200 rounded font-mono text-xs outline-none"
-                        />
-                      </div>
-                      <div className="flex items-end">
-                        <button type="submit" className="w-full bg-slate-800 hover:bg-slate-950 text-white font-semibold py-1.5 rounded cursor-pointer transition-colors">
-                          添加端口映射规则
-                        </button>
-                      </div>
-                    </form>
-
-                    {/* Rules List Table */}
-                    <div className="bg-white rounded-lg border border-slate-150 overflow-hidden shadow-sm">
-                      <div className="px-3 py-2 bg-slate-50 text-[10px] text-slate-500 font-bold border-b border-slate-150 flex justify-between">
-                        <span>当前生效中 of TCP 回退代理隧道 (共 {tcpRules.length} 条)</span>
-                        <span className="text-emerald-600">中转内核空闲</span>
-                      </div>
-                      <table className="w-full text-left">
-                        <thead>
-                          <tr className="bg-slate-100/40 text-[9.5px] text-slate-400 border-b border-slate-150">
-                            <th className="py-1.5 px-3">本地端入口监听</th>
-                            <th className="py-1.5 px-3">对端友邻代理节点 (目标)</th>
-                            <th className="py-1.5 px-3 text-right">操作</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
-                          {tcpRules.map(rule => (
-                            <tr key={rule.id} className="hover:bg-amber-500/5">
-                              <td className="py-1.5 px-3">127.0.0.1:{rule.listen}</td>
-                              <td className="py-1.5 px-3 text-amber-700 font-bold">{rule.targetIp}:{rule.targetPort}</td>
-                              <td className="py-1.5 px-3 text-right">
-                                <button type="button" onClick={() => handleDeleteTcpRule(rule.id, rule.listen)} className="text-rose-600 hover:text-rose-800 underline cursor-pointer">
-                                  卸载
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5 text-xs">
+              <div className="bg-white p-4 rounded-xl border border-slate-150/60 flex flex-col gap-2 shadow-sm transition-all hover:shadow-md">
+                <span className="text-[10px] text-indigo-600 font-bold tracking-wider uppercase font-mono">游戏搜不到房间？</span>
+                <p className="font-sans text-xs font-bold text-slate-800">推荐 UDP 广播桥</p>
+                <p className="font-sans text-[11px] text-slate-500 leading-relaxed">
+                  适用于《我的世界 (1.12及以下)》、《文明》、《红警》、《饥荒》等依赖 ARP 局域网组播的游戏，确保主机在联网大厅直接秒刷显示。
+                </p>
               </div>
 
-              <div className="h-px bg-slate-100" />
-
-              {/* Feature 5: UDP 端口代理完整配置 */}
-              <div className="p-4 bg-slate-50/50 rounded-xl border border-slate-200/60 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-sans text-xs font-bold text-slate-800">UDP 端口代理 (UDP Speedup Proxy)</h4>
-                    <p className="font-sans text-[10px] text-slate-400 mt-0.5">原生 UDP 极速中转对齐加速核心。游戏语音、对等包、动作流大包专属分层加速。</p>
-                  </div>
-                  <div className="relative inline-block w-10 mr-2 align-middle select-none">
-                    <input
-                      type="checkbox"
-                      checked={udpProxy}
-                      onChange={(e) => {
-                        onUpdateState('udpProxy', e.target.checked);
-                        onTriggerToast(e.target.checked ? '已开启高灵敏 UDP 分层数据透传加速。' : '已关闭 UDP 代理镜像，节约本地端口资源。');
-                      }}
-                      className="mr-2 cursor-pointer w-4 h-4 rounded text-amber-600 focus:ring-amber-500"
-                    />
-                  </div>
-                </div>
-
-                {udpProxy && (
-                  <div className="border-t border-slate-200/50 pt-4 space-y-4 animate-fade-in text-xs">
-                    {/* UDP Inline Form */}
-                    <form onSubmit={handleAddUdpRule} className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-white p-3 rounded-lg border border-slate-100 shadow-inner">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[10px] text-slate-400">本机监听UDP端口</span>
-                        <input
-                          type="text"
-                          value={udpInput.listen}
-                          onChange={e => setUdpInput({ ...udpInput, listen: e.target.value })}
-                          placeholder="例如: 8211"
-                          className="px-2 py-1.5 border border-slate-200 rounded font-mono text-xs outline-none"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[10px] text-slate-400">友邻虚拟网IP (转发目标)</span>
-                        <input
-                          type="text"
-                          value={udpInput.targetIp}
-                          onChange={e => setUdpInput({ ...udpInput, targetIp: e.target.value })}
-                          placeholder="例如: 10.0.8.3"
-                          className="px-2 py-1.5 border border-slate-200 rounded font-mono text-xs outline-none"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[10px] text-slate-400">友端入站接收端口</span>
-                        <input
-                          type="text"
-                          value={udpInput.targetPort}
-                          onChange={e => setUdpInput({ ...udpInput, targetPort: e.target.value })}
-                          placeholder="例如: 8211"
-                          className="px-2 py-1.5 border border-slate-200 rounded font-mono text-xs outline-none"
-                        />
-                      </div>
-                      <div className="flex items-end">
-                        <button type="submit" className="w-full bg-slate-850 hover:bg-slate-900 text-white font-semibold py-1.5 rounded cursor-pointer transition-colors">
-                          激活UDP对口管道
-                        </button>
-                      </div>
-                    </form>
-
-                    {/* Rules List Table */}
-                    <div className="bg-white rounded-lg border border-slate-150 overflow-hidden shadow-sm">
-                      <div className="px-3 py-2 bg-slate-50 text-[10px] text-slate-500 font-bold border-b border-slate-150 flex justify-between">
-                        <span>UDP 直通多口映射条目集 (共 {udpRules.length} 条)</span>
-                        <span className="text-amber-600 animate-pulse">P2P 协议全时打孔握手中</span>
-                      </div>
-                      <table className="w-full text-left">
-                        <thead>
-                          <tr className="bg-slate-100/40 text-[9.5px] text-slate-400 border-b border-slate-150">
-                            <th className="py-1.5 px-3">本地UDP发射端口</th>
-                            <th className="py-1.5 px-3">直面通道目标绑IP</th>
-                            <th className="py-1.5 px-3 text-right">状态</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
-                          {udpRules.map(rule => (
-                            <tr key={rule.id} className="hover:bg-amber-500/5">
-                              <td className="py-1.5 px-3">0.0.0.0:{rule.listen}</td>
-                              <td className="py-1.5 px-3 text-slate-700">{rule.targetIp}:{rule.targetPort}</td>
-                              <td className="py-1.5 px-3 text-right">
-                                <button type="button" onClick={() => handleDeleteUdpRule(rule.id, rule.listen)} className="text-rose-600 hover:text-rose-800 underline mr-2 cursor-pointer">
-                                  卸载
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
+              <div className="bg-white p-4 rounded-xl border border-slate-150/60 flex flex-col gap-2 shadow-sm transition-all hover:shadow-md">
+                <span className="text-[10px] text-amber-600 font-bold tracking-wider uppercase font-mono">端口无法访问？</span>
+                <p className="font-sans text-xs font-bold text-slate-800">推荐 TCP/UDP 端口代理</p>
+                <p className="font-sans text-[11px] text-slate-500 leading-relaxed">
+                  针对部分校园网络对 UDP 对称型 NAT 防火墙的主机丢包阻断，通过建立本机 127.0.0.1 映射管道进行高速打洞。
+                </p>
               </div>
 
-              <div className="h-px bg-slate-100" />
-
-              {/* Feature 6: UDP 广播桥完整配置 */}
-              <div className="p-4 bg-slate-50/50 rounded-xl border border-slate-200/60 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-sans text-xs font-bold text-slate-800">UDP 广播桥 (UDP Broadcast Bridge)</h4>
-                    <p className="font-sans text-[10px] text-slate-400 mt-0.5">原ARP广播帧多级渗透桥接。打通虚拟网卡到真实电脑的广播直连，主要修复《我的世界(1.12及以下)》、《文明》主机大厅相互看不见的痛点。</p>
-                  </div>
-                  <div className="relative inline-block w-10 mr-2 align-middle select-none">
-                    <input
-                      type="checkbox"
-                      checked={udpBroadcastBridge}
-                      onChange={(e) => {
-                        onUpdateState('udpBroadcastBridge', e.target.checked);
-                        onTriggerToast(e.target.checked ? '已部署 ARP 级别局域网广播穿透网桥。' : '已关闭局域网 ARP 广播大厅对刷通道。');
-                      }}
-                      className="mr-2 cursor-pointer w-4 h-4 rounded text-amber-600 focus:ring-amber-500"
-                    />
-                  </div>
-                </div>
-
-                {udpBroadcastBridge && (
-                  <div className="border-t border-slate-200/50 pt-4 space-y-4 animate-fade-in text-xs">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-white p-3 rounded-lg border border-slate-100">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[10px] text-slate-400">广播通投目标网段范围</span>
-                        <input
-                          type="text"
-                          value={broadcastConfig.targetRange}
-                          onChange={e => setBroadcastConfig({ ...broadcastConfig, targetRange: e.target.value })}
-                          className="px-2 py-1.5 border border-slate-200 rounded font-mono text-xs outline-none"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[10px] text-slate-400">承载并网网卡驱动名</span>
-                        <select
-                          value={broadcastConfig.adapter}
-                          onChange={e => setBroadcastConfig({ ...broadcastConfig, adapter: e.target.value })}
-                          className="px-2 py-1.5 border border-slate-200 rounded text-xs outline-none bg-white font-sans text-slate-700 cursor-pointer"
-                        >
-                          <option value="TAP-Windows Virtual Device V9 (10.0.8.1)">TAP-Windows Adaptive V9 (10.0.8.1)</option>
-                          <option value="Ethernet 0 (192.168.1.10)">Ethernet 0 真实物理适配器</option>
-                        </select>
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[10px] text-slate-400">帧突发速率安全阈值 (pkts/sec)</span>
-                        <input
-                          type="number"
-                          value={broadcastConfig.rateLimit}
-                          onChange={e => setBroadcastConfig({ ...broadcastConfig, rateLimit: e.target.value })}
-                          className="px-2 py-1.5 border border-slate-200 rounded font-mono text-xs outline-none animate-pulse-subtle"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex justify-between items-center bg-amber-500/5 border border-amber-300/20 p-3 rounded-lg">
-                      <span className="text-[10.5px] text-amber-800">💡 提示：高突变帧速率有助于提高某些老游戏的“秒搜房”刷新率，但可能加剧部分校园网环境下防火墙的防御阻断报警。建议保持 350 下限。</span>
-                      <button
-                        type="button"
-                        onClick={handleApplyBroadcastConfig}
-                        className="px-3 py-1.5 bg-amber-500 hover:bg-amber-450 text-slate-900 font-bold font-sans rounded text-xs transition-colors cursor-pointer"
-                      >
-                        重新应用广播桥
-                      </button>
-                    </div>
-                  </div>
-                )}
+              <div className="bg-white p-4 rounded-xl border border-slate-150/60 flex flex-col gap-2 shadow-sm transition-all hover:shadow-md">
+                <span className="text-[10px] text-emerald-600 font-bold tracking-wider uppercase font-mono">不知道选哪个？</span>
+                <p className="font-sans text-xs font-bold text-slate-800">去高级连接自测</p>
+                <p className="font-sans text-[11px] text-slate-500 leading-relaxed">
+                  提供一键链路探通测试、实时通过流量统计监控、以及完整的控制台日志调试流，秒级判断代理实例状况。
+                </p>
               </div>
+            </div>
 
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-white border border-slate-150 rounded-xl gap-4">
+              <div className="flex items-start gap-2.5">
+                <Layers className="w-4 h-4 text-slate-500 mt-0.5 flex-shrink-0" />
+                <div className="space-y-1">
+                  <span className="text-xs font-bold text-slate-700 block">网络核心概念说明：</span>
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    <span className="font-semibold text-slate-700">通用组网中心</span> 旨在帮助您与异地好友成功搭建并运行一个基础局域网段；而 <span className="font-semibold text-slate-700">高级连接工具</span> 负责进一步对口修复特定联机游戏由于机制而造成的种种不兼容。
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  onUpdateState('currentTab', 'advanced_tools');
+                  onTriggerToast('已跳转至 [高级连接工具] 自定代理及网桥网关面板');
+                }}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-sans text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 self-end sm:self-center cursor-pointer shadow-sm shrink-0"
+              >
+                打开高级连接工具
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
 

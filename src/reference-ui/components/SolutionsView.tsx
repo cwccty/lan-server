@@ -30,15 +30,23 @@ export default function SolutionsView({
   // Cache and refresh states
   const [lastSyncTime, setLastSyncTime] = useState('2026-06-03 14:32:15');
   const [isSyncing, setIsSyncing] = useState(false);
+  const [showSyncReport, setShowSyncReport] = useState(true);
 
   // Editor states
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editorForm, setEditorForm] = useState({
     name: '',
+    steamAppId: '',
+    execFeature: '',
     version: '1.0.0',
     protocol: 'UDP-P2P',
+    conversionProfile: 'Virtual LAN',
     listenPort: '7777',
-    source: '社区云',
+    hostRole: '1. 运行本地游戏客户端或配置服务端；\n2. 开放对应端口并启动局域网联机服务；',
+    joinRole: '1. 复制好友的特邀报文包；\n2. 开机一键并网并打开局域网搜索；',
+    defaultJoinIp: '10.0.8.1',
+    inviteTemplate: '[联机助手-特邀函]\n房间: Default_Room\n密钥: a8f9-2b4c-99e1',
+    source: '自建方案库',
     optimizeType: '直连透传加速'
   });
 
@@ -97,16 +105,23 @@ export default function SolutionsView({
       name: `${editorForm.name} (${editorForm.optimizeType})`,
       status: 'updated',
       version: `v${editorForm.version}`,
-      source: `自建(${editorForm.protocol}:${editorForm.listenPort})`
+      source: `${editorForm.conversionProfile} (自建方案)`
     };
     setSolutions([newSolution, ...solutions]);
-    onTriggerToast(`共享方案 [${editorForm.name}] 自建并发布成功！已持久保存至本地方案库。`);
+    onTriggerToast(`共享方案 [${editorForm.name}] 认定及映射配置成功！已固化保存至本地方案配置文件库。`);
     setEditorForm({
       name: '',
+      steamAppId: '',
+      execFeature: '',
       version: '1.0.0',
       protocol: 'UDP-P2P',
+      conversionProfile: 'Virtual LAN',
       listenPort: '7777',
-      source: '社区云',
+      hostRole: '1. 运行本地游戏客户端或配置服务端；\n2. 开放对应端口并启动局域网联机服务；',
+      joinRole: '1. 复制好友的特邀报文包；\n2. 开机一键并网并打开局域网搜索；',
+      defaultJoinIp: '10.0.8.1',
+      inviteTemplate: '[联机助手-特邀函]\n房间: Default_Room\n密钥: a8f9-2b4c-99e1',
+      source: '自建方案库',
       optimizeType: '直连透传加速'
     });
     setIsEditorOpen(false);
@@ -209,28 +224,53 @@ export default function SolutionsView({
 
       {/* Feature 1: Shared Game Solution Editor Section */}
       {isEditorOpen && (
-        <form onSubmit={handleSaveEditor} className="bg-slate-900 text-slate-200 rounded-2xl p-6 border border-slate-800 shadow-md space-y-4 font-sans animate-fade-in">
+        <form onSubmit={handleSaveEditor} className="bg-slate-900 text-slate-200 rounded-2xl p-6 border border-slate-800 shadow-md space-y-4 font-sans animate-fade-in text-xs">
           <div className="flex items-center justify-between border-b border-slate-850 pb-3">
-            <h3 className="text-sm font-bold text-amber-500 flex items-center gap-2">
-              <BookOpen className="w-4 h-4" />
-              共享游戏联机方案自建编辑器
-            </h3>
-            <span className="text-[10px] text-slate-400 font-mono">存储级别: 局域网本地 / 云端发布通道</span>
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-4.5 h-4.5 text-amber-500" />
+              <h3 className="text-[13px] font-bold text-amber-500">
+                高级游戏适配规则编辑器 (Adapter Schema Builder)
+              </h3>
+            </div>
+            <span className="text-[10px] text-slate-400 font-mono">存储级别: 局域网本地 / 共享方案发布源</span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Row 1 */}
             <div className="flex flex-col gap-1">
               <label className="text-[10px] text-slate-400 font-semibold pl-1">游戏及方案名称</label>
               <input
                 type="text"
                 value={editorForm.name}
                 onChange={(e) => setEditorForm({ ...editorForm, name: e.target.value })}
-                placeholder="例如: 艾尔登法环 (Elden Ring)"
+                placeholder="例如: 幻兽帕鲁 (Palworld)"
                 className="bg-slate-950 border border-slate-800 text-xs text-slate-200 px-3 py-2 rounded-lg outline-none focus:border-amber-500 transition-colors"
                 required
               />
             </div>
-            
+
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] text-slate-400 font-semibold pl-1">Steam 专属 AppID (可空)</label>
+              <input
+                type="text"
+                value={editorForm.steamAppId}
+                onChange={(e) => setEditorForm({ ...editorForm, steamAppId: e.target.value })}
+                placeholder="例如: 105600"
+                className="bg-slate-950 border border-slate-800 text-xs text-slate-200 px-3 py-2 rounded-lg outline-none focus:border-amber-500 font-mono transition-colors"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] text-slate-400 font-semibold pl-1">可执行程序拦截特征 (exe)</label>
+              <input
+                type="text"
+                value={editorForm.execFeature}
+                onChange={(e) => setEditorForm({ ...editorForm, execFeature: e.target.value })}
+                placeholder="例如: terraria.exe"
+                className="bg-slate-950 border border-slate-800 text-xs text-slate-200 px-3 py-2 rounded-lg outline-none focus:border-amber-500 font-mono transition-colors"
+              />
+            </div>
+
             <div className="flex flex-col gap-1">
               <label className="text-[10px] text-slate-400 font-semibold pl-1">针对版本范围</label>
               <input
@@ -242,21 +282,39 @@ export default function SolutionsView({
               />
             </div>
 
+            {/* Row 2 */}
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-slate-400 font-semibold pl-1">网络传输协议</label>
+              <label className="text-[10px] text-slate-400 font-semibold pl-1">网络转换模式 (Conversion Profile)</label>
+              <select
+                value={editorForm.conversionProfile}
+                onChange={(e) => setEditorForm({ ...editorForm, conversionProfile: e.target.value })}
+                className="bg-slate-950 border border-slate-800 text-xs text-slate-200 px-3 py-2 rounded-lg outline-none cursor-pointer focus:border-amber-500"
+              >
+                <option value="Virtual LAN">Virtual LAN (虚拟局域网络直透)</option>
+                <option value="Dedicated Server Launcher">Dedicated Server Launcher (服务端专用拉起)</option>
+                <option value="Broadcast Bridge">Broadcast Bridge (局域网大厅组播重组)</option>
+                <option value="Port Proxy">Port Proxy (双向低延端口代理协议)</option>
+                <option value="Steam Relay Plugin">Steam Relay Plugin (P2P中继插件载入)</option>
+                <option value="Manual Link">Manual Link (手动组网自设端)</option>
+                <option value="Official Servers Only">Official Servers Only (绕过直连官方网)</option>
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] text-slate-400 font-semibold pl-1">传输底层协议</label>
               <select
                 value={editorForm.protocol}
                 onChange={(e) => setEditorForm({ ...editorForm, protocol: e.target.value })}
                 className="bg-slate-950 border border-slate-800 text-xs text-slate-200 px-3 py-2 rounded-lg outline-none cursor-pointer focus:border-amber-500"
               >
                 <option value="UDP-P2P">UDP-P2P (最优极速直连)</option>
-                <option value="TCP-Relay">TCP-Relay (回退防封网络)</option>
-                <option value="UPnP-Forward">UPnP-Forward (端口映射直通)</option>
+                <option value="TCP-Relay">TCP-Relay (回退安全中继隧道)</option>
+                <option value="UPnP-Forward">UPnP-Forward (UPnP自动映射通路)</option>
               </select>
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-slate-400 font-semibold pl-1">默认监听/代理端口</label>
+              <label className="text-[10px] text-slate-400 font-semibold pl-1">游戏运行默认端口</label>
               <input
                 type="text"
                 value={editorForm.listenPort}
@@ -267,29 +325,187 @@ export default function SolutionsView({
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-slate-400 font-semibold pl-1">自动配置预设</label>
-              <select
-                value={editorForm.optimizeType}
-                onChange={(e) => setEditorForm({ ...editorForm, optimizeType: e.target.value })}
-                className="bg-slate-950 border border-slate-800 text-xs text-slate-200 px-3 py-2 rounded-lg outline-none cursor-pointer focus:border-amber-500"
-              >
-                <option value="直连透传加速">直连透传加速 (延迟小于15ms)</option>
-                <option value="广播大厅增强">广播大厅增强 (我的世界/多人可用)</option>
-                <option value="极速端口转发">极速端口转发 (自建专属服务)</option>
-              </select>
+              <label className="text-[10px] text-slate-400 font-semibold pl-1">客户端默认加入地址 (Join IP)</label>
+              <input
+                type="text"
+                value={editorForm.defaultJoinIp}
+                onChange={(e) => setEditorForm({ ...editorForm, defaultJoinIp: e.target.value })}
+                className="bg-slate-950 border border-slate-800 text-xs text-slate-200 px-3 py-2 rounded-lg outline-none focus:border-amber-500 font-mono transition-colors"
+              />
+            </div>
+          </div>
+
+          {/* Row 3 - Instructions */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] text-slate-400 font-semibold pl-1">
+                房主/服务端配置行为指南 (connection_plan.host_role)
+              </label>
+              <textarea
+                value={editorForm.hostRole}
+                onChange={(e) => setEditorForm({ ...editorForm, hostRole: e.target.value })}
+                rows={3}
+                placeholder="请输入服务端操作指示..."
+                className="bg-slate-950 border border-slate-800 text-xs text-slate-200 px-3 py-2 rounded-lg outline-none focus:border-amber-500 transition-colors font-sans resize-none"
+              />
             </div>
 
-            <div className="flex items-end">
-              <button
-                type="submit"
-                className="w-full bg-amber-500 hover:bg-amber-450 text-slate-950 font-sans text-xs font-bold py-2 px-4 rounded-lg transition-all cursor-pointer shadow-sm text-center"
-              >
-                保存并发布该方案
-              </button>
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] text-slate-400 font-semibold pl-1">
+                加入端/客机配置行为指南 (connection_plan.join_role)
+              </label>
+              <textarea
+                value={editorForm.joinRole}
+                onChange={(e) => setEditorForm({ ...editorForm, joinRole: e.target.value })}
+                rows={3}
+                placeholder="请输入并网客机客户端步骤..."
+                className="bg-slate-950 border border-slate-800 text-xs text-slate-200 px-3 py-2 rounded-lg outline-none focus:border-amber-500 transition-colors font-sans resize-none"
+              />
             </div>
+          </div>
+
+          {/* Row 4 - Invite Template */}
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-slate-400 font-semibold pl-1">
+              特邀邀请密信排版模板 (Invite Template)
+            </label>
+            <textarea
+              value={editorForm.inviteTemplate}
+              onChange={(e) => setEditorForm({ ...editorForm, inviteTemplate: e.target.value })}
+              rows={2}
+              className="bg-slate-950 border border-slate-800 text-xs text-slate-200 px-3 py-2 rounded-lg outline-none focus:border-amber-500 transition-colors font-mono resize-none"
+            />
+          </div>
+
+          <div className="pt-2 flex justify-end gap-3 border-t border-slate-800">
+            <button
+              type="button"
+              onClick={() => setIsEditorOpen(false)}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-750 text-slate-300 font-semibold rounded-lg transition-colors cursor-pointer"
+            >
+              取消编辑
+            </button>
+            <button
+              type="submit"
+              className="px-5 py-2 bg-amber-500 hover:bg-amber-450 text-slate-950 font-sans font-semibold rounded-lg shadow-sm cursor-pointer transition-colors"
+            >
+              一键发布登记至共享适配器库
+            </button>
           </div>
         </form>
       )}
+
+      {/* Feature: Collapsible Database Sync Metrics Board (Item 3.10) */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 font-sans">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <RefreshCw className="w-4.5 h-4.5 text-amber-500 animate-spin" style={{ animationDuration: '6s' }} />
+            <h3 className="text-sm font-bold text-slate-800">官方与社区共享方案库同步结果 (Registry Sync Details)</h3>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowSyncReport(!showSyncReport)}
+            className="text-xs text-amber-600 hover:text-amber-800 font-semibold cursor-pointer select-none"
+          >
+            {showSyncReport ? '收起同步明细表' : '展开同步明细表 (Show Details)'}
+          </button>
+        </div>
+
+        {/* Sync Counters Row */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 md:grid-cols-9 gap-3 mt-4 text-center">
+          <div className="p-2 bg-slate-50 border border-slate-100 rounded-xl">
+            <span className="text-[10px] text-slate-400 block font-semibold">总同步项</span>
+            <span className="text-sm font-bold text-slate-700 mt-1 block">146</span>
+          </div>
+          <div className="p-2 bg-emerald-50 border border-emerald-100/60 rounded-xl">
+            <span className="text-[10px] text-emerald-600 block font-semibold">本地新设</span>
+            <span className="text-sm font-bold text-emerald-700 mt-1 block">12</span>
+          </div>
+          <div className="p-2 bg-indigo-50 border border-indigo-100/60 rounded-xl">
+            <span className="text-[10px] text-indigo-600 block font-semibold">方案更新</span>
+            <span className="text-sm font-bold text-indigo-700 mt-1 block">8</span>
+          </div>
+          <div className="p-2 bg-slate-50 border border-slate-100 rounded-xl">
+            <span className="text-[10px] text-slate-400 block font-semibold">无变动跳过</span>
+            <span className="text-sm font-bold text-slate-500 mt-1 block">125</span>
+          </div>
+          <div className="p-2 bg-red-50 border border-red-100/40 rounded-xl">
+            <span className="text-[10px] text-red-600 block font-semibold">Hash 校验失败</span>
+            <span className="text-sm font-bold text-red-700 mt-1 block">1</span>
+          </div>
+          <div className="p-2 bg-slate-50/50 border border-slate-100 rounded-xl opacity-60">
+            <span className="text-[10px] text-slate-400 block">解析失败</span>
+            <span className="text-sm font-bold text-slate-500 mt-1 block">0</span>
+          </div>
+          <div className="p-2 bg-slate-50/50 border border-slate-100 rounded-xl opacity-60">
+            <span className="text-[10px] text-slate-400 block">拉取失败</span>
+            <span className="text-sm font-bold text-slate-500 mt-1 block">0</span>
+          </div>
+          <div className="p-2 bg-slate-50/50 border border-slate-100 rounded-xl opacity-60">
+            <span className="text-[10px] text-slate-400 block">格式违规</span>
+            <span className="text-sm font-bold text-slate-500 mt-1 block">0</span>
+          </div>
+          <div className="p-2 bg-slate-50/50 border border-slate-100 rounded-xl opacity-60">
+            <span className="text-[10px] text-slate-400 block">本地写故障</span>
+            <span className="text-sm font-bold text-slate-500 mt-1 block">0</span>
+          </div>
+        </div>
+
+        {/* Action Log sub-table details */}
+        {showSyncReport && (
+          <div className="mt-4 border border-slate-100 rounded-xl overflow-hidden shadow-inner">
+            <table className="w-full text-left border-collapse text-[10.5px]">
+              <thead>
+                <tr className="bg-slate-50/80 border-b border-slate-100">
+                  <th className="py-2.5 px-4 font-semibold text-slate-500">同步的联机游戏名</th>
+                  <th className="py-2.5 px-4 font-semibold text-slate-500">适配方案注册数据库 Endpoint</th>
+                  <th className="py-2.5 px-4 font-semibold text-slate-500">同步结果行为</th>
+                  <th className="py-2.5 px-4 font-semibold text-slate-500">校验详情 / 错误溯源</th>
+                  <th className="py-2.5 px-4 font-semibold text-slate-500">本地固化路径</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                <tr>
+                  <td className="py-2 px-4 font-bold text-slate-700">幻兽帕鲁 (Palworld - Steam)</td>
+                  <td className="py-2 px-4 font-mono text-slate-400 font-sans">/solutions/shared/v2/pal.json</td>
+                  <td className="py-2 px-4">
+                    <span className="text-indigo-700 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded font-semibold text-[9px]">UPDATED (更新)</span>
+                  </td>
+                  <td className="py-2 px-4 text-slate-500 font-mono">MD5_Verified (3e41fb)</td>
+                  <td className="py-2 px-4 text-slate-400 font-mono">~/AppData/cached_pal.json</td>
+                </tr>
+                <tr>
+                  <td className="py-2 px-4 font-bold text-slate-700">我的世界 (Minecraft Forge)</td>
+                  <td className="py-2 px-4 font-mono text-slate-400 font-sans">/solutions/shared/v2/minecraft.json</td>
+                  <td className="py-2 px-4">
+                    <span className="text-slate-500 bg-slate-50 border border-slate-150 px-1.5 py-0.5 rounded font-semibold text-[9px]">SKIPPED (跳过)</span>
+                  </td>
+                  <td className="py-2 px-4 text-slate-400 font-mono">Hash_Matches_Local</td>
+                  <td className="py-2 px-4 text-slate-400 font-mono">~/AppData/cached_mc.json</td>
+                </tr>
+                <tr>
+                  <td className="py-2 px-4 font-bold text-slate-700">泰拉瑞亚 (Terraria V1.4)</td>
+                  <td className="py-2 px-4 font-mono text-slate-400 font-sans">/solutions/shared/v2/terraria.json</td>
+                  <td className="py-2 px-4">
+                    <span className="text-emerald-700 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded font-semibold text-[9px]">CREATED (写入)</span>
+                  </td>
+                  <td className="py-2 px-4 text-slate-500 font-mono">MD5_Verified (8bfdd21)</td>
+                  <td className="py-2 px-4 text-slate-400 font-mono">~/AppData/cached_terraria.json</td>
+                </tr>
+                <tr>
+                  <td className="py-2 px-4 font-bold text-slate-700">艾尔登法环 (Elden Ring 广域)</td>
+                  <td className="py-2 px-4 font-mono text-slate-400 font-sans">/solutions/shared/v2/elden.json</td>
+                  <td className="py-2 px-4">
+                    <span className="text-red-700 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded font-semibold text-[9px]">HASH_VERIFY_ERROR</span>
+                  </td>
+                  <td className="py-2 px-4 text-red-500 font-bold font-sans">SHA256 signature mismatched: expected pass but got mismatch!</td>
+                  <td className="py-2 px-4 text-slate-350 font-mono">--- (未予固化安全写入)</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       {/* Sync Table Details */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden mt-2">

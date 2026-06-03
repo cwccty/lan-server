@@ -4,6 +4,9 @@
   getN2nLastConfig,
   listGameAdapters,
   listNetworkBackends,
+  listPortProxies,
+  listUdpBroadcastBridges,
+  listUdpProxies,
   readServerSession,
   scanGames
 } from '../api/tauri';
@@ -27,7 +30,7 @@ export async function readReferenceRuntimeSnapshot(options: { includeDiagnostics
   const includeDiagnostics = options.includeDiagnostics ?? false;
   const includeInventory = options.includeInventory ?? false;
 
-  const [n2n, n2nLastConfig, backends, games, adapters, serverSession, diagnosticReport] = await Promise.all([
+  const [n2n, n2nLastConfig, backends, games, adapters, serverSession, portProxies, udpProxies, udpBroadcastBridges, diagnosticReport] = await Promise.all([
     collect(errors, 'n2n diagnostics', getN2nDiagnostics, null),
     collect(errors, 'n2n last config', getN2nLastConfig, null),
     includeInventory
@@ -40,6 +43,9 @@ export async function readReferenceRuntimeSnapshot(options: { includeDiagnostics
       ? collect(errors, 'game adapters', listGameAdapters, [])
       : Promise.resolve([]),
     collect(errors, 'server session', readServerSession, null),
+    collect(errors, 'port proxies', listPortProxies, []),
+    collect(errors, 'udp proxies', listUdpProxies, []),
+    collect(errors, 'udp broadcast bridges', listUdpBroadcastBridges, []),
     includeDiagnostics
       ? collect(errors, 'diagnostic report', generateDiagnosticReport, null)
       : Promise.resolve(null)
@@ -58,6 +64,9 @@ export async function readReferenceRuntimeSnapshot(options: { includeDiagnostics
     games,
     adapters,
     server_session: serverSession,
+    port_proxies: portProxies,
+    udp_proxies: udpProxies,
+    udp_broadcast_bridges: udpBroadcastBridges,
     diagnostic_report: diagnosticReport,
     errors
   };
