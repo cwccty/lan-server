@@ -2167,3 +2167,47 @@ C:\Users\ty\Downloads\联机助手 (1)
 - 下一步可以基于该快照开始做产品化状态注入，但必须逐项确认是否允许偏离参考图。
 
 下一步推荐：先在 release 版里按 `Ctrl+Shift+D` 检查调试面板是否能看到真实 runtime 快照；确认后再开始做 Header/首页状态的产品化接入方案。
+
+## 2026-06-04 Reference Adapter 后端动作层
+
+本轮继续在不改动 `src/reference-ui` 的前提下推进前后端连接。
+
+新增：
+
+- `src/reference-adapter/actions.ts`
+  - 封装真实后端动作：
+    - `refreshReferenceRuntime()`
+    - `saveReferenceN2nConfig()`
+    - `startReferenceN2n()`
+    - `stopReferenceN2n()`
+    - `startReferenceTerrariaServer()`
+    - `stopReferenceTerrariaServer()`
+    - `readReferenceTerrariaServer()`
+    - `sendReferenceTerrariaCommand()`
+    - `testReferenceConnectivity()`
+    - `generateReferenceDiagnostics()`
+  - 每个动作执行后都会重新读取 `ReferenceRuntimeSnapshot`；
+  - 动作结果统一为 `ReferenceActionResult`，方便后续 UI 接入。
+- `src/reference-adapter/DebugPanel.tsx`
+  - 隐藏调试面板新增“安全动作”区域；
+  - 支持刷新快照、生成诊断、读取 Terraria 会话、停止 n2n、停止 Terraria 服务端；
+  - 只在 `Ctrl+Shift+D` 打开的调试面板中可见，默认用户界面不变。
+- `src/reference-adapter/index.ts`
+  - 导出动作层 API。
+
+验证：
+
+- `powershell -ExecutionPolicy Bypass -File tools\check_reference_ui_fidelity.ps1` 通过，`visual_diff_count=0`；
+- `npm run build` 通过；
+- `cargo check --manifest-path src-tauri\Cargo.toml` 通过；
+- `npm run tauri:build` 通过；
+- `npm run release:preflight` 通过；
+- `git diff --check` 通过。
+
+意义：
+
+- 后端动作能力已经有统一 adapter，不再需要直接写进参考 UI 组件；
+- 默认界面仍然完全保持参考前端视觉；
+- 下一步可以选择从 Header 或首页开始做“产品化状态接入”，但需要明确接受会替换参考图里的假状态文案。
+
+下一步推荐：先用 release 版 `Ctrl+Shift+D` 手动验证调试面板动作按钮，确认真实后端快照与安全动作可用；之后再决定是否进入 Header/首页真实状态替换阶段。
