@@ -1112,3 +1112,49 @@ cargo check --manifest-path src-tauri\Cargo.toml
 - `git diff --check` 通过。
 
 下一步推荐：用 release 版 `src-tauri\target\release\lan-helper.exe` 做参考 UI 七页人工走查，重点点一遍组网中心、Terraria 向导和诊断页，确认真实 Tauri 后端环境下按钮、Toast、日志和状态变化符合预期。
+
+## 2026-06-04 参考前端一比一复原路线修正
+
+本轮根据用户目标重新校正路线：用户要求“完全按照 `C:\Users\ty\Downloads\联机助手 (1)` 一比一复原，完全复原之后再做前后端连接”。
+
+问题发现：
+
+- 上一轮虽然已经使用 `src/reference-ui/App` 作为入口，但为了接真实后端，直接修改了 `src/reference-ui` 内的 8 个视觉组件；
+- 这导致当前项目已经不是参考源码级一比一，偏离文件包括：
+  - `App.tsx`
+  - `Header.tsx`
+  - `HomeView.tsx`
+  - `GameScanView.tsx`
+  - `SolutionsView.tsx`
+  - `UniversalNetworkView.tsx`
+  - `TerrariaGuideView.tsx`
+  - `DiagnosticsView.tsx`
+
+本轮处理：
+
+- 从 `C:\Users\ty\Downloads\联机助手 (1)\src` 重新复制上述 8 个文件到 `src/reference-ui`；
+- 保留 `src/main.tsx` 使用 `src/reference-ui/App` 作为当前项目入口；
+- 仅保留 `src/reference-ui/main.tsx` 的构建兼容差异：`./App.tsx` 改为 `./App`，该文件不是当前项目入口，不影响视觉；
+- 清理参考源码带来的行尾空格和 EOF 空白行，保证 `git diff --check` 通过；
+- 不再把真实后端逻辑直接写入参考视觉组件。
+
+复核证据：
+
+- 对 `src/reference-ui` 与 `C:\Users\ty\Downloads\联机助手 (1)\src` 做源码复核：
+  - `App.tsx`、全部核心组件、`index.css`、`data.ts`、`types.ts` 均为视觉等价；
+  - 仅 `main.tsx` 存在导入后缀兼容差异；
+- 浏览器打开 `http://127.0.0.1:5177/` 后，实际渲染为参考 UI 首页：Sidebar、Header、Toast 结构和“桌面大厅 / 就绪: 24ms / 断开物理网”等参考文案均出现；
+- `npm run build` 通过；
+- `cargo check --manifest-path src-tauri\Cargo.toml` 通过；
+- `npm run tauri:build` 通过；
+- `npm run release:preflight` 通过；
+- `git diff --check` 通过。
+
+后续原则：
+
+- 当前阶段先保证前端一比一；
+- 后端连接必须在视觉复原确认后再做；
+- 后续接后端时优先新增 adapter/hook/state bridge，避免直接破坏 `src/reference-ui` 的 DOM、布局、类名和交互结构；
+- 如果为了真实状态必须替换假文案，应先确认不会影响一比一视觉，或者单独建立“产品化版本”分支/阶段。
+
+下一步推荐：给 `src/reference-ui` 建立一个“参考 UI 锁定清单”和后端适配方案文档，明确哪些文件必须保持视觉等价，后端数据从哪里注入，避免再次把一比一参考前端改乱。

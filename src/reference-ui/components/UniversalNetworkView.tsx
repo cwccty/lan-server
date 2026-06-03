@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, FormEvent } from 'react';
+import { useState, FormEvent } from 'react';
 import {
   Settings,
   HelpCircle,
@@ -12,25 +12,6 @@ import {
   Eye,
   EyeOff
 } from 'lucide-react';
-import {
-  getN2nDiagnostics,
-  listPortProxies,
-  listUdpBroadcastBridges,
-  listUdpProxies,
-  setupNetwork,
-  startNetwork,
-  startPortProxy,
-  startUdpBroadcastBridge,
-  startUdpProxy,
-  stopNetwork,
-  stopPortProxy,
-  stopUdpBroadcastBridge,
-  stopUdpProxy
-} from '../../api/tauri';
-import type { N2nDiagnostics, NetworkConfig } from '../../types/network';
-import type { PortProxyStatus } from '../../types/portProxy';
-import type { UdpProxyStatus } from '../../types/udpProxy';
-import type { UdpBroadcastBridgeStatus } from '../../types/udpBroadcastBridge';
 
 interface UniversalNetworkViewProps {
   onTriggerToast: (msg: string) => void;
@@ -57,18 +38,20 @@ export default function UniversalNetworkView({
   udpBroadcastBridge,
   onUpdateState
 }: UniversalNetworkViewProps) {
-  const [n2nDiagnostics, setN2nDiagnostics] = useState<N2nDiagnostics | null>(null);
-  const [isBusy, setIsBusy] = useState(false);
+  const [isRunning, setIsRunning] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
 
   // Feature 4: TCP proxy config rules list
-  const [tcpRules, setTcpRules] = useState<Array<{id: string, listen: string, targetIp: string, targetPort: string, running?: boolean, lastError?: string}>>([]);
+  const [tcpRules, setTcpRules] = useState<Array<{id: string, listen: string, targetIp: string, targetPort: string}>>([
+    { id: 'tcp_default', listen: '7777', targetIp: '10.0.8.2', targetPort: '7777' }
+  ]);
   const [tcpInput, setTcpInput] = useState({ listen: '', targetIp: '10.0.8.10', targetPort: '' });
 
   // Feature 5: UDP proxy config rules list
-  const [udpRules, setUdpRules] = useState<Array<{id: string, listen: string, targetIp: string, targetPort: string, running?: boolean, lastError?: string}>>([]);
+  const [udpRules, setUdpRules] = useState<Array<{id: string, listen: string, targetIp: string, targetPort: string}>>([
+    { id: 'udp_default', listen: '27015', targetIp: '10.0.8.3', targetPort: '27015' }
+  ]);
   const [udpInput, setUdpInput] = useState({ listen: '', targetIp: '10.0.8.10', targetPort: '' });
-  const [broadcastRules, setBroadcastRules] = useState<UdpBroadcastBridgeStatus[]>([]);
 
   // Feature 6: UDP broadcast bridge custom inputs
   const [broadcastConfig, setBroadcastConfig] = useState({
@@ -77,228 +60,77 @@ export default function UniversalNetworkView({
     rateLimit: '350'
   });
 
-  const isRunning = Boolean(n2nDiagnostics?.running);
-  const n2nSummary = n2nDiagnostics?.summary || '尚未读取真实 n2n 状态。';
-
-  const splitEndpoint = (value: string) => {
-    const idx = value.lastIndexOf(':');
-    if (idx < 0) return { host: value, port: '' };
-    return { host: value.slice(0, idx), port: value.slice(idx + 1) };
-  };
-
-  const mapTcpStatus = (status: PortProxyStatus) => {
-    const listen = splitEndpoint(status.listen);
-    const target = splitEndpoint(status.target);
-    return {
-      id: status.id,
-      listen: listen.port,
-      targetIp: target.host,
-      targetPort: target.port,
-      running: status.running,
-      lastError: status.last_error
-    };
-  };
-
-  const mapUdpStatus = (status: UdpProxyStatus) => {
-    const listen = splitEndpoint(status.listen);
-    const target = splitEndpoint(status.target);
-    return {
-      id: status.id,
-      listen: listen.port,
-      targetIp: target.host,
-      targetPort: target.port,
-      running: status.running,
-      lastError: status.last_error
-    };
-  };
-
-  const refreshNetworkPanel = async (showToast = false) => {
-    try {
-      const [diagnostics, tcpStatuses, udpStatuses, bridgeStatuses] = await Promise.all([
-        getN2nDiagnostics().catch(() => null),
-        listPortProxies().catch(() => []),
-        listUdpProxies().catch(() => []),
-        listUdpBroadcastBridges().catch(() => [])
-      ]);
-      setN2nDiagnostics(diagnostics);
-      setTcpRules(tcpStatuses.filter((item) => item.protocol === 'tcp').map(mapTcpStatus));
-      setUdpRules(udpStatuses.map(mapUdpStatus));
-      setBroadcastRules(bridgeStatuses);
-      if (showToast) onTriggerToast(diagnostics?.summary || '已刷新真实组网状态。');
-    } catch (error) {
-      onTriggerToast(error instanceof Error ? error.message : String(error || '刷新组网状态失败'));
-    }
-  };
-
-  useEffect(() => {
-    void refreshNetworkPanel(false);
-  }, []);
-
-  const handleAddTcpRule = async (e: FormEvent) => {
+  const handleAddTcpRule = (e: FormEvent) => {
     e.preventDefault();
     if (!tcpInput.listen || !tcpInput.targetIp || !tcpInput.targetPort) {
       onTriggerToast('请完整输入 TCP 监听端口、目标IP及转发端口！');
       return;
     }
-    try {
-      setIsBusy(true);
-      const status = await startPortProxy({
-        protocol: 'tcp',
-        listen_host: '127.0.0.1',
-        listen_port: Number(tcpInput.listen),
-        target_host: tcpInput.targetIp,
-        target_port: Number(tcpInput.targetPort),
-        label: 'reference-ui tcp proxy'
-      });
-      onTriggerToast(status.running ? `TCP 端口代理已启动：${status.listen} -> ${status.target}` : `TCP 端口代理未能启动：${status.last_error || '请查看诊断报告'}`);
-      setTcpInput({ listen: '', targetIp: '10.0.8.10', targetPort: '' });
-      await refreshNetworkPanel(false);
-    } catch (error) {
-      onTriggerToast(error instanceof Error ? error.message : String(error || '启动 TCP 端口代理失败'));
-    } finally {
-      setIsBusy(false);
-    }
+    const newRule = {
+      id: `tcp_${Date.now()}`,
+      listen: tcpInput.listen,
+      targetIp: tcpInput.targetIp,
+      targetPort: tcpInput.targetPort
+    };
+    setTcpRules([...tcpRules, newRule]);
+    onTriggerToast(`成功注入 TCP 转发链路：[${tcpInput.listen} -> ${tcpInput.targetIp}:${tcpInput.targetPort}]`);
+    setTcpInput({ listen: '', targetIp: '10.0.8.10', targetPort: '' });
   };
 
-  const handleDeleteTcpRule = async (id: string, listen: string) => {
-    try {
-      setIsBusy(true);
-      await stopPortProxy(id);
-      onTriggerToast(`已停止 TCP 映射端口：${listen}`);
-      await refreshNetworkPanel(false);
-    } catch (error) {
-      onTriggerToast(error instanceof Error ? error.message : String(error || '停止 TCP 端口代理失败'));
-    } finally {
-      setIsBusy(false);
-    }
+  const handleDeleteTcpRule = (id: string, listen: string) => {
+    setTcpRules(tcpRules.filter(r => r.id !== id));
+    onTriggerToast(`已卸载 TCP 映射端口：${listen}`);
   };
 
-  const handleAddUdpRule = async (e: FormEvent) => {
+  const handleAddUdpRule = (e: FormEvent) => {
     e.preventDefault();
     if (!udpInput.listen || !udpInput.targetIp || !udpInput.targetPort) {
       onTriggerToast('请完整输入 UDP 监听端口、目标IP及转发端口！');
       return;
     }
-    try {
-      setIsBusy(true);
-      const status = await startUdpProxy({
-        listen_host: '0.0.0.0',
-        listen_port: Number(udpInput.listen),
-        target_host: udpInput.targetIp,
-        target_port: Number(udpInput.targetPort),
-        label: 'reference-ui udp proxy'
-      });
-      onTriggerToast(status.running ? `UDP 端口代理已启动：${status.listen} -> ${status.target}` : `UDP 端口代理未能启动：${status.last_error || '请查看诊断报告'}`);
-      setUdpInput({ listen: '', targetIp: '10.0.8.10', targetPort: '' });
-      await refreshNetworkPanel(false);
-    } catch (error) {
-      onTriggerToast(error instanceof Error ? error.message : String(error || '启动 UDP 端口代理失败'));
-    } finally {
-      setIsBusy(false);
-    }
+    const newRule = {
+      id: `udp_${Date.now()}`,
+      listen: udpInput.listen,
+      targetIp: udpInput.targetIp,
+      targetPort: udpInput.targetPort
+    };
+    setUdpRules([...udpRules, newRule]);
+    onTriggerToast(`成功配置 UDP 极速转发链路：[${udpInput.listen} -> ${udpInput.targetIp}:${udpInput.targetPort}]`);
+    setUdpInput({ listen: '', targetIp: '10.0.8.10', targetPort: '' });
   };
 
-  const handleDeleteUdpRule = async (id: string, listen: string) => {
-    try {
-      setIsBusy(true);
-      await stopUdpProxy(id);
-      onTriggerToast(`已停止 UDP 分发端口绑定：${listen}`);
-      await refreshNetworkPanel(false);
-    } catch (error) {
-      onTriggerToast(error instanceof Error ? error.message : String(error || '停止 UDP 端口代理失败'));
-    } finally {
-      setIsBusy(false);
-    }
+  const handleDeleteUdpRule = (id: string, listen: string) => {
+    setUdpRules(udpRules.filter(r => r.id !== id));
+    onTriggerToast(`已停止 UDP 分发端口绑定：${listen}`);
   };
 
-  const handleApplyBroadcastConfig = async () => {
-    try {
-      setIsBusy(true);
-      const port = Number(gamePort || '7777');
-      const status = await startUdpBroadcastBridge({
-        listen_host: '0.0.0.0',
-        listen_port: Number.isFinite(port) ? port : 7777,
-        forward_targets: [broadcastConfig.targetRange],
-        label: 'reference-ui udp broadcast bridge',
-        allow_broadcast: true,
-        duplicate_ttl_ms: Number(broadcastConfig.rateLimit || '350')
-      });
-      onTriggerToast(status.running ? `UDP 广播桥已启动：${status.listen} -> ${status.forward_targets.join(', ')}` : `UDP 广播桥未能启动：${status.last_error || '请查看诊断报告'}`);
-      await refreshNetworkPanel(false);
-    } catch (error) {
-      onTriggerToast(error instanceof Error ? error.message : String(error || '启动 UDP 广播桥失败'));
-    } finally {
-      setIsBusy(false);
-    }
+  const handleApplyBroadcastConfig = () => {
+    onTriggerToast(`UDP 广播网桥路由策略重写成功！对齐网段: ${broadcastConfig.targetRange} ｜ 帧速率上限: ${broadcastConfig.rateLimit} pkts/sec`);
   };
 
-  const handleStartEdge = async () => {
+  const handleStartEdge = () => {
     if (isRunning) {
       onTriggerToast('n2n Edge 并网核心已经在运行中。');
       return;
     }
-    const config: NetworkConfig = {
-      room_name: roomName,
-      secret: roomKey,
-      supernode,
-      local_ip: virtualIpInput
-    };
-    if (!config.room_name || !config.secret || !config.supernode || !config.local_ip) {
-      onTriggerToast('请先填写 Room、Key、Supernode 和本机虚拟 IP，再启动 n2n Edge。');
-      return;
-    }
-    try {
-      setIsBusy(true);
-      onTriggerToast('正在保存配置并启动 n2n Edge...');
-      await setupNetwork('n2n', config);
-      const status = await startNetwork('n2n');
-      onTriggerToast(status.message || 'n2n Edge 已启动，等待 supernode ACK/PONG。');
-      await refreshNetworkPanel(false);
-    } catch (error) {
-      onTriggerToast(error instanceof Error ? error.message : String(error || '启动 n2n Edge 失败'));
-    } finally {
-      setIsBusy(false);
-    }
+    onTriggerToast('正在连接超级节点，配置局域网 TAP 虚拟环形通路...');
+    setTimeout(() => {
+      setIsRunning(true);
+      onTriggerToast('n2n Edge 通信客户端启动成功！[延迟：24ms]');
+    }, 1000);
   };
 
-  const handleStopEdge = async () => {
+  const handleStopEdge = () => {
     if (!isRunning) {
       onTriggerToast('n2n Edge 已经处于停止断网状态。');
       return;
     }
-    try {
-      setIsBusy(true);
-      const status = await stopNetwork('n2n');
-      onTriggerToast(status.message || '已停止 n2n 虚拟并网网络。');
-      await refreshNetworkPanel(false);
-    } catch (error) {
-      onTriggerToast(error instanceof Error ? error.message : String(error || '停止 n2n Edge 失败'));
-    } finally {
-      setIsBusy(false);
-    }
+    setIsRunning(false);
+    onTriggerToast('已安全停止 n2n 虚拟并网对等网络。');
   };
 
-  const handleSaveConfig = async () => {
-    const config: NetworkConfig = {
-      room_name: roomName,
-      secret: roomKey,
-      supernode,
-      local_ip: virtualIpInput
-    };
-    if (!config.room_name || !config.secret || !config.supernode || !config.local_ip) {
-      onTriggerToast('保存失败：Room、Key、Supernode、本机虚拟 IP 都不能为空。');
-      return;
-    }
-    try {
-      setIsBusy(true);
-      const result = await setupNetwork('n2n', config);
-      onTriggerToast(result.message || '基础联机参数已保存到真实 n2n 配置。');
-      await refreshNetworkPanel(false);
-    } catch (error) {
-      onTriggerToast(error instanceof Error ? error.message : String(error || '保存 n2n 配置失败'));
-    } finally {
-      setIsBusy(false);
-    }
+  const handleSaveConfig = () => {
+    onTriggerToast('基础联机参数已成功固化到本地 edge_options.config 配置文件中！');
   };
 
   return (
@@ -310,10 +142,10 @@ export default function UniversalNetworkView({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
+
         {/* Left Column: Status panel & Actions */}
         <div className="lg:col-span-4 flex flex-col gap-6">
-          
+
           {/* Status Panel Card */}
           <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center h-[200px] relative overflow-hidden">
             <div className="absolute top-4 right-4 flex items-center gap-2">
@@ -338,15 +170,15 @@ export default function UniversalNetworkView({
             <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-600 mb-4 shadow-sm">
               <Cpu className={`w-6 h-6 ${isRunning ? 'animate-pulse' : ''}`} />
             </div>
-            
+
             <h3 className="font-heading text-base font-bold text-slate-800">
               {isRunning ? 'n2n Edge 并网核心运行中' : 'n2n Edge 处于离线状态'}
             </h3>
-            
+
             {isRunning && (
               <p className="font-sans text-xs text-slate-400 mt-2 flex items-center gap-1 font-mono">
-                {n2nDiagnostics?.ok_link ? 'Supernode 已确认' : '等待真实握手'} |
-                <span className="text-slate-600 font-bold ml-1">{n2nSummary}</span>
+                数据吞吐正常 |
+                <span className="text-slate-600 font-bold ml-1">延迟: 24ms</span>
               </p>
             )}
           </div>
@@ -355,31 +187,30 @@ export default function UniversalNetworkView({
           <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex flex-col gap-2">
             <button
               onClick={handleStartEdge}
-              disabled={isBusy}
-              className="w-full py-3 rounded-lg bg-slate-800 hover:bg-slate-900 text-white font-sans text-xs font-semibold transition-colors flex justify-center items-center gap-2 shadow-sm cursor-pointer disabled:opacity-50"
+              className="w-full py-3 rounded-lg bg-slate-800 hover:bg-slate-900 text-white font-sans text-xs font-semibold transition-colors flex justify-center items-center gap-2 shadow-sm cursor-pointer"
             >
-              {isBusy ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5 fill-current" />}
-              启动 n2n Edge
+              <Play className="w-3.5 h-3.5 fill-current" />
+              Start n2n Edge
             </button>
-            
+
             <button
               onClick={handleStopEdge}
-              disabled={isBusy}
-              className="w-full py-3 rounded-lg bg-slate-100/80 hover:bg-slate-200/80 text-slate-700 font-sans text-xs font-semibold transition-colors flex justify-center items-center gap-2 border border-slate-200/60 cursor-pointer disabled:opacity-50"
+              className="w-full py-3 rounded-lg bg-slate-100/80 hover:bg-slate-200/80 text-slate-700 font-sans text-xs font-semibold transition-colors flex justify-center items-center gap-2 border border-slate-200/60 cursor-pointer"
             >
               <Square className="w-3.5 h-3.5 fill-current" />
-              停止 n2n Edge
+              Stop n2n Edge
             </button>
-            
+
             <div className="h-px bg-slate-100 my-1" />
-            
+
             <button
-              onClick={() => void refreshNetworkPanel(true)}
-              disabled={isBusy}
+              onClick={() => {
+                onTriggerToast('正在实时探测超级中继节点延迟评测列表...');
+              }}
               className="w-full py-2.5 rounded-lg text-slate-400 hover:text-slate-700 font-sans text-xs font-semibold transition-colors flex justify-center items-center gap-1.5 cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5" />
-              刷新真实状态
+              Refresh Node Status
             </button>
           </div>
 
@@ -387,7 +218,7 @@ export default function UniversalNetworkView({
 
         {/* Right Column: Configuration Forms */}
         <div className="lg:col-span-8 flex flex-col gap-6">
-          
+
           {/* Basic Form config */}
           <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
             <h3 className="font-heading text-sm font-bold text-slate-800 border-b border-slate-100 pb-3 mb-5 flex items-center gap-2">
@@ -396,7 +227,7 @@ export default function UniversalNetworkView({
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              
+
               {/* Field 1 */}
               <div className="flex flex-col gap-1">
                 <label className="font-sans text-xs text-slate-400 font-medium pl-1">Room Name (社区大厅名)</label>
@@ -486,7 +317,7 @@ export default function UniversalNetworkView({
             </h3>
 
             <div className="space-y-6">
-              
+
               {/* Feature 4: TCP 端口代理完整配置 */}
               <div className="p-4 bg-slate-50/50 rounded-xl border border-slate-200/60 space-y-4">
                 <div className="flex items-center justify-between">
@@ -500,7 +331,7 @@ export default function UniversalNetworkView({
                       checked={tcpProxy}
                       onChange={(e) => {
                         onUpdateState('tcpProxy', e.target.checked);
-                        onTriggerToast(e.target.checked ? '已展开 TCP 端口代理配置。添加规则后才会启动真实代理。' : '已收起 TCP 端口代理配置，现有真实代理不会被自动停止。');
+                        onTriggerToast(e.target.checked ? '已部署 TCP 自定义端口代理转发内核。' : '关闭 TCP 中继，强制使用原生 P2P 直达。');
                       }}
                       className="mr-2 cursor-pointer w-4 h-4 rounded text-amber-600 focus:ring-amber-500"
                     />
@@ -513,31 +344,31 @@ export default function UniversalNetworkView({
                     <form onSubmit={handleAddTcpRule} className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-white p-3 rounded-lg border border-slate-100 shadow-inner">
                       <div className="flex flex-col gap-1">
                         <span className="text-[10px] text-slate-400">本机监听端口</span>
-                        <input 
-                          type="text" 
-                          value={tcpInput.listen} 
+                        <input
+                          type="text"
+                          value={tcpInput.listen}
                           onChange={e => setTcpInput({ ...tcpInput, listen: e.target.value })}
-                          placeholder="例如: 27015" 
+                          placeholder="例如: 27015"
                           className="px-2 py-1.5 border border-slate-200 rounded font-mono text-xs outline-none"
                         />
                       </div>
                       <div className="flex flex-col gap-1">
                         <span className="text-[10px] text-slate-400">目标联机友方虚拟IP</span>
-                        <input 
-                          type="text" 
-                          value={tcpInput.targetIp} 
+                        <input
+                          type="text"
+                          value={tcpInput.targetIp}
                           onChange={e => setTcpInput({ ...tcpInput, targetIp: e.target.value })}
-                          placeholder="例如: 10.0.8.2" 
+                          placeholder="例如: 10.0.8.2"
                           className="px-2 py-1.5 border border-slate-200 rounded font-mono text-xs outline-none"
                         />
                       </div>
                       <div className="flex flex-col gap-1">
                         <span className="text-[10px] text-slate-400">目标对应映射端口</span>
-                        <input 
-                          type="text" 
-                          value={tcpInput.targetPort} 
+                        <input
+                          type="text"
+                          value={tcpInput.targetPort}
                           onChange={e => setTcpInput({ ...tcpInput, targetPort: e.target.value })}
-                          placeholder="例如: 27015" 
+                          placeholder="例如: 27015"
                           className="px-2 py-1.5 border border-slate-200 rounded font-mono text-xs outline-none"
                         />
                       </div>
@@ -551,8 +382,8 @@ export default function UniversalNetworkView({
                     {/* Rules List Table */}
                     <div className="bg-white rounded-lg border border-slate-150 overflow-hidden shadow-sm">
                       <div className="px-3 py-2 bg-slate-50 text-[10px] text-slate-500 font-bold border-b border-slate-150 flex justify-between">
-                        <span>当前真实 TCP 代理隧道 (共 {tcpRules.length} 条)</span>
-                        <span className="text-emerald-600">来自后端进程列表</span>
+                        <span>当前生效中 of TCP 回退代理隧道 (共 {tcpRules.length} 条)</span>
+                        <span className="text-emerald-600">中转内核空闲</span>
                       </div>
                       <table className="w-full text-left">
                         <thead>
@@ -596,7 +427,7 @@ export default function UniversalNetworkView({
                       checked={udpProxy}
                       onChange={(e) => {
                         onUpdateState('udpProxy', e.target.checked);
-                        onTriggerToast(e.target.checked ? '已展开 UDP 端口代理配置。添加规则后才会启动真实代理。' : '已收起 UDP 端口代理配置，现有真实代理不会被自动停止。');
+                        onTriggerToast(e.target.checked ? '已开启高灵敏 UDP 分层数据透传加速。' : '已关闭 UDP 代理镜像，节约本地端口资源。');
                       }}
                       className="mr-2 cursor-pointer w-4 h-4 rounded text-amber-600 focus:ring-amber-500"
                     />
@@ -609,31 +440,31 @@ export default function UniversalNetworkView({
                     <form onSubmit={handleAddUdpRule} className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-white p-3 rounded-lg border border-slate-100 shadow-inner">
                       <div className="flex flex-col gap-1">
                         <span className="text-[10px] text-slate-400">本机监听UDP端口</span>
-                        <input 
-                          type="text" 
-                          value={udpInput.listen} 
+                        <input
+                          type="text"
+                          value={udpInput.listen}
                           onChange={e => setUdpInput({ ...udpInput, listen: e.target.value })}
-                          placeholder="例如: 8211" 
+                          placeholder="例如: 8211"
                           className="px-2 py-1.5 border border-slate-200 rounded font-mono text-xs outline-none"
                         />
                       </div>
                       <div className="flex flex-col gap-1">
                         <span className="text-[10px] text-slate-400">友邻虚拟网IP (转发目标)</span>
-                        <input 
-                          type="text" 
-                          value={udpInput.targetIp} 
+                        <input
+                          type="text"
+                          value={udpInput.targetIp}
                           onChange={e => setUdpInput({ ...udpInput, targetIp: e.target.value })}
-                          placeholder="例如: 10.0.8.3" 
+                          placeholder="例如: 10.0.8.3"
                           className="px-2 py-1.5 border border-slate-200 rounded font-mono text-xs outline-none"
                         />
                       </div>
                       <div className="flex flex-col gap-1">
                         <span className="text-[10px] text-slate-400">友端入站接收端口</span>
-                        <input 
-                          type="text" 
-                          value={udpInput.targetPort} 
+                        <input
+                          type="text"
+                          value={udpInput.targetPort}
                           onChange={e => setUdpInput({ ...udpInput, targetPort: e.target.value })}
-                          placeholder="例如: 8211" 
+                          placeholder="例如: 8211"
                           className="px-2 py-1.5 border border-slate-200 rounded font-mono text-xs outline-none"
                         />
                       </div>
@@ -647,8 +478,8 @@ export default function UniversalNetworkView({
                     {/* Rules List Table */}
                     <div className="bg-white rounded-lg border border-slate-150 overflow-hidden shadow-sm">
                       <div className="px-3 py-2 bg-slate-50 text-[10px] text-slate-500 font-bold border-b border-slate-150 flex justify-between">
-                        <span>真实 UDP 直通映射条目集 (共 {udpRules.length} 条)</span>
-                        <span className="text-amber-600">来自后端进程列表</span>
+                        <span>UDP 直通多口映射条目集 (共 {udpRules.length} 条)</span>
+                        <span className="text-amber-600 animate-pulse">P2P 协议全时打孔握手中</span>
                       </div>
                       <table className="w-full text-left">
                         <thead>
@@ -692,7 +523,7 @@ export default function UniversalNetworkView({
                       checked={udpBroadcastBridge}
                       onChange={(e) => {
                         onUpdateState('udpBroadcastBridge', e.target.checked);
-                        onTriggerToast(e.target.checked ? '已展开 UDP 广播桥配置。点击应用后启动真实广播桥。' : '已收起 UDP 广播桥配置，现有真实广播桥不会被自动停止。');
+                        onTriggerToast(e.target.checked ? '已部署 ARP 级别局域网广播穿透网桥。' : '已关闭局域网 ARP 广播大厅对刷通道。');
                       }}
                       className="mr-2 cursor-pointer w-4 h-4 rounded text-amber-600 focus:ring-amber-500"
                     />
@@ -704,8 +535,8 @@ export default function UniversalNetworkView({
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-white p-3 rounded-lg border border-slate-100">
                       <div className="flex flex-col gap-1">
                         <span className="text-[10px] text-slate-400">广播通投目标网段范围</span>
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           value={broadcastConfig.targetRange}
                           onChange={e => setBroadcastConfig({ ...broadcastConfig, targetRange: e.target.value })}
                           className="px-2 py-1.5 border border-slate-200 rounded font-mono text-xs outline-none"
@@ -713,7 +544,7 @@ export default function UniversalNetworkView({
                       </div>
                       <div className="flex flex-col gap-1">
                         <span className="text-[10px] text-slate-400">承载并网网卡驱动名</span>
-                        <select 
+                        <select
                           value={broadcastConfig.adapter}
                           onChange={e => setBroadcastConfig({ ...broadcastConfig, adapter: e.target.value })}
                           className="px-2 py-1.5 border border-slate-200 rounded text-xs outline-none bg-white font-sans text-slate-700 cursor-pointer"
@@ -724,8 +555,8 @@ export default function UniversalNetworkView({
                       </div>
                       <div className="flex flex-col gap-1">
                         <span className="text-[10px] text-slate-400">帧突发速率安全阈值 (pkts/sec)</span>
-                        <input 
-                          type="number" 
+                        <input
+                          type="number"
                           value={broadcastConfig.rateLimit}
                           onChange={e => setBroadcastConfig({ ...broadcastConfig, rateLimit: e.target.value })}
                           className="px-2 py-1.5 border border-slate-200 rounded font-mono text-xs outline-none animate-pulse-subtle"
@@ -735,46 +566,14 @@ export default function UniversalNetworkView({
 
                     <div className="flex justify-between items-center bg-amber-500/5 border border-amber-300/20 p-3 rounded-lg">
                       <span className="text-[10.5px] text-amber-800">💡 提示：高突变帧速率有助于提高某些老游戏的“秒搜房”刷新率，但可能加剧部分校园网环境下防火墙的防御阻断报警。建议保持 350 下限。</span>
-                      <button 
-                        type="button" 
+                      <button
+                        type="button"
                         onClick={handleApplyBroadcastConfig}
                         className="px-3 py-1.5 bg-amber-500 hover:bg-amber-450 text-slate-900 font-bold font-sans rounded text-xs transition-colors cursor-pointer"
                       >
                         重新应用广播桥
                       </button>
                     </div>
-                    {broadcastRules.length > 0 && (
-                      <div className="bg-white rounded-lg border border-slate-150 overflow-hidden shadow-sm">
-                        <div className="px-3 py-2 bg-slate-50 text-[10px] text-slate-500 font-bold border-b border-slate-150">
-                          当前真实广播桥进程 (共 {broadcastRules.length} 条)
-                        </div>
-                        <div className="divide-y divide-slate-100">
-                          {broadcastRules.map((rule) => (
-                            <div key={rule.id} className="px-3 py-2 flex items-center justify-between font-mono text-[11px]">
-                              <span>{rule.listen} {'->'} {rule.forward_targets.join(', ')}</span>
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  try {
-                                    setIsBusy(true);
-                                    await stopUdpBroadcastBridge(rule.id);
-                                    onTriggerToast(`已停止 UDP 广播桥：${rule.listen}`);
-                                    await refreshNetworkPanel(false);
-                                  } catch (error) {
-                                    onTriggerToast(error instanceof Error ? error.message : String(error || '停止 UDP 广播桥失败'));
-                                  } finally {
-                                    setIsBusy(false);
-                                  }
-                                }}
-                                className="text-rose-600 hover:text-rose-800 underline cursor-pointer"
-                              >
-                                停止
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>

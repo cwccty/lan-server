@@ -12,53 +12,35 @@ import DiagnosticsView from './components/DiagnosticsView';
 import SettingsView from './components/SettingsView';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, X, Gift, CheckCircle } from 'lucide-react';
-import {
-  getN2nDiagnostics,
-  getN2nLastConfig,
-  listNetworkBackends,
-  readServerSession,
-  setupNetwork,
-  startNetwork,
-  stopNetwork
-} from '../api/tauri';
-import type { N2nDiagnostics, NetworkConfig } from '../types/network';
-
-function statusFromN2n(diagnostics: N2nDiagnostics | null): NetworkStatus {
-  if (!diagnostics) return 'idle';
-  if (diagnostics.ok_link) return 'online';
-  if (diagnostics.running && (diagnostics.not_responding || diagnostics.auth_error || diagnostics.ip_mac_conflict)) return 'warning';
-  if (diagnostics.running) return 'connecting';
-  return 'idle';
-}
 
 export default function App() {
   // Global States
   const [state, setState] = useState<AppState>({
     currentTab: 'home',
-    netStatus: 'idle',
+    netStatus: 'online',
     role: 'host',
-    latency: 0,
+    latency: 24,
     packetLoss: 0.0,
-    localVirtualIp: '10.10.10.2',
-    friendVirtualIp: '10.10.10.3',
-    
+    localVirtualIp: '10.0.8.1',
+    friendVirtualIp: '10.0.8.2',
+
     roomName: 'Terraria_Night_Squad',
-    roomKey: 'lan-helper-secret',
-    supernode: '',
-    virtualIpInput: '10.10.10.2',
+    roomKey: 'a8f9-2b4c-99e1',
+    supernode: 'supernode.n2n.edge.me:7777',
+    virtualIpInput: '10.0.8.1',
     gamePort: '7777',
-    
+
     tcpProxy: false,
-    udpProxy: false,
-    udpBroadcastBridge: false,
-    
+    udpProxy: true,
+    udpBroadcastBridge: true,
+
     terrariaWorld: 'World_1 (大型 / 腐化 / 专家)',
     terrariaPort: 7777,
     terrariaPasswordInput: '',
     terrariaMaxPlayers: 8,
     terrariaRunning: false,
     terrariaLogs: [],
-    
+
     edgePath: 'C:/Program Files/N2N/edge.exe',
     supernode_default: 'backup.supernode.me:7778',
     solutions_url: 'https://api.lianjizhushou.com/solutions/shared/v2'
@@ -67,8 +49,6 @@ export default function App() {
   // UI States
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showVersionModal, setShowVersionModal] = useState(false);
-  const [n2nDiagnostics, setN2nDiagnostics] = useState<N2nDiagnostics | null>(null);
-  const [lastBackendError, setLastBackendError] = useState('');
 
   // Auto-hide toast after 3 seconds
   useEffect(() => {
@@ -91,87 +71,23 @@ export default function App() {
     }));
   };
 
-  const refreshRuntimeState = async (showToast = false) => {
-    try {
-      const [diagnostics, backends, lastConfig, serverSession] = await Promise.all([
-        getN2nDiagnostics().catch(() => null),
-        listNetworkBackends().catch(() => []),
-        getN2nLastConfig().catch(() => null),
-        readServerSession().catch(() => null)
-      ]);
-      const n2nBackend = backends.find((backend) => backend.id === 'n2n');
-      const nextVirtualIp = diagnostics?.virtual_ip || n2nBackend?.virtual_ip || lastConfig?.local_ip || state.localVirtualIp;
-      const nextSupernode = diagnostics?.supernode || lastConfig?.supernode || state.supernode;
-      setN2nDiagnostics(diagnostics);
-      setLastBackendError('');
-      setState((prev) => ({
-        ...prev,
-        netStatus: statusFromN2n(diagnostics),
-        latency: diagnostics?.ok_link ? prev.latency || 1 : 0,
-        localVirtualIp: nextVirtualIp || prev.localVirtualIp,
-        virtualIpInput: lastConfig?.local_ip || nextVirtualIp || prev.virtualIpInput,
-        roomName: lastConfig?.room_name || prev.roomName,
-        roomKey: lastConfig?.secret || prev.roomKey,
-        supernode: nextSupernode || prev.supernode,
-        terrariaRunning: Boolean(serverSession?.running),
-        terrariaLogs: serverSession?.logs ?? prev.terrariaLogs
-      }));
-      if (showToast) {
-        handleTriggerToast(diagnostics?.summary || '已刷新真实后端状态。');
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error || '读取后端状态失败');
-      setLastBackendError(message);
-      setState((prev) => ({ ...prev, netStatus: 'idle', latency: 0 }));
-      if (showToast) handleTriggerToast(message);
-    }
-  };
-
-  useEffect(() => {
-    void refreshRuntimeState(false);
-    const timer = window.setInterval(() => void refreshRuntimeState(false), 5000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  const handleToggleNetwork = async () => {
-    if (state.netStatus === 'online' || n2nDiagnostics?.running) {
+  const handleToggleNetwork = () => {
+    if (state.netStatus === 'online') {
+      updateStateValue('netStatus', 'idle');
+      handleTriggerToast('虚拟局域网组网连接中断成功。');
+    } else {
       updateStateValue('netStatus', 'connecting');
-      handleTriggerToast('正在停止 n2n edge...');
-      try {
-        const result = await stopNetwork('n2n');
-        handleTriggerToast(result.message || 'n2n edge 已停止。');
-      } catch (error) {
-        handleTriggerToast(error instanceof Error ? error.message : String(error || '停止 n2n 失败'));
-      } finally {
-        await refreshRuntimeState(false);
-      }
-      return;
-    }
+      handleTriggerToast('正在连接公共中继节点，正在拉起 TAP 仿真网卡组网进程...');
 
-    const config: NetworkConfig = {
-      room_name: state.roomName,
-      secret: state.roomKey,
-      supernode: state.supernode,
-      local_ip: state.virtualIpInput || state.localVirtualIp
-    };
-
-    if (!config.room_name || !config.secret || !config.supernode || !config.local_ip) {
-      updateStateValue('currentTab', 'network');
-      handleTriggerToast('请先在通用组网中心填写 community、密钥、supernode 和本机虚拟 IP。');
-      return;
-    }
-
-    updateStateValue('netStatus', 'connecting');
-    handleTriggerToast('正在保存 n2n 配置并启动 edge...');
-    try {
-      await setupNetwork('n2n', config);
-      const result = await startNetwork('n2n');
-      handleTriggerToast(result.message || 'n2n edge 已启动，正在等待 supernode ACK/PONG。');
-    } catch (error) {
-      updateStateValue('netStatus', 'warning');
-      handleTriggerToast(error instanceof Error ? error.message : String(error || '启动 n2n 失败'));
-    } finally {
-      await refreshRuntimeState(false);
+      setTimeout(() => {
+        setState((prev) => ({
+          ...prev,
+          netStatus: 'online',
+          latency: 24,
+          localVirtualIp: '10.0.8.1'
+        }));
+        handleTriggerToast('与中继节点配对及组网成功！分配虚拟IP：10.0.8.1 [延迟 24ms]');
+      }, 1000);
     }
   };
 
@@ -231,9 +147,6 @@ export default function App() {
                 onNavigateTab={(tab) => updateStateValue('currentTab', tab)}
                 onTriggerToast={handleTriggerToast}
                 localIp={state.localVirtualIp}
-                latency={state.latency}
-                supernode={state.supernode}
-                backendHint={lastBackendError || n2nDiagnostics?.summary || ''}
               />
             )}
 
