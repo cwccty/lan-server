@@ -871,3 +871,14 @@ cargo check --manifest-path src-tauri\Cargo.toml
 - 已确认 `npm run release:preflight` 可正常通过。
 
 下一步推荐：使用 release exe 做人工回放，并把实际结果记录到 `docs/RELEASE_VALIDATION_LOG.md`。
+
+## 2026-06-03 release exe 人工回放验收阶段
+
+完成：
+
+- 已确认 `npm run release:preflight` 通过；
+- release exe 存在；
+- 关键文档、adapter registry、乱码检查、剪贴板反馈检查、强承诺文案检查均通过；
+- 当前进入人工回放验收阶段。
+
+下一步推荐：打开 release exe，按核心页面逐项测试真实交互和后端连接，不再只看前端视觉。

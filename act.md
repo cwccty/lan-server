@@ -1743,3 +1743,19 @@ C:\Users\ty\Downloads\联机助手 (1)
 预检会自动检查关键文档、release exe、adapter registry、连续问号乱码、静默剪贴板调用、强承诺文案等。已确认 `npm run release:preflight` 通过。
 
 下一步推荐：打开 release exe，按 `docs/RELEASE_VALIDATION_PLAN.md` 做逐页人工回放，并把真实结果记录到 `docs/RELEASE_VALIDATION_LOG.md`。
+
+## 2026-06-03 启动 release exe 人工回放验收
+
+本轮已执行 `npm run release:preflight`，结果 PASS，工作区无未提交变更。
+
+当前阶段正式进入 release exe 人工回放验收，不继续盲目新增功能。验收目标是确认当前产品作为 0.1.0 MVP 测试版是否足够稳定：
+
+- 页面按钮是否真实可用；
+- 加载/耗时操作是否有遮罩或状态反馈；
+- 成功/运行/就绪是否来自真实后端状态；
+- 失败是否明确提示原因；
+- 中文是否正常；
+- 诊断、组网、Terraria、推荐方案等页面是否保留合理缓存；
+- 是否还存在白框、透明框、假绿、卡顿无反馈等发布级问题。
+
+下一步推荐：打开 `src-tauri\target\release\lan-helper.exe`，按首页、方案库、游戏扫描、推荐方案、通用组网中心、Terraria 向导、诊断报告逐页人工回放。

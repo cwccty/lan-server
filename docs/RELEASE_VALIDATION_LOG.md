@@ -295,3 +295,25 @@ LastWriteTime : 2026/6/3 13:10:50
 自动化单机验证、页面缓存体验、适配器同步、代理/广播桥自测、Terraria 服务端 30 秒稳定性、VPS / supernode / n2n 注册链路、单机房主侧最小链路已通过。
 
 当前可以整理为 0.1.0 MVP 测试版发布材料，但最终公开发布前仍建议补齐真实双机/虚拟机加入者验证与首批 adapter 人工审核。
+
+## 2026-06-03 release exe 人工回放验收启动记录
+
+本轮已确认自动预检通过，当前进入 release exe 人工回放验收阶段。
+
+已执行：
+
+```powershell
+npm run release:preflight
+```
+
+结果：PASS。
+
+待人工回放的 release exe：
+
+```text
+E:\Documents\联机助手\src-tauri\target\release\lan-helper.exe
+```
+
+本阶段目标不是继续盲目新增功能，而是按发布级流程逐页验证：按钮是否有响应、加载是否有反馈、状态是否来自真实后端、失败是否能明确提示、中文是否正常、页面是否保留合理缓存。
+
+下一步推荐：按“首页 → 方案库 → 游戏扫描 → 推荐方案 → 通用组网中心 → Terraria 向导 → 诊断报告”的顺序打开 release exe 逐项测试，并把异常记录到本文件。
