@@ -12,7 +12,7 @@ const navItems: Array<{ id: Page; label: string; hint: string }> = [
   { id: 'diagnostics', label: '诊断报告', hint: '真实检测项' }
 ];
 
-const futureItems = ['端口代理', 'UDP 广播桥', 'Mod 管理', 'Steam Relay 插件', 'supernode 管理'];
+const futureItems = ['发布验证页', 'Mod 管理', 'Steam Relay 插件', 'supernode 管理', 'adapter 审核后台'];
 
 export function Layout({ currentPage, onNavigate, children }: { currentPage: Page; onNavigate: (page: Page) => void; children: ReactNode; }) {
   return (
