@@ -134,6 +134,42 @@ function parseInviteConfig(text: string): ImportedInviteConfig {
   };
 }
 
+function looksLikeIpv4(value: string) {
+  const parts = value.trim().split('.');
+  if (parts.length !== 4) return false;
+  return parts.every((part) => {
+    if (!/^\d+$/.test(part)) return false;
+    const numeric = Number(part);
+    return numeric >= 0 && numeric <= 255;
+  });
+}
+
+function validateN2nInputs(roomName: string, secret: string, supernode: string, localIp: string, peerIp: string) {
+  const issues: string[] = [];
+  const normalizedRoom = roomName.trim();
+  const normalizedSecret = secret.trim();
+  const normalizedSupernode = supernode.trim();
+  const normalizedLocalIp = localIp.trim();
+  const normalizedPeerIp = peerIp.trim();
+
+  if (!normalizedRoom) issues.push('请填写房间名 / community。');
+  if (!normalizedSecret) issues.push('请填写密钥。');
+  if (!normalizedSupernode) issues.push('请填写 supernode 地址，例如 VPS_IP:7777。');
+  if (!normalizedLocalIp) {
+    issues.push('请填写本机虚拟 IP。');
+  } else if (!looksLikeIpv4(normalizedLocalIp)) {
+    issues.push('本机虚拟 IP 格式不正确，应类似 10.10.10.2。');
+  }
+  if (normalizedPeerIp && !looksLikeIpv4(normalizedPeerIp)) {
+    issues.push('对方 / 房主虚拟 IP 格式不正确，应类似 10.10.10.3。');
+  }
+  if (normalizedLocalIp && normalizedPeerIp && normalizedLocalIp === normalizedPeerIp) {
+    issues.push('本机虚拟 IP 不能和对方 / 房主虚拟 IP 相同。');
+  }
+
+  return issues;
+}
+
 function ConnectivityReportView({ report }: { report: ConnectivityReport }) {
   return (
     <div className={report.reachable ? 'result-ok' : 'result-bad'}>
@@ -732,6 +768,8 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
   const n2nRecordedRunning = Boolean(n2nBackend?.notes.some((note) => note.includes('PID')));
   const n2nRunning = Boolean(n2nDiagnostics?.running || n2nRuntimeResult?.running || n2nRecordedRunning);
   const supernodeValue = supernode.trim();
+  const n2nInputIssues = validateN2nInputs(roomName, secret, supernode, localIp, peerIp);
+  const n2nInputsValid = n2nInputIssues.length === 0;
   const supernodeOk = Boolean(n2nDiagnostics?.ok_link && !n2nDiagnostics.auth_error && !n2nDiagnostics.ip_mac_conflict);
   const supernodeProblem = Boolean(n2nDiagnostics?.auth_error || n2nDiagnostics?.ip_mac_conflict || n2nDiagnostics?.not_responding);
   const hasRecommendationPreset = Boolean(preset?.gameId || preset?.displayName);
@@ -907,6 +945,42 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
   const runUdpBroadcastBridgeSelfTest = () =>
     runAction('一键自测 UDP 广播桥', () => selfTestUdpBroadcastBridge(), setUdpBroadcastBridgeSelfTest);
 
+  const saveN2nConfig = () => {
+    if (!n2nInputsValid) {
+      setNetworkLoadError(`n2n 配置不能保存：${n2nInputIssues.join(' ')}`);
+      return;
+    }
+    runAction(
+      '保存 n2n 配置',
+      () => setupNetwork('n2n', {
+        room_name: roomName.trim(),
+        secret: secret.trim(),
+        supernode: supernode.trim(),
+        local_ip: localIp.trim()
+      }),
+      setN2nResult
+    );
+  };
+
+  const startN2nEdge = () => {
+    if (!n2nInputsValid) {
+      setNetworkLoadError(`n2n edge 不能启动：${n2nInputIssues.join(' ')}`);
+      return;
+    }
+    runAction('保存并启动 n2n edge', async () => {
+      await setupNetwork('n2n', {
+        room_name: roomName.trim(),
+        secret: secret.trim(),
+        supernode: supernode.trim(),
+        local_ip: localIp.trim()
+      });
+      return startNetwork('n2n');
+    }, (value) => {
+      setN2nResult(value);
+      setN2nAutoRefresh({ reason: '等待 supernode ACK / PONG', startedAt: Date.now() });
+    });
+  };
+
   return (
     <section className="page-stack network-page modern-content-page">
       <LoadingOverlay
@@ -1054,9 +1128,18 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
         <label>对方 / 房主虚拟 IP<input value={peerIp} onChange={(event) => setPeerIp(event.target.value)} placeholder="例如 10.10.10.3" disabled={Boolean(busy)} /><small className="muted">房主可填朋友 IP 用于测试；加入者这里填房主 IP。</small></label>
         <label>游戏端口，可按游戏修改<input value={gamePort} onChange={(event) => setGamePort(event.target.value)} disabled={Boolean(busy)} /><small className="muted">Terraria 默认 7777，Minecraft Java 默认 25565。其他游戏使用自己的 LAN/IP 端口。</small></label>
 
+        {!n2nInputsValid && (
+          <div className="result-bad">
+            <h4>n2n 配置需要先修正</h4>
+            <ul>
+              {n2nInputIssues.map((issue) => <li key={issue}>{issue}</li>)}
+            </ul>
+          </div>
+        )}
+
         <div className="actions">
-          <button disabled={Boolean(busy)} onClick={() => runAction('保存 n2n 配置', () => setupNetwork('n2n', { room_name: roomName, secret, supernode, local_ip: localIp || undefined }), setN2nResult)}>保存 n2n 配置</button>
-          <button disabled={Boolean(busy)} onClick={() => runAction('启动 n2n edge', () => startNetwork('n2n'), (value) => { setN2nResult(value); setN2nAutoRefresh({ reason: '等待 supernode ACK / PONG', startedAt: Date.now() }); })}>启动 n2n edge</button>
+          <button disabled={Boolean(busy) || !n2nInputsValid} onClick={saveN2nConfig}>保存 n2n 配置</button>
+          <button disabled={Boolean(busy) || !n2nInputsValid} onClick={startN2nEdge}>保存并启动 n2n edge</button>
           <button disabled={Boolean(busy) || !n2nRunning} onClick={() => runAction('停止 n2n edge', () => stopNetwork('n2n'), (value) => { setN2nResult(value); setN2nAutoRefresh(null); })}>停止 n2n edge</button>
         </div>
 
