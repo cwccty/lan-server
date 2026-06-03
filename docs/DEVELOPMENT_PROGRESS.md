@@ -1,4 +1,4 @@
-﻿﻿﻿# 开发进度快照
+﻿﻿﻿﻿# 开发进度快照
 
 更新时间：2026-06-02
 
@@ -1596,3 +1596,30 @@ cargo check --manifest-path src-tauri\Cargo.toml
 验证结果：`tools/check_reference_ui_fidelity.ps1`、`npm run build`、`tools/check_reference_runtime_css.ps1`、`cargo check`、`npm run release:preflight`、`git diff --check` 均通过。
 
 下一步推荐：继续做逐页运行态验收，确认首页、方案库、游戏扫描、推荐方案、通用组网中心、Terraria 向导、诊断报告、设置与帮助都不再出现裸 HTML 或旧前端残留。
+## 2026-06-04 参考前端逐页运行态验收
+
+本轮在修复 Tailwind 运行态样式后，继续用浏览器逐页验收参考前端，不只检查源码一致性。
+
+验收页面：
+
+- 首页；
+- 方案库；
+- 游戏扫描；
+- 推荐方案；
+- 通用组网中心；
+- Terraria 向导；
+- 诊断报告；
+- 设置与帮助。
+
+浏览器运行态检查结果：
+
+- 每个页面 CSS 均包含 `.flex`、`.fixed`、`.grid`；
+- Sidebar 均为 `position=fixed`，宽度 `260px`；
+- `main` 区域左边距为 `260px`；
+- 每页均存在参考前端卡片圆角结构；
+- 隐藏调试面板没有外露；
+- 未发现旧前端残留文案，例如“联机向导里的所有按钮”“好友连接检测入口”“n2nedge无检测到”。
+
+结论：当前运行态已恢复为参考前端的侧栏、顶部栏、卡片布局和橙色高级感风格；“裸 HTML/只换颜色”的问题已消除。
+
+下一步推荐：由用户打开 release 版做主观视觉确认。如果确认满意，再进入正式前后端连接阶段；默认仍应保持 reference mode 一比一，真实状态接入走 `src/reference-adapter`。
