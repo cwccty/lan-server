@@ -1356,3 +1356,23 @@ cargo check --manifest-path src-tauri\Cargo.toml
 结论：大多数游戏应通过 adapter + 通用组网中心解决，不应该每个游戏都做独立前端页面。专用向导只作为高级封装，用在 Terraria、未来可能的 Minecraft Java 服务端流程等复杂场景。
 
 下一步推荐：把 `docs/RELEASE_NOTES_DRAFT.md` 精简成 GitHub Release 文案，或先继续补做真实双机/虚拟机加入者验证。
+
+## 2026-06-03 GitHub Release 文案草稿
+
+已新增 `docs/GITHUB_RELEASE_DRAFT.md`，用于 GitHub Release 页面直接复制或二次修改。
+
+该文案从 `docs/RELEASE_NOTES_DRAFT.md` 精简而来，重点保留：
+
+- 0.1.0 MVP 测试版定位；
+- 当前版本是什么；
+- 已完成能力；
+- 当前验证状态；
+- 房主/加入者快速开始；
+- 当前不承诺的边界；
+- Terraria 向导不是每个游戏都复制一套的架构说明；
+- 推荐用户反馈内容；
+- 下一步计划。
+
+产品原则继续保持：公开发布文案必须诚实表达“已验证”和“待补测”的区别，不能写成所有游戏一键联机，也不能暗示可以绕过正版、反作弊、官方账号或平台限制。
+
+下一步推荐：准备一次正式 release 前检查：确认 `README.md`、`docs/GITHUB_RELEASE_DRAFT.md`、`docs/RELEASE_VALIDATION_LOG.md` 三者表述一致，然后决定是否打 tag / 上传 release 包。
