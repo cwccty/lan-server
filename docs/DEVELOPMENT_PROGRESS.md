@@ -1,4 +1,4 @@
-﻿# 开发进度快照
+﻿﻿# 开发进度快照
 
 更新时间：2026-06-02
 
@@ -1565,3 +1565,20 @@ cargo check --manifest-path src-tauri\Cargo.toml
 - `git diff --check` 通过。
 
 下一步推荐：按 `docs/REFERENCE_PRODUCT_MODE_VALIDATION.md` 用 release 版做一次人工验证。只有 Header、首页、诊断页三处 product mode 替换体验确认可接受后，再进入正式产品化 UI 状态接入阶段。
+
+## 2026-06-04 参考前端运行态样式修复
+
+本轮继续审计用户目标“完全按照 `C:\Users\ty\Downloads\联机助手 (1)` 一比一复原”。发现关键差距：源码一致性通过，但运行态截图曾显示为裸 HTML，说明 Tailwind utility 没有生成，用户看到的界面仍会很丑。
+
+修复内容：
+
+- 新增 `src/reference-runtime.css`，显式让 Tailwind 扫描 `src/reference-ui/**/*.{ts,tsx}` 和 `src/reference-adapter/**/*.{ts,tsx}`；
+- `src/main.tsx` 改为导入 `./reference-runtime.css`，不再直接导入 `./reference-ui/index.css`；
+- `src/reference-ui` 本身不改，继续保持与参考源码一比一；
+- `tools/release_preflight.ps1` 新增运行态样式防退化检查，避免再次出现“源码一比一但页面裸奔”。
+
+运行态验证：浏览器打开本地 Vite 后，`.fixed.left-0` 已恢复 `position=fixed`，Sidebar 宽度为 `260px`，`.flex` 为 `display:flex`，截图已恢复参考前端侧栏、顶部栏、卡片布局和橙色高级感风格。
+
+验证结果：`tools/check_reference_ui_fidelity.ps1`、`npm run build`、构建 CSS 哨兵、`cargo check`、`npm run tauri:build`、`npm run release:preflight`、`git diff --check` 均通过。
+
+下一步推荐：用 release 版逐页人工验收视觉；确认满意后，再进入正式前后端连接阶段，优先继续使用 `src/reference-adapter` 的 product mode 接入方式。

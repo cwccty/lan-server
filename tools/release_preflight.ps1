@@ -78,6 +78,7 @@ Write-Host "FullBuild: $FullBuild  RunCargoTests: $RunCargoTests  SkipTauriBuild
   "docs\RELEASE_VALIDATION_LOG.md",
   "docs\PRODUCT_MEMORY.md",
   "docs\DEVELOPMENT_PROGRESS.md",
+  "src\reference-runtime.css",
   "adapter-registry\index.json",
   "tools\update_adapter_registry_index.ps1"
 ) | ForEach-Object { Test-RequiredFile $_ }
@@ -120,6 +121,27 @@ if (Test-Path $referenceUiCheck) {
   }
 } else {
   Fail-Check "reference UI fidelity" "missing: $referenceUiCheck"
+}
+
+# Reference runtime style guardrail.
+# Source-level fidelity alone is not enough: Tailwind must scan the copied
+# reference UI files, otherwise the app renders as unstyled HTML even though
+# src/reference-ui still matches the reference source.
+try {
+  $mainText = Get-Content "src\main.tsx" -Raw -Encoding UTF8
+  $runtimeCssText = Get-Content "src\reference-runtime.css" -Raw -Encoding UTF8
+  if ($mainText -notmatch "reference-runtime\.css") {
+    Fail-Check "reference runtime stylesheet import" "src/main.tsx must import src/reference-runtime.css"
+  } else {
+    Pass-Check "reference runtime stylesheet import"
+  }
+  if ($runtimeCssText -notmatch '@source\s+"\.\/reference-ui\/\*\*\/\*\.\{ts,tsx\}"') {
+    Fail-Check "reference Tailwind source scan" "src/reference-runtime.css must include @source for src/reference-ui"
+  } else {
+    Pass-Check "reference Tailwind source scan"
+  }
+} catch {
+  Fail-Check "reference runtime style guardrail" ([string]$_)
 }
 
 # Adapter registry consistency.

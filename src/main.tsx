@@ -1,7 +1,7 @@
 ﻿import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './reference-ui/App';
-import './reference-ui/index.css';
+import './reference-runtime.css';
 import {
   ReferenceProductDiagnosticsPatcher,
   ReferenceProductHeaderPatcher,
