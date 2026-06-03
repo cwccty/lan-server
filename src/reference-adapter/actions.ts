@@ -1,12 +1,16 @@
 ﻿import {
   generateDiagnosticReport,
+  getN2nLastConfig,
   readServerSession,
+  scanGames,
   sendServerCommand,
   setupNetwork,
   startGameServerSession,
   startNetwork,
   stopNetwork,
   stopServerSession,
+  syncAdapterRegistry,
+  syncLocalAdapterRegistryExample,
   testConnectivity
 } from '../api/tauri';
 import type { ConnectivityTarget, NetworkConfig } from '../types/network';
@@ -91,4 +95,20 @@ export function testReferenceConnectivity(target: ConnectivityTarget) {
 
 export function generateReferenceDiagnostics() {
   return withSnapshot('生成诊断报告', () => generateDiagnosticReport(), true);
+}
+
+export function scanReferenceGames() {
+  return withSnapshot('扫描本地游戏', () => scanGames());
+}
+
+export function syncReferenceLocalAdapterRegistry() {
+  return withSnapshot('同步本地共享方案示例', () => syncLocalAdapterRegistryExample());
+}
+
+export function syncReferenceAdapterRegistry(registryUrl: string) {
+  return withSnapshot('同步共享方案库', () => syncAdapterRegistry(registryUrl));
+}
+
+export function readReferenceN2nLastConfig() {
+  return withSnapshot('读取最近 n2n 配置', () => getN2nLastConfig());
 }

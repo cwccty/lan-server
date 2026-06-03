@@ -1,12 +1,17 @@
 ﻿import { useEffect, useRef, useState } from 'react';
 import {
   generateReferenceDiagnostics,
+  readReferenceN2nLastConfig,
   readReferenceTerrariaServer,
   saveReferenceN2nConfig,
+  scanReferenceGames,
   startReferenceN2n,
   startReferenceTerrariaServer,
   stopReferenceN2n,
   stopReferenceTerrariaServer,
+  syncReferenceAdapterRegistry,
+  syncReferenceLocalAdapterRegistry,
+  testReferenceConnectivity,
   type ReferenceActionResult
 } from './actions';
 import type { NetworkConfig } from '../types/network';
@@ -77,6 +82,25 @@ function readTerrariaConfigFromReferenceForm(): LaunchConfig {
     password,
     max_players: Number.isFinite(maxPlayers) ? maxPlayers : 8
   };
+}
+
+function readSolutionsRegistryUrl() {
+  const root = findPageRoot('方案库');
+  const input = root?.querySelector('input[type="text"]') as HTMLInputElement | null;
+  return input?.value?.trim() || 'http://127.0.0.1:5173/adapter-registry/index.json';
+}
+
+function readHostIpFromRecommendationPage() {
+  const root = findPageRoot('推荐方案');
+  const text = root?.textContent ?? '';
+  const match = text.match(/10\.\d+\.\d+\.\d+/);
+  return match?.[0] ?? '10.0.8.1';
+}
+
+function readGamePortFromNetworkForm() {
+  const value = findInputByLabel('Game Port')?.value;
+  const port = Number(value || 7777);
+  return Number.isFinite(port) ? port : 7777;
 }
 
 function setBusy(button: HTMLButtonElement, busy: boolean, label?: string) {
@@ -178,7 +202,14 @@ function useAttachProductActions(enabled: boolean) {
         interceptButton(firstButton('启动自建服务', 'Terraria 联机向导'), 'terraria-start-server', () => startReferenceTerrariaServer(readTerrariaConfigFromReferenceForm())),
         interceptButton(firstButton('停止服务', 'Terraria 联机向导'), 'terraria-stop-server', () => stopReferenceTerrariaServer()),
         interceptButton(firstButton('一键自检', 'Terraria 联机向导'), 'terraria-read-server', () => readReferenceTerrariaServer()),
-        interceptButton(firstButton('手动强制重扫', '网络诊断与链路性能'), 'diagnostics-generate', () => generateReferenceDiagnostics())
+        interceptButton(firstButton('手动强制重扫', '网络诊断与链路性能'), 'diagnostics-generate', () => generateReferenceDiagnostics()),
+        interceptButton(firstButton('手动重扫以刷新缓存', '游戏扫描'), 'games-scan-local', () => scanReferenceGames()),
+        interceptButton(firstButton('强同步 Steam 自适应映射', '游戏扫描'), 'games-scan-steam-cache', () => scanReferenceGames()),
+        interceptButton(firstButton('一键更新共享方案', '方案库'), 'solutions-sync-remote', () => syncReferenceAdapterRegistry(readSolutionsRegistryUrl())),
+        interceptButton(firstButton('恢复默认', '方案库'), 'solutions-read-local-example', () => syncReferenceLocalAdapterRegistry()),
+        interceptButton(firstButton('重新测试', '推荐方案'), 'recommendation-test-connectivity', () => testReferenceConnectivity({ host: readHostIpFromRecommendationPage(), ports: [readGamePortFromNetworkForm()], timeout_ms: 1200, mode: 'n2n_game_port' })),
+        interceptButton(firstButton('复制主IP', '推荐方案'), 'recommendation-read-n2n-config', () => readReferenceN2nLastConfig()),
+        interceptButton(firstButton('一键拷制专属密信包', '推荐方案'), 'recommendation-generate-diagnostics', () => generateReferenceDiagnostics())
       ].filter(Boolean) as Array<() => void>;
     };
 

@@ -21,14 +21,18 @@ export {
 } from './selectors';
 export {
   generateReferenceDiagnostics,
+  readReferenceN2nLastConfig,
   readReferenceTerrariaServer,
   refreshReferenceRuntime,
   saveReferenceN2nConfig,
+  scanReferenceGames,
   sendReferenceTerrariaCommand,
   startReferenceN2n,
   startReferenceTerrariaServer,
   stopReferenceN2n,
   stopReferenceTerrariaServer,
+  syncReferenceAdapterRegistry,
+  syncReferenceLocalAdapterRegistry,
   testReferenceConnectivity,
   type ReferenceActionResult
 } from './actions';

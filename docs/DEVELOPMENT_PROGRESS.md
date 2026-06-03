@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿# 开发进度快照
+﻿﻿﻿﻿﻿﻿# 开发进度快照
 
 更新时间：2026-06-02
 
@@ -1658,3 +1658,37 @@ cargo check --manifest-path src-tauri\Cargo.toml
 - 在普通浏览器预览中点击 `保存基础参数` 会显示真实后端失败/未连接 Tauri 后端提示，证明按钮已走真实后端路径，而不是继续执行参考 UI 的 setTimeout 模拟成功。
 
 产品边界：product mode 仍是实验/产品化通道；默认发布界面必须保持 reference mode，一比一视觉优先。下一步如果用户确认视觉满意，可以继续扩展动作接入到游戏扫描、方案库同步、邀请包复制等功能。
+## 2026-06-04 Product Mode 第二批真实动作接入
+
+本轮继续“完全一比一复原之后再做前后端连接”的第二阶段：默认 reference mode 仍不改、不拦截、不破坏参考前端；仅在 product mode 下把更多按钮接入真实 Tauri 后端。
+
+新增后端动作封装：
+
+- `scanReferenceGames()` -> `scanGames()`；
+- `syncReferenceLocalAdapterRegistry()` -> `syncLocalAdapterRegistryExample()`；
+- `syncReferenceAdapterRegistry(url)` -> `syncAdapterRegistry(url)`；
+- `readReferenceN2nLastConfig()` -> `getN2nLastConfig()`。
+
+新增 product mode 按钮接入：
+
+- 游戏扫描：
+  - `手动重扫以刷新缓存` -> 真实扫描本地游戏；
+  - `强同步 Steam 自适应映射` -> 真实扫描本地游戏缓存；
+- 方案库：
+  - `一键更新共享方案` -> 真实同步共享方案库 URL；
+  - `恢复默认` -> 真实同步本地 adapter-registry 示例；
+- 推荐方案：
+  - `重新测试` -> 真实连通性测试；
+  - `复制主IP` -> 读取最近 n2n 配置；
+  - `一键拷制专属密信包` -> 生成真实诊断报告，用作后续邀请包真实摘要来源。
+
+浏览器验证：
+
+- reference mode 下：游戏扫描、方案库、推荐方案三个页面 `data-lan-helper-action-hooked` 均为空；
+- product mode 下：
+  - 游戏扫描挂载 `games-scan-local`、`games-scan-steam-cache`；
+  - 方案库挂载 `solutions-read-local-example`、`solutions-sync-remote`；
+  - 推荐方案挂载 `recommendation-test-connectivity`、`recommendation-read-n2n-config`、`recommendation-generate-diagnostics`；
+- 三页 Sidebar 仍为 `position=fixed`，默认参考前端视觉不受影响。
+
+下一步推荐：继续把 product mode 的真实动作结果写回页面局部文案/摘要区域，而不是只显示右下角 Product Mode toast；例如游戏扫描显示真实游戏数量，方案库显示真实同步结果，推荐页邀请包改为包含真实 n2n 配置和诊断摘要。
