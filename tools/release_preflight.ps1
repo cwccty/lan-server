@@ -104,6 +104,24 @@ if ($publishText) {
   Pass-Check "no UI over-claim: publish-ready text"
 }
 
+# Reference UI fidelity guardrail.
+# The current visual shell is intentionally locked to the user's reference
+# frontend in C:\Users\ty\Downloads\联机助手 (1)\src. Backend/product wiring must
+# happen through src/reference-adapter unless the reference itself is updated.
+$referenceUiCheck = "tools\check_reference_ui_fidelity.ps1"
+$referenceUiSource = "C:\Users\ty\Downloads\联机助手 (1)\src"
+if (Test-Path $referenceUiCheck) {
+  if (Test-Path $referenceUiSource) {
+    Invoke-Step "reference UI fidelity" {
+      powershell -ExecutionPolicy Bypass -File $referenceUiCheck
+    }
+  } else {
+    Pass-Check "reference UI fidelity" "reference source not found; skipped"
+  }
+} else {
+  Fail-Check "reference UI fidelity" "missing: $referenceUiCheck"
+}
+
 # Adapter registry consistency.
 try {
   $index = Get-Content "adapter-registry\index.json" -Raw -Encoding UTF8 | ConvertFrom-Json
