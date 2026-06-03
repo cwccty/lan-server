@@ -2436,3 +2436,9 @@ pm run tauri:build、
 pm run release:preflight。
 - 新 release exe：src-tauri\\target\\release\\lan-helper.exe。
 - 后续性能规则：禁止在默认入口、页面初次渲染、短周期轮询中调用 scanGames()、诊断报告生成、全量 registry 同步等重操作；这些必须由用户点击或带加载态的 Product Mode 动作触发。
+
+## 2026-06-04 前后端能力差异盘点
+- 已以后端 Tauri command 和现有类型为准，完成“后端能力 × 参考前端覆盖”盘点。
+- 新增文档：`docs/FRONTEND_BACKEND_GAP_ANALYSIS.md`。
+- 结论：参考前端已有首页、方案库、游戏扫描、推荐方案、通用组网中心、Terraria 向导、诊断报告、设置与帮助，但对高级连接工具、TCP/UDP 代理、UDP 广播桥、适配器认定编辑、通用服务端会话、多网络后端选择、结构化 connection_plan 展示覆盖不足。
+- 下一步如继续接入前端，应优先让前端补“高级连接工具”和“适配器认定/编辑流程”，避免后端已实现能力被搁置。

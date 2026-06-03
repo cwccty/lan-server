@@ -1,0 +1,705 @@
+﻿# 后端能力与参考前端缺口清单
+
+更新时间：2026-06-04
+
+目的：当前项目是“后端先行、参考前端后接入”。参考前端来自外部设计资源，视觉风格可用，但并不是按现有后端能力完整设计，因此需要以后端真实能力为主导，反推前端还缺哪些入口、页面区块和状态展示。
+
+本清单用于发给前端设计/前端 AI：不是要求推翻现有参考前端，而是在保持当前 iOS 风格、清爽卡片、侧边栏和顶部栏的基础上，把后端已有能力补齐到界面中。
+
+---
+
+## 1. 后端已实现能力总览
+
+当前 Tauri 后端已经暴露以下能力：
+
+### 1.1 游戏与适配器
+
+- 扫描本地游戏：`scan_games`
+- 分析单个游戏：`analyze_game`
+- 推荐联机方案：`recommend_plans`
+- 启动游戏/启动配置：`launch_profile`
+- 列出游戏适配器：`list_game_adapters`
+- 保存游戏适配器：`save_game_adapter`
+- 导入适配器 JSON：`import_game_adapter_json`
+- 导出适配器 JSON：`export_game_adapter_json`
+- 同步远程适配器 registry：`sync_adapter_registry`
+- 同步本地示例 registry：`sync_local_adapter_registry_example`
+
+### 1.2 网络后端
+
+- 列出网络后端：`list_network_backends`
+- 配置网络后端：`setup_network`
+- 启动网络后端：`start_network`
+- 停止网络后端：`stop_network`
+- 支持的后端类型：
+  - `manual_lan`
+  - `radmin`
+  - `n2n`
+
+### 1.3 n2n 专项
+
+- n2n 诊断：`get_n2n_diagnostics`
+- 读取最近 n2n 配置：`get_n2n_last_config`
+- n2n 启停通过 `start_network('n2n')` / `stop_network('n2n')`
+- n2n 配置通过 `setup_network('n2n', config)`
+- 后端诊断字段包括：
+  - 是否运行
+  - supernode 是否配置
+  - virtual IP
+  - ACK/PONG
+  - 认证错误
+  - IP/MAC 冲突
+  - supernode 无响应
+  - 最近日志
+  - 日志路径
+
+### 1.4 连通性测试
+
+- 通用端口连通性测试：`test_connectivity`
+- 支持 host、ports、timeout、mode
+- mode 包括：
+  - `generic`
+  - `local_game_port`
+  - `n2n_game_port`
+
+### 1.5 游戏服务端会话
+
+- 启动游戏服务端会话：`start_game_server_session`
+- 读取服务端状态：`read_server_session`
+- 停止服务端：`stop_server_session`
+- 向服务端发送命令：`send_server_command`
+- 当前 Terraria 向导主要使用这组能力。
+
+### 1.6 TCP/UDP 端口代理
+
+- 启动端口代理：`start_port_proxy`
+- 停止端口代理：`stop_port_proxy`
+- 列出端口代理：`list_port_proxies`
+- 获取单个代理状态：`get_port_proxy_status`
+- 测试代理：`test_port_proxy`
+- 代理自测：`self_test_port_proxy`
+- 状态字段包括：
+  - listen
+  - target
+  - active_connections
+  - total_connections
+  - bytes_in / bytes_out
+  - last_error
+  - logs
+
+### 1.7 UDP 单播代理
+
+- 启动 UDP 代理：`start_udp_proxy`
+- 停止 UDP 代理：`stop_udp_proxy`
+- 列出 UDP 代理：`list_udp_proxies`
+- 获取 UDP 代理状态：`get_udp_proxy_status`
+- UDP 代理自测：`self_test_udp_proxy`
+- 状态字段包括：
+  - listen
+  - target
+  - active_clients
+  - packets_in / packets_out
+  - bytes_in / bytes_out
+  - last_error
+  - logs
+
+### 1.8 UDP 广播桥
+
+- 启动 UDP 广播桥：`start_udp_broadcast_bridge`
+- 停止 UDP 广播桥：`stop_udp_broadcast_bridge`
+- 列出 UDP 广播桥：`list_udp_broadcast_bridges`
+- 获取 UDP 广播桥状态：`get_udp_broadcast_bridge_status`
+- UDP 广播桥自测：`self_test_udp_broadcast_bridge`
+- 状态字段包括：
+  - listen
+  - forward_targets
+  - received_packets
+  - forwarded_packets
+  - dropped_packets
+  - bytes_in / bytes_out
+  - last_error
+  - logs
+
+### 1.9 诊断报告
+
+- 生成全局诊断报告：`generate_diagnostic_report`
+- 生成指定游戏诊断报告：`generate_diagnostic_report_for_game`
+- 报告包括：
+  - summary
+  - most_likely_cause
+  - issues
+  - next_actions
+  - release_checks
+  - details
+  - required_passed / required_total
+
+---
+
+## 2. 当前参考前端已有页面
+
+参考前端当前包含：
+
+- 首页
+- 方案库
+- 游戏扫描
+- 推荐方案
+- 通用组网中心
+- Terraria 向导
+- 诊断报告
+- 设置与帮助
+
+这些页面的视觉结构已经可用，但多处内容仍是参考稿中的静态演示文案，不完整覆盖后端真实能力。
+
+---
+
+## 3. 前端缺失能力清单，按优先级排序
+
+## P0：必须补，否则后端核心能力会被搁置
+
+### 3.1 高级连接工具总入口缺失
+
+后端已有能力：
+
+- TCP 端口代理
+- UDP 单播代理
+- UDP 广播桥
+- 代理自测
+- 代理状态列表
+- 停止代理
+- 查看代理日志
+
+当前前端问题：
+
+- 参考前端在文案中提到 TCP/UDP/Bridge，但没有形成一个完整可操作的“高级连接工具”区域。
+- 用户无法清晰知道：什么时候用端口代理，什么时候用 UDP 广播桥。
+- 用户无法看到当前代理实例列表、收发包统计、错误日志和停止按钮。
+
+建议前端补充：
+
+在“通用组网中心”或新增“高级连接工具”页面中增加一个完整模块：
+
+```text
+高级连接工具
+- TCP 端口代理卡片
+  - 监听地址
+  - 监听端口
+  - 目标地址
+  - 目标端口
+  - 启动代理
+  - 停止代理
+  - 一键自测
+  - 当前连接数 / 总连接数 / 上下行字节
+  - 最近日志
+
+- UDP 单播代理卡片
+  - 监听地址
+  - 监听端口
+  - 目标地址
+  - 目标端口
+  - 启动代理
+  - 停止代理
+  - 一键自测
+  - 活跃客户端数 / 收发包数量 / 上下行字节
+  - 最近日志
+
+- UDP 广播桥卡片
+  - 监听地址
+  - 监听端口
+  - 转发目标列表
+  - 允许广播开关
+  - 去重 TTL
+  - 启动广播桥
+  - 停止广播桥
+  - 一键自测
+  - 收包 / 转发 / 丢弃统计
+  - 最近日志
+```
+
+面向用户文案建议：
+
+- “好友能直连 IP，但游戏搜不到房间：试试 UDP 广播桥。”
+- “游戏只认本机端口或端口不一致：试试端口代理。”
+- “不确定是否需要：先运行一键自测。”
+
+---
+
+### 3.2 游戏适配器编辑/认定能力体现不足
+
+后端已有能力：
+
+- 保存适配器 `save_game_adapter`
+- 导入适配器 JSON
+- 导出适配器 JSON
+- 本地/远程 registry 同步
+- 游戏 network_type、connection_plan、conversion_profile
+
+当前前端问题：
+
+- 当前有“方案库/游戏扫描”，但缺少面向管理员/高级用户的“认定这个游戏如何联机”的完整编辑入口。
+- 用户之前提出的关键产品方向是：管理员或用户认定一次游戏类型，后续其他用户复用。这个能力在 UI 上还不够明确。
+
+建议前端补充：
+
+在“方案库”或“适配器管理”中增加“创建/编辑适配器”流程：
+
+```text
+认定游戏联机方式
+- 游戏名称
+- Steam AppID
+- 可执行文件特征
+- 默认端口
+- 联机类型选择：
+  - 原生 LAN/IP 直连
+  - 需要专用服务端
+  - 需要 TCP/UDP 端口代理
+  - 需要 UDP 广播桥
+  - Steam Lobby 可转本地
+  - Steam Relay/插件方案
+  - 需要社区 Mod
+  - 仅官方服务器，不支持转换
+  - 未知，待审核
+
+- 转换方案：
+  - 虚拟局域网
+  - 专用服务端启动器
+  - 广播桥
+  - 端口代理
+  - Mod 安装器
+  - Steam Relay 插件
+  - 手动教程
+  - 不支持
+
+- 主机玩家说明
+- 加入玩家说明
+- 默认加入 IP
+- 默认端口
+- 邀请模板
+- 故障排查说明
+- 保存到本地
+- 导出 JSON
+- 提交到共享库占位入口
+```
+
+---
+
+### 3.3 推荐方案页缺少“按后端 connection_plan 展示”的结构
+
+后端已有能力：
+
+- `recommend_plans(game_id)`
+- `analyze_game(game_id)`
+- `GameConnectionPlan`
+- `MultiplayerConversionProfile`
+- `network_type`
+
+当前前端问题：
+
+- 推荐方案页视觉上有方案展示，但没有完整体现后端的结构化字段。
+- 缺少“这个游戏为什么推荐这个方式”的解释区。
+- 缺少“需要哪些组件”的检查区。
+- 缺少“主机做什么/好友做什么”的步骤区。
+
+建议前端补充：
+
+```text
+推荐方案页
+- 当前识别结果
+  - 游戏名称
+  - 联机类型 network_type
+  - 可转换程度 can_convert_to_lan
+  - 风险等级 risk_level
+  - 识别来源 adapter_source
+
+- 推荐连接方案
+  - 是否需要虚拟局域网
+  - 是否需要专用服务端
+  - 是否需要 TCP/UDP 代理
+  - 是否需要 UDP 广播桥
+  - 是否需要 Mod/Steam 插件
+
+- 主机步骤
+  - 按 connection_plan.host_role 展示
+
+- 好友步骤
+  - 按 connection_plan.join_role 展示
+
+- 邀请好友包
+  - supernode
+  - 房间名
+  - 密钥
+  - 主机虚拟 IP
+  - 游戏端口
+  - 是否需要端口代理
+  - 是否需要 UDP 广播桥
+  - 一键复制
+
+- 故障排查
+  - 按 connection_plan.troubleshooting 展示
+```
+
+---
+
+### 3.4 游戏服务端通用会话能力被 Terraria 页面绑定过死
+
+后端已有能力：
+
+- `start_game_server_session(game_id, profile_id, config)`
+- `read_server_session`
+- `send_server_command`
+- `stop_server_session`
+
+当前前端问题：
+
+- 目前主要体现为 “Terraria 向导”。
+- 但后端抽象其实是“任意游戏服务端会话”。
+- 如果未来有 Minecraft、饥荒、幻兽帕鲁等服务端配置，不应该每个都复制一个完全独立页面。
+
+建议前端补充：
+
+保留 Terraria 向导作为专属样例，但在“推荐方案”或“高级启动”中增加通用服务端启动卡片：
+
+```text
+专用服务端
+- 当前游戏
+- 可用启动配置 profile
+- 参数表单 config_fields
+- 启动服务端
+- 停止服务端
+- 控制台命令输入
+- 日志窗口
+- ready 状态
+- 运行时长
+- 退出码
+```
+
+Terraria 页面可以继续存在，但前端设计上要表达：
+
+> “Terraria 是专属向导示例，通用服务端能力可以被其他游戏复用。”
+
+---
+
+## P1：应该补，影响产品完整度
+
+### 3.5 网络后端选择没有完整体现 manual_lan / radmin / n2n
+
+后端已有能力：
+
+- `list_network_backends`
+- `manual_lan`
+- `radmin`
+- `n2n`
+
+当前前端问题：
+
+- 通用组网中心重点是 n2n。
+- Radmin 和手动局域网更像文字概念，没有形成同级别选择器。
+- 用户目标是“包揽主要方式供玩家选择”，前端应该把多种方式并列展示。
+
+建议前端补充：
+
+```text
+组网方式选择
+- 自动推荐
+- n2n 虚拟局域网
+- Radmin VPN 检测/引导
+- 已有局域网/同 Wi-Fi 手动模式
+- 未来：Steam Relay 插件/其他方式入口
+
+每个方式显示：
+- 是否已安装
+- 是否可用
+- 当前虚拟 IP
+- 适合场景
+- 启动/停止/查看说明
+```
+
+---
+
+### 3.6 n2n 失败分类展示不够完整
+
+后端已有字段：
+
+- auth_error
+- ip_mac_conflict
+- not_responding
+- ack
+- pong
+- ok_link
+- recent_logs
+- log_path
+
+当前前端问题：
+
+- 参考前端有诊断样式，但对 n2n 的失败分类不够产品化。
+- 用户之前遇到过 IP/MAC 冲突、supernode 参数差异、监听变灰、白框等问题，这些都应该有明确状态卡。
+
+建议前端补充：
+
+```text
+n2n 状态详情
+- Edge 是否运行
+- Supernode 是否配置
+- 是否收到 ACK
+- 是否收到 PONG
+- 是否认证失败
+- 是否 IP/MAC 冲突
+- 是否 Supernode 无响应
+- 当前虚拟 IP
+- 最近日志
+- 打开日志路径
+- 一键复制排障摘要
+```
+
+---
+
+### 3.7 诊断报告缺少“指定游戏诊断”和“可复制给管理员”的结构
+
+后端已有能力：
+
+- 全局诊断报告
+- 指定游戏诊断报告
+- release_checks
+- issues / next_actions / evidence
+
+当前前端问题：
+
+- 诊断报告页面已有，但更像展示固定诊断项。
+- 缺少选择“当前游戏/全局”的入口。
+- 缺少“复制给管理员/开发者”的按钮结构。
+
+建议前端补充：
+
+```text
+诊断报告
+- 诊断范围：全局 / 当前游戏
+- 生成诊断
+- 最可能原因
+- 问题列表
+- 下一步建议
+- 发布前检查项
+- 原始详情
+- 复制完整报告
+- 复制精简报告给好友/管理员
+```
+
+---
+
+### 3.8 启动配置 launch_profile 没有通用 UI
+
+后端已有能力：
+
+- `launch_profile`
+- `LaunchProfile`
+- `config_fields`
+- `arg_templates`
+- `stdin_templates`
+
+当前前端问题：
+
+- 前端没有完整的“启动配置表单生成器”。
+- 这会导致适配器里定义的启动参数无法被用户操作。
+
+建议前端补充：
+
+```text
+启动配置
+- 选择 profile：客户端 / 服务端 / 文档
+- 根据 config_fields 自动渲染表单
+  - text
+  - number
+  - password
+  - select
+  - checkbox
+- 显示即将执行的参数预览
+- 启动
+- 失败时显示错误和排查建议
+```
+
+---
+
+## P2：可后续补，但需要预留入口
+
+### 3.9 Steam Lobby / Steam P2P / Steam Relay 插件入口需要占位
+
+后端类型中已经预留：
+
+- `steam_lobby`
+- `steam_p2p`
+- `steam_lobby_direct_possible`
+- `steam_relay_plugin`
+- `steam_relay_plugin` conversion method
+
+当前前端问题：
+
+- 参考前端没有清晰入口表达“借助 Steam 服务器/插件/Relay 的方案”。
+
+建议前端补充占位：
+
+```text
+未来连接方式
+- Steam Lobby 转本地方案
+- Steam Relay 插件方案
+- 社区 Mod 方案
+- 当前状态：规划中 / 实验中 / 需要适配器支持
+```
+
+注意：占位可以有，但不要显示为已可用。
+
+---
+
+### 3.10 共享库同步详情展示不够完整
+
+后端已有字段：
+
+- created
+- updated
+- skipped
+- hash_failed
+- parse_failed
+- fetch_failed
+- validation_failed
+- write_failed
+- items
+- messages
+
+当前前端问题：
+
+- 有“方案库”页面，但同步结果应该有更清楚的明细表。
+
+建议前端补充：
+
+```text
+共享库同步结果
+- 总数
+- 新增
+- 更新
+- 跳过
+- Hash 失败
+- 解析失败
+- 拉取失败
+- 校验失败
+- 写入失败
+- 明细表：游戏、URL、状态、原因、保存路径
+```
+
+---
+
+### 3.11 设置页缺少后端路径与默认值管理
+
+后端相关能力：
+
+- n2n 最近配置读取
+- setup_network 保存 n2n 配置
+- registry URL 同步
+- n2n 诊断日志路径
+
+当前前端问题：
+
+- 设置页有帮助信息，但不够像真实产品设置。
+
+建议前端补充：
+
+```text
+设置
+- 默认 Supernode
+- 默认房间名
+- 默认密钥
+- 默认虚拟 IP 段
+- 适配器共享库地址
+- 恢复默认共享库地址
+- n2n edge 路径检测结果
+- 日志目录
+- 打开日志目录
+- 清理运行状态
+```
+
+---
+
+## 4. 建议前端最终页面结构
+
+为了不让用户觉得复杂，建议按“普通用户优先，高级工具收纳”的方式组织：
+
+```text
+首页
+- 当前状态
+- 推荐下一步
+- 最近扫描游戏
+- 快速诊断
+
+游戏扫描
+- 扫描本地游戏
+- 识别联机类型
+- 进入推荐方案
+- 未知游戏提交认定入口
+
+推荐方案
+- 游戏识别结果
+- 推荐联机方式
+- 主机步骤
+- 好友步骤
+- 邀请好友包
+- 需要的增强工具提示
+
+通用组网中心
+- 组网方式选择：n2n / Radmin / 手动局域网
+- n2n 配置、启动、停止、诊断
+- 当前虚拟 IP 与 supernode 状态
+
+高级连接工具
+- TCP 端口代理
+- UDP 单播代理
+- UDP 广播桥
+- 一键自测
+- 实例列表与日志
+
+适配器管理 / 方案库
+- 同步共享库
+- 本地适配器列表
+- 创建/编辑适配器
+- 导入/导出 JSON
+- 同步明细
+
+Terraria 向导
+- 保留为专属向导示例
+- 但不要代表每个游戏都要单独做页面
+
+诊断报告
+- 全局诊断
+- 当前游戏诊断
+- 复制给管理员
+- 原始报告
+
+设置与帮助
+- 默认 supernode
+- registry 地址
+- n2n 路径/日志
+- 未来能力入口
+```
+
+---
+
+## 5. 给前端设计的直接要求
+
+请前端按以下要求补设计：
+
+1. 不要只做视觉壳，必须给后端已有功能留出可操作区域。
+2. 以后端能力为主导，至少补齐：
+   - 高级连接工具页或模块
+   - TCP/UDP 代理操作区
+   - UDP 广播桥操作区
+   - 适配器创建/编辑流程
+   - 推荐方案中的 connection_plan 展示
+   - 通用服务端启动卡片
+   - 诊断报告的全局/游戏范围切换
+   - 网络后端选择器：n2n / Radmin / 手动局域网
+3. 普通用户文案要少用技术词，技术能力收进高级区。
+4. 所有长耗时按钮都要有 loading 状态。
+5. 所有真实后端结果都要有成功、失败、部分成功、日志详情四种状态。
+6. 不要展示假延迟、假连接成功、假可发布状态。
+7. Steam Relay、Mod、云端提交等未完成能力只能做“未来/实验入口”，不能显示为已可用。
+
+---
+
+## 6. 最关键的缺口一句话总结
+
+当前参考前端已经有漂亮的基础页面，但缺少对“高级连接工具、适配器认定、通用服务端会话、结构化推荐方案、多网络后端选择”的完整承载。下一轮前端设计应以后端功能矩阵为准补空间，而不是继续只优化颜色和卡片。
