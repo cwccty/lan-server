@@ -2248,3 +2248,47 @@ C:\Users\ty\Downloads\联机助手 (1)
 - 下一步如果进入真实状态替换，可以先做 wrapper 或受控注入，避免直接污染 reference-ui。
 
 下一步推荐：新增“产品化接入开关”设计，默认关闭以保持一比一参考 UI；开启后再让 Header/首页从 `useReferenceRuntime()` 读取真实状态。
+
+## 2026-06-04 Reference Product Mode 产品化接入开关
+
+本轮新增“产品化接入开关”，用于区分两个阶段：
+
+- reference mode：默认模式，保持 `src/reference-ui` 与用户参考前端一比一；
+- product mode：后续实验模式，允许 wrapper 或 adapter 读取真实 runtime 状态并逐步替换参考图里的模拟状态。
+
+新增：
+
+- `src/reference-adapter/productMode.ts`
+  - `getReferenceProductMode()`
+  - `setReferenceProductMode()`
+  - `subscribeReferenceProductMode()`
+  - `REFERENCE_PRODUCT_MODE_EVENT`
+  - 使用 `localStorage` 持久化，key 为 `lan-helper.referenceProductMode`；
+  - 默认关闭。
+- `src/reference-adapter/useReferenceProductMode.ts`
+  - React hook，返回 `enabled`、`updated_at`、`setEnabled()`、`toggle()`。
+- `src/reference-adapter/globals.d.ts`
+  - 增加 `window.__LAN_HELPER_REFERENCE_PRODUCT_MODE__` 类型声明。
+- `src/reference-adapter/DebugPanel.tsx`
+  - 在隐藏调试面板加入“产品化接入开关”；
+  - 按 `Ctrl+Shift+D` 才能看到；
+  - 默认关闭，不影响用户默认参考界面。
+- `src/reference-adapter/index.ts`
+  - 导出 product mode API。
+
+验证：
+
+- `npm run build` 通过；
+- `powershell -ExecutionPolicy Bypass -File tools\check_reference_ui_fidelity.ps1` 通过，`visual_diff_count=0`；
+- `cargo check --manifest-path src-tauri\Cargo.toml` 通过；
+- `npm run tauri:build` 通过；
+- `npm run release:preflight` 通过；
+- `git diff --check` 通过。
+
+意义：
+
+- 默认用户界面仍完全按参考前端显示；
+- 后续真实状态接入必须先检查 product mode，避免无意中破坏“一比一复原”；
+- 用户如果明确进入产品化阶段，再开启该开关并逐步接 Header/首页/诊断页真实数据。
+
+下一步推荐：实现一个 product-mode wrapper 原型。默认 reference mode 下不改变 UI；product mode 开启时，先只替换 Header 顶部状态文字为真实 runtime 状态，验证这种接入方式是否可接受。

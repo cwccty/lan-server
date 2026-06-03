@@ -10,6 +10,7 @@ import {
 import { REFERENCE_RUNTIME_EVENT } from './bootstrap';
 import { snapshotForDebug, summarizeReferenceRuntime } from './mappers';
 import type { ReferenceRuntimeSnapshot } from './types';
+import { useReferenceProductMode } from './useReferenceProductMode';
 
 function readCurrentSnapshot() {
   return window.__LAN_HELPER_REFERENCE_RUNTIME__ ?? null;
@@ -20,6 +21,7 @@ export function ReferenceRuntimeDebugPanel() {
   const [snapshot, setSnapshot] = useState<ReferenceRuntimeSnapshot | null>(() => readCurrentSnapshot());
   const [busyAction, setBusyAction] = useState('');
   const [lastAction, setLastAction] = useState<ReferenceActionResult | null>(null);
+  const productMode = useReferenceProductMode();
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -97,6 +99,27 @@ export function ReferenceRuntimeDebugPanel() {
             ) : (
               <div className="text-xs text-slate-400">尚无 runtime 快照。请等待后台桥接层轮询。</div>
             )}
+
+            <div className="mt-5 border-t border-slate-800 pt-4">
+              <div className="mb-2 font-semibold text-amber-400">产品化接入开关</div>
+              <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-3 text-[11px] text-slate-300">
+                <div className="mb-2 font-mono">mode: {productMode.enabled ? 'product' : 'reference'}</div>
+                <button
+                  type="button"
+                  onClick={() => productMode.toggle()}
+                  className={`rounded-lg border px-3 py-2 text-xs ${
+                    productMode.enabled
+                      ? 'border-amber-700 text-amber-200 hover:bg-amber-950/30'
+                      : 'border-slate-700 text-slate-200 hover:bg-slate-800'
+                  }`}
+                >
+                  {productMode.enabled ? '关闭产品化接入，保持参考 UI' : '开启产品化接入实验'}
+                </button>
+                <p className="mt-2 leading-relaxed text-slate-500">
+                  默认关闭，保证界面一比一。开启后，后续 wrapper 才允许读取真实状态并替换参考图中的模拟文案。
+                </p>
+              </div>
+            </div>
 
             <div className="mt-5 border-t border-slate-800 pt-4">
               <div className="mb-2 font-semibold text-amber-400">安全动作</div>
