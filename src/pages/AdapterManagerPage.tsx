@@ -273,13 +273,13 @@ function templateForNetworkType(type: GameNetworkType): Pick<GameAdapter, 'capab
         methods: ['steam_relay_plugin', 'manual_guide'],
         can_convert_to_lan: false,
         risk_level: 'high',
-        notes: ['该游戏可能需要 Steam Networking/Relay 插件路线。', '当前 MVP 仅保留入口，不承诺真实接入。'],
+        notes: ['该游戏可能需要 Steam Networking/Relay 插件路线。', '当前只是预留入口，暂不可直接使用。'],
         required_components: ['Steamworks/Steam Networking 插件', '官方平台能力']
       },
       network_type: 'steam_relay_plugin',
       connection_plan: {
         summary: '当前只作为 Steam Relay 插件研究入口，不作为默认可用联机方案。',
-        host_role: '使用官方/Steam 房间或等待插件 PoC。',
+        host_role: '使用官方/Steam 房间，或等待后续插件方案。',
         join_role: '通过官方/Steam 方式加入。',
         default_join_host: undefined,
         default_join_port: undefined,
@@ -601,7 +601,7 @@ export function AdapterManagerPage() {
 
   const syncRegistry = async (url = registryUrl) => {
     setBusy(true);
-    setBusyLabel('同步共享适配器库');
+    setBusyLabel('同步共享方案库');
     setMessage('');
     setRegistryResult(null);
     try {
@@ -650,28 +650,26 @@ export function AdapterManagerPage() {
   return (
     <section>
       <LoadingOverlay visible={busy} title={busyLabel ? `正在处理：${busyLabel}` : '正在处理'} message="正在更新适配器数据，请稍等，不要重复点击。" />
-      <h2>游戏适配器管理</h2>
-      <p className="muted">这是管理员/高级功能：认定一次游戏类型并保存适配器，后续其他用户扫描到同一游戏即可复用转换方案。</p>
-      <p className="muted">页面版本：{ADAPTER_MANAGER_VERSION}</p>
+      <h2>游戏方案库</h2>
+      <p className="muted">从共享库更新游戏联机方案。普通用户一般只需要点击“一键更新共享方案”。</p>
       {message && <div className={busy ? 'busy-banner' : 'status-banner'}>{message}</div>}
 
       <article className="card">
-        <h3>远程共享适配器库</h3>
+        <h3>共享游戏方案库</h3>
         <p className="muted">
-          从管理员维护的 registry index 拉取适配器。远程适配器会保存为 registry_*.json；
-          如果本地存在同 game_id 的 custom_*.json，本地自定义会优先。
+          从共享库拉取游戏联机方案。更新后，扫描游戏时会自动使用这些推荐步骤。
         </p>
         <div className="actions">
-          <button disabled={busy} onClick={oneClickUpdateSharedAdapters}>一键更新共享适配器</button>
+          <button disabled={busy} onClick={oneClickUpdateSharedAdapters}>一键更新共享方案</button>
           <button disabled={busy} onClick={syncLocalExample}>同步本地示例库（无需 HTTP）</button>
           <button disabled={busy} onClick={restoreDefaultRegistryUrl}>恢复 GitHub 默认地址</button>
         </div>
         <p className="muted">默认共享库地址：{DEFAULT_ADAPTER_REGISTRY_URL}</p>
         {lastRegistrySync && <p className="muted">上次同步：{lastRegistrySync}</p>}
         <p className="muted">
-          默认会从公开 GitHub 仓库拉取共享适配器；如果只是离线测试项目内置的 adapter-registry 示例，可以点击“同步本地示例库”。
+          默认会从公开共享库拉取游戏方案；如果只是离线测试项目内置示例，可以点击“同步本地示例库”。
         </p>
-        <label>Registry index URL
+        <label>共享库地址
           <input
             value={registryUrl}
             onChange={(event) => setRegistryUrl(event.target.value)}
@@ -680,14 +678,14 @@ export function AdapterManagerPage() {
           />
           <small className="muted">这个地址会自动保存；留空时会使用默认地址。</small>
         </label>
-        <button disabled={busy} onClick={() => syncRegistry()}>同步共享适配器库</button>
+        <button disabled={busy} onClick={() => syncRegistry()}>同步共享方案库</button>
         {registryResult && (
           <div className={registryResult.ok ? 'result-ok' : 'result-bad'}>
             <h4>{registryResult.ok ? '同步成功' : '同步完成但有跳过项'}</h4>
             <div className="status-grid compact">
-              <article className="status-tile"><span>索引总数</span><strong>{registryResult.total}</strong><small>registry index 中的游戏</small></article>
-              <article className="status-tile"><span>新增</span><strong>{registryResult.created}</strong><small>本地新写入 registry_*.json</small></article>
-              <article className="status-tile"><span>更新</span><strong>{registryResult.updated}</strong><small>覆盖已有 registry adapter</small></article>
+              <article className="status-tile"><span>索引总数</span><strong>{registryResult.total}</strong><small>共享库中的游戏</small></article>
+              <article className="status-tile"><span>新增</span><strong>{registryResult.created}</strong><small>新增游戏方案</small></article>
+              <article className="status-tile"><span>更新</span><strong>{registryResult.updated}</strong><small>更新已有方案</small></article>
               <article className="status-tile"><span>跳过</span><strong>{registryResult.skipped}</strong><small>未覆盖本地可用数据</small></article>
             </div>
             {registryResult.skipped > 0 && (
@@ -829,4 +827,3 @@ export function AdapterManagerPage() {
     </section>
   );
 }
-

@@ -754,8 +754,7 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
           <span className="eyebrow">NETWORK</span>
           <h2>通用组网中心</h2>
           <p className="muted">
-            n2n / Radmin / 已有局域网属于“组网层”，不应该绑定某个具体游戏。先让几台电脑进入同一个虚拟局域网，
-            然后任何支持 LAN 或 IP 直连的游戏都可以尝试连接房主虚拟 IP。Terraria 向导只是额外的一键开服辅助。
+            先让房主和朋友进入同一个虚拟局域网。组网成功后，支持 LAN 或 IP 直连的游戏通常可以连接房主虚拟 IP。
           </p>
         </div>
         <span className={n2nRunning ? 'badge good' : 'badge warn'}>{n2nRunning ? '组网进程运行中' : '等待启动组网'}</span>
@@ -1042,10 +1041,10 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
           <section className="config-panel">
             <h4>当前边界</h4>
             <ul>
-              <li>适合作为未来“平台网络层”的可选插件，不作为 MVP 默认承诺。</li>
+              <li>这是后续预留能力，当前版本暂不可直接使用。</li>
               <li>只走官方 Steamworks / Steam Networking 能力或用户自有 AppID。</li>
               <li>不做破解服务器、绕过正版验证、绕过反作弊、模拟官方账号服务。</li>
-              <li>后续先做最小 PoC：创建房间 → 加入房间 → 文本消息/信令 → 再接端口代理或游戏桥接。</li>
+              <li>后续会在确认可用后再开放给普通用户。</li>
             </ul>
           </section>
         </div>

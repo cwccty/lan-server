@@ -45,7 +45,7 @@ function recentSupernodeFromBackends(backends: BackendSummary[]) {
 
 const t = {
   title: 'Terraria 向导',
-  intro: 'Terraria 是游戏辅助层示例：负责选择世界、启动或接管服务端、展示真实 PID 和端口监听。n2n 仍是通用组网层，不绑定具体游戏。',
+  intro: '用于 Terraria 房主开服和加入说明。房主先启动组网，再在这里启动服务端；朋友使用房主虚拟 IP 加入。',
   busy: '\u6b63\u5728\u5904\u7406',
   wait: '\u8bf7\u7a0d\u7b49\uff0c\u4e0d\u8981\u91cd\u590d\u70b9\u51fb\u3002',
   role: '\u9009\u62e9\u8eab\u4efd',
@@ -79,7 +79,7 @@ const t = {
   stopped: '\u672a\u8fd0\u884c',
   running: '\u8fd0\u884c\u4e2d',
   readyState: '\u5df2\u5c31\u7eea',
-  consoleMvpNotice: '当前使用隐藏 cmd 托管 TerrariaServer：如果外层 cmd 正常退出但游戏端口仍在监听，程序会自动接管真正的 TerrariaServer PID。MVP 优先验证后台稳定运行、端口真实监听和停止服务端可诊断。',
+  consoleMvpNotice: '服务端会在后台运行；如果端口已经监听，就可以把邀请信息发给朋友。停止服务端时请优先使用本页按钮。',
   noLogs: '\u6682\u65e0\u670d\u52a1\u7aef\u65e5\u5fd7\u3002',
   selfCheck: '\u4e00\u952e\u81ea\u68c0',
   copyCheck: '\u590d\u5236\u81ea\u68c0\u7ed3\u679c',
@@ -547,8 +547,3 @@ export function MultiplayerWizardPage() {
     </section>
   );
 }
-
-
-
-
-

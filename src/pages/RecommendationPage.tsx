@@ -630,14 +630,14 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
         <div>
           <span className="eyebrow">RECOMMENDATION</span>
           <h2>推荐方案</h2>
-          <p className="muted">根据适配器判断游戏能否转换成本地 / 局域网体验。</p>
+          <p className="muted">根据当前游戏给出推荐联机步骤。</p>
         </div>
         <span className="badge warn">不是一键联机</span>
       </div>
 
       <article className="card pending-feature">
-        <h3>推荐页的真实含义</h3>
-        <p>这里负责把扫描到的游戏匹配到合适流程：通用组网、启动本地服务端、查看说明或进入未来插件入口。真正能否联机仍取决于组网、端口监听、游戏内加入方式和适配器判断。</p>
+        <h3>使用说明</h3>
+        <p>这里会告诉你当前游戏下一步该做什么：先组网、开服务端、复制邀请，或者查看需要额外处理的项目。</p>
         <ol>
           <li>双方在同一个 n2n / Radmin / 现有局域网中，并且虚拟 IP 不冲突。</li>
           <li>房主已经启动游戏房间或 Dedicated Server，端口正在由真实 PID 监听。</li>
@@ -650,7 +650,7 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
         <div className="feature-card-title">
           <div>
             <h3>执行清单</h3>
-            <p className="muted">清单来自真实检测：n2n 日志、服务端会话和本机端口，不用颜色假装成功。</p>
+            <p className="muted">清单来自当前检测结果：组网日志、服务端状态和本机端口。</p>
           </div>
           <button type="button" className="secondary" onClick={() => refreshExecutionChecklist()} disabled={isRefreshingChecklist}>刷新执行清单</button>
         </div>
@@ -747,7 +747,7 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
           <div className="feature-card-title">
             <div>
               <h3>下一步：先进入通用组网</h3>
-              <p className="muted">把该游戏的默认端口和适配器判断带入通用组网中心，减少重复填写。进入后仍需填写 supernode、启动 n2n，并验证 ACK/PONG 和端口监听。</p>
+              <p className="muted">把该游戏常用端口带到通用组网中心，减少重复填写。进入后请填写 supernode，启动 n2n，并确认组网状态可用。</p>
             </div>
             <span className="badge good">参数联动</span>
           </div>
