@@ -117,9 +117,9 @@ export function DiagnosticsPage({ selectedGame }: { selectedGame?: GameSummary }
     : '尚未生成诊断报告。';
 
   return (
-    <section className="page-stack">
+    <section className="page-stack modern-content-page diagnostics-page">
       <LoadingOverlay visible={busy} title="正在生成诊断报告" message="正在读取真实后端状态、进程、端口、n2n 日志和 TCP 代理自测，请稍等。" />
-      <div className="page-header">
+      <div className="content-hero diagnostics-hero">
         <div>
           <span className="eyebrow">DIAGNOSTICS</span>
           <h2>诊断报告</h2>
@@ -139,7 +139,7 @@ export function DiagnosticsPage({ selectedGame }: { selectedGame?: GameSummary }
         <article className="status-tile"><span>失败分类</span><strong>{report ? issues.length : '-'}</strong><small>n2n / 代理 / 服务端</small></article>
       </div>
 
-      <article className="card toolbar-card">
+      <article className="card content-panel diagnostics-toolbar toolbar-card">
         <div className="actions">
           <button onClick={createReport} disabled={busy}>{busy ? '正在诊断...' : selectedGame ? '诊断当前游戏' : '开始诊断'}</button>
           {report && <button className="secondary" onClick={() => navigator.clipboard.writeText(reportText)}>复制完整报告</button>}
@@ -149,16 +149,26 @@ export function DiagnosticsPage({ selectedGame }: { selectedGame?: GameSummary }
       </article>
 
       {report && (
-        <article className="card">
-          <h3>最可能原因</h3>
+        <article className="card content-panel likely-cause-panel">
+          <div className="panel-heading">
+            <div>
+              <span className="eyebrow">LIKELY CAUSE</span>
+              <h3>最可能原因</h3>
+            </div>
+          </div>
           {mostLikely ? <IssueCard issue={mostLikely} /> : <div className="result-ok"><p>暂未发现明确失败分类。若仍无法联机，请查看详细日志或复制报告给管理员。</p></div>}
         </article>
       )}
 
       <div className="content-with-aside">
         <div className="page-stack">
-          <article className="card">
-            <h3>失败分类</h3>
+          <article className="card content-panel issue-evidence-panel">
+            <div className="panel-heading">
+              <div>
+                <span className="eyebrow">ISSUES</span>
+                <h3>失败分类</h3>
+              </div>
+            </div>
             {report ? (
               issues.length > 0 ? <div className="page-stack">{issues.map((issue) => <IssueCard key={issue.id} issue={issue} />)}</div> : <p className="muted">没有发现结构化失败分类。</p>
             ) : (
@@ -166,8 +176,13 @@ export function DiagnosticsPage({ selectedGame }: { selectedGame?: GameSummary }
             )}
           </article>
 
-          <article className="card">
-            <h3>检测项时间线</h3>
+          <article className="card content-panel diagnostic-timeline-panel">
+            <div className="panel-heading">
+              <div>
+                <span className="eyebrow">CHECK TIMELINE</span>
+                <h3>检测项时间线</h3>
+              </div>
+            </div>
             {report ? (
               <ul className="diagnostic-list">
                 {report.release_checks.map((item) => (
@@ -185,7 +200,7 @@ export function DiagnosticsPage({ selectedGame }: { selectedGame?: GameSummary }
             )}
           </article>
 
-          {report && <article className="card"><h3>详细日志</h3><p className="muted">这里展示检测命令摘要，不粘贴过长原始日志。</p><pre className="console-panel">{report.details.join('\n\n')}</pre></article>}
+          {report && <article className="card content-panel report-json-panel"><div className="panel-heading"><div><span className="eyebrow">RAW DETAILS</span><h3>详细日志</h3><p className="muted">这里展示检测命令摘要，不粘贴过长原始日志。</p></div></div><pre className="console-panel">{report.details.join('\n\n')}</pre></article>}
         </div>
 
         <aside className="right-panel">

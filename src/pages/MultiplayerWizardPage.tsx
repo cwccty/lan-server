@@ -6,6 +6,7 @@ import {
   startGameServerSession,
   startNetwork,
   stopServerSession,
+  sendServerCommand,
   testConnectivity
 } from '../api/tauri';
 import { LoadingOverlay } from '../components/LoadingOverlay';
@@ -83,6 +84,9 @@ const t = {
   noLogs: '\u6682\u65e0\u670d\u52a1\u7aef\u65e5\u5fd7\u3002',
   selfCheck: '\u4e00\u952e\u81ea\u68c0',
   copyCheck: '\u590d\u5236\u81ea\u68c0\u7ed3\u679c',
+  sendHelp: '发送 help',
+  sendSave: '保存世界',
+  sendExit: '发送 exit',
   selfCheckTitle: '\u623f\u4e3b\u4fa7\u81ea\u68c0',
   joinerCheckTitle: '\u52a0\u5165\u8005\u81ea\u68c0'
 };
@@ -282,6 +286,13 @@ export function MultiplayerWizardPage() {
       setStatusMessage('\u9080\u8bf7\u4fe1\u606f\u5df2\u590d\u5236\u3002');
     });
 
+  const sendConsoleCommand = (command: string, label: string) =>
+    runAction(label, async () => {
+      const next = await sendServerCommand(command);
+      setSession(next);
+      setStatusMessage(`已向 Terraria 服务端发送命令：${command}`);
+    });
+
   const runSelfCheck = () =>
     runAction(t.selfCheck, async () => {
       const [latestSession, backends] = await Promise.all([readServerSession(), listNetworkBackends()]);
@@ -401,15 +412,32 @@ export function MultiplayerWizardPage() {
     });
 
   return (
-    <section className="page-stack">
+    <section className="page-stack modern-content-page terraria-page">
       <LoadingOverlay visible={isBusy} title={initialLoading ? '正在读取 Terraria 向导状态' : `${t.busy}：${busyAction ?? ''}`} message={initialLoading ? '正在读取最近 supernode 和服务端会话；后续再次进入会优先显示缓存。' : t.wait} />
-      <h2>{t.title}</h2>
-      <p className="muted">{t.intro}</p>
+      <div className="content-hero terraria-hero">
+        <div>
+          <span className="eyebrow">TERRARIA GUIDE</span>
+          <h2>{t.title}</h2>
+          <p className="muted">{t.intro}</p>
+        </div>
+        <div className="hero-mini-stats">
+          <article><span>当前身份</span><strong>{role === 'host' ? '房主' : '加入者'}</strong></article>
+          <article><span>服务端</span><strong>{session?.ready ? '已就绪' : session?.running ? '运行中' : '未运行'}</strong></article>
+          <article><span>游戏端口</span><strong>{gamePort}</strong></article>
+          <article><span>虚拟 IP</span><strong>{localIp}</strong></article>
+        </div>
+      </div>
 
       {busyAction && <div className="busy-banner">{t.busy}：{busyAction}，{t.wait}</div>}
 
-      <article className="card">
-        <h3>1. {t.role}</h3>
+      <article className="card content-panel role-panel">
+        <div className="panel-heading">
+          <div>
+            <span className="eyebrow">ROLE</span>
+            <h3>1. {t.role}</h3>
+          </div>
+          <span className="badge warn">真实配置</span>
+        </div>
         <div className="actions">
           <button className={role === 'host' ? 'active' : ''} onClick={() => setRole('host')} disabled={isBusy}>
             {t.host}
@@ -423,8 +451,14 @@ export function MultiplayerWizardPage() {
         </div>
       </article>
 
-      <article className="card">
-        <h3>2. {t.roomConfig}</h3>
+      <article className="card content-panel terraria-room-panel">
+        <div className="panel-heading">
+          <div>
+            <span className="eyebrow">NETWORK ROOM</span>
+            <h3>2. {t.roomConfig}</h3>
+            <p className="muted">房主和朋友必须使用同一个 community、secret、supernode，每个人使用不同虚拟 IP。</p>
+          </div>
+        </div>
         <label>
           {t.roomName}
           <input value={roomName} onChange={(event) => setRoomName(event.target.value)} disabled={isBusy} />
@@ -453,8 +487,17 @@ export function MultiplayerWizardPage() {
       </article>
 
       {role === 'host' && (
-        <article className="card">
-          <h3>3. {t.startServer}</h3>
+        <article className="card content-panel terraria-server-panel">
+          <div className="panel-heading">
+            <div>
+              <span className="eyebrow">GAME SERVER</span>
+              <h3>3. {t.startServer}</h3>
+              <p className="muted">这里启动真实 Terraria 服务端进程，不模拟成功状态。</p>
+            </div>
+            <span className={session?.ready ? 'badge good' : session?.running ? 'badge warn' : 'badge'}>
+              {session?.ready ? '端口已监听' : session?.running ? '启动中' : '未运行'}
+            </span>
+          </div>
           <label>
             {t.worldChoice}
             <input value={worldChoice} onChange={(event) => setWorldChoice(event.target.value)} disabled={isBusy} />
@@ -484,14 +527,20 @@ export function MultiplayerWizardPage() {
           </label>
           <div className="actions">
             <button onClick={startEmbeddedServer} disabled={isBusy}>{t.startInApp}</button>
-            <button onClick={stopEmbeddedServer} disabled={isBusy}>{t.stopInApp}</button>
+            <button className="secondary" onClick={stopEmbeddedServer} disabled={isBusy}>{t.stopInApp}</button>
           </div>
         </article>
       )}
 
       {selfCheck && (
-        <article className="card">
-          <h3>{selfCheck.title}</h3>
+        <article className="card content-panel self-check-panel">
+          <div className="panel-heading">
+            <div>
+              <span className="eyebrow">SELF CHECK</span>
+              <h3>{selfCheck.title}</h3>
+            </div>
+            <span className={selfCheck.ok ? 'badge good' : 'badge bad'}>{selfCheck.ok ? '通过' : '需处理'}</span>
+          </div>
           <div className={selfCheck.ok ? 'result-ok' : 'result-bad'}>
             <p>{selfCheck.ok ? '\u7ed3\u8bba\uff1a\u901a\u8fc7' : '\u7ed3\u8bba\uff1a\u672a\u5b8c\u5168\u901a\u8fc7'}</p>
           </div>
@@ -506,8 +555,13 @@ export function MultiplayerWizardPage() {
         </article>
       )}
 
-      <article className="card">
-        <h3>{role === 'host' ? `4. ${t.copyToFriend}` : `3. ${t.joinGame}`}</h3>
+      <article className="card content-panel invite-output-panel">
+        <div className="panel-heading">
+          <div>
+            <span className="eyebrow">INVITE</span>
+            <h3>{role === 'host' ? `4. ${t.copyToFriend}` : `3. ${t.joinGame}`}</h3>
+          </div>
+        </div>
         {role === 'host' ? (
           <>
             <p className="muted">{t.sendToFriend}</p>
@@ -522,10 +576,23 @@ export function MultiplayerWizardPage() {
         )}
       </article>
 
-      <article className="card">
-        <h3>{t.console}</h3>
+      <article className="card content-panel server-console-panel">
+        <div className="panel-heading">
+          <div>
+            <span className="eyebrow">CONSOLE</span>
+            <h3>{t.console}</h3>
+          </div>
+          <span className={session?.ready || session?.running ? 'badge good' : session?.ever_ready || session?.exit_code != null ? 'badge bad' : 'badge'}>
+            {session?.ready ? '已就绪' : session?.running ? '运行中' : '未运行'}
+          </span>
+        </div>
         <p className="muted">{t.consoleDesc}</p>
         {statusMessage && <pre>{statusMessage}</pre>}
+        <div className="actions console-actions">
+          <button className="secondary" onClick={() => sendConsoleCommand('help', t.sendHelp)} disabled={isBusy || !session?.running}>{t.sendHelp}</button>
+          <button className="secondary" onClick={() => sendConsoleCommand('save', t.sendSave)} disabled={isBusy || !session?.running}>{t.sendSave}</button>
+          <button className="danger" onClick={() => sendConsoleCommand('exit', t.sendExit)} disabled={isBusy || !session?.running}>{t.sendExit}</button>
+        </div>
         <div className={session?.ready || session?.running ? 'result-ok' : session?.ever_ready || session?.exit_code != null ? 'result-bad' : 'result-idle'}>
           <p>
             {t.status}：

@@ -1557,3 +1557,35 @@ C:\Users\ty\Downloads\联机助手 (1)
 说明：浏览器预览通用组网页时会出现 `Cannot read properties of undefined (reading 'invoke')`，这是因为普通浏览器没有 Tauri `invoke` 环境；打包后的 Tauri 客户端内不会因为这个原因缺少 invoke。
 
 下一步推荐：继续迁移“Terraria 向导”和“诊断报告”的内容视觉，重点是服务端控制台 help/save/exit、诊断证据/可能原因/下一步建议。
+
+## 2026-06-03 迁移 Terraria 向导与诊断报告内容样式
+
+本次继续参考 `C:\Users\ty\Downloads\联机助手 (1)`，迁移 Terraria 向导和诊断报告的内容层视觉结构，仍然只吸收视觉和信息架构，不替换真实后端逻辑。
+
+本次改动：
+
+- `src/pages/MultiplayerWizardPage.tsx`
+  - 增加 `terraria-page modern-content-page` 页面 class；
+  - 增加 Terraria 向导内容 Hero 和状态 mini stats：当前身份、服务端状态、游戏端口、本机虚拟 IP；
+  - 身份选择、n2n 房间配置、服务端配置、自检结果、邀请信息、内嵌控制台改为新版内容面板结构；
+  - 新增真实服务端命令按钮 `help`、`save`、`exit`，通过 `sendServerCommand` 调用 Tauri 后端，不模拟日志；
+  - 保留 `listNetworkBackends`、`readServerSession`、`setupNetwork`、`startNetwork`、`startGameServerSession`、`stopServerSession`、`testConnectivity` 等真实 API。
+- `src/pages/DiagnosticsPage.tsx`
+  - 增加 `diagnostics-page modern-content-page` 页面 class；
+  - 诊断页头改为内容 Hero；
+  - 操作按钮、最可能原因、失败分类、检测项时间线、详细日志改为新版内容面板结构；
+  - 保留上次诊断缓存、复制摘要、复制完整报告、清空日志等现有真实逻辑；
+  - 继续通过 `generateDiagnosticReport` / `generateDiagnosticReportForGame` 获取真实后端报告。
+- `src/styles/globals.css`
+  - 新增 Terraria/诊断页浅色 iOS/macOS 内容样式；
+  - 强化服务端控制台、邀请包预览、诊断时间线、失败证据、右侧问题定位面板的视觉层级；
+  - 没有新增假延迟、假在线、假成功数据。
+
+验证：
+
+- `npm run build` 通过；
+- `cargo check --manifest-path src-tauri\Cargo.toml` 通过；
+- `npm run tauri:build` 通过；
+- 已重新生成新版 `src-tauri\target\release\lan-helper.exe`。
+
+下一步推荐：做全页面“前后端真实状态审查”，逐页检查是否还存在假绿、普通浏览器 invoke 报错误导、按钮点击无反馈、加载缓存不一致、以及中文乱码风险。
