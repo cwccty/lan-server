@@ -1,4 +1,4 @@
-﻿﻿# 产品记忆与关键决策
+﻿﻿﻿# 产品记忆与关键决策
 
 更新时间：2026-06-02
 
@@ -2275,3 +2275,17 @@ npm run release:preflight:full
 验证结果：`tools/check_reference_ui_fidelity.ps1`、`npm run build`、构建 CSS 哨兵、`cargo check`、`npm run tauri:build`、`npm run release:preflight`、`git diff --check` 均通过。
 
 下一步推荐：用 release 版逐页人工验收视觉；确认满意后，再进入正式前后端连接阶段，优先继续使用 `src/reference-adapter` 的 product mode 接入方式。
+## 2026-06-04 参考前端构建 CSS 哨兵
+
+本轮继续加强“一比一复原”验证：源码一致和 `@source` 存在仍不足以证明用户看到的页面有样式，因此新增构建产物 CSS 哨兵。
+
+已完成：
+
+- 新增 `tools/check_reference_runtime_css.ps1`；
+- 检查 `dist/assets/*.css` 中是否包含参考前端必需 Tailwind utility：`.flex`、`.fixed`、`.grid`、`.min-h-screen`、`.bg-slate-50`、`.text-slate-800`、`.rounded-2xl`、`.shadow-sm`；
+- `tools/release_preflight.ps1` 已接入该哨兵；
+- 如果以后 Tailwind 没扫描 `src/reference-ui`，导致页面再次变成裸 HTML，发布预检会失败。
+
+验证结果：`tools/check_reference_ui_fidelity.ps1`、`npm run build`、`tools/check_reference_runtime_css.ps1`、`cargo check`、`npm run release:preflight`、`git diff --check` 均通过。
+
+下一步推荐：继续做逐页运行态验收，确认首页、方案库、游戏扫描、推荐方案、通用组网中心、Terraria 向导、诊断报告、设置与帮助都不再出现裸 HTML 或旧前端残留。

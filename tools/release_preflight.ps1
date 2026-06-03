@@ -80,6 +80,7 @@ Write-Host "FullBuild: $FullBuild  RunCargoTests: $RunCargoTests  SkipTauriBuild
   "docs\DEVELOPMENT_PROGRESS.md",
   "src\reference-runtime.css",
   "adapter-registry\index.json",
+  "tools\check_reference_runtime_css.ps1",
   "tools\update_adapter_registry_index.ps1"
 ) | ForEach-Object { Test-RequiredFile $_ }
 
@@ -142,6 +143,14 @@ try {
   }
 } catch {
   Fail-Check "reference runtime style guardrail" ([string]$_)
+}
+
+if (Test-Path "dist\assets") {
+  Invoke-Step "reference runtime CSS sentinel" {
+    powershell -ExecutionPolicy Bypass -File "tools\check_reference_runtime_css.ps1"
+  }
+} else {
+  Fail-Check "reference runtime CSS sentinel" "missing dist/assets; run npm run build or npm run release:preflight:full"
 }
 
 # Adapter registry consistency.
