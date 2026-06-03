@@ -1492,3 +1492,33 @@ cargo check --manifest-path src-tauri\Cargo.toml
 - 已重新生成新版 `src-tauri\target\release\lan-helper.exe`。
 
 下一步推荐：继续迁移“推荐方案”和“通用组网中心”两个核心执行页面的内容结构，重点是邀请包、n2n 诊断卡、TCP/UDP/广播桥高级区的视觉一致性。
+
+## 2026-06-03 新前端参考目录切换
+
+用户提供新的前端参考目录：
+
+```text
+C:\Users\ty\Downloads\联机助手 (1)
+```
+
+从现在开始，后续页面视觉迁移优先参考这个新目录，而不是旧目录 `C:\Users\ty\Downloads\联机助手`。
+
+初步检查结果：
+
+- 新目录仍是独立 Vite/React 静态前端参考，不可直接覆盖当前 Tauri 项目；
+- 但相对旧参考已补充大量用户要求的内容：
+  - `SolutionsView.tsx` 扩展了共享方案/编辑器/缓存刷新相关区域；
+  - `GameScanView.tsx` 扩展了上次扫描缓存、游戏详情/分析弹层、适配器要求和诊断证据；
+  - `RecommendProtocolView.tsx` 扩展了好友 IP 分配与邀请包；
+  - `UniversalNetworkView.tsx` 大幅扩展了 TCP 端口代理、UDP 端口代理、UDP 广播桥完整配置；
+  - `TerrariaGuideView.tsx` 增加了 help / save / exit 服务端命令控制台；
+  - `DiagnosticsView.tsx` 扩展了失败证据、可能原因、行动路径和刷新缓存概念。
+
+后续迁移原则保持不变：
+
+- 只吸收视觉结构和文案组织；
+- 不使用参考前端中的假成功状态、写死 IP、写死延迟、setTimeout 模拟结果；
+- 迁移到当前项目时必须接回 `src/api/tauri.ts` 的真实 Tauri API；
+- 所有绿色状态仍必须来自真实检测。
+
+下一步推荐：继续迁移“推荐方案”和“通用组网中心”，参考新目录中的 `RecommendProtocolView.tsx` 与 `UniversalNetworkView.tsx`，但保留当前项目真实后端逻辑。

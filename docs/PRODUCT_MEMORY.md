@@ -1512,3 +1512,15 @@ cargo check --manifest-path src-tauri\Cargo.toml
 - 后端逻辑不能用下载前端的假数据替换；
 - 所有“成功/运行/可联机”状态仍必须来自真实 Tauri API；
 - 每次给用户查看 exe 前要重新 `npm run tauri:build`，否则用户可能看到旧安装包或旧 release exe。
+
+## 2026-06-03 新前端参考源
+
+新的前端参考源已切换为：
+
+```text
+C:\Users\ty\Downloads\联机助手 (1)
+```
+
+旧参考目录不再作为主要依据。新参考补充了之前要求的多个板块：适配器编辑、游戏详情/分析、好友 IP 分配、TCP/UDP/广播桥完整配置、Terraria help/save/exit、诊断证据与行动路径。
+
+注意：新参考仍是静态原型，不能直接覆盖当前 Tauri 项目；必须逐页迁移视觉结构，并保留真实后端接口。
