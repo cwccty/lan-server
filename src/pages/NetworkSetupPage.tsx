@@ -382,6 +382,7 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
   const [n2nAutoRefresh, setN2nAutoRefresh] = useState<{ reason: string; startedAt: number } | null>(null);
   const [presetNotice, setPresetNotice] = useState('');
   const [copyMessage, setCopyMessage] = useState('');
+  const [actionMessage, setActionMessage] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [initialLoading, setInitialLoading] = useState(!cachedNetworkSetup && !networkSetupAutoLoadedOnce);
   const [backgroundRefreshing, setBackgroundRefreshing] = useState(false);
@@ -531,13 +532,20 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
     if (busy) return;
     try {
       setNetworkLoadError('');
+      setActionMessage('');
       setBusy(label);
       const value = await action();
       onDone?.(value);
       await Promise.all([refreshBackends(), refreshPortProxy(), refreshUdpProxy(), refreshUdpBroadcastBridge()]);
+      const backendMessage =
+        value && typeof value === 'object' && 'message' in value && typeof (value as { message?: unknown }).message === 'string'
+          ? `：${(value as { message: string }).message}`
+          : '';
+      setActionMessage(`${label}已完成${backendMessage}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error || '未知错误');
       setNetworkLoadError(`${label}失败：${message}`);
+      setActionMessage('');
     } finally {
       setBusy(null);
     }
@@ -546,6 +554,24 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
   const refreshAllNetworkState = () =>
     runAction('刷新组网状态', async () => {
       await Promise.all([refreshBackends(), refreshPortProxy(), refreshUdpProxy(), refreshUdpBroadcastBridge()]);
+      return true;
+    });
+
+  const refreshPortProxyWithFeedback = () =>
+    runAction('刷新 TCP 端口代理状态', async () => {
+      await refreshPortProxy();
+      return true;
+    });
+
+  const refreshUdpProxyWithFeedback = () =>
+    runAction('刷新 UDP 端口代理状态', async () => {
+      await refreshUdpProxy();
+      return true;
+    });
+
+  const refreshUdpBroadcastBridgeWithFeedback = () =>
+    runAction('刷新 UDP 广播桥状态', async () => {
+      await refreshUdpBroadcastBridge();
       return true;
     });
 
@@ -805,6 +831,11 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
           <strong>组网状态提示：</strong>{networkLoadError}
         </div>
       )}
+      {actionMessage && !networkLoadError && !busy && (
+        <div className="status-banner">
+          <strong>操作结果：</strong>{actionMessage}
+        </div>
+      )}
       {n2nAutoRefresh && !busy && (
         <div className="busy-banner">正在自动刷新 n2n 状态：{n2nAutoRefresh.reason}。检测到 ACK/PONG、错误、进程停止或 60 秒超时后会自动停止。</div>
       )}
@@ -886,7 +917,7 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
         <div className="actions">
           <button disabled={Boolean(busy)} onClick={() => runAction('保存 n2n 配置', () => setupNetwork('n2n', { room_name: roomName, secret, supernode, local_ip: localIp || undefined }), setN2nResult)}>保存 n2n 配置</button>
           <button disabled={Boolean(busy)} onClick={() => runAction('启动 n2n edge', () => startNetwork('n2n'), (value) => { setN2nResult(value); setN2nAutoRefresh({ reason: '等待 supernode ACK / PONG', startedAt: Date.now() }); })}>启动 n2n edge</button>
-          <button disabled={Boolean(busy)} onClick={() => runAction('停止 n2n edge', () => stopNetwork('n2n'), (value) => { setN2nResult(value); setN2nAutoRefresh(null); })}>停止 n2n edge</button>
+          <button disabled={Boolean(busy) || !n2nRunning} onClick={() => runAction('停止 n2n edge', () => stopNetwork('n2n'), (value) => { setN2nResult(value); setN2nAutoRefresh(null); })}>停止 n2n edge</button>
         </div>
 
         <article className="config-panel">
@@ -961,10 +992,10 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
         {!proxyPortsValid && <p className="result-bad">监听端口和目标端口必须是大于 0 的数字。</p>}
         <div className="actions">
           <button type="button" disabled={Boolean(busy) || !proxyPortsValid} onClick={startDefaultPortProxy}>启动 TCP 端口代理</button>
-          <button type="button" className="secondary" disabled={Boolean(busy)} onClick={stopDefaultPortProxy}>停止 TCP 端口代理</button>
+          <button type="button" className="secondary" disabled={Boolean(busy) || !portProxyStatus?.running} onClick={stopDefaultPortProxy}>停止 TCP 端口代理</button>
           <button type="button" className="secondary" disabled={Boolean(busy) || !portProxyStatus?.running} onClick={testDefaultPortProxy}>测试代理监听</button>
           <button type="button" className="secondary" disabled={Boolean(busy)} onClick={runPortProxySelfTest}>一键自测 TCP 代理</button>
-          <button type="button" className="secondary" disabled={Boolean(busy)} onClick={refreshPortProxy}>刷新代理状态</button>
+          <button type="button" className="secondary" disabled={Boolean(busy)} onClick={refreshPortProxyWithFeedback}>刷新代理状态</button>
         </div>
         {portProxyStatus && <PortProxyStatusView status={portProxyStatus} />}
         {portProxyReport && <ConnectivityReportView report={portProxyReport} />}
@@ -1001,9 +1032,9 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
         {!udpProxyPortsValid && <p className="result-bad">UDP 监听端口和目标端口必须是大于 0 的数字。</p>}
         <div className="actions">
           <button type="button" disabled={Boolean(busy) || !udpProxyPortsValid} onClick={startDefaultUdpProxy}>启动 UDP 端口代理</button>
-          <button type="button" className="secondary" disabled={Boolean(busy)} onClick={stopDefaultUdpProxy}>停止 UDP 端口代理</button>
+          <button type="button" className="secondary" disabled={Boolean(busy) || !udpProxyStatus?.running} onClick={stopDefaultUdpProxy}>停止 UDP 端口代理</button>
           <button type="button" className="secondary" disabled={Boolean(busy)} onClick={runUdpProxySelfTest}>一键自测 UDP 代理</button>
-          <button type="button" className="secondary" disabled={Boolean(busy)} onClick={refreshUdpProxy}>刷新 UDP 代理状态</button>
+          <button type="button" className="secondary" disabled={Boolean(busy)} onClick={refreshUdpProxyWithFeedback}>刷新 UDP 代理状态</button>
         </div>
         {udpProxyStatus && <UdpProxyStatusView status={udpProxyStatus} />}
         {udpProxySelfTest && <UdpProxySelfTestView report={udpProxySelfTest} />}
@@ -1042,9 +1073,9 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
         {!udpBridgeConfigValid && <p className="result-bad">UDP 广播桥需要大于 0 的监听端口，并至少填写一个 host:port 转发目标。</p>}
         <div className="actions">
           <button type="button" disabled={Boolean(busy) || !udpBridgeConfigValid} onClick={startDefaultUdpBroadcastBridge}>启动 UDP 广播桥</button>
-          <button type="button" className="secondary" disabled={Boolean(busy)} onClick={stopDefaultUdpBroadcastBridge}>停止 UDP 广播桥</button>
+          <button type="button" className="secondary" disabled={Boolean(busy) || !udpBroadcastBridgeStatus?.running} onClick={stopDefaultUdpBroadcastBridge}>停止 UDP 广播桥</button>
           <button type="button" className="secondary" disabled={Boolean(busy)} onClick={runUdpBroadcastBridgeSelfTest}>一键自测 UDP 广播桥</button>
-          <button type="button" className="secondary" disabled={Boolean(busy)} onClick={refreshUdpBroadcastBridge}>刷新广播桥状态</button>
+          <button type="button" className="secondary" disabled={Boolean(busy)} onClick={refreshUdpBroadcastBridgeWithFeedback}>刷新广播桥状态</button>
         </div>
         {udpBroadcastBridgeStatus && <UdpBroadcastBridgeStatusView status={udpBroadcastBridgeStatus} />}
         {udpBroadcastBridgeSelfTest && <UdpBroadcastBridgeSelfTestView report={udpBroadcastBridgeSelfTest} />}

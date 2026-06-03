@@ -823,3 +823,14 @@ cargo check --manifest-path src-tauri\Cargo.toml
 - 已重新打包 release exe。
 
 下一步推荐：继续第三轮审查 NetworkSetup 页，重点检查 n2n、TCP/UDP 代理、广播桥的停止/刷新/失败反馈是否都能准确反映真实后端状态。
+
+## 2026-06-03 通用组网页第三轮审查进度
+
+完成：
+
+- NetworkSetup 操作成功提示；
+- n2n / TCP 代理 / UDP 代理 / UDP 广播桥停止按钮真实 running 控制；
+- TCP/UDP/广播桥单项刷新接入加载与结果反馈；
+- 已重新打包 release exe。
+
+下一步推荐：审查 AdapterManager 与 Diagnostics 的按钮反馈、失败提示、复制异常和缓存状态。

@@ -1640,3 +1640,33 @@ C:\Users\ty\Downloads\联机助手 (1)
 - `git diff --check` 通过。
 
 下一步推荐：继续第三轮审查通用组网页和推荐页剩余状态，包括顶部 shell 状态是否需要接诊断缓存、组网页刷新失败提示、以及代理/广播桥停止按钮在未运行时的用户反馈。
+
+## 2026-06-03 通用组网页真实状态审查第三轮修复
+
+本轮聚焦 `NetworkSetupPage` 的 n2n、TCP/UDP 代理、UDP 广播桥真实状态反馈。
+
+修复内容：
+
+- 新增 `actionMessage` 操作结果提示；
+  - 成功执行启动、停止、刷新、自测等动作后，会显示“操作结果”；
+  - 如果后端返回 `message`，会直接展示后端真实消息；
+  - 失败仍进入 `networkLoadError`，不会显示假成功。
+- 停止按钮改为只有真实运行时可点：
+  - n2n edge 未运行时禁用“停止 n2n edge”；
+  - TCP 端口代理未运行时禁用“停止 TCP 端口代理”；
+  - UDP 端口代理未运行时禁用“停止 UDP 端口代理”；
+  - UDP 广播桥未运行时禁用“停止 UDP 广播桥”。
+- 单项刷新按钮现在走 `runAction`：
+  - 刷新 TCP 端口代理状态；
+  - 刷新 UDP 端口代理状态；
+  - 刷新 UDP 广播桥状态；
+  - 用户能看到加载遮罩、成功提示或失败提示，而不是点了以后没反馈。
+
+验证：
+
+- `npm run build` 通过；
+- `cargo check --manifest-path src-tauri\\Cargo.toml` 通过；
+- `npm run tauri:build` 通过；
+- `git diff --check` 通过。
+
+下一步推荐：做第四轮审查 AdapterManager 和 Diagnostics 的按钮反馈与真实状态，包括复制按钮异常、同步失败信息、诊断缓存清空后状态是否准确。
