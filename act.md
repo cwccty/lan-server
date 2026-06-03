@@ -2332,3 +2332,40 @@ C:\Users\ty\Downloads\联机助手 (1)
 - 该方案刻意不改 reference-ui，避免破坏后续的一致性检查。
 
 下一步推荐：在 release 版中按 `Ctrl+Shift+D` 开启 product mode，确认 Header 状态文字是否能根据真实 runtime 改变；确认后再考虑首页局部状态的 product-mode patcher。
+
+## 2026-06-04 Product Mode 首页状态 Patcher 原型
+
+本轮实现第二个产品化接入原型：默认 reference mode 下首页完全保持用户参考前端一比一；只有隐藏调试面板开启 product mode 后，才替换首页局部假状态文案。
+
+新增/修改：
+
+- `src/reference-adapter/ProductHomePatcher.tsx`
+  - 不修改 `src/reference-ui/components/HomeView.tsx`；
+  - 默认 product mode 关闭时恢复/保持参考 UI 原文；
+  - product mode 开启时，通过 DOM patch 替换首页局部状态：
+    - `虚拟服主在线` -> 真实组网状态；
+    - `24ms` -> `ACK` / `RUN` / `待测`；
+    - `n2n.edge.me:7777` -> 真实 supernode 或未配置；
+    - 检查单中的网卡、网络、supernode 说明 -> 真实 runtime 摘要。
+- `src/main.tsx`
+  - 在 `<App />` 后挂载 `<ReferenceProductHomePatcher />`；
+  - 仍不触碰 reference-ui 组件源码。
+- `src/reference-adapter/index.ts`
+  - 导出 `ReferenceProductHomePatcher`。
+
+验证：
+
+- `powershell -ExecutionPolicy Bypass -File tools\check_reference_ui_fidelity.ps1` 通过，`visual_diff_count=0`；
+- `npm run build` 通过；
+- `cargo check --manifest-path src-tauri\Cargo.toml` 通过；
+- `npm run tauri:build` 通过；
+- `npm run release:preflight` 通过；
+- `git diff --check` 通过。
+
+边界：
+
+- 默认 reference mode 仍是用户要求的一比一前端；
+- product mode 是实验/产品化通道，用来验证真实状态接入是否可接受；
+- 所有替换都在 adapter wrapper 层完成，不污染 `src/reference-ui`。
+
+下一步推荐：在 release 版中开启 product mode，确认 Header 和首页状态替换是否符合预期；之后再考虑对“诊断页”做 product-mode 数据接入，而不是继续扩大 DOM patch 范围。
