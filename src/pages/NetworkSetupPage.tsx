@@ -1052,6 +1052,8 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
         </article>
       )}
 
+      <div className="network-console-layout">
+        <aside className="network-left-rail">
       <div className="status-grid">
         {networkStatusCards.map((item) => <NetworkStatusCard key={item.title} item={item} />)}
       </div>
@@ -1095,6 +1097,8 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
         <button onClick={refreshAllNetworkState} disabled={Boolean(busy) || initialLoading}>刷新组网状态</button>
       </article>
 
+        </aside>
+        <div className="network-main-rail">
       <article className="card primary-config-card network-config-panel">
         <div className="section-kicker"><span>主要步骤</span><strong>n2n 内置组网</strong></div>
         <p className="muted">每台玩家电脑运行 edge；supernode 负责让这些 edge 找到彼此。双方必须填写相同的 community、密钥和 supernode，但本机虚拟 IP 必须不同。</p>
@@ -1180,6 +1184,8 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
           {copyMessage && <p className="muted">{copyMessage}</p>}
         </details>
       </article>
+        </div>
+      </div>
 
       <div className="section-header">
         <div>

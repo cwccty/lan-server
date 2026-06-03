@@ -86,5 +86,106 @@ export function GameScanPage({
   const refreshing = Boolean(loading);
   const scanTime = loadedAt ? new Date(loadedAt).toLocaleString() : '尚未完成扫描';
 
-  return <section className="page-stack scan-page modern-content-page"><LoadingOverlay visible={busy || refreshing} title={busy ? '正在创建适配器草稿' : '正在扫描游戏'} message={busy ? '正在写入本地 custom adapter，请稍等。' : '正在读取本机游戏与适配器信息，首次扫描可能需要几秒钟。'} /><div className="content-hero scan-hero"><div><span className="eyebrow">GAME SCAN</span><h2>游戏扫描</h2><p className="muted">识别已安装游戏，并匹配本地/共享适配器库。扫描到游戏不等于已经可以本地联机。</p></div><div className="hero-mini-stats"><article><span>已发现</span><strong>{games.length}</strong></article><article><span>状态</span><strong>{refreshing ? '扫描中' : error ? '扫描失败' : '已缓存'}</strong></article></div></div>{error && <div className="error-card"><strong>扫描失败：</strong>{error}<div className="actions"><button type="button" onClick={() => onRefreshGames?.()} disabled={refreshing || busy}>重新扫描</button></div></div>}{message && <div className="status-banner">{message}<div className="actions">{onOpenAdapters && <button type="button" className="secondary" onClick={onOpenAdapters}>进入适配器管理继续认定</button>}</div></div>}<article className="card toolbar-card content-panel scan-toolbar"><div className="actions"><button disabled={refreshing || busy} onClick={() => onRefreshGames?.()}>开始扫描</button><span className="future-chip">手动选择目录：未来能力</span><button className="secondary" disabled={refreshing || busy} onClick={() => onRefreshGames?.()}>刷新 Steam 游戏</button>{onOpenAdapters ? <button type="button" className="secondary" disabled={refreshing || busy} onClick={onOpenAdapters}>去同步共享方案库</button> : <button className="secondary" disabled>去同步共享方案库</button>}</div><p className="muted">上次扫描：{scanTime} · 适配器库：builtin / registry / custom</p><p className="muted">当前版本扫描来自真实后端的 Steam 库、内置适配器、共享库和本地 custom adapter；手动选择任意目录尚未接入后端，所以不显示成可点击按钮。</p><p className="muted">共享方案库的真实同步在“方案库 / 适配器管理”中执行；这里提供跳转入口，避免扫描页重复调用同步后端。</p></article><div className="status-grid"><article className="status-tile"><span>扫描状态</span><strong>{refreshing ? '正在扫描' : error ? '扫描失败' : '已完成/待手动刷新'}</strong><small>{error ? '请查看失败原因或重新扫描' : '首次进入会自动扫描，之后可手动刷新'}</small></article><article className="status-tile"><span>已发现</span><strong>{games.length}</strong><small>本机候选游戏</small></article><article className="status-tile"><span>已匹配</span><strong>{matchedCount}</strong><small>存在适配器</small></article><article className="status-tile"><span>需人工适配</span><strong>{manualCount}</strong><small>可由管理员认定</small></article></div><div className="content-with-aside"><div className="page-stack">{games.length === 0 && !refreshing && !error ? <article className="card empty-state"><h3>暂未发现游戏</h3><p className="muted">可以先同步共享适配器库，或者到适配器管理中导入/创建游戏适配器。</p><p>管理员认定游戏类型并生成适配器后，其他用户之后遇到这个游戏就可以复用。</p></article> : <div className="feature-grid two">{games.map((game) => <GameCard key={game.game_id} game={game} onSelect={() => onSelectGame(game.game_id)} onCreateAdapterDraft={() => createDraft(game)} />)}</div>}</div><aside className="right-panel filter-panel"><h3>筛选</h3><h4>能力类型</h4><div className="filter-list">{capabilityFilters.map((item) => <span className="badge" key={item}>{item}</span>)}</div><h4>适配器来源</h4><div className="filter-list">{sourceFilters.map((item) => <span className={'badge source-' + item} key={item}>{item}</span>)}</div><h4>未来入口</h4><div className="filter-list"><span className="future-chip">游戏封面图标</span><span className="future-chip">多语言游戏名</span><span className="future-chip">云端提交审核</span></div></aside></div></section>;
+  return (
+    <section className="page-stack scan-page modern-content-page">
+      <LoadingOverlay
+        visible={busy || refreshing}
+        title={busy ? '正在创建适配器草稿' : '正在扫描游戏'}
+        message={busy ? '正在写入本地 custom adapter，请稍等。' : '正在读取本机游戏与适配器信息，首次扫描可能需要几秒钟。'}
+      />
+
+      <div className="scan-page-title">
+        <div>
+          <h2>游戏扫描</h2>
+          <p>智能扫描当前电脑中安装的局域网游戏，并调配最佳联机设置。</p>
+          <small>上次全盘检索缓存：{scanTime}　数据状态：本地快照缓存已就绪</small>
+        </div>
+        <div className="scan-title-actions">
+          <span className="future-chip">手动重扫目录：未来能力</span>
+          <button type="button" className="secondary" disabled={refreshing || busy} onClick={() => onRefreshGames?.()}>
+            强同步 Steam 自适应映射
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div className="error-card">
+          <strong>扫描失败：</strong>{error}
+          <div className="actions">
+            <button type="button" onClick={() => onRefreshGames?.()} disabled={refreshing || busy}>重新扫描</button>
+          </div>
+        </div>
+      )}
+
+      {message && (
+        <div className="status-banner">
+          {message}
+          <div className="actions">
+            {onOpenAdapters && <button type="button" className="secondary" onClick={onOpenAdapters}>进入适配器管理继续认定</button>}
+          </div>
+        </div>
+      )}
+
+      <article className="scan-command-card">
+        <div className="scan-search-box">
+          <span>⌕</span>
+          <input readOnly value="" placeholder="搜索您电脑中的联机游戏名称..." />
+        </div>
+        <div className="scan-quick-filter" aria-label="快速分类">
+          <span>快速分类：</span>
+          <button type="button" className="active">全部</button>
+          <button type="button" className="secondary">已配置</button>
+          <button type="button" className="secondary">未配置</button>
+        </div>
+      </article>
+
+      <div className="scan-toolbar-row">
+        <button disabled={refreshing || busy} onClick={() => onRefreshGames?.()}>
+          {refreshing ? '正在扫描...' : '开始扫描'}
+        </button>
+        {onOpenAdapters ? (
+          <button type="button" className="secondary" disabled={refreshing || busy} onClick={onOpenAdapters}>
+            去同步共享方案库
+          </button>
+        ) : (
+          <button className="secondary" disabled>去同步共享方案库</button>
+        )}
+        <p className="muted">当前扫描来源：Steam 库、内置适配器、共享库和本地 custom adapter。手动选择任意目录尚未接入后端。</p>
+      </div>
+
+      <div className="scan-stat-strip">
+        <article><span>已发现</span><strong>{games.length}</strong></article>
+        <article><span>已配置</span><strong>{matchedCount}</strong></article>
+        <article><span>需人工适配</span><strong>{manualCount}</strong></article>
+        <article><span>状态</span><strong>{refreshing ? '扫描中' : error ? '失败' : '已缓存'}</strong></article>
+      </div>
+
+      {games.length === 0 && !refreshing && !error ? (
+        <article className="card empty-state">
+          <h3>暂未发现游戏</h3>
+          <p className="muted">可以先同步共享适配器库，或者到适配器管理中导入/创建游戏适配器。</p>
+          <p>管理员认定游戏类型并生成适配器后，其他用户之后遇到这个游戏就可以复用。</p>
+        </article>
+      ) : (
+        <div className="scan-game-grid">
+          {games.map((game) => (
+            <GameCard
+              key={game.game_id}
+              game={game}
+              onSelect={() => onSelectGame(game.game_id)}
+              onCreateAdapterDraft={() => createDraft(game)}
+            />
+          ))}
+        </div>
+      )}
+
+      <aside className="scan-filter-drawer">
+        <h3>筛选与未来能力</h3>
+        <h4>能力类型</h4>
+        <div className="filter-list">{capabilityFilters.map((item) => <span className="badge" key={item}>{item}</span>)}</div>
+        <h4>适配器来源</h4>
+        <div className="filter-list">{sourceFilters.map((item) => <span className={'badge source-' + item} key={item}>{item}</span>)}</div>
+      </aside>
+    </section>
+  );
 }

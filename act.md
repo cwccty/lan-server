@@ -1867,3 +1867,41 @@ C:\Users\ty\Downloads\联机助手 (1)
 - 后续如果要做该能力，应新增 Tauri 目录选择/路径扫描命令后再恢复为真实按钮。
 
 下一步推荐：继续扫描其他页面的“未来入口/预留入口”，保留说明型内容，但不要让它们像已经可用的主流程按钮。
+
+## 2026-06-03 参考前端结构级迁移
+
+本轮按用户提供的新参考前端做结构级重构，不再只是换颜色。
+
+改动：
+
+- `src/components/Layout.tsx`
+  - 迁移为浅色固定 Sidebar + 顶部 Topbar + 右下角深色 Toast 的 App Shell；
+  - 导航分组和文案改成用户面向的中文入口；
+  - 顶部状态保持“等待真实诊断”，不照抄参考图中的假延迟或假在线。
+- `src/pages/HomePage.tsx`
+  - 首页改为“桌面大厅”结构；
+  - 保留 Host / Joiner 角色切换；
+  - 下方改成“网络拓扑状态 + 主面板检查单”，旧的大块场景卡不再作为主视觉；
+  - 检查单中的状态明确标为等待真实检测，不伪造就绪进度。
+- `src/pages/GameScanPage.tsx`
+  - 游戏扫描页改成参考图的标题区、搜索/筛选条、工具栏和卡片画廊结构；
+  - 保留真实扫描、创建适配器草稿、跳转适配器管理等后端连接。
+- `src/pages/NetworkSetupPage.tsx`
+  - 通用组网中心改成左侧状态轨道 + 右侧 n2n 基础参数配置；
+  - 下方继续保留 TCP 端口代理、UDP 端口代理、UDP 广播桥、Steam 中继预留入口；
+  - n2n、supernode、虚拟网卡、虚拟 IP 均使用真实后端状态和诊断结果显示。
+- `src/pages/DiagnosticsPage.tsx`
+  - 诊断页改成左侧检测明细 + 右侧深色 N2N 实时监测卡；
+  - 右侧监测卡只展示后端报告能提供的必需项/失败项/摘要，不伪造 Mbps、ms、在线率。
+- `src/styles/globals.css`
+  - 追加参考前端风格的结构级样式：浅色产品界面、橙色强调、卡片 dashboard、深色诊断侧栏和全局 Toast。
+
+验证：
+
+- `npm run build` 通过；
+- `cargo check --manifest-path src-tauri\Cargo.toml` 通过；
+- `npm run tauri:build` 通过；
+- `npm run release:preflight` 通过；
+- `git diff --check` 通过。
+
+下一步推荐：用 release 版 `src-tauri\target\release\lan-helper.exe` 人工检查 7 个核心页面，重点确认真实后端页面在 Tauri 环境下没有浏览器预览的后端缺失提示，并继续把“推荐方案 / 适配器管理 / Terraria 向导”内层卡片做同一套视觉语言。

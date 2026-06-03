@@ -3,13 +3,13 @@
 type Page = 'home' | 'wizard' | 'scan' | 'detail' | 'network' | 'recommendation' | 'diagnostics' | 'adapters';
 
 const navItems: Array<{ id: Page; label: string; hint: string; group: string; icon: string; alert?: boolean }> = [
-  { id: 'home', label: '首页', hint: '总览与开始', group: '开始', icon: '⌘' },
-  { id: 'adapters', label: '方案库', hint: '更新共享方案', group: '准备', icon: '▦' },
-  { id: 'scan', label: '游戏扫描', hint: '找到本机游戏', group: '准备', icon: '◎' },
-  { id: 'recommendation', label: '推荐方案', hint: '下一步怎么连', group: '执行', icon: '✓' },
-  { id: 'network', label: '通用组网中心', hint: 'n2n / 代理 / 广播桥', group: '执行', icon: '◇' },
-  { id: 'wizard', label: 'Terraria 向导', hint: '开服 / 加入', group: '执行', icon: '✦' },
-  { id: 'diagnostics', label: '诊断报告', hint: '失败时查看', group: '排查', icon: '!', alert: true }
+  { id: 'home', label: '首页', hint: '桌面大厅', group: '开始', icon: '⌂' },
+  { id: 'adapters', label: '方案库', hint: '共享适配', group: '准备', icon: '▥' },
+  { id: 'scan', label: '游戏扫描', hint: '本机游戏', group: '准备', icon: '◎' },
+  { id: 'recommendation', label: '推荐方案', hint: '连接路径', group: '执行', icon: '◇' },
+  { id: 'network', label: '通用组网中心', hint: 'n2n / 代理', group: '执行', icon: '◉' },
+  { id: 'wizard', label: 'Terraria 向导', hint: '开服 / 加入', group: '执行', icon: '✣' },
+  { id: 'diagnostics', label: '诊断报告', hint: '链路性能', group: '排查', icon: '⌁', alert: true }
 ];
 
 const pageMeta: Record<Page, { label: string; hint: string }> = Object.fromEntries(
@@ -44,10 +44,10 @@ export function Layout({
     <div className="app-shell premium-shell ios-shell">
       <aside className="sidebar premium-sidebar ios-sidebar">
         <div className="brand-block premium-brand ios-brand">
-          <div className="brand-mark ios-brand-mark">联</div>
+          <div className="brand-mark ios-brand-mark">✣</div>
           <div>
             <h1>联机助手</h1>
-            <p>小型游戏联机工具</p>
+            <p>高级局域网联机工具</p>
           </div>
         </div>
 
@@ -76,25 +76,25 @@ export function Layout({
         </nav>
 
         <div className="sidebar-insight ios-sidebar-insight">
-          <span className="insight-dot" />
           <div>
-            <strong>建议路径</strong>
-            <p>方案库 → 扫描游戏 → 推荐方案 → 通用组网</p>
+            <p className="sidebar-update-row"><span>↻ 版本更新</span><strong>V2.4.1</strong></p>
+            <p className="sidebar-user-row"><span>♙</span><strong>cwccty@gmail.com</strong><small>高级订阅会员</small></p>
           </div>
         </div>
       </aside>
 
       <main className="page-main premium-main ios-main">
         <div className="top-command-bar ios-command-bar">
-          <div>
-            <span>当前页面</span>
-            <strong>{current.label}</strong>
-            <small>{current.hint}</small>
+          <div className="top-tabs">
+            <button type="button" className="top-tab active">本心特性</button>
+            <button type="button" className="top-tab">支持中心</button>
           </div>
           <div className="top-command-actions">
-            <span className="shell-status-pill"><span /> 待真实检测</span>
-            <button type="button" className="secondary glass-button" onClick={() => navigateWithToast('diagnostics')}>打开诊断</button>
-            <button type="button" onClick={() => navigateWithToast('network')}>打开组网</button>
+            <span className="shell-status-pill"><span /> 等待真实诊断</span>
+            <button type="button" className="secondary glass-button" onClick={() => navigateWithToast('diagnostics')}>⌁ 打开诊断</button>
+            <button type="button" className="danger disconnect-button" onClick={() => navigateWithToast('network')}>打开组网中心</button>
+            <span className="top-icon-button">♢</span>
+            <span className="top-icon-button">⊙</span>
           </div>
         </div>
         {children}

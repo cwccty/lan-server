@@ -163,8 +163,8 @@ export function DiagnosticsPage({ selectedGame }: { selectedGame?: GameSummary }
       <div className="content-hero diagnostics-hero">
         <div>
           <span className="eyebrow">DIAGNOSTICS</span>
-          <h2>诊断报告</h2>
-          <p className="muted">把“不能联机”拆成可验证的检测项、失败分类和下一步修复建议，而不是只显示 false。</p>
+          <h2>网络诊断与链路性能</h2>
+          <p className="muted">把“不能联机”拆成可验证的检测项、失败分类和下一步修复建议。所有状态均来自真实后端报告，不伪造延迟或在线结果。</p>
           {selectedGame && <p className="muted">当前游戏上下文：{selectedGame.display_name}（{selectedGame.game_id}）</p>}
           {report && diagnosticsReportCache.savedAt > 0 && <p className="muted">已保留上次诊断结果：{new Date(diagnosticsReportCache.savedAt).toLocaleString()}。点击按钮可重新生成。</p>}
         </div>
@@ -246,6 +246,14 @@ export function DiagnosticsPage({ selectedGame }: { selectedGame?: GameSummary }
         </div>
 
         <aside className="right-panel">
+          <div className="diagnostic-monitor-head">
+            <span>N2N 实时连通监测</span>
+            <strong>{report ? (mvpReady ? '核心通过' : '需处理') : '待检测'}</strong>
+          </div>
+          <div className="diagnostic-monitor-metrics">
+            <article><span>必需项</span><strong>{report ? `${passedRequiredChecks}/${requiredChecks.length}` : '-'}</strong></article>
+            <article><span>失败项</span><strong>{report ? failedRequiredChecks : '-'}</strong></article>
+          </div>
           <h3>问题定位</h3>
           <div className={report && !mvpReady ? 'result-bad' : 'result-idle'}>
             <p>{report ? (mvpReady ? '暂未发现 MVP 阻塞项。' : mostLikely ? `优先处理：${mostLikely.title}` : '最可能原因请优先查看失败的 MVP 必需项。') : '点击“开始诊断”后显示最可能原因。'}</p>

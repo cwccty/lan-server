@@ -19,6 +19,7 @@ const readiness = [
 
 const hostSteps = ['更新方案库', '扫描游戏', '启动 n2n', '启动服务端/房间', '复制邀请包'];
 const joinerSteps = ['接收邀请', '填写相同组网信息', '使用不同虚拟 IP', '启动 n2n', '连接房主虚拟 IP'];
+const checklist = ['虚拟局域网网卡', 'supernode 节点就绪', '游戏端口待检测', '邀请包可生成'];
 
 export function HomePage({ onNavigate }: { onNavigate: (page: Page) => void }) {
   const [role, setRole] = useState<Role>('host');
@@ -27,60 +28,79 @@ export function HomePage({ onNavigate }: { onNavigate: (page: Page) => void }) {
   const steps = role === 'host' ? hostSteps : joinerSteps;
 
   return <section className="page-stack premium-home">
+    <div className="lobby-page-title">
+      <h2>桌面大厅</h2>
+      <p>确定您在网络拓扑中的角色，并优化连接准备流程。</p>
+    </div>
+
     <div className="premium-hero">
       <div className="hero-copy-block">
-        <h2>从“能不能连”到“下一步怎么做”</h2>
-        <p>选择你的身份和游戏联机方式，联机助手会把方案库、游戏扫描、n2n 组网、服务端、邀请包和诊断串成一条可执行路径。</p>
+        <h3>选择联机角色</h3>
+        <p>主机负责启动游戏自建服务器；加入者通过主机的虚拟网段接入。</p>
         <div className="role-switch" role="tablist" aria-label="选择身份">
-          <button className={role === 'host' ? 'active' : 'secondary'} onClick={() => setRole('host')}>我是房主</button>
-          <button className={role === 'joiner' ? 'active' : 'secondary'} onClick={() => setRole('joiner')}>我是加入者</button>
+          <button className={role === 'host' ? 'active' : 'secondary'} onClick={() => setRole('host')}>▱ 我是主机 Host</button>
+          <button className={role === 'joiner' ? 'active' : 'secondary'} onClick={() => setRole('joiner')}>♙ 我是加入者 Joiner</button>
         </div>
         <div className="actions hero-actions">
-          <button onClick={() => onNavigate(role === 'host' ? 'adapters' : 'network')}>{role === 'host' ? '开始准备房间' : '填写好友邀请'}</button>
-          <button className="secondary" onClick={() => onNavigate('diagnostics')}>连接失败诊断</button>
+          <button onClick={() => onNavigate(role === 'host' ? 'network' : 'network')}>{role === 'host' ? '配置本地网络' : '导入好友邀请'}</button>
+          <button className="secondary" onClick={() => onNavigate('scan')}>扫描本地游戏</button>
         </div>
       </div>
 
       <div className="mission-panel">
+        <h3>就绪进度</h3>
         <div className="mission-score" aria-label="准备度">
-          <span>{steps.length}</span>
-          <small>{role === 'host' ? '\u623f\u4e3b\u63a8\u8350\u6b65\u9aa4' : '\u52a0\u5165\u8005\u63a8\u8350\u6b65\u9aa4'}</small>
+          <span>待测</span>
+          <small>等待诊断</small>
         </div>
-        <div className="mission-route">
-          {steps.map((step, index) => <div className="mission-node" key={step}><span>{index + 1}</span><strong>{step}</strong></div>)}
-        </div>
+        <p className="muted">需要运行诊断后替换为真实检测进度。当前不伪造在线结果。</p>
       </div>
     </div>
 
-    <div className="interactive-stage">
-      <article className="stage-card scenario-picker">
-        <h3>选择本次联机场景</h3>
-        <div className="scenario-list">
+    <div className="lobby-bottom-grid">
+      <article className="card topology-status-card">
+        <div className="feature-card-title">
+          <div>
+            <h3>网络拓扑状态</h3>
+            <p className="muted">当前选择：{currentScenario.title}。{currentScenario.desc}</p>
+          </div>
+          <span className="badge warn">等待真实检测</span>
+        </div>
+        <div className="network-map lobby-network-map" aria-label="网络拓扑状态">
+          <div className="map-node host-node">本机（主机）<br /><span>10.10.10.2</span></div>
+          <div className="map-line"><span>supernode</span></div>
+          <div className="map-node friend-node">联机好友群组<br /><span>待加入...</span></div>
+        </div>
+        <div className="scenario-pill-row" aria-label="联机场景">
           {(Object.keys(scenarios) as Scenario[]).map((key) => (
-            <button key={key} className={scenario === key ? 'scenario-option active' : 'scenario-option'} onClick={() => setScenario(key)}>
-              <strong>{scenarios[key].title}</strong>
-              <small>{scenarios[key].desc}</small>
+            <button key={key} className={scenario === key ? 'scenario-pill active' : 'scenario-pill'} onClick={() => setScenario(key)}>
+              {scenarios[key].title}
             </button>
           ))}
         </div>
+        <div className="actions topology-actions">
+          <button onClick={() => onNavigate(currentScenario.route)}>{currentScenario.action}</button>
+          <button className="secondary" onClick={() => onNavigate('diagnostics')}>查看诊断</button>
+        </div>
       </article>
 
-      <article className="stage-card topology-card">
-        <div className="feature-card-title">
-          <div>
-            <h3>{currentScenario.title}</h3>
-            <p className="muted">{currentScenario.desc}</p>
-          </div>
-          <span className="badge warn">{role === 'host' ? '房主路径' : '加入者路径'}</span>
-        </div>
-        <div className="network-map" aria-label="联机拓扑示意">
-          <div className="map-node host-node">房主<br /><span>10.10.10.2</span></div>
-          <div className="map-line"><span>supernode</span></div>
-          <div className="map-node friend-node">好友<br /><span>10.10.10.3</span></div>
-        </div>
-        <div className="actions">
-          <button onClick={() => onNavigate(currentScenario.route)}>{currentScenario.action}</button>
-          <button className="secondary" onClick={() => onNavigate('scan')}>先扫描游戏</button>
+      <article className="card lobby-checklist-card">
+        <h3>主面板检查单</h3>
+        <ul className="lobby-checklist">
+          {checklist.map((item, index) => (
+            <li key={item}>
+              <span className={index < 2 ? 'check-dot ok' : 'check-dot wait'}>{index < 2 ? '✓' : '!'}</span>
+              <div>
+                <strong>{item}</strong>
+                <small>{index < 2 ? '等待诊断确认真实状态。' : '需要进入对应页面处理。'}</small>
+              </div>
+            </li>
+          ))}
+        </ul>
+        <div className="host-flow-strip">
+          {steps.map((step, index) => (
+            <span key={step}>{index + 1}. {step}</span>
+          ))}
         </div>
       </article>
     </div>
