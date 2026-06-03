@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "release:preflight": "powershell -ExecutionPolicy Bypass -File tools/release_preflight.ps1",
+    "release:preflight:full": "powershell -ExecutionPolicy Bypass -File tools/release_preflight.ps1 -FullBuild"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",

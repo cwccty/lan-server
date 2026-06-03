@@ -858,3 +858,16 @@ cargo check --manifest-path src-tauri\Cargo.toml
 - 已重新打包 release exe。
 
 下一步推荐：在 release exe 中执行发布级人工验收清单，逐页确认按钮、加载、真实后端状态和错误提示。
+
+## 2026-06-03 发布预检入口进度
+
+完成：
+
+- 新增 `tools/release_preflight.ps1`；
+- 新增 npm 脚本：
+  - `npm run release:preflight`；
+  - `npm run release:preflight:full`；
+- 预检覆盖关键文档、release exe、adapter registry、连续问号乱码、静默剪贴板调用、强承诺文案；
+- 已确认 `npm run release:preflight` 可正常通过。
+
+下一步推荐：使用 release exe 做人工回放，并把实际结果记录到 `docs/RELEASE_VALIDATION_LOG.md`。

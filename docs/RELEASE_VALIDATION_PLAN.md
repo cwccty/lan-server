@@ -319,3 +319,34 @@ Stardew Valley：通过 / 未通过
 ```
 
 下一步推荐：按本文档先执行单机验证，并把结果写入新的 `docs/RELEASE_VALIDATION_LOG.md`。
+
+## 9. 自动预检入口
+
+发布前除人工回放外，先执行自动预检：
+
+```powershell
+npm run release:preflight
+```
+
+该命令会检查：
+
+- 关键发布文档和 release exe 是否存在；
+- adapter registry 的 `index.json` 是否可解析，数量是否与 `adapter-registry/games/*.json` 一致；
+- 每个 registry entry 是否包含 `game_id`、`adapter_url`、`sha256`；
+- 源码和项目文档是否出现连续问号乱码；
+- 前端是否还存在静默的 `navigator.clipboard?.writeText`；
+- UI 是否重新出现“可发布”这类容易误导的强承诺文案。
+
+需要同时重新构建和打包时执行：
+
+```powershell
+npm run release:preflight:full
+```
+
+如需同时跑 Rust 代理/广播桥单元测试，可直接执行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\release_preflight.ps1 -FullBuild -RunCargoTests
+```
+
+注意：自动预检不替代 release exe 人工回放。n2n、VPS supernode、双机联机、Terraria 游戏内加入仍必须按本文件前面的人工流程真实验证。

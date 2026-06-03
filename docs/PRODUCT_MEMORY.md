@@ -1598,3 +1598,14 @@ C:\Users\ty\Downloads\联机助手 (1)
 - 文档中不要保留连续问号字面量，避免乱码搜索误报。
 
 后续应进入 release exe 人工回放验收，逐页点击主流程按钮，确认真实 Tauri 后端行为、加载遮罩、错误提示和缓存状态。
+
+## 2026-06-03 发布预检入口记忆
+
+已新增发布预检入口：
+
+```powershell
+npm run release:preflight
+npm run release:preflight:full
+```
+
+预检用于发布前自动确认：关键文档、release exe、adapter registry、连续问号乱码、静默剪贴板调用、强承诺文案。它不替代人工验收，只是保证进入人工回放前没有明显项目级风险。

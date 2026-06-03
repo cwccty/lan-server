@@ -1732,3 +1732,14 @@ C:\Users\ty\Downloads\联机助手 (1)
 - `git diff --check` 通过。
 
 下一步推荐：做一次发布级人工验收清单回放：按首页 → 方案库 → 游戏扫描 → 推荐方案 → 通用组网 → Terraria 向导 → 诊断报告逐页在 release exe 中点击主要按钮，记录任何真实运行问题。
+
+## 2026-06-03 新增发布预检入口
+
+为了让发布验收不只靠口头检查，新增 `tools/release_preflight.ps1` 和 npm 脚本：
+
+- `npm run release:preflight`
+- `npm run release:preflight:full`
+
+预检会自动检查关键文档、release exe、adapter registry、连续问号乱码、静默剪贴板调用、强承诺文案等。已确认 `npm run release:preflight` 通过。
+
+下一步推荐：打开 release exe，按 `docs/RELEASE_VALIDATION_PLAN.md` 做逐页人工回放，并把真实结果记录到 `docs/RELEASE_VALIDATION_LOG.md`。
