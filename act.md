@@ -1522,3 +1522,38 @@ C:\Users\ty\Downloads\联机助手 (1)
 - 所有绿色状态仍必须来自真实检测。
 
 下一步推荐：继续迁移“推荐方案”和“通用组网中心”，参考新目录中的 `RecommendProtocolView.tsx` 与 `UniversalNetworkView.tsx`，但保留当前项目真实后端逻辑。
+
+## 2026-06-03 迁移推荐方案与通用组网中心内容样式
+
+按用户要求继续使用新参考目录 `C:\Users\ty\Downloads\联机助手 (1)`，迁移“推荐方案”和“通用组网中心”的内容层视觉结构，但不替换后端逻辑。
+
+本次改动：
+
+- `src/pages/RecommendationPage.tsx`
+  - 增加 `recommendation-page modern-content-page` 页面 class；
+  - 推荐方案页头改为内容 Hero 风格；
+  - 执行清单增加新版内容面板结构；
+  - 游戏邀请好友包区域增加 `invite-panel`、`friend-ip-panel`、`invite-preview-panel`；
+  - 游戏摘要、下一步通用组网等区域增加新版内容面板 class；
+  - 保留 `analyzeGame`、`recommendPlans`、`getN2nDiagnostics`、`testConnectivity`、`launchProfile` 等真实 API 调用不变。
+- `src/pages/NetworkSetupPage.tsx`
+  - 增加 `network-page modern-content-page` 页面 class；
+  - 通用组网中心页头改为内容 Hero 风格；
+  - 当前网络后端、n2n 主配置、n2n 诊断、通用排查、手动测试增加新版内容面板 class；
+  - TCP 端口代理、UDP 端口代理、UDP 广播桥、Steam 中继预留入口增加 `proxy-panel` 系列 class；
+  - 保留 `setupNetwork`、`startNetwork`、`stopNetwork`、`getN2nDiagnostics`、`startPortProxy`、`startUdpProxy`、`startUdpBroadcastBridge`、自测和刷新等真实 API 调用不变。
+- `src/styles/globals.css`
+  - 新增推荐方案/通用组网页的浅色模块化内容样式；
+  - 强化执行步骤、邀请包、n2n 诊断、代理配置、广播桥配置、排查测试的浅色卡片布局；
+  - 参考新前端视觉，但没有引入假状态或写死结果。
+
+验证：
+
+- `npm run build` 通过；
+- `cargo check --manifest-path src-tauri\Cargo.toml` 通过；
+- `npm run tauri:build` 通过；
+- 已重新生成新版 `src-tauri\target\release\lan-helper.exe`。
+
+说明：浏览器预览通用组网页时会出现 `Cannot read properties of undefined (reading 'invoke')`，这是因为普通浏览器没有 Tauri `invoke` 环境；打包后的 Tauri 客户端内不会因为这个原因缺少 invoke。
+
+下一步推荐：继续迁移“Terraria 向导”和“诊断报告”的内容视觉，重点是服务端控制台 help/save/exit、诊断证据/可能原因/下一步建议。

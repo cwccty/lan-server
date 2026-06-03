@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   getN2nDiagnostics,
   listUdpBroadcastBridges,
@@ -765,13 +765,13 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
     runAction('一键自测 UDP 广播桥', () => selfTestUdpBroadcastBridge(), setUdpBroadcastBridgeSelfTest);
 
   return (
-    <section className="page-stack">
+    <section className="page-stack network-page modern-content-page">
       <LoadingOverlay
         visible={initialLoading || Boolean(busy)}
         title={initialLoading ? '正在加载通用组网状态' : `正在处理：${busy ?? ''}`}
         message={initialLoading ? '首次进入需要读取 n2n、网卡、端口代理和日志状态，请稍等。' : '请稍等，不要重复点击按钮或关闭程序。'}
       />
-      <div className="page-header">
+      <div className="content-hero network-hero">
         <div>
           <span className="eyebrow">NETWORK</span>
           <h2>通用组网中心</h2>
@@ -873,7 +873,7 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
         <button onClick={refreshAllNetworkState} disabled={Boolean(busy) || initialLoading}>刷新组网状态</button>
       </article>
 
-      <article className="card primary-config-card">
+      <article className="card primary-config-card network-config-panel">
         <div className="section-kicker"><span>主要步骤</span><strong>n2n 内置组网</strong></div>
         <p className="muted">每台玩家电脑运行 edge；supernode 负责让这些 edge 找到彼此。双方必须填写相同的 community、密钥和 supernode，但本机虚拟 IP 必须不同。</p>
         <label>房间名 / community<input value={roomName} onChange={(event) => setRoomName(event.target.value)} disabled={Boolean(busy)} /><small className="muted">相当于房间号。朋友必须填写完全相同的值。</small></label>
@@ -934,7 +934,7 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
         </div>
       </div>
 
-      <article className="card feature-card pending-feature advanced-card">
+      <article className="card feature-card pending-feature advanced-card proxy-panel tcp-proxy-panel">
         <div className="feature-card-title">
           <h3>房主 TCP 端口代理</h3>
           <span className={portProxyStatus?.running ? 'badge good' : 'badge warn'}>

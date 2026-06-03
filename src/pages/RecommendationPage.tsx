@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   analyzeGame,
   getN2nDiagnostics,
@@ -646,9 +646,9 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
   };
 
   return (
-    <section className="page-stack">
+    <section className="page-stack recommendation-page modern-content-page">
       <LoadingOverlay visible={isLaunching || isRefreshingChecklist || isCheckingFriend} title={isLaunching ? '正在执行推荐启动项' : isCheckingFriend ? '正在检测好友连接' : '正在刷新执行清单'} message={isLaunching ? '正在调用后端执行启动流程，请稍等。' : isCheckingFriend ? '正在测试好友虚拟 IP 和游戏端口，请稍等。' : '正在读取 n2n、服务端会话和本机端口状态。'} />
-      <div className="page-header">
+      <div className="content-hero recommendation-hero">
         <div>
           <span className="eyebrow">RECOMMENDATION</span>
           <h2>推荐方案</h2>
@@ -666,7 +666,7 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
         ]}
       />
 
-      <article className="card pending-feature compact-guidance">
+      <article className="card content-panel pending-feature compact-guidance preflight-panel">
         <h3>开始前确认</h3>
         <ul className="compact-list">
           <li>双方虚拟 IP 不能重复。</li>
@@ -688,7 +688,7 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
       </article>
 
       {analysis && (
-        <article className="card primary-config-card">
+        <article className="card primary-config-card invite-panel">
           <div className="feature-card-title">
             <div>
               <div className="section-kicker"><span>邀请</span><strong>游戏邀请好友包</strong></div>
@@ -744,7 +744,7 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
               </table>
             )}
           </div>
-          <pre>{friendInvitePacket}</pre>
+          <pre className="invite-preview-panel">{friendInvitePacket}</pre>
           <label>
             <span>复制时包含 n2n 密钥</span>
             <input type="checkbox" checked={includeSecretInInvite} onChange={(event) => setIncludeSecretInInvite(event.target.checked)} />

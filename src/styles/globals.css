@@ -1610,3 +1610,227 @@ pre,
 .badge.source-registry { background: oklch(92% 0.050 82 / 0.72) !important; color: oklch(46% 0.10 78) !important; }
 .badge.source-custom { background: oklch(93% 0.040 42 / 0.72) !important; color: oklch(45% 0.10 42) !important; }
 .badge.source-steam_scan { background: oklch(92% 0.035 210 / 0.68) !important; color: oklch(42% 0.10 225) !important; }
+
+/* Recommendation + Network inner page migration based on the updated reference frontend. */
+.recommendation-page,
+.network-page {
+  gap: 22px;
+}
+
+.recommendation-hero,
+.network-hero {
+  position: relative;
+  overflow: hidden;
+}
+
+.recommendation-hero::after,
+.network-hero::after {
+  content: "";
+  position: absolute;
+  right: -60px;
+  top: -80px;
+  width: 260px;
+  height: 260px;
+  border-radius: 999px;
+  background: radial-gradient(circle, oklch(84% 0.10 82 / 0.28), transparent 66%);
+  pointer-events: none;
+}
+
+.recommendation-page .flow-steps,
+.network-page .flow-steps {
+  gap: 14px;
+}
+
+.recommendation-page .flow-step,
+.network-page .flow-step {
+  min-height: 112px;
+  border-radius: 22px;
+  background: oklch(100% 0 0 / 0.66) !important;
+  box-shadow: 0 14px 32px oklch(44% 0.02 78 / 0.07), inset 0 1px 0 oklch(100% 0 0 / 0.86);
+}
+
+.recommendation-page .flow-step.active,
+.network-page .flow-step.active {
+  background: oklch(98% 0.018 82 / 0.88) !important;
+}
+
+.preflight-panel {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.34fr) minmax(0, 1fr);
+  align-items: start;
+  background: oklch(99% 0.010 82 / 0.76) !important;
+}
+
+.execution-panel .status-grid,
+.recommendation-page .status-grid,
+.network-page .status-grid {
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+
+.execution-panel .status-tile,
+.network-page .status-tile {
+  border-radius: 20px;
+}
+
+.invite-panel {
+  display: grid;
+  gap: 18px;
+  border-color: oklch(78% 0.08 82 / 0.58) !important;
+  background:
+    radial-gradient(circle at 100% 0%, oklch(84% 0.10 82 / 0.20), transparent 24rem),
+    oklch(100% 0 0 / 0.76) !important;
+}
+
+.friend-ip-panel {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid oklch(86% 0.014 85);
+  border-radius: 20px;
+  background: oklch(99% 0.006 85 / 0.70);
+}
+
+.friend-ip-panel h4 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--text);
+}
+
+.invite-preview-panel {
+  min-height: 230px;
+  max-height: 420px;
+  border-radius: 20px;
+  background: oklch(20% 0.012 78) !important;
+  color: oklch(92% 0.010 78) !important;
+  box-shadow: inset 0 1px 0 oklch(100% 0 0 / 0.07), 0 16px 30px oklch(44% 0.02 78 / 0.10);
+}
+
+.game-summary-panel,
+.next-network-panel {
+  background: oklch(100% 0 0 / 0.70) !important;
+}
+
+.recommendation-page .conversion-card,
+.network-page .conversion-card {
+  background:
+    linear-gradient(135deg, oklch(95% 0.038 154 / 0.68), oklch(100% 0 0 / 0.74)) !important;
+}
+
+.recommendation-page .error-card,
+.network-page .error-card {
+  background:
+    linear-gradient(135deg, oklch(95% 0.040 25 / 0.72), oklch(100% 0 0 / 0.74)) !important;
+}
+
+.backend-panel .backend-grid,
+.network-page .backend-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.network-config-panel {
+  display: grid;
+  gap: 16px;
+  border-color: oklch(78% 0.08 82 / 0.58) !important;
+  background:
+    radial-gradient(circle at 100% 0%, oklch(84% 0.10 82 / 0.22), transparent 24rem),
+    linear-gradient(135deg, oklch(100% 0 0 / 0.82), oklch(97% 0.010 82 / 0.72)) !important;
+}
+
+.network-config-panel > label,
+.network-config-panel .room-grid label,
+.proxy-panel label,
+.manual-test-panel label {
+  padding: 12px;
+  border: 1px solid oklch(88% 0.010 85);
+  border-radius: 16px;
+  background: oklch(100% 0 0 / 0.50);
+}
+
+.n2n-diagnostics-panel {
+  padding: 18px;
+  border: 1px solid oklch(86% 0.014 85);
+  border-radius: 20px;
+  background: oklch(98% 0.008 85 / 0.72);
+}
+
+.n2n-diagnostics-panel h4,
+.proxy-panel h3,
+.troubleshoot-panel h3,
+.manual-test-panel h3 {
+  color: var(--text) !important;
+}
+
+.proxy-panel {
+  display: grid;
+  gap: 16px;
+  border-radius: 24px;
+  background: oklch(100% 0 0 / 0.68) !important;
+}
+
+.proxy-panel .feature-card-title {
+  padding-bottom: 12px;
+  border-bottom: 1px solid oklch(88% 0.010 85);
+}
+
+.tcp-proxy-panel {
+  border-color: oklch(78% 0.08 82 / 0.42) !important;
+}
+
+.udp-proxy-panel {
+  border-color: oklch(76% 0.08 210 / 0.34) !important;
+}
+
+.broadcast-bridge-panel {
+  border-color: oklch(76% 0.10 154 / 0.34) !important;
+}
+
+.steam-relay-panel {
+  border-style: dashed;
+}
+
+.proxy-panel .room-grid {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.proxy-panel .config-panel {
+  padding: 16px;
+  border: 1px solid oklch(88% 0.010 85);
+  border-radius: 18px;
+  background: oklch(98% 0.006 85 / 0.62);
+}
+
+.proxy-panel .config-panel h4 {
+  margin: 0 0 10px;
+  color: var(--text);
+}
+
+.troubleshoot-panel,
+.manual-test-panel {
+  background: oklch(100% 0 0 / 0.68) !important;
+}
+
+.network-page details,
+.recommendation-page details {
+  border: 1px solid oklch(87% 0.012 85);
+  border-radius: 18px;
+  padding: 13px 15px;
+  background: oklch(100% 0 0 / 0.54);
+}
+
+.network-page summary,
+.recommendation-page summary {
+  cursor: pointer;
+  font-weight: 850;
+  color: var(--text-soft);
+}
+
+.recommendation-page .adapter-table td button {
+  margin-right: 8px;
+}
+
+@media (max-width: 900px) {
+  .preflight-panel {
+    grid-template-columns: 1fr;
+  }
+}
