@@ -577,7 +577,14 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
       capability: profile?.capability,
       recommendedMethods: profile?.methods ?? [],
       source: analysis.adapter_source,
-      note: '来自推荐方案页的适配器判断',
+      note: selectedFriendIp
+        ? `来自推荐方案页；当前邀请对象 ${friendName || '未填写昵称'}，分配 IP ${selectedFriendIp}`
+        : '来自推荐方案页的适配器判断',
+      roomName: n2nConfig?.room_name,
+      secret: n2nConfig?.secret,
+      supernode: n2nConfig?.supernode || n2nDiagnostics?.supernode,
+      localIp: n2nConfig?.local_ip || n2nDiagnostics?.virtual_ip,
+      peerIp: selectedFriendIp,
       appliedAt: Date.now()
     });
   };
@@ -586,7 +593,7 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
     try {
       if (!navigator.clipboard) throw new Error('剪贴板不可用');
       await navigator.clipboard.writeText(friendInvitePacket);
-      setCopyMessage('游戏邀请好友包已复制。若还没有 community / 密钥，请再到通用组网中心复制完整组网配置。');
+      setCopyMessage('游戏邀请好友包已复制。好友收到后打开“通用组网中心”，粘贴到“加入者：粘贴好友邀请包自动填入”，再保存并启动 n2n edge。');
     } catch (error) {
       setCopyMessage(`复制游戏邀请好友包失败：${error instanceof Error ? error.message : String(error || '剪贴板不可用')}`);
     }
@@ -759,8 +766,13 @@ export function RecommendationPage({ gameId, onOpenNetwork }: { gameId?: string;
           <div className="actions">
             <button type="button" onClick={copyFriendInvitePacket}>复制游戏邀请好友包</button>
             <button type="button" className="secondary" onClick={() => refreshExecutionChecklist()} disabled={isRefreshingChecklist}>先刷新检测状态</button>
+            <button type="button" className="secondary" onClick={openNetworkWithPreset}>把当前邀请参数带到通用组网</button>
           </div>
           {copyMessage && <p className="muted">{copyMessage}</p>}
+          <div className="notice-card">
+            <strong>好友怎么用：</strong>好友打开客户端 → 通用组网中心 → 粘贴这份邀请包 → 自动填表 → 确认虚拟 IP 不重复 → 保存 n2n 配置 → 启动 n2n edge。
+            如果你没有勾选“包含 n2n 密钥”，好友还需要你单独告诉密钥。
+          </div>
         </article>
       )}
 
