@@ -28,6 +28,15 @@ type SelfCheckResult = {
   notes: string[];
 };
 
+type TerrariaWizardCache = {
+  supernode: string;
+  session: ServerSessionStatus | null;
+  loadedOnce: boolean;
+  savedAt: number;
+};
+
+let terrariaWizardCache: TerrariaWizardCache | null = null;
+
 function recentSupernodeFromBackends(backends: BackendSummary[]) {
   const n2n = backends.find((backend) => backend.id === 'n2n');
   const note = n2n?.notes.find((item) => item.startsWith('最近一次 supernode:') || item.startsWith('最近一次 supernode：'));
@@ -82,7 +91,7 @@ export function MultiplayerWizardPage() {
   const [role, setRole] = useState<Role>('host');
   const [roomName, setRoomName] = useState('terraria-room-001');
   const [secret, setSecret] = useState('lan-helper-secret');
-  const [supernode, setSupernode] = useState('');
+  const [supernode, setSupernode] = useState(terrariaWizardCache?.supernode ?? '');
   const [hostIp, setHostIp] = useState('10.10.10.2');
   const [joinerIp, setJoinerIp] = useState('10.10.10.3');
   const [gamePort, setGamePort] = useState('7777');
@@ -93,25 +102,60 @@ export function MultiplayerWizardPage() {
   const [autoForward, setAutoForward] = useState('n');
   const [statusMessage, setStatusMessage] = useState('');
   const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [initialLoading, setInitialLoading] = useState(!terrariaWizardCache?.loadedOnce);
   const [selfCheck, setSelfCheck] = useState<SelfCheckResult | null>(null);
   const pollingRef = useRef(false);
-  const [session, setSession] = useState<ServerSessionStatus | null>(null);
+  const [session, setSession] = useState<ServerSessionStatus | null>(terrariaWizardCache?.session ?? null);
 
   const localIp = role === 'host' ? hostIp : joinerIp;
   const portNumber = Number.parseInt(gamePort, 10) || 7777;
-  const isBusy = busyAction !== null;
+  const isBusy = busyAction !== null || initialLoading;
+
+  const refreshWizardState = async (showBusy = true) => {
+    if (showBusy) {
+      setBusyAction('刷新 Terraria 向导状态');
+    }
+    try {
+      const [items, nextSession] = await Promise.all([
+        listNetworkBackends(),
+        readServerSession().catch(() => null)
+      ]);
+      const recentSupernode = recentSupernodeFromBackends(items);
+      setSupernode((current) => {
+        const nextSupernode = current.trim() ? current : recentSupernode;
+        terrariaWizardCache = {
+          supernode: nextSupernode,
+          session: nextSession,
+          loadedOnce: true,
+          savedAt: Date.now()
+        };
+        return nextSupernode;
+      });
+      if (nextSession) {
+        setSession(nextSession);
+      }
+      if (showBusy) {
+        setStatusMessage('Terraria 向导状态已刷新。');
+      }
+    } catch (error) {
+      if (showBusy) {
+        setStatusMessage(`刷新 Terraria 向导状态失败：${String(error)}`);
+      }
+    } finally {
+      setInitialLoading(false);
+      if (showBusy) {
+        setBusyAction(null);
+      }
+    }
+  };
 
   useEffect(() => {
-    listNetworkBackends()
-      .then((items) => {
-        const recentSupernode = recentSupernodeFromBackends(items);
-        if (recentSupernode) {
-          setSupernode((current) => current.trim() ? current : recentSupernode);
-        }
-      })
-      .catch(() => {
-        // Keep manual input available if backend state cannot be read.
-      });
+    if (terrariaWizardCache?.loadedOnce) {
+      setInitialLoading(false);
+      setStatusMessage(`已显示上次向导状态：${new Date(terrariaWizardCache.savedAt).toLocaleString()}。如需重新读取，请点击“刷新向导状态”。`);
+      return;
+    }
+    void refreshWizardState(false);
   }, []);
 
   useEffect(() => {
@@ -134,13 +178,25 @@ export function MultiplayerWizardPage() {
       }
     };
 
-    void poll();
+    if (session?.running || busyAction) {
+      void poll();
+    }
     const timer = window.setInterval(poll, 3000);
     return () => {
       disposed = true;
       window.clearInterval(timer);
     };
-  }, [busyAction]);
+  }, [busyAction, session?.running]);
+
+  useEffect(() => {
+    if (!terrariaWizardCache?.loadedOnce && !session) return;
+    terrariaWizardCache = {
+      supernode,
+      session,
+      loadedOnce: terrariaWizardCache?.loadedOnce ?? true,
+      savedAt: Date.now()
+    };
+  }, [supernode, session]);
 
   const serverConfig: LaunchConfig = useMemo(
     () => ({
@@ -346,7 +402,7 @@ export function MultiplayerWizardPage() {
 
   return (
     <section className="page-stack">
-      <LoadingOverlay visible={isBusy} title={`${t.busy}：${busyAction ?? ''}`} message={t.wait} />
+      <LoadingOverlay visible={isBusy} title={initialLoading ? '正在读取 Terraria 向导状态' : `${t.busy}：${busyAction ?? ''}`} message={initialLoading ? '正在读取最近 supernode 和服务端会话；后续再次进入会优先显示缓存。' : t.wait} />
       <h2>{t.title}</h2>
       <p className="muted">{t.intro}</p>
 
@@ -360,6 +416,9 @@ export function MultiplayerWizardPage() {
           </button>
           <button className={role === 'joiner' ? 'active' : ''} onClick={() => setRole('joiner')} disabled={isBusy}>
             {t.joiner}
+          </button>
+          <button className="secondary" onClick={() => refreshWizardState(true)} disabled={isBusy}>
+            刷新向导状态
           </button>
         </div>
       </article>

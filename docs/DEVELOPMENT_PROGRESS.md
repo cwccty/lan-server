@@ -472,3 +472,23 @@ cargo test --manifest-path src-tauri\Cargo.toml udp_broadcast_bridge -- --nocapt
 注意：日志只记录真实执行结果，未执行的人工项不能写成通过。
 
 下一步推荐：让用户打开 `src-tauri/target/release/lan-helper.exe` 执行单机人工验证，把结果继续填入 `docs/RELEASE_VALIDATION_LOG.md`。
+
+## 2026-06-03 单机人工验证反馈：加载与缓存体验修复
+
+根据人工验证反馈，已修复几个发布体验问题：
+
+- 游戏扫描：首次扫描和手动刷新时显示加载遮罩；“开始扫描/刷新 Steam 游戏”现在调用真实扫描，不再是无反馈按钮。
+- 通用组网中心：首次进入仍自动读取真实状态；之后再次进入优先显示缓存，不再每次进入都自动刷新导致卡顿，用户可点击“刷新组网状态”主动刷新。
+- Terraria 向导：首次进入读取最近 supernode 和服务端会话时显示加载遮罩；之后再次进入优先显示上次缓存状态，并提供“刷新向导状态”按钮。
+- 诊断报告：生成过一次后，切到其他页面再回来会保留上次诊断界面内容；清空日志才会主动清除。
+
+产品原则：这些改动不是把内部混乱改成 UI 假显示，而是把耗时后端读取改成明确的加载态、缓存态和手动刷新入口，让用户知道什么时候在读取真实状态、什么时候显示上次状态。
+
+验证通过：
+
+```powershell
+npm run build
+cargo check --manifest-path src-tauri\Cargo.toml
+```
+
+下一步推荐：重新打开 release 客户端，优先复测游戏扫描、通用组网中心、Terraria 向导、诊断报告四个页面的卡顿与缓存表现，并把结果补入 `docs/RELEASE_VALIDATION_LOG.md`。

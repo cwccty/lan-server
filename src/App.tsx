@@ -17,11 +17,26 @@ type Page = 'home' | 'wizard' | 'scan' | 'detail' | 'network' | 'recommendation'
 export default function App() {
   const [page, setPage] = useState<Page>('home');
   const [games, setGames] = useState<GameSummary[]>([]);
+  const [gamesLoading, setGamesLoading] = useState(false);
+  const [gamesLoadedAt, setGamesLoadedAt] = useState<number | null>(null);
   const [selectedGameId, setSelectedGameId] = useState<string | undefined>();
   const [networkPreset, setNetworkPreset] = useState<NetworkSetupPreset | undefined>();
 
+  const refreshGames = async () => {
+    setGamesLoading(true);
+    try {
+      const nextGames = await scanGames();
+      setGames(nextGames);
+      setGamesLoadedAt(Date.now());
+    } catch {
+      setGames([]);
+    } finally {
+      setGamesLoading(false);
+    }
+  };
+
   useEffect(() => {
-    scanGames().then(setGames).catch(() => setGames([]));
+    void refreshGames();
   }, []);
 
   return (
@@ -31,9 +46,11 @@ export default function App() {
       {page === 'scan' && (
         <GameScanPage
           games={games}
+          loading={gamesLoading}
+          loadedAt={gamesLoadedAt}
+          onRefreshGames={refreshGames}
           onAdapterCreated={async () => {
-            const nextGames = await scanGames().catch(() => []);
-            setGames(nextGames);
+            await refreshGames();
           }}
           onOpenAdapters={() => setPage('adapters')}
           onSelectGame={(id) => {

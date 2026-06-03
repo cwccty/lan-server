@@ -45,6 +45,7 @@ type NetworkSetupCache = {
 };
 
 const NETWORK_SETUP_CACHE_KEY = 'lan-helper-network-setup-cache';
+let networkSetupAutoLoadedOnce = false;
 
 function readNetworkSetupCache(): NetworkSetupCache | null {
   try {
@@ -360,7 +361,7 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
   const [presetNotice, setPresetNotice] = useState('');
   const [copyMessage, setCopyMessage] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
-  const [initialLoading, setInitialLoading] = useState(!cachedNetworkSetup);
+  const [initialLoading, setInitialLoading] = useState(!cachedNetworkSetup && !networkSetupAutoLoadedOnce);
   const [backgroundRefreshing, setBackgroundRefreshing] = useState(false);
   const [networkLoadError, setNetworkLoadError] = useState('');
   const [lastRefreshAt, setLastRefreshAt] = useState(cachedNetworkSetup?.savedAt ?? 0);
@@ -449,9 +450,15 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
 
   useEffect(() => {
     const loadInitialState = async () => {
+      if (networkSetupAutoLoadedOnce) {
+        setInitialLoading(false);
+        setBackgroundRefreshing(false);
+        return;
+      }
+      networkSetupAutoLoadedOnce = true;
       try {
         if (cachedNetworkSetup) {
-          setBackgroundRefreshing(true);
+          setBackgroundRefreshing(false);
         } else {
           setInitialLoading(true);
         }

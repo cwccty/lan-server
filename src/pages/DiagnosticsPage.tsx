@@ -17,6 +17,18 @@ const fixedChecks = [
   ['registry index 同步', '等待检测', '共享库更新时间与同步结果']
 ];
 
+let diagnosticsReportCache: {
+  report: DiagnosticReport | null;
+  error: string;
+  selectedGameId?: string;
+  savedAt: number;
+} = {
+  report: null,
+  error: '',
+  selectedGameId: undefined,
+  savedAt: 0
+};
+
 function issueClass(issue?: DiagnosticIssue | null) {
   if (!issue) return 'result-idle';
   if (issue.severity === 'error') return 'result-bad';
@@ -59,9 +71,9 @@ function IssueCard({ issue }: { issue: DiagnosticIssue }) {
 }
 
 export function DiagnosticsPage({ selectedGame }: { selectedGame?: GameSummary }) {
-  const [report, setReport] = useState<DiagnosticReport | null>(null);
+  const [report, setReport] = useState<DiagnosticReport | null>(diagnosticsReportCache.report);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(diagnosticsReportCache.error);
   const reportText = report ? JSON.stringify(report, null, 2) : '';
   const requiredChecks = report?.release_checks.filter((item) => item.required_for_mvp) ?? [];
   const passedRequiredChecks = requiredChecks.filter((item) => item.ok).length;
@@ -74,9 +86,23 @@ export function DiagnosticsPage({ selectedGame }: { selectedGame?: GameSummary }
     setBusy(true);
     setError('');
     try {
-      setReport(selectedGame?.game_id ? await generateDiagnosticReportForGame(selectedGame.game_id) : await generateDiagnosticReport());
+      const nextReport = selectedGame?.game_id ? await generateDiagnosticReportForGame(selectedGame.game_id) : await generateDiagnosticReport();
+      setReport(nextReport);
+      diagnosticsReportCache = {
+        report: nextReport,
+        error: '',
+        selectedGameId: selectedGame?.game_id,
+        savedAt: Date.now()
+      };
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err || '生成诊断报告失败'));
+      const nextError = err instanceof Error ? err.message : String(err || '生成诊断报告失败');
+      setError(nextError);
+      diagnosticsReportCache = {
+        ...diagnosticsReportCache,
+        error: nextError,
+        selectedGameId: selectedGame?.game_id,
+        savedAt: Date.now()
+      };
     } finally {
       setBusy(false);
     }
@@ -99,6 +125,7 @@ export function DiagnosticsPage({ selectedGame }: { selectedGame?: GameSummary }
           <h2>诊断报告</h2>
           <p className="muted">把“不能联机”拆成可验证的检测项、失败分类和下一步修复建议，而不是只显示 false。</p>
           {selectedGame && <p className="muted">当前游戏上下文：{selectedGame.display_name}（{selectedGame.game_id}）</p>}
+          {report && diagnosticsReportCache.savedAt > 0 && <p className="muted">已保留上次诊断结果：{new Date(diagnosticsReportCache.savedAt).toLocaleString()}。点击按钮可重新生成。</p>}
         </div>
         <span className={mvpReady ? 'badge good' : report ? 'badge bad' : 'badge warn'}>{report ? (mvpReady ? '核心通过' : '存在问题') : '未检测'}</span>
       </div>
@@ -117,7 +144,7 @@ export function DiagnosticsPage({ selectedGame }: { selectedGame?: GameSummary }
           <button onClick={createReport} disabled={busy}>{busy ? '正在诊断...' : selectedGame ? '诊断当前游戏' : '开始诊断'}</button>
           {report && <button className="secondary" onClick={() => navigator.clipboard.writeText(reportText)}>复制完整报告</button>}
           {report && <button className="secondary" onClick={() => navigator.clipboard.writeText(summary)}>复制摘要</button>}
-          {report && <button className="secondary" onClick={() => setReport(null)}>清空日志</button>}
+          {report && <button className="secondary" onClick={() => { diagnosticsReportCache = { report: null, error: '', selectedGameId: undefined, savedAt: 0 }; setReport(null); setError(''); }}>清空日志</button>}
         </div>
       </article>
 
