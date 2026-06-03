@@ -18,18 +18,21 @@ export default function App() {
   const [page, setPage] = useState<Page>('home');
   const [games, setGames] = useState<GameSummary[]>([]);
   const [gamesLoading, setGamesLoading] = useState(false);
+  const [gamesError, setGamesError] = useState('');
   const [gamesLoadedAt, setGamesLoadedAt] = useState<number | null>(null);
   const [selectedGameId, setSelectedGameId] = useState<string | undefined>();
   const [networkPreset, setNetworkPreset] = useState<NetworkSetupPreset | undefined>();
 
   const refreshGames = async () => {
     setGamesLoading(true);
+    setGamesError('');
     try {
       const nextGames = await scanGames();
       setGames(nextGames);
       setGamesLoadedAt(Date.now());
-    } catch {
+    } catch (error) {
       setGames([]);
+      setGamesError(error instanceof Error ? error.message : String(error || '扫描游戏失败'));
     } finally {
       setGamesLoading(false);
     }
@@ -47,6 +50,7 @@ export default function App() {
         <GameScanPage
           games={games}
           loading={gamesLoading}
+          error={gamesError}
           loadedAt={gamesLoadedAt}
           onRefreshGames={refreshGames}
           onAdapterCreated={async () => {

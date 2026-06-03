@@ -1,4 +1,4 @@
-﻿import { invoke } from '@tauri-apps/api/core';
+import { invoke as tauriInvoke } from '@tauri-apps/api/core';
 import type { DiagnosticReport } from '../types/diagnostics';
 import type { GameAdapter, GameAnalysis, GameSummary } from '../types/game';
 import type {
@@ -19,6 +19,28 @@ import type {
   UdpBroadcastBridgeStatus
 } from '../types/udpBroadcastBridge';
 import type { UdpProxyConfig, UdpProxySelfTestReport, UdpProxyStatus } from '../types/udpProxy';
+
+function normalizeTauriError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error || '\u672a\u77e5\u9519\u8bef');
+  if (
+    message.includes('__TAURI_INTERNALS__') ||
+    message.includes('window.__TAURI__') ||
+    message.includes("reading 'invoke'") ||
+    message.includes('reading "invoke"') ||
+    message.includes('IPC')
+  ) {
+    return new Error('\u5f53\u524d\u9875\u9762\u6ca1\u6709\u8fde\u63a5\u5230 Tauri \u540e\u7aef\u3002\u8bf7\u4ece\u6253\u5305\u540e\u7684 lan-helper.exe \u6253\u5f00\uff0c\u4e0d\u8981\u7528\u666e\u901a\u6d4f\u89c8\u5668\u9884\u89c8\u529f\u80fd\u9875\u3002');
+  }
+  return error instanceof Error ? error : new Error(message);
+}
+
+const invoke = async <T>(command: string, args?: Record<string, unknown>) => {
+  try {
+    return await tauriInvoke<T>(command, args);
+  } catch (error) {
+    throw normalizeTauriError(error);
+  }
+};
 
 export const scanGames = () => invoke<GameSummary[]>('scan_games');
 export const analyzeGame = (gameId: string) => invoke<GameAnalysis>('analyze_game', { gameId });

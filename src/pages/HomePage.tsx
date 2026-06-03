@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from 'react';
+﻿import { useState } from 'react';
 
 type Page = 'home' | 'wizard' | 'scan' | 'detail' | 'network' | 'recommendation' | 'diagnostics' | 'adapters';
 type Role = 'host' | 'joiner';
@@ -25,7 +25,6 @@ export function HomePage({ onNavigate }: { onNavigate: (page: Page) => void }) {
   const [scenario, setScenario] = useState<Scenario>('ip');
   const currentScenario = scenarios[scenario];
   const steps = role === 'host' ? hostSteps : joinerSteps;
-  const readinessScore = useMemo(() => role === 'host' ? 62 : 48, [role]);
 
   return <section className="page-stack premium-home">
     <div className="premium-hero">
@@ -44,8 +43,8 @@ export function HomePage({ onNavigate }: { onNavigate: (page: Page) => void }) {
 
       <div className="mission-panel">
         <div className="mission-score" aria-label="准备度">
-          <span>{readinessScore}%</span>
-          <small>{role === 'host' ? '房主准备度' : '加入者准备度'}</small>
+          <span>{steps.length}</span>
+          <small>{role === 'host' ? '\u623f\u4e3b\u63a8\u8350\u6b65\u9aa4' : '\u52a0\u5165\u8005\u63a8\u8350\u6b65\u9aa4'}</small>
         </div>
         <div className="mission-route">
           {steps.map((step, index) => <div className="mission-node" key={step}><span>{index + 1}</span><strong>{step}</strong></div>)}

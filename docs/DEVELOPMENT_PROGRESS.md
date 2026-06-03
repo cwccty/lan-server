@@ -800,3 +800,15 @@ cargo check --manifest-path src-tauri\Cargo.toml
 - 后端调用仍保留现有真实 Tauri API。
 
 下一步推荐：做一次全页面“前后端真实状态审查 + 发布级 UI 体验检查”，确认所有按钮、加载遮罩、缓存、失败提示、中文显示和真实状态来源都符合发布产品要求。
+
+## 2026-06-03 真实状态审查首轮进度
+
+完成：
+
+- Tauri API 错误归一化；
+- 游戏扫描失败反馈；
+- 首页假准备度移除；
+- 历史 Stitch 文档乱码修复；
+- 已重新打包 release exe。
+
+下一步推荐：继续审查 GameDetail、Layout、Recommendation、Network 页面状态文案和按钮反馈，逐个消除假状态和弱反馈。
