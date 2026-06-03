@@ -1030,3 +1030,39 @@ cargo check --manifest-path src-tauri\Cargo.toml
 - `git diff --check`：通过。
 
 下一步推荐：继续把“推荐方案、适配器管理、Terraria 向导”的页面内部布局统一到新视觉系统；之后再做 release exe 人工七页走查。
+
+## 2026-06-04 参考前端一比一复原接入
+
+本轮调整开发路线：停止在旧页面上做“近似参考风格”的 CSS 修补，改为直接接入用户提供的参考前端源码。
+
+完成内容：
+
+- 新增 `src/reference-ui/`：
+  - `App.tsx`
+  - `components/*`
+  - `data.ts`
+  - `types.ts`
+  - `index.css`
+- 当前入口 `src/main.tsx` 改为渲染 `src/reference-ui/App`；
+- `vite.config.ts` 接入 `@tailwindcss/vite`；
+- `package.json` / `package-lock.json` 增加参考 UI 所需依赖：
+  - `lucide-react`
+  - `motion`
+  - `@tailwindcss/vite`
+- 保留原真实后端页面和 Tauri API，等待下一阶段映射到参考 UI。
+
+验证结果：
+
+- `npm run build`：通过；
+- `cargo check --manifest-path src-tauri\Cargo.toml`：通过；
+- `npm run tauri:build`：通过；
+- `npm run release:preflight`：通过；
+- `git diff --check`：通过。
+
+当前状态：
+
+- 当前项目已经显示参考项目的一比一前端；
+- 与参考源码的唯一视觉无关差异是 `reference-ui/main.tsx` 的导入后缀兼容；
+- 真实后端尚未接回参考 UI，参考 UI 里的模拟状态需要在下一阶段替换。
+
+下一步推荐：做“参考 UI 后端适配层”，优先接入游戏扫描、适配器同步、n2n 状态、Terraria 服务端和诊断报告。

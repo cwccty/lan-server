@@ -1738,3 +1738,24 @@ npm run release:preflight:full
   - `git diff --check`
 
 下一步推荐：继续统一“推荐方案 / 适配器管理 / Terraria 向导”的内层卡片布局和按钮层级，避免这些页面与新 App Shell 出现视觉断层。
+
+## 2026-06-04 参考前端一比一复原原则
+
+用户已明确要求：界面必须完全按照 `C:\Users\ty\Downloads\联机助手 (1)` 做一比一复原，不能继续只做“接近风格”的 CSS 覆盖。
+
+关键记忆：
+
+- 视觉权威是 `C:\Users\ty\Downloads\联机助手 (1)\src`；
+- 当前项目已新增 `src/reference-ui/`，直接复制参考项目源码；
+- 当前入口 `src/main.tsx` 已切换到 `src/reference-ui/App`；
+- 为了构建兼容，只把参考 `main.tsx` 的 `./App.tsx` 导入改成 `./App`，不影响视觉；
+- 已加入参考 UI 依赖：`lucide-react`、`motion`、`@tailwindcss/vite`；
+- 旧的真实后端页面暂时保留，后续要把后端能力接到参考 UI 上。
+
+边界：
+
+- 当前阶段实现的是“参考前端一比一显示”；
+- 参考 UI 里仍有模拟状态和假数据，例如 `24ms`、`75%`、`netStatus: online`；
+- 发布前必须把这些模拟状态接成真实 Tauri 后端状态或降级为“待诊断”，不能保留伪造在线结果。
+
+下一步推荐：在 `src/reference-ui/App.tsx` 建立真实后端状态适配层，优先替换网络状态、游戏扫描、方案库同步、Terraria 服务端和诊断报告。

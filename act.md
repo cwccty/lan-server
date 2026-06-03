@@ -1905,3 +1905,43 @@ C:\Users\ty\Downloads\联机助手 (1)
 - `git diff --check` 通过。
 
 下一步推荐：用 release 版 `src-tauri\target\release\lan-helper.exe` 人工检查 7 个核心页面，重点确认真实后端页面在 Tauri 环境下没有浏览器预览的后端缺失提示，并继续把“推荐方案 / 适配器管理 / Terraria 向导”内层卡片做同一套视觉语言。
+
+## 2026-06-04 参考前端一比一复原阶段启动
+
+用户重新明确目标：界面必须完全按照 `C:\Users\ty\Downloads\联机助手 (1)` 一比一复原，先完成前端，再做前后端连接。
+
+差距判断：
+
+- 之前当前项目只是“接近参考风格”，不是一比一；
+- 参考项目使用 Tailwind v4、`lucide-react` 图标、`motion` 动效和一整套独立组件；
+- 当前项目旧页面虽然接了真实后端，但 DOM 结构、组件拆分、图标、间距、动效、顶部状态、Toast、页面内容顺序都和参考项目不同；
+- 因此不能继续靠追加 CSS 覆盖解决，必须先把参考项目源码作为视觉权威接入。
+
+本轮改动：
+
+- 新增 `src/reference-ui/`，从 `C:\Users\ty\Downloads\联机助手 (1)\src` 复制参考前端源码；
+- 当前项目入口 `src/main.tsx` 改为渲染 `src/reference-ui/App`；
+- `src/reference-ui` 与参考源码的差异只有 `main.tsx` 的导入写法：参考源码为 `./App.tsx`，当前 TS 配置不允许该扩展名导入，所以改为 `./App`，不影响视觉；
+- `package.json` 增加参考 UI 所需依赖：
+  - `lucide-react`
+  - `motion`
+  - `@tailwindcss/vite`
+- `vite.config.ts` 增加 Tailwind v4 插件；
+- 保留原来的真实后端页面和 Tauri API 文件，下一阶段把真实后端能力逐项接进参考 UI。
+
+验证：
+
+- `npm run build` 通过；
+- `cargo check --manifest-path src-tauri\Cargo.toml` 通过；
+- `npm run tauri:build` 通过；
+- `npm run release:preflight` 通过；
+- `git diff --check` 通过；
+- 浏览器预览首页已显示参考项目原版 UI。
+
+当前边界：
+
+- 现在是“参考前端一比一显示”阶段；
+- 参考 UI 内部仍有模拟状态，例如延迟、就绪进度、Toast 文案等；
+- 下一阶段必须把这些模拟状态替换为当前项目已有的真实 Tauri 后端状态，不能保留假“已连接/24ms/75%”作为发布状态。
+
+下一步推荐：从 `src/reference-ui/App.tsx` 开始建立前后端连接层，把参考 UI 的 `AppState` 改为读取真实 Tauri 后端：先接游戏扫描、方案库同步、n2n 状态、Terraria 服务端状态、诊断报告，再移除或降级所有模拟成功状态。
