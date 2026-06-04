@@ -11,6 +11,7 @@ import {
 } from './friendAllocations';
 import {
   getReferenceAdapterSyncResult,
+  subscribeReferenceAdapterInventoryRefresh,
   subscribeReferenceAdapterSyncResult,
   type ReferenceAdapterSyncRecord
 } from './adapterSyncResult';
@@ -237,6 +238,16 @@ function renderSolutions(state: InventoryState) {
       尚未记录真实同步详情。点击“恢复默认”或“一键更新共享方案”后，这里会展示每个 adapter 的 created/updated/skipped/失败原因。
     </div>
   `;
+  const semanticsPanel = `
+    <div class="mb-4 rounded-xl border border-indigo-100 bg-indigo-50/60 p-3 text-[11px] text-slate-600">
+      <div class="mb-2 font-heading text-sm font-bold text-slate-800">方案库按钮语义</div>
+      <div class="grid grid-cols-1 gap-2 md:grid-cols-3">
+        <div class="rounded-lg bg-white/75 p-2"><strong>一键更新共享方案</strong><br/>访问当前 registry URL，下载并写入真实 adapter，同步结果会记录到下方详情。</div>
+        <div class="rounded-lg bg-white/75 p-2"><strong>恢复默认</strong><br/>使用项目内本地示例 registry 作为默认源同步一次，适合恢复可用基线。</div>
+        <div class="rounded-lg bg-white/75 p-2"><strong>手动强制刷新</strong><br/>只重新读取本地 adapter 列表和最近同步结果，不访问远程、不覆盖方案。</div>
+      </div>
+    </div>
+  `;
 
   return `
     <div class="mb-4 flex items-center justify-between gap-3">
@@ -246,6 +257,7 @@ function renderSolutions(state: InventoryState) {
       </div>
       ${badge(`${state.adapters.length} 个真实方案`, 'amber')}
     </div>
+    ${semanticsPanel}
     ${syncPanel}
     ${
       state.adapters.length === 0
@@ -384,6 +396,7 @@ export function ReferenceProductInventoryPatcher() {
   const [selectedGameKey, setSelectedGameKey] = useState(() => getReferenceSelectedGame()?.game_id ?? '');
   const [friendsKey, setFriendsKey] = useState(() => String(listReferenceFriendAllocations().length));
   const [adapterSyncKey, setAdapterSyncKey] = useState(() => getReferenceAdapterSyncResult()?.saved_at ?? '');
+  const [adapterRefreshKey, setAdapterRefreshKey] = useState('');
 
   useEffect(() => {
     const tick = () => setPage(detectPage());
@@ -418,6 +431,13 @@ export function ReferenceProductInventoryPatcher() {
   }, []);
 
   useEffect(() => {
+    return subscribeReferenceAdapterInventoryRefresh(() => {
+      setAdapterRefreshKey(new Date().toISOString());
+      setLoadedKey('');
+    });
+  }, []);
+
+  useEffect(() => {
     if (!productMode.enabled || !page) {
       restoreInventoryPanels();
       return;
@@ -436,7 +456,7 @@ export function ReferenceProductInventoryPatcher() {
     panel.innerHTML = renderPanel(page, state);
     insertHint(root, page);
 
-    const key = `${page}:${productMode.updated_at}:${selectedGameKey}:${friendsKey}:${adapterSyncKey}`;
+    const key = `${page}:${productMode.updated_at}:${selectedGameKey}:${friendsKey}:${adapterSyncKey}:${adapterRefreshKey}`;
     if (loadedKey === key || state.loading) return;
     setLoadedKey(key);
     setState((prev) => ({ ...prev, loading: true, error: '' }));
@@ -449,7 +469,7 @@ export function ReferenceProductInventoryPatcher() {
           error: error instanceof Error ? error.message : String(error || '读取真实后端数据失败')
         })
       );
-  }, [productMode.enabled, productMode.updated_at, page, state, loadedKey, selectedGameKey, friendsKey, adapterSyncKey]);
+  }, [productMode.enabled, productMode.updated_at, page, state, loadedKey, selectedGameKey, friendsKey, adapterSyncKey, adapterRefreshKey]);
 
   return null;
 }

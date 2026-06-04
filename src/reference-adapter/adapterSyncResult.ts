@@ -2,6 +2,7 @@ import type { AdapterRegistrySyncResult } from '../api/tauri';
 
 const SYNC_RESULT_KEY = 'lan-helper.referenceAdapterSyncResult';
 export const ADAPTER_SYNC_RESULT_EVENT = 'lan-helper:reference-adapter-sync-result-changed';
+export const ADAPTER_INVENTORY_REFRESH_EVENT = 'lan-helper:reference-adapter-inventory-refresh';
 
 export interface ReferenceAdapterSyncRecord {
   source: 'remote' | 'local';
@@ -49,4 +50,19 @@ export function subscribeReferenceAdapterSyncResult(listener: (record: Reference
     window.removeEventListener(ADAPTER_SYNC_RESULT_EVENT, handle);
     window.removeEventListener('storage', handle);
   };
+}
+
+export function requestReferenceAdapterInventoryRefresh(reason = 'manual') {
+  window.dispatchEvent(new CustomEvent(ADAPTER_INVENTORY_REFRESH_EVENT, {
+    detail: {
+      reason,
+      at: new Date().toISOString()
+    }
+  }));
+}
+
+export function subscribeReferenceAdapterInventoryRefresh(listener: () => void) {
+  const handle = () => listener();
+  window.addEventListener(ADAPTER_INVENTORY_REFRESH_EVENT, handle);
+  return () => window.removeEventListener(ADAPTER_INVENTORY_REFRESH_EVENT, handle);
 }

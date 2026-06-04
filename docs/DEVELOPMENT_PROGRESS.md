@@ -1881,3 +1881,11 @@ pm.cmd run release:preflight。
 - 最近一次报告保存到 localStorage `lan-helper.referenceDiagnosticRecord`，诊断目标保存到 `lan-helper.referenceDiagnosticTarget`。
 - 诊断页会展示目标标签、release_ready、必需项通过数量、摘要、最可能原因和下一步动作，并把目标信息写入参考诊断 JSON/证据行。
 - 下一步推荐：整理方案库“手动强制刷新”语义，避免它和“一键更新共享方案”重复或误导用户。
+
+## 2026-06-04 方案库手动刷新语义整理
+
+- 新增 `refreshReferenceAdapterInventory()`：调用 `listGameAdapters()` 重新读取本地真实 adapter 列表。
+- 新增 `requestReferenceAdapterInventoryRefresh()` / `subscribeReferenceAdapterInventoryRefresh()`，让 Product Mode 方案库面板可在手动刷新后立即重新加载。
+- Product Mode 下“手动强制刷新”和“手动刷新此缓存”已接入本地刷新动作：不访问远程 registry，不写入或覆盖 adapter。
+- Product Mode 方案库真实面板新增“方案库按钮语义”说明：一键更新=远程同步写入；恢复默认=本地示例同步；手动强制刷新=只重读本地列表。
+- 下一步推荐：做“游戏扫描/推荐页真实列表正式受控化”，进一步减少参考演示卡片对用户的误导。

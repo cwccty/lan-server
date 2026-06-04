@@ -7,6 +7,7 @@ import {
   launchReferenceProfile,
   readReferenceN2nLastConfig,
   readReferenceTerrariaServer,
+  refreshReferenceAdapterInventory,
   saveReferenceAppSettings,
   saveReferenceN2nConfig,
   saveReferenceAdapterDraft,
@@ -37,7 +38,7 @@ import {
   upsertReferenceFriendAllocation
 } from './friendAllocations';
 import type { AdapterRegistrySyncResult } from '../api/tauri';
-import { setReferenceAdapterSyncResult } from './adapterSyncResult';
+import { requestReferenceAdapterInventoryRefresh, setReferenceAdapterSyncResult } from './adapterSyncResult';
 import { getReferenceSelectedGame } from './selectedGame';
 import { useReferenceProductMode } from './useReferenceProductMode';
 
@@ -198,6 +199,18 @@ async function syncReferenceLocalAdapterRegistryAndStore() {
   const result = await syncReferenceLocalAdapterRegistry();
   if (result.ok && isAdapterRegistrySyncResult(result.data)) {
     setReferenceAdapterSyncResult('local', result.data);
+  }
+  return result;
+}
+
+async function refreshReferenceAdapterInventoryAndPanel() {
+  const result = await refreshReferenceAdapterInventory();
+  requestReferenceAdapterInventoryRefresh('manual-cache-refresh');
+  if (result.ok) {
+    return {
+      ...result,
+      message: '已重新读取本地真实方案列表。该动作不会访问远程 registry，也不会写入/覆盖 adapter；如需同步远程，请使用“一键更新共享方案”。'
+    };
   }
   return result;
 }
@@ -548,6 +561,12 @@ function useAttachProductActions(enabled: boolean) {
         interceptButton(firstButton('强同步 Steam 自适应映射', '游戏扫描'), 'games-scan-steam-cache', () => scanReferenceGames()),
         interceptButton(firstButton('一键更新共享方案', '方案库'), 'solutions-sync-remote', () => syncReferenceAdapterRegistryAndStore()),
         interceptButton(firstButton('恢复默认', '方案库'), 'solutions-read-local-example', () => syncReferenceLocalAdapterRegistryAndStore()),
+        ...buttonsByText('手动强制刷新', '方案库').map((button, index) =>
+          interceptButton(button, `solutions-refresh-local-cache-${index}`, () => refreshReferenceAdapterInventoryAndPanel())
+        ),
+        ...buttonsByText('手动刷新此缓存', '方案库').map((button, index) =>
+          interceptButton(button, `solutions-refresh-cache-link-${index}`, () => refreshReferenceAdapterInventoryAndPanel())
+        ),
         interceptButton(firstButton('导入方案', '方案库'), 'solutions-import-adapter-json', () => importReferenceAdapterFromFile()),
         interceptButton(firstButton('导出备份', '方案库'), 'solutions-export-adapter-json', () => exportReferenceAdapterToFile()),
         interceptButton(firstButton('重新测试', '推荐方案'), 'recommendation-test-connectivity', () => testReferenceConnectivity({ host: readHostIpFromRecommendationPage(), ports: [readGamePortFromNetworkForm()], timeout_ms: 1200, mode: 'n2n_game_port' })),

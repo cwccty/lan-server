@@ -151,6 +151,10 @@ export function syncReferenceAdapterRegistry(registryUrl: string) {
   return withSnapshot('同步共享方案库', () => syncAdapterRegistry(registryUrl));
 }
 
+export function refreshReferenceAdapterInventory() {
+  return withSnapshot('刷新本地方案库缓存', () => listGameAdapters());
+}
+
 export function importReferenceAdapterJson(content: string) {
   return withSnapshot('导入共享游戏方案 JSON', () => importGameAdapterJson(content), true);
 }

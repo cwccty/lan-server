@@ -73,7 +73,7 @@
 |---|---|---|---|
 | 一键更新共享方案 | `syncAdapterRegistry(registryUrl)` | 已真实接入 | 使用输入框里的 registry URL。 |
 | 恢复默认 | `syncLocalAdapterRegistryExample()` | 已真实接入 | 当前 Product Mode 下读取/同步本地示例；参考 UI 自身仍会更新 URL 文本。 |
-| 手动强制刷新 | 待定 | 已记录缺口 | 目前参考按钮仍是本地假刷新；可复用 `syncAdapterRegistry()`，但需确认是否与“一键更新”语义重复。 |
+| 手动强制刷新 / 手动刷新此缓存 | `listGameAdapters()` | 已真实接入 | Product Mode 下仅重新读取本地真实 adapter 列表和最近同步详情，不访问远程 registry、不写入或覆盖方案；已和“一键更新共享方案”区分。 |
 | 导入方案 | `importGameAdapterJson(content)` | 已真实接入 | Product Mode 打开文件选择，读取 JSON 后导入真实 adapter。 |
 | 导出备份 | `exportGameAdapterJson(gameId)` | 已真实接入 | 优先导出最近选中游戏，否则导出本地方案列表第一项，并下载 JSON 文件。 |
 | 一键发布登记至共享适配器库 | `saveGameAdapter(adapter)` | 已真实接入 | 根据编辑器字段生成基础 custom adapter。 |
@@ -117,5 +117,4 @@
 2. **好友席位后端化**：Product Mode 已用 localStorage 持久化好友席位；如果未来要做多人房间/云同步，仍需后端房间 API。
 3. **edge 自动下载**：edge 路径已能深度检测；自动下载/修复 edge.exe 仍属于未来功能。
 4. **Palworld 专用服深度启动**：Palworld adapter 已提供专用服/IP 直连方案；后续仍可做 SteamCMD 安装、配置文件编辑和服务端日志解析。
-5. **方案库手动强制刷新语义**：同步详情已真实展示；但参考 UI 中“手动强制刷新”按钮是否等同“一键更新共享方案”仍需产品语义确认。
 
