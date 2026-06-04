@@ -1783,3 +1783,13 @@ pm.cmd run release:preflight。
 - 验证通过：
 pm.cmd run build、cargo check --manifest-path src-tauri\Cargo.toml、
 pm.cmd run release:preflight。
+
+## 2026-06-04 04:52:42 推荐启动项、游戏分析、方案编辑真实接口接入
+- Product Mode 新增推荐页真实启动动作：立即启动本地游戏实体 -> launchProfile(gameId, profileId, config)。
+- 推荐页当前会从参考前端的目标选择器读取游戏：	erraria -> terraria，minecraft -> minecraft_java，palworld -> palworld；如果本地没有对应 adapter，后端会返回真实失败原因，不伪造启动成功。
+- 游戏扫描页新增真实分析动作：查看分析与推荐方案、查看推荐配置方案、创建局域网组网草稿、创建网络方案 -> scanGames() 后按卡片标题匹配并调用 nalyzeGame(game_id)。
+- 方案库编辑器新增真实保存动作：一键发布登记至共享适配器库 -> 根据编辑器字段生成 GameAdapter，调用 saveGameAdapter(adapter) 保存为 custom 方案。
+- 浏览器 Product Mode 验证：推荐页 ecommendation-launch-profile、方案库 solutions-save-adapter-draft、游戏扫描 games-analyze-selected/games-create-network-scheme 均已挂上 data-lan-helper-action-hooked。
+- 验证通过：
+pm.cmd run build、cargo check --manifest-path src-tauri\Cargo.toml、
+pm.cmd run release:preflight。

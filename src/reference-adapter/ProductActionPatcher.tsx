@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import {
+  analyzeReferenceGameByName,
   generateReferenceDiagnostics,
+  launchReferenceProfile,
   readReferenceN2nLastConfig,
   readReferenceTerrariaServer,
   saveReferenceN2nConfig,
+  saveReferenceAdapterDraft,
   scanReferenceGames,
   sendReferenceTerrariaCommand,
   selfTestReferenceAdvancedProxy,
@@ -106,6 +109,59 @@ function readGamePortFromNetworkForm() {
   const value = findInputByLabel('Game Port')?.value;
   const port = Number(value || 7777);
   return Number.isFinite(port) ? port : 7777;
+}
+
+function closestGameNameFromButton(button: HTMLButtonElement) {
+  const card = button.closest('article, [class*="rounded-2xl"]');
+  const heading = card?.querySelector('h3, h4');
+  return heading ? textOf(heading) : undefined;
+}
+
+function readRecommendationLaunchForm() {
+  const root = findPageRoot('推荐方案');
+  const select = root?.querySelector('select') as HTMLSelectElement | null;
+  const selected = select?.value || 'terraria';
+  const gameMap: Record<string, string> = {
+    terraria: 'terraria',
+    minecraft: 'minecraft_java',
+    palworld: 'palworld'
+  };
+  const gameId = gameMap[selected] || selected;
+  const profileId = selected === 'minecraft' ? 'docs' : 'client';
+  const maxPlayersValue = Array.from(root?.querySelectorAll<HTMLSelectElement>('select') ?? [])
+    .find((item) => Array.from(item.options).some((option) => option.value === '8' || option.value === '16'))?.value;
+  return {
+    game_id: gameId,
+    profile_id: profileId,
+    config: {
+      max_players: Number(maxPlayersValue || 8),
+      port: readGamePortFromNetworkForm()
+    }
+  };
+}
+
+function readAdapterDraftForm() {
+  const name = findInputByLabel('游戏及方案名称')?.value?.trim() || 'Custom Game';
+  const steamAppId = findInputByLabel('Steam 专属 AppID')?.value?.trim();
+  const executable = findInputByLabel('可执行程序拦截特征')?.value?.trim();
+  const conversionProfile = findInputByLabel('网络转换模式')?.value;
+  const portValue = findInputByLabel('游戏运行默认端口')?.value;
+  const defaultJoinIp = findInputByLabel('客户端默认加入地址')?.value?.trim();
+  const hostRole = findInputByLabel('房主/服务端配置行为指南')?.value;
+  const joinRole = findInputByLabel('加入端/客机配置行为指南')?.value;
+  const inviteTemplate = findInputByLabel('特邀邀请密信排版模板')?.value;
+  const port = Number(portValue || 7777);
+  return {
+    name,
+    steam_appid: steamAppId,
+    executable,
+    port: Number.isFinite(port) ? port : 7777,
+    conversion_profile: conversionProfile,
+    host_role: hostRole,
+    join_role: joinRole,
+    default_join_ip: defaultJoinIp,
+    invite_template: inviteTemplate
+  };
 }
 
 function setBusy(button: HTMLButtonElement, busy: boolean, label?: string) {
@@ -265,6 +321,12 @@ function useAttachProductActions(enabled: boolean) {
         interceptButton(firstButton('重新测试', '推荐方案'), 'recommendation-test-connectivity', () => testReferenceConnectivity({ host: readHostIpFromRecommendationPage(), ports: [readGamePortFromNetworkForm()], timeout_ms: 1200, mode: 'n2n_game_port' })),
         interceptButton(firstButton('复制主IP', '推荐方案'), 'recommendation-read-n2n-config', () => readReferenceN2nLastConfig()),
         interceptButton(firstButton('一键拷制专属密信包', '推荐方案'), 'recommendation-generate-diagnostics', () => generateReferenceDiagnostics()),
+        interceptButton(firstButton('立即启动本地游戏实体', '推荐方案'), 'recommendation-launch-profile', () => launchReferenceProfile(readRecommendationLaunchForm())),
+        interceptButton(firstButton('查看分析与推荐方案', '游戏扫描'), 'games-analyze-selected', (button) => analyzeReferenceGameByName(closestGameNameFromButton(button))),
+        interceptButton(firstButton('查看推荐配置方案', '游戏扫描'), 'games-analyze-modal-selected', (button) => analyzeReferenceGameByName(closestGameNameFromButton(button))),
+        interceptButton(firstButton('创建局域网组网草稿', '游戏扫描'), 'games-create-draft-analysis', (button) => analyzeReferenceGameByName(closestGameNameFromButton(button))),
+        interceptButton(firstButton('创建网络方案', '游戏扫描'), 'games-create-network-scheme', (button) => analyzeReferenceGameByName(closestGameNameFromButton(button))),
+        interceptButton(firstButton('一键发布登记至共享适配器库', '方案库'), 'solutions-save-adapter-draft', () => saveReferenceAdapterDraft(readAdapterDraftForm())),
         interceptButton(firstButton('挂载并上线该高速链路', '高级连接工具'), 'advanced-start-proxy', () => startReferenceAdvancedProxy(readAdvancedProxyForm())),
         interceptButton(firstButton('一键连通自测', '高级连接工具'), 'advanced-self-test-proxy', (button) => selfTestReferenceAdvancedProxy(advancedProxyTypeFromButton(button))),
         interceptButton(firstButton('暂停代理', '高级连接工具'), 'advanced-stop-proxy', (button) => stopReferenceAdvancedProxy(advancedProxyTypeFromButton(button))),

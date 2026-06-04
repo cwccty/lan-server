@@ -1,13 +1,16 @@
 ﻿import {
-  generateDiagnosticReport,
+  analyzeGame,
+generateDiagnosticReport,
   getN2nLastConfig,
-  listPortProxies,
+    launchProfile,
+listPortProxies,
   listUdpBroadcastBridges,
   listUdpProxies,
   readServerSession,
   scanGames,
   sendServerCommand,
-  setupNetwork,
+    saveGameAdapter,
+setupNetwork,
   startGenericServerSession,
   startGameServerSession,
   startNetwork,
@@ -30,6 +33,7 @@ import type { ConnectivityTarget, NetworkConfig } from '../types/network';
 import type { PortProxyConfig } from '../types/portProxy';
 import type { LaunchConfig } from '../types/recommendation';
 import type { GenericServerLaunchConfig } from '../types/serverSession';
+import type { GameAdapter, GameSummary } from '../types/game';
 import type { UdpBroadcastBridgeConfig } from '../types/udpBroadcastBridge';
 import type { UdpProxyConfig } from '../types/udpProxy';
 import { readReferenceRuntimeSnapshot } from './runtimeStore';
@@ -145,6 +149,24 @@ export interface ReferenceGenericServerForm {
   port: number;
 }
 
+export interface ReferenceLaunchProfileForm {
+  game_id: string;
+  profile_id: string;
+  config: LaunchConfig;
+}
+
+export interface ReferenceAdapterDraftForm {
+  name: string;
+  steam_appid?: string;
+  executable?: string;
+  port?: number;
+  conversion_profile?: string;
+  host_role?: string;
+  join_role?: string;
+  default_join_ip?: string;
+  invite_template?: string;
+}
+
 export function startReferenceAdvancedProxy(form: ReferenceAdvancedProxyForm) {
   return withSnapshot('启动高级连接链路', async () => {
     if (form.type === 'tcp') {
@@ -220,3 +242,108 @@ export function startReferenceGenericServer(config: ReferenceGenericServerForm) 
     return startGenericServerSession(launchConfig);
   });
 }
+
+function normalizeGameId(value: string) {
+  const normalized = value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  return normalized || 'custom_game';
+}
+
+function findReferenceGame(games: GameSummary[], displayName?: string) {
+  if (!displayName) return games[0] ?? null;
+  const needle = displayName.trim().toLowerCase();
+  return games.find((game) => game.display_name.toLowerCase() === needle)
+    ?? games.find((game) => game.display_name.toLowerCase().includes(needle) || needle.includes(game.display_name.toLowerCase()))
+    ?? games[0]
+    ?? null;
+}
+
+export function analyzeReferenceGameByName(displayName?: string) {
+  return withSnapshot('分析游戏联机能力', async () => {
+    const games = await scanGames();
+    const selected = findReferenceGame(games, displayName);
+    if (!selected) {
+      throw new Error(displayName ? `没有在真实扫描结果中找到：${displayName}` : '没有可分析的真实扫描游戏。');
+    }
+    return analyzeGame(selected.game_id);
+  }, true);
+}
+
+export function launchReferenceProfile(form: ReferenceLaunchProfileForm) {
+  return withSnapshot('启动推荐启动项', () => launchProfile(form.game_id, form.profile_id, form.config));
+}
+
+function methodFromConversion(value: string) {
+  const lower = value.toLowerCase();
+  if (lower.includes('dedicated')) return 'dedicated_server_launcher';
+  if (lower.includes('broadcast')) return 'broadcast_bridge';
+  if (lower.includes('proxy')) return 'port_proxy';
+  if (lower.includes('steam')) return 'steam_relay_plugin';
+  if (lower.includes('official')) return 'not_supported';
+  if (lower.includes('manual')) return 'manual_guide';
+  return 'virtual_lan';
+}
+
+function capabilityFromConversion(value: string) {
+  const lower = value.toLowerCase();
+  if (lower.includes('dedicated')) return 'dedicated_server';
+  if (lower.includes('broadcast')) return 'lan';
+  if (lower.includes('official')) return 'official_server';
+  return 'ip_join';
+}
+
+function networkTypeFromConversion(value: string) {
+  const lower = value.toLowerCase();
+  if (lower.includes('dedicated')) return 'dedicated_server';
+  if (lower.includes('broadcast')) return 'udp_broadcast_needed';
+  if (lower.includes('proxy')) return 'tcp_port_proxy_needed';
+  if (lower.includes('steam')) return 'steam_relay_plugin';
+  if (lower.includes('official')) return 'official_only';
+  return 'lan_ip_direct';
+}
+
+export function saveReferenceAdapterDraft(form: ReferenceAdapterDraftForm) {
+  return withSnapshot('保存共享游戏方案', () => {
+    const port = form.port && Number.isFinite(form.port) ? form.port : 7777;
+    const executable = form.executable?.trim() || `${normalizeGameId(form.name)}.exe`;
+    const conversion = form.conversion_profile || 'Virtual LAN';
+    const method = methodFromConversion(conversion);
+    const gameId = normalizeGameId(form.name);
+    const adapter: GameAdapter = {
+      game_id: gameId,
+      display_name: form.name.trim() || gameId,
+      steam_appid: form.steam_appid?.trim() || undefined,
+      capabilities: [capabilityFromConversion(conversion) as any],
+      multiplayer_conversion: {
+        capability: (method === 'not_supported' ? 'official_only' : method === 'broadcast_bridge' ? 'lan_discovery_broadcast' : method === 'dedicated_server_launcher' ? 'hidden_dedicated_server' : 'native_lan_ip') as any,
+        methods: [method as any],
+        can_convert_to_lan: method !== 'not_supported',
+        risk_level: method === 'not_supported' ? 'high' : method === 'port_proxy' ? 'medium' : 'low',
+        notes: ['由最终参考前端方案编辑器保存。'],
+        required_components: method === 'virtual_lan' ? ['n2n/radmin/manual_lan'] : [method]
+      },
+      network_type: networkTypeFromConversion(conversion) as any,
+      connection_plan: {
+        summary: `${form.name || gameId} 的本地共享联机方案。`,
+        host_role: form.host_role || '房主启动游戏或服务端，并保持虚拟局域网在线。',
+        join_role: form.join_role || '加入方进入同一虚拟局域网后连接房主虚拟 IP。',
+        default_join_host: form.default_join_ip || '10.0.8.1',
+        default_join_port: port,
+        requires_virtual_lan: method !== 'not_supported',
+        requires_tcp_port_proxy: method === 'port_proxy',
+        requires_udp_broadcast_bridge: method === 'broadcast_bridge',
+        requires_dedicated_server: method === 'dedicated_server_launcher',
+        invite_template: (form.invite_template || '房主IP: {{host_ip}}\n端口: {{port}}').split(/\r?\n/).filter(Boolean),
+        troubleshooting: ['如果无法加入，先确认双方虚拟 IP 互通，再检查游戏端口监听。']
+      },
+      adapter_source: 'custom',
+      executables: [executable],
+      default_ports: [port],
+      launch_profiles: [
+        { id: 'client', name: '启动游戏客户端', type: 'client', exe: executable, args: [] },
+        { id: 'docs', name: '查看连接说明', type: 'docs' }
+      ]
+    };
+    return saveGameAdapter(adapter);
+  }, true);
+}
+

@@ -803,3 +803,19 @@ Terraria 向导
 1. 将真实游戏选择状态贯通到推荐页，而不是默认取扫描结果第一项。
 2. 将“查看分析与推荐方案 / 创建局域网组网草稿 / 自建共享方案编辑器”进一步接入 `analyzeGame()` 和 `saveGameAdapter()`。
 3. 推荐页“立即启动本地游戏实体”仍需要接入 `launchProfile(gameId, profileId, config)`，当前还不是完整真实启动链路。
+
+---
+
+## 2026-06-04 推荐启动项与适配器编辑接入更新
+
+已接入：
+
+- 推荐页 `立即启动本地游戏实体`：调用 `launchProfile(gameId, profileId, config)`。
+- 游戏扫描页分析/创建方案按钮：调用 `analyzeGame(game_id)`。
+- 方案库 `一键发布登记至共享适配器库`：调用 `saveGameAdapter(adapter)`。
+
+仍需继续完善：
+
+1. 推荐页当前通过参考前端选择器推断 `game_id/profile_id`，还不是由真实选中游戏状态贯通而来。
+2. `palworld` 在最终参考前端中存在演示选项，但当前本地 adapter registry 未包含 Palworld，因此真实启动会合理失败；如要支持，需要新增 Palworld adapter。
+3. 方案编辑器已能保存基础 custom adapter，但还没有完整覆盖所有高级字段，例如协议细分、Steam Relay 插件入口、复杂启动参数模板。
