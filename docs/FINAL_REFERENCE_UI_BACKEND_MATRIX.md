@@ -97,8 +97,8 @@
 | 前端区域/按钮 | 对应真实 API | 当前状态 | 说明 |
 |---|---|---|---|
 | 手动强制重扫 | `generateDiagnosticReportForGame(gameId)` / `generateDiagnosticReport()` | 已真实接入 | Product Mode 有最近选中游戏时优先生成指定游戏诊断；没有选中游戏时回退全局诊断。 |
-| 诊断页真实面板 | `generateDiagnosticReport()` / runtime snapshot / selected game | Product Mode 面板补偿 | 已保留上次报告思路，诊断页会显示当前绑定的诊断目标。 |
-| 指定游戏诊断 | `generateDiagnosticReportForGame(gameId)` | 已真实接入 | 通过最近真实选中游戏实现；正式 UI 仍应提供清晰的“诊断目标选择器”。 |
+| 诊断页真实面板 | `generateDiagnosticReport()` / `generateDiagnosticReportForGame(gameId)` / runtime snapshot / selected game | 已真实接入 | Product Mode 新增真实诊断目标选择器，支持全局环境、当前选中游戏、指定游戏，并持久保存最近一次真实报告。 |
+| 指定游戏诊断 | `generateDiagnosticReportForGame(gameId)` | 已真实接入 | 诊断页 Product Mode 已提供“当前选中游戏 / 指定游戏”选择器。 |
 | 导出文本 / 复制报告 | 前端能力 | 已记录缺口 | 需要正式 UI 绑定真实报告内容。 |
 
 ## 9. 设置 / 帮助
@@ -114,9 +114,8 @@
 ## 当前最重要的剩余缺口
 
 1. **真实实例列表替换**：高级工具已在 Product Mode 下形成可操作真实实例清单；游戏扫描、方案库、推荐页仍有部分参考演示列表，正式产品最好重构为受控 React 数据流。
-2. **诊断目标选择器**：Product Mode 已能按最近选中游戏生成指定诊断，但正式 UI 仍应让用户显式选择“全局/某个游戏”。
-3. **好友席位后端化**：Product Mode 已用 localStorage 持久化好友席位；如果未来要做多人房间/云同步，仍需后端房间 API。
-4. **edge 自动下载**：edge 路径已能深度检测；自动下载/修复 edge.exe 仍属于未来功能。
-5. **Palworld 专用服深度启动**：Palworld adapter 已提供专用服/IP 直连方案；后续仍可做 SteamCMD 安装、配置文件编辑和服务端日志解析。
-6. **方案库手动强制刷新语义**：同步详情已真实展示；但参考 UI 中“手动强制刷新”按钮是否等同“一键更新共享方案”仍需产品语义确认。
+2. **好友席位后端化**：Product Mode 已用 localStorage 持久化好友席位；如果未来要做多人房间/云同步，仍需后端房间 API。
+3. **edge 自动下载**：edge 路径已能深度检测；自动下载/修复 edge.exe 仍属于未来功能。
+4. **Palworld 专用服深度启动**：Palworld adapter 已提供专用服/IP 直连方案；后续仍可做 SteamCMD 安装、配置文件编辑和服务端日志解析。
+5. **方案库手动强制刷新语义**：同步详情已真实展示；但参考 UI 中“手动强制刷新”按钮是否等同“一键更新共享方案”仍需产品语义确认。
 

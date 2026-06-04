@@ -914,3 +914,12 @@ Terraria 向导
 - 高级工具真实清单支持“刷新真实状态”、按实例“停止”、按类型“自测”；所有结果继续通过 Product Mode toast 暴露，不伪造成功。
 - 面板展示运行状态、listen/target、连接/包/字节统计、最近错误、最近日志，降低参考演示实例误导。
 - 下一步推荐：做“诊断目标选择器”，让用户明确选择全局诊断、当前选中游戏诊断或指定游戏诊断。
+
+## 2026-06-04 诊断目标选择器真实接入
+
+- `ReferenceProductDiagnosticsPatcher` 新增 Product Mode 真实诊断目标选择器，不改 `src/reference-ui`。
+- 支持三种范围：全局环境、当前选中游戏、指定游戏。
+- 全局环境调用 `generateDiagnosticReport()`；游戏范围调用 `generateDiagnosticReportForGame(gameId)`。
+- 最近一次报告保存到 localStorage `lan-helper.referenceDiagnosticRecord`，诊断目标保存到 `lan-helper.referenceDiagnosticTarget`。
+- 诊断页会展示目标标签、release_ready、必需项通过数量、摘要、最可能原因和下一步动作，并把目标信息写入参考诊断 JSON/证据行。
+- 下一步推荐：整理方案库“手动强制刷新”语义，避免它和“一键更新共享方案”重复或误导用户。
