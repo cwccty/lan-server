@@ -90,7 +90,7 @@
 | 通用游戏服务端启动 | `startGenericServerSession(config)` | 已真实接入 | 支持 `.exe/.bat/.cmd/.jar`。 |
 | 通用服务端停止 | `stopServerSession()` | 已真实接入 | 单会话服务端模型。 |
 | 通用服务端发送指令 | `sendServerCommand(command)` | 已真实接入 | 从参考输入框读取命令。 |
-| 真实实例列表 | `listPortProxies()` / `listUdpProxies()` / `listUdpBroadcastBridges()` | Product Mode 面板补偿 | 参考卡片仍不是后端真实列表，真实状态通过面板展示。 |
+| 真实实例列表 | `listPortProxies()` / `listUdpProxies()` / `listUdpBroadcastBridges()` / `readServerSession()` | 已真实接入 | Product Mode 面板集中展示 TCP、UDP、广播桥和通用服务端单会话；支持刷新、按实例停止、按类型自测。参考卡片仍保留视觉演示，但不作为真实依据。 |
 
 ## 8. 诊断报告
 
@@ -113,7 +113,7 @@
 
 ## 当前最重要的剩余缺口
 
-1. **真实实例列表替换**：高级工具、游戏扫描、方案库、推荐页目前大量通过 Product Mode 面板补偿，正式产品最好重构为受控 React 数据流。
+1. **真实实例列表替换**：高级工具已在 Product Mode 下形成可操作真实实例清单；游戏扫描、方案库、推荐页仍有部分参考演示列表，正式产品最好重构为受控 React 数据流。
 2. **诊断目标选择器**：Product Mode 已能按最近选中游戏生成指定诊断，但正式 UI 仍应让用户显式选择“全局/某个游戏”。
 3. **好友席位后端化**：Product Mode 已用 localStorage 持久化好友席位；如果未来要做多人房间/云同步，仍需后端房间 API。
 4. **edge 自动下载**：edge 路径已能深度检测；自动下载/修复 edge.exe 仍属于未来功能。

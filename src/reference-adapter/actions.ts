@@ -49,6 +49,7 @@ import type { UdpProxyConfig } from '../types/udpProxy';
 import { readReferenceRuntimeSnapshot } from './runtimeStore';
 import type { ReferenceRuntimeSnapshot } from './types';
 import { getReferenceSelectedGame, setReferenceSelectedGame } from './selectedGame';
+import { REFERENCE_RUNTIME_EVENT } from './bootstrap';
 
 export interface ReferenceActionResult<T = unknown> {
   ok: boolean;
@@ -67,6 +68,7 @@ async function withSnapshot<T>(action: string, task: () => Promise<T>, includeDi
     const data = await task();
     const snapshot = await readReferenceRuntimeSnapshot({ includeDiagnostics });
     window.__LAN_HELPER_REFERENCE_RUNTIME__ = snapshot;
+    window.dispatchEvent(new CustomEvent<ReferenceRuntimeSnapshot>(REFERENCE_RUNTIME_EVENT, { detail: snapshot }));
     return {
       ok: true,
       action,
@@ -76,7 +78,10 @@ async function withSnapshot<T>(action: string, task: () => Promise<T>, includeDi
     };
   } catch (error) {
     const snapshot = await readReferenceRuntimeSnapshot({ includeDiagnostics }).catch(() => undefined);
-    if (snapshot) window.__LAN_HELPER_REFERENCE_RUNTIME__ = snapshot;
+    if (snapshot) {
+      window.__LAN_HELPER_REFERENCE_RUNTIME__ = snapshot;
+      window.dispatchEvent(new CustomEvent<ReferenceRuntimeSnapshot>(REFERENCE_RUNTIME_EVENT, { detail: snapshot }));
+    }
     return {
       ok: false,
       action,

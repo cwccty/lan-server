@@ -906,3 +906,11 @@ Terraria 向导
 - `ProductActionPatcher` 会在“恢复默认”和“一键更新共享方案”成功后写入真实 `AdapterRegistrySyncResult`。
 - `ProductInventoryPatcher` 的方案库面板已展示同步来源、时间、registry_url、成功/失败计数，以及每个 adapter item 的状态、原因、保存路径和 hash mismatch 信息。
 - 剩余缺口从“同步详情不可见”收窄为：正式受控 React UI 尚未替换参考演示列表；“手动强制刷新”按钮语义仍需产品确认。
+
+## 2026-06-04 高级工具真实实例列表受控化
+
+- `src/reference-adapter/actions.ts` 的 `withSnapshot()` 现在在真实动作完成/失败后会广播 `lan-helper:reference-runtime-updated`，Product Mode 状态无需等待 5 秒轮询。
+- `ReferenceProductAdvancedToolsPatcher` 已升级为真实清单：集中展示 TCP 端口代理、UDP 单播代理、UDP 广播桥、通用服务端单会话。
+- 高级工具真实清单支持“刷新真实状态”、按实例“停止”、按类型“自测”；所有结果继续通过 Product Mode toast 暴露，不伪造成功。
+- 面板展示运行状态、listen/target、连接/包/字节统计、最近错误、最近日志，降低参考演示实例误导。
+- 下一步推荐：做“诊断目标选择器”，让用户明确选择全局诊断、当前选中游戏诊断或指定游戏诊断。

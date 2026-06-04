@@ -2743,3 +2743,11 @@ pm.cmd run release:preflight。
 - Product Mode 下“恢复默认”和“一键更新共享方案”成功后，会保存真实 `AdapterRegistrySyncResult`，不再只依赖 toast/runtime snapshot。
 - 方案库真实面板现在展示同步来源、时间、registry_url、总数、新增、更新、跳过、Hash/解析/下载/校验/写入失败计数，并展示每个 item 的 game_id、display_name、status、reason、saved_path 与 hash mismatch。
 - 下一步推荐：做“高级工具真实实例列表受控化”，把 TCP/UDP/广播桥与通用服务端的运行实例进一步从参考演示卡片中分离出来。
+
+## 2026-06-04 高级工具真实实例列表受控化
+
+- `src/reference-adapter/actions.ts` 的 `withSnapshot()` 现在在真实动作完成/失败后会广播 `lan-helper:reference-runtime-updated`，Product Mode 状态无需等待 5 秒轮询。
+- `ReferenceProductAdvancedToolsPatcher` 已升级为真实清单：集中展示 TCP 端口代理、UDP 单播代理、UDP 广播桥、通用服务端单会话。
+- 高级工具真实清单支持“刷新真实状态”、按实例“停止”、按类型“自测”；所有结果继续通过 Product Mode toast 暴露，不伪造成功。
+- 面板展示运行状态、listen/target、连接/包/字节统计、最近错误、最近日志，降低参考演示实例误导。
+- 下一步推荐：做“诊断目标选择器”，让用户明确选择全局诊断、当前选中游戏诊断或指定游戏诊断。
