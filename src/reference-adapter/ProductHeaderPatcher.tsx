@@ -1,4 +1,7 @@
-﻿import { useEffect } from 'react';
+﻿// Deprecated after controlled Header migration.
+// Product Mode 顶部状态栏现在由 src/product-ui/ProductHeader.tsx 直接读取 runtime state 并调用真实 n2n 动作。
+// 不再通过 DOM 文本替换来覆盖参考 Header 中的 就绪: 24ms。
+import { useEffect } from 'react';
 import { useReferenceProductMode } from './useReferenceProductMode';
 import { useReferenceRuntime } from './useReferenceRuntime';
 
@@ -47,3 +50,4 @@ export function ReferenceProductHeaderPatcher() {
 
   return null;
 }
+

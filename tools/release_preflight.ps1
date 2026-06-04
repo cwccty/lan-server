@@ -125,7 +125,6 @@ try {
 
   $requiredProductPatcherNames = @(
     "ReferenceProductRuntimeBridgeController",
-    "ReferenceProductHeaderPatcher",
     "ReferenceProductDiagnosticsPatcher",
     "ReferenceProductActionPatcher",
     "ReferenceProductActionResultPatcher",
@@ -151,6 +150,12 @@ try {
     Pass-Check "controlled Home page replaces Home patcher"
   } else {
     Fail-Check "controlled Home page replaces Home patcher" "Product Mode home must render src/product-ui/ProductHomeView.tsx and main.tsx must not mount ReferenceProductHomePatcher"
+  }
+
+  if ((Test-Path "src\product-ui\ProductHeader.tsx") -and $appTextForControlledHome -match "ProductHeader" -and $appTextForControlledHome -match "productMode\.enabled" -and $mainTextForProductMode -notmatch "ReferenceProductHeaderPatcher") {
+    Pass-Check "controlled Header replaces Header patcher"
+  } else {
+    Fail-Check "controlled Header replaces Header patcher" "Product Mode header must render src/product-ui/ProductHeader.tsx and main.tsx must not mount ReferenceProductHeaderPatcher"
   }
 } catch {
   Fail-Check "release/product-mode guardrails" ([string]$_)
@@ -345,6 +350,8 @@ if ($failed.Count -gt 0) {
 }
 
 Write-Host "`nPASS: release preflight checks completed." -ForegroundColor Green
+
+
 
 
 

@@ -2862,3 +2862,25 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\release_preflight.ps1
 
 迁移意义：发布版首页不再先显示参考图中的 75%、24ms、
 2n.edge.me:7777 再靠 patcher 覆盖，而是由 React state 直接渲染真实状态。下一页建议迁移 Header，因为顶部仍由 HeaderPatcher 替换 就绪: 24ms。
+
+## 2026-06-04 21:53:31 最终前端导航差异复核
+
+用户反馈：当前打开的 EXE 侧边栏缺少最终设计稿中的 高级连接工具，截图中 EXE 仍停留在：首页、方案库、游戏扫描、推荐方案、通用组网中心、Terraria 向导、诊断报告、设置与帮助；而最终设计稿第二张图在 通用组网中心 与 Terraria 向导 之间有 高级连接工具。
+
+复核结果：
+
+- 当前源码 src/reference-ui/components/Sidebar.tsx 已包含 dvanced_tools / 高级连接工具。
+- 当前源码 src/reference-ui/App.tsx 已包含 AdvancedToolsView 路由。
+- 当前 dist/assets/*.js 已包含 高级连接工具 与 dvanced_tools。
+- 
+pm run release:preflight 新增/通过 core navigation includes all product pages，用于防止核心导航缺页。
+- 已重新执行 
+pm run tauri:build，生成新版 src-tauri/target/release/lan-helper.exe。
+
+判断：用户截图对应的是旧 EXE 或旧构建实例；以后产品验收必须以重新打包后的 src-tauri/target/release/lan-helper.exe 为准。若用户打开的仍无 高级连接工具，优先排查是否打开了其他目录下的旧安装包/旧快捷方式，而不是只看源码。
+
+本阶段 Product Mode 迁移进度：
+
+- 首页已开始迁移为 src/product-ui/ProductHomeView.tsx，Product Mode 下直接渲染受控 React 页面，不再依赖 ReferenceProductHomePatcher。
+- 顶部栏已开始迁移为 src/product-ui/ProductHeader.tsx，Product Mode 下直接读取 runtime 并调用真实 n2n 启停/刷新动作，不再挂载 ReferenceProductHeaderPatcher。
+- 下一步建议：继续迁移 通用组网中心 或 高级连接工具 为正式受控 Product 页面，逐步减少 DOM patcher。

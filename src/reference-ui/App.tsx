@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import HomeView from './components/HomeView';
 import { ProductHomeView } from '../product-ui/ProductHomeView';
+import { ProductHeader } from '../product-ui/ProductHeader';
 import SolutionsView from './components/SolutionsView';
 import GameScanView from './components/GameScanView';
 import RecommendProtocolView from './components/RecommendProtocolView';
@@ -123,15 +124,25 @@ export default function App() {
       />
 
       {/* Header Panel */}
-      <Header
-        netStatus={state.netStatus}
-        latency={state.latency}
-        onToggleNetwork={handleToggleNetwork}
-        onOpenDiagnostics={handleOpenDiagnostics}
-        onTabChange={(tab) => {
-          updateStateValue('currentTab', tab);
-        }}
-      />
+      {productMode.enabled ? (
+        <ProductHeader
+          onOpenDiagnostics={handleOpenDiagnostics}
+          onTabChange={(tab) => {
+            updateStateValue('currentTab', tab);
+          }}
+          onTriggerToast={handleTriggerToast}
+        />
+      ) : (
+        <Header
+          netStatus={state.netStatus}
+          latency={state.latency}
+          onToggleNetwork={handleToggleNetwork}
+          onOpenDiagnostics={handleOpenDiagnostics}
+          onTabChange={(tab) => {
+            updateStateValue('currentTab', tab);
+          }}
+        />
+      )}
 
       {/* Main Content Render area */}
       <main className="ml-[260px] pt-24 px-8 pb-12 min-h-screen">
