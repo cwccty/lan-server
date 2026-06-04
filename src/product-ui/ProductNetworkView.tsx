@@ -122,6 +122,31 @@ export function ProductNetworkView({ onTriggerToast, onNavigateTab }: ProductNet
   const stopN2n = () => run('停止 n2n Edge', () => stopReferenceN2n());
   const refreshStatus = () => run('刷新节点状态', () => refreshReferenceRuntime(false));
 
+  const runStatusAction = () => {
+    if (status.needsServer) {
+      onNavigateTab('terraria');
+      return;
+    }
+    if (status.needsNetwork) {
+      if (status.stage === 'configured_not_started' || status.stage === 'not_configured') {
+        startN2n();
+        return;
+      }
+      refreshStatus();
+      return;
+    }
+    onNavigateTab('protocol');
+  };
+
+  const statusActionLabel = () => {
+    if (status.needsServer) return '去启动服务端';
+    if (status.needsNetwork) {
+      if (status.stage === 'configured_not_started' || status.stage === 'not_configured') return '启动 n2n';
+      return '刷新状态';
+    }
+    return '生成邀请包';
+  };
+
   const handleInvitePaste = (value: string) => {
     setInvitePaste(value);
     const packet = parseLanInvitePacket(value);
@@ -206,56 +231,23 @@ export function ProductNetworkView({ onTriggerToast, onNavigateTab }: ProductNet
             </button>
           </div>
 
-          <div className="mb-5 rounded-2xl border border-slate-100 bg-slate-50 p-4">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-slate-800">{status.label}</p>
-                <p className="mt-1 text-xs leading-relaxed text-slate-500">{status.detail}</p>
+          <div className="mb-5 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="grid min-w-0 flex-1 gap-3 sm:grid-cols-[150px_1fr] sm:items-center">
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-slate-800">{status.label}</p>
+                  <p className="mt-1 text-xs text-slate-500">当前步骤</p>
+                </div>
+                <p className="min-w-0 break-words text-xs leading-relaxed text-slate-600">{status.detail}</p>
               </div>
               <button
-                onClick={() => status.needsServer ? onNavigateTab('terraria') : status.needsNetwork ? refreshStatus() : onNavigateTab('protocol')}
+                onClick={runStatusAction}
                 disabled={Boolean(busy)}
-                className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                className="shrink-0 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
               >
-                {status.nextAction}
+                {statusActionLabel()}
               </button>
             </div>
-          </div>
-
-          <div className="mb-5 rounded-2xl border border-amber-100 bg-amber-50/60 p-4">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div>
-                <h3 className="flex items-center gap-2 text-sm font-bold text-slate-800">
-                  <LogIn className="h-4 w-4 text-amber-600" />
-                  粘贴好友邀请包
-                </h3>
-                <p className="mt-1 text-xs text-slate-500">收到房主发来的邀请内容后粘贴到这里，软件会自动识别并填入组网参数。</p>
-              </div>
-            </div>
-            <textarea
-              value={invitePaste}
-              onChange={(event) => handleInvitePaste(event.target.value)}
-              placeholder="粘贴 [联机助手真实邀请包] ..."
-              className="min-h-24 w-full resize-y rounded-xl border border-amber-100 bg-white px-3 py-2 text-xs leading-relaxed text-slate-700 outline-none focus:border-amber-400"
-            />
-            {detectedInvite ? (
-              <div className="mt-3 rounded-xl border border-amber-200 bg-white p-3">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0 text-xs text-slate-600">
-                    <p className="font-bold text-slate-800">检测到其他玩家的邀请，是否进入？</p>
-                    <p className="mt-1 break-words">
-                      {detectedInvite.gameName || '未知游戏'}｜房主 {detectedInvite.hostVirtualIp || '-'}｜你的 IP {detectedInvite.friendVirtualIp || '-'}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => { setInvitePaste(''); setDetectedInvite(null); }} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">取消</button>
-                    <button onClick={enterInvite} className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white hover:bg-slate-800">进入并填入</button>
-                  </div>
-                </div>
-              </div>
-            ) : invitePaste.trim() ? (
-              <p className="mt-2 text-xs text-amber-700">没有识别到联机助手邀请包，请确认内容包含“[联机助手真实邀请包]”。</p>
-            ) : null}
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
@@ -348,6 +340,45 @@ export function ProductNetworkView({ onTriggerToast, onNavigateTab }: ProductNet
               </button>
               {lastConnectivity ? <p className="rounded-xl bg-slate-50 p-3 text-xs text-slate-600">{lastConnectivity}</p> : null}
             </div>
+          </div>
+
+          <div className="rounded-2xl border border-amber-100 bg-amber-50/60 p-5 shadow-sm">
+            <div className="mb-3">
+              <h3 className="flex items-center gap-2 text-sm font-bold text-slate-800">
+                <LogIn className="h-4 w-4 text-amber-600" />
+                粘贴好友邀请包
+              </h3>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                加入好友房间时，把房主发来的邀请内容粘贴到这里。
+              </p>
+            </div>
+            <textarea
+              value={invitePaste}
+              onChange={(event) => handleInvitePaste(event.target.value)}
+              placeholder="粘贴 [联机助手真实邀请包] ..."
+              className="min-h-28 w-full resize-y rounded-xl border border-amber-100 bg-white px-3 py-2 text-xs leading-relaxed text-slate-700 outline-none focus:border-amber-400"
+            />
+            {detectedInvite ? (
+              <div className="mt-3 rounded-xl border border-amber-200 bg-white p-3">
+                <div className="space-y-3">
+                  <div className="min-w-0 text-xs text-slate-600">
+                    <p className="font-bold text-slate-800">检测到其他玩家的邀请，是否进入？</p>
+                    <p className="mt-1 break-words leading-relaxed">
+                      {detectedInvite.gameName || '未知游戏'}<br />
+                      房主：{detectedInvite.hostVirtualIp || '-'}｜你的 IP：{detectedInvite.friendVirtualIp || '-'}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button onClick={() => { setInvitePaste(''); setDetectedInvite(null); }} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">取消</button>
+                    <button onClick={enterInvite} className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white hover:bg-slate-800">进入并填入</button>
+                  </div>
+                </div>
+              </div>
+            ) : invitePaste.trim() ? (
+              <p className="mt-2 rounded-xl bg-white/70 p-2 text-xs leading-relaxed text-amber-700">
+                没有识别到联机助手邀请包，请确认内容包含“[联机助手真实邀请包]”。
+              </p>
+            ) : null}
           </div>
         </aside>
       </div>
