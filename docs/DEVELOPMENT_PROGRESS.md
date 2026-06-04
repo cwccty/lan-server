@@ -1958,3 +1958,28 @@ pm run tauri:build 生成新版 EXE，并考虑标注/移除旧入口 src/App.ts
 - 	ools/release_preflight.ps1：把检查从“EXE defaults to Product Mode”升级为“EXE forces Product Mode”，并新增 legacy shell is not release entry gate，防止后续误把旧 App Shell 当发布入口。
 
 原因：用户已多次通过截图发现“打开 EXE 与最终设计稿/真实接入不一致”。发布版必须防止任何旧状态或旧入口导致展示稿模式泄漏。
+
+## 2026-06-04 21:09:03 首页迁移为正式 React 受控页面
+
+本轮开始执行“把 Product Mode patcher 逐页迁移为正式 React 受控页面”。
+
+已完成首页第一步迁移：
+
+- 新增 src/product-ui/ProductHomeView.tsx：首页在 Product Mode 下直接使用 useReferenceRuntime() 读取真实 runtime snapshot 渲染，不再依赖 DOM patcher 替换参考 UI 文本。
+- 修改 src/reference-ui/App.tsx：当 productMode.enabled 时首页渲染 ProductHomeView；浏览器参考模式仍渲染原 HomeView，方便视觉对照。
+- 修改 src/main.tsx：不再挂载 ReferenceProductHomePatcher。
+- src/reference-adapter/ProductHomePatcher.tsx 已标注 deprecated，仅作为历史/回退文件存在。
+- src/reference-runtime.css 增加 @source "./product-ui/**/*.{ts,tsx}"，确保受控页面样式进入构建。
+- 	ools/check_reference_ui_fidelity.ps1：App.tsx 作为受控迁移入口跳过逐字 fidelity；其他 reference-ui 文件仍保持一比一锁定。
+- 	ools/release_preflight.ps1：新增 controlled Home page replaces Home patcher 与 product Tailwind source scan gate。
+
+验证已通过：
+
+`powershell
+npm.cmd run build
+cargo check --manifest-path src-tauri\Cargo.toml
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\release_preflight.ps1
+`
+
+迁移意义：发布版首页不再先显示参考图中的 75%、24ms、
+2n.edge.me:7777 再靠 patcher 覆盖，而是由 React state 直接渲染真实状态。下一页建议迁移 Header，因为顶部仍由 HeaderPatcher 替换 就绪: 24ms。

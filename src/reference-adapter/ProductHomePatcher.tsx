@@ -1,4 +1,7 @@
-﻿import { useEffect } from 'react';
+﻿// Deprecated after the first controlled-page migration.
+// Product Mode 首页现在由 src/product-ui/ProductHomeView.tsx 直接读取 runtime state 渲染，
+// 不再通过 DOM 文本替换来覆盖参考图中的 24ms/75%/n2n.edge.me 等演示值。
+import { useEffect } from 'react';
 import { useReferenceProductMode } from './useReferenceProductMode';
 import { useReferenceRuntime } from './useReferenceRuntime';
 
@@ -92,3 +95,4 @@ export function ReferenceProductHomePatcher() {
 
   return null;
 }
+

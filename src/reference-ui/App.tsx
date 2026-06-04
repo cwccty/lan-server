@@ -3,6 +3,7 @@ import { AppState, AppTab, NetworkStatus } from './types';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import HomeView from './components/HomeView';
+import { ProductHomeView } from '../product-ui/ProductHomeView';
 import SolutionsView from './components/SolutionsView';
 import GameScanView from './components/GameScanView';
 import RecommendProtocolView from './components/RecommendProtocolView';
@@ -13,8 +14,10 @@ import DiagnosticsView from './components/DiagnosticsView';
 import SettingsView from './components/SettingsView';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, X, Gift, CheckCircle } from 'lucide-react';
+import { useReferenceProductMode } from '../reference-adapter/useReferenceProductMode';
 
 export default function App() {
+  const productMode = useReferenceProductMode();
   // Global States
   const [state, setState] = useState<AppState>({
     currentTab: 'home',
@@ -142,14 +145,23 @@ export default function App() {
             className="w-full max-w-7xl mx-auto"
           >
             {state.currentTab === 'home' && (
-              <HomeView
-                netStatus={state.netStatus}
-                role={state.role}
-                onRoleChange={(role) => updateStateValue('role', role)}
-                onNavigateTab={(tab) => updateStateValue('currentTab', tab)}
-                onTriggerToast={handleTriggerToast}
-                localIp={state.localVirtualIp}
-              />
+              productMode.enabled ? (
+                <ProductHomeView
+                  role={state.role}
+                  onRoleChange={(role) => updateStateValue('role', role)}
+                  onNavigateTab={(tab) => updateStateValue('currentTab', tab)}
+                  onTriggerToast={handleTriggerToast}
+                />
+              ) : (
+                <HomeView
+                  netStatus={state.netStatus}
+                  role={state.role}
+                  onRoleChange={(role) => updateStateValue('role', role)}
+                  onNavigateTab={(tab) => updateStateValue('currentTab', tab)}
+                  onTriggerToast={handleTriggerToast}
+                  localIp={state.localVirtualIp}
+                />
+              )
             )}
 
             {state.currentTab === 'solutions' && (

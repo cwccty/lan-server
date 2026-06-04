@@ -126,7 +126,6 @@ try {
   $requiredProductPatcherNames = @(
     "ReferenceProductRuntimeBridgeController",
     "ReferenceProductHeaderPatcher",
-    "ReferenceProductHomePatcher",
     "ReferenceProductDiagnosticsPatcher",
     "ReferenceProductActionPatcher",
     "ReferenceProductActionResultPatcher",
@@ -145,6 +144,13 @@ try {
     Pass-Check "legacy shell is not release entry"
   } else {
     Fail-Check "legacy shell is not release entry" "src/main.tsx must use src/reference-ui/App and must not import deprecated src/App.tsx"
+  }
+
+  $appTextForControlledHome = Get-Content "src\reference-ui\App.tsx" -Raw -Encoding UTF8
+  if ((Test-Path "src\product-ui\ProductHomeView.tsx") -and $appTextForControlledHome -match "ProductHomeView" -and $appTextForControlledHome -match "productMode\.enabled" -and $mainTextForProductMode -notmatch "ReferenceProductHomePatcher") {
+    Pass-Check "controlled Home page replaces Home patcher"
+  } else {
+    Fail-Check "controlled Home page replaces Home patcher" "Product Mode home must render src/product-ui/ProductHomeView.tsx and main.tsx must not mount ReferenceProductHomePatcher"
   }
 } catch {
   Fail-Check "release/product-mode guardrails" ([string]$_)
@@ -268,6 +274,11 @@ try {
   } else {
     Pass-Check "reference Tailwind source scan"
   }
+  if ($runtimeCssText -notmatch '@source\s+"\.\/product-ui\/\*\*\/\*\.\{ts,tsx\}"') {
+    Fail-Check "product Tailwind source scan" "src/reference-runtime.css must include @source for src/product-ui"
+  } else {
+    Pass-Check "product Tailwind source scan"
+  }
 } catch {
   Fail-Check "reference runtime style guardrail" ([string]$_)
 }
@@ -334,5 +345,7 @@ if ($failed.Count -gt 0) {
 }
 
 Write-Host "`nPASS: release preflight checks completed." -ForegroundColor Green
+
+
 
 

@@ -23,6 +23,13 @@ $files = @(
   'types.ts'
 )
 
+# 已开始从 Product Mode patcher 迁移到正式 React 受控页面。
+# App.tsx 需要在 Product Mode 下挂载受控页面，因此不再要求与参考稿逐字一致；
+# 其他 reference-ui 页面仍保持一比一，避免视觉壳漂移。
+$controlledMigrationFiles = @(
+  'App.tsx'
+)
+
 if (-not (Test-Path -LiteralPath $ReferenceSrc)) {
   Write-Error "参考前端目录不存在：$ReferenceSrc"
 }
@@ -32,6 +39,10 @@ if (-not (Test-Path -LiteralPath $CurrentSrc)) {
 
 $diffs = @()
 foreach ($file in $files) {
+  if ($controlledMigrationFiles -contains $file) {
+    continue
+  }
+
   $referenceFile = Join-Path $ReferenceSrc $file
   $currentFile = Join-Path $CurrentSrc $file
 

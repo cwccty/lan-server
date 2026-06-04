@@ -1,3 +1,5 @@
 ﻿@source "./reference-ui/**/*.{ts,tsx}";
 @source "./reference-adapter/**/*.{ts,tsx}";
+@source "./product-ui/**/*.{ts,tsx}";
 @import "./reference-ui/index.css";
+
