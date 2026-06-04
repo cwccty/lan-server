@@ -316,6 +316,20 @@ try {
     Fail-Check "invite one-click join flow is wired" "Network page must support fill-only, save-and-start n2n, join result cards, failure classification, and copy-error-to-host"
   }
 
+  if ($recommendationProductText -match "房主开房向导" -and
+      $recommendationProductText -match "hostSteps" -and
+      $recommendationProductText -match "startHostNetwork" -and
+      $recommendationProductText -match "launchHostEntity" -and
+      $recommendationProductText -match "testHostGamePort" -and
+      $recommendationProductText -match "ensureFriendSlot" -and
+      $recommendationProductText -match "copyHostInvite" -and
+      $recommendationProductText -match "startReferenceN2n" -and
+      $recommendationProductText -match "startGameServerSession") {
+    Pass-Check "host room wizard flow is wired"
+  } else {
+    Fail-Check "host room wizard flow is wired" "Recommendation page must expose a host wizard with game selection, n2n start, server/game launch, port test, friend allocation, and invite copy"
+  }
+
   if ($errorActionsText -match "classifyDiagnosticIssue" -and
       $errorActionsText -match "goto-network" -and
       $errorActionsText -match "copy-supernode-check" -and

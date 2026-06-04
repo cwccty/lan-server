@@ -2979,3 +2979,23 @@ pm.cmd run build 通过。
 pm.cmd run release:preflight 通过，新增一键加入守卫 PASS。
 
 下一步推荐：继续做第 2 大块“房主开房向导闭环”，把房主侧也从手动跳页升级为步骤条：选择游戏 -> 启动组网 -> 启动服务端/游戏 -> 分配好友 IP -> 生成邀请包。
+
+## 2026-06-05 02:13:55 - 房主开房向导闭环 v1
+- 推荐方案页新增“房主开房向导”步骤条，覆盖：选择游戏 -> 启动组网 -> 启动服务端/游戏 -> 分配好友 IP -> 生成邀请包。
+- 每一步根据真实状态显示 done/active/pending/warning，并显示当前缺项说明。
+- 步骤条顶部提供主操作按钮，自动执行当前第一个未完成步骤。
+- 启动组网步骤接入真实 startReferenceN2n(n2nConfig)，成功后刷新 runtime 和推荐页数据。
+- 启动服务端/游戏步骤：需要专用服务端的游戏调用 startGameServerSession(gameId, 'server', { port })；其他游戏调用推荐启动项 launchProfile。
+- 新增房主端口检测：使用 	estConnectivity({ host: '127.0.0.1', mode: 'local_game_port' }) 检测本机游戏端口是否监听，并在向导摘要中显示结果。
+- 分配好友 IP 步骤复用好友席位后端优先 API，若没有已选好友则自动创建/选择默认好友席位。
+- 生成邀请包步骤复用当前真实邀请包生成器，支持一键复制给好友。
+- 	ools/release_preflight.ps1 新增 host room wizard flow is wired 守卫，防止房主向导退回成静态说明。
+
+验证：
+- 
+pm.cmd run build 通过。
+- cargo check --manifest-path src-tauri\\Cargo.toml 通过。
+- 
+pm.cmd run release:preflight 通过，新增房主向导守卫 PASS。
+
+下一步推荐：继续第 3 大块“游戏适配器与共享方案库增强”，先做适配器能力分类与转换方法字段的前端展示/筛选，让游戏可以自动匹配联机方案。

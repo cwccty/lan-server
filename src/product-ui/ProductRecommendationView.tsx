@@ -8,6 +8,8 @@ import {
   RefreshCw,
   Send,
   Server,
+  Settings,
+  ShieldCheck,
   Trash2,
   UserPlus,
   Users,
@@ -19,6 +21,7 @@ import {
   readServerSession,
   recommendPlans,
   scanGames,
+  startGameServerSession,
   testConnectivity
 } from '../api/tauri';
 import type { GameSummary } from '../types/game';
@@ -34,7 +37,7 @@ import {
   type ReferenceFriendAllocation
 } from '../reference-adapter/friendAllocations';
 import { getReferenceSelectedGame, setReferenceSelectedGame, type ReferenceSelectedGame } from '../reference-adapter/selectedGame';
-import { refreshReferenceRuntime } from '../reference-adapter/actions';
+import { refreshReferenceRuntime, startReferenceN2n } from '../reference-adapter/actions';
 import { buildLanInvitePacket } from './invitePacket';
 import { productStatusDotClasses, productStatusToneClasses, resolveProductStatusCenter } from './statusCenter';
 import { useReferenceRuntime } from '../reference-adapter/useReferenceRuntime';
@@ -52,6 +55,29 @@ function defaultPort(game: GameSummary | null) {
   return game?.connection_plan?.default_join_port ?? 7777;
 }
 
+function requiresDedicatedServer(game: GameSummary | null) {
+  return Boolean(game?.connection_plan?.requires_dedicated_server || game?.capabilities?.includes('dedicated_server'));
+}
+
+type HostStepState = 'done' | 'active' | 'pending' | 'warning';
+
+interface HostWizardStep {
+  id: string;
+  title: string;
+  detail: string;
+  state: HostStepState;
+  actionLabel: string;
+  action: () => void | Promise<void>;
+  disabled?: boolean;
+}
+
+function stepTone(state: HostStepState) {
+  if (state === 'done') return 'border-emerald-100 bg-emerald-50 text-emerald-700';
+  if (state === 'active') return 'border-amber-100 bg-amber-50 text-amber-700';
+  if (state === 'warning') return 'border-rose-100 bg-rose-50 text-rose-700';
+  return 'border-slate-100 bg-slate-50 text-slate-500';
+}
+
 export function ProductRecommendationView({ onTriggerToast, onNavigateTab }: ProductRecommendationViewProps) {
   const runtime = useReferenceRuntime();
   const [games, setGames] = useState<GameSummary[]>([]);
@@ -65,6 +91,7 @@ export function ProductRecommendationView({ onTriggerToast, onNavigateTab }: Pro
   const [port, setPort] = useState('7777');
   const [busy, setBusy] = useState('');
   const [lastCheck, setLastCheck] = useState('');
+  const [hostPortCheck, setHostPortCheck] = useState('');
 
   const currentGame = useMemo(() => {
     if (selectedGame) return games.find((game) => game.game_id === selectedGame.game_id) ?? null;
@@ -78,7 +105,7 @@ export function ProductRecommendationView({ onTriggerToast, onNavigateTab }: Pro
     errors: runtime.errors,
     n2nConfig,
     server,
-    requiresServer: Boolean(currentGame?.connection_plan?.requires_dedicated_server || currentGame?.capabilities?.includes('dedicated_server')),
+    requiresServer: requiresDedicatedServer(currentGame),
     hasFriendSlot: Boolean(selectedFriend),
     busy
   });
@@ -219,6 +246,157 @@ export function ProductRecommendationView({ onTriggerToast, onNavigateTab }: Pro
     }
   };
 
+  const startHostNetwork = async () => {
+    if (!n2nConfig?.room_name || !n2nConfig?.secret || !n2nConfig?.supernode) {
+      onTriggerToast('请先在通用组网中心保存房间名、密钥和 Supernode。');
+      onNavigateTab('network');
+      return;
+    }
+    setBusy('启动房主组网');
+    try {
+      const result = await startReferenceN2n(n2nConfig);
+      if (!result.ok) throw new Error(result.message);
+      await refreshReferenceRuntime(false);
+      await load('刷新房主向导');
+      onTriggerToast('房主组网已启动，等待 ACK/PONG 后即可继续。');
+    } catch (error) {
+      onTriggerToast(`启动组网失败：${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const testHostGamePort = async () => {
+    setBusy('检测房主端口');
+    try {
+      const targetPort = Number(port) || defaultPort(currentGame);
+      const report = await testConnectivity({ host: '127.0.0.1', ports: [targetPort], timeout_ms: 1200, mode: 'local_game_port' });
+      const summary = `本机 127.0.0.1:${targetPort} ${report.reachable ? '已监听' : '未监听'}${report.notes.length ? `｜${report.notes.join('；')}` : ''}`;
+      setHostPortCheck(summary);
+      onTriggerToast(`房主端口检测完成：${summary}`);
+      return report.reachable;
+    } catch (error) {
+      const message = `检测失败：${error instanceof Error ? error.message : String(error)}`;
+      setHostPortCheck(message);
+      onTriggerToast(message);
+      return false;
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const launchHostEntity = async () => {
+    const gameId = currentGame?.game_id || selectedGame?.game_id;
+    if (!gameId) {
+      onTriggerToast('请先选择要开房的游戏。');
+      return;
+    }
+    const targetPort = Number(port) || defaultPort(currentGame);
+    setBusy(requiresDedicatedServer(currentGame) ? '启动房主服务端' : '启动房主游戏');
+    try {
+      if (requiresDedicatedServer(currentGame)) {
+        const nextServer = await startGameServerSession(gameId, 'server', { port: targetPort });
+        setServer(nextServer);
+        onTriggerToast(nextServer.running ? '房主服务端已启动。' : `服务端启动返回：${nextServer.message}`);
+      } else {
+        const preferred = recommendations.find((item) => item.level === 'recommended' && item.launch_profile_id)
+          ?? recommendations.find((item) => item.launch_profile_id);
+        const result = await launchProfile(gameId, preferred?.launch_profile_id || 'client', { port: targetPort });
+        onTriggerToast(result.ok ? result.message : `启动失败：${result.message}`);
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, 1200));
+      await testHostGamePort();
+      await load('刷新房主向导');
+    } catch (error) {
+      onTriggerToast(`启动失败：${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const ensureFriendSlot = async () => {
+    if (selectedFriend) {
+      onTriggerToast(`已选择好友席位：${selectedFriend.name} (${selectedFriend.ip})`);
+      return;
+    }
+    setBusy('分配好友席位');
+    try {
+      const friend = await upsertReferenceFriendAllocationBackendFirst(friendName || '好友1', friendIp || '10.0.8.2');
+      await selectReferenceFriendAllocationBackendFirst(friend.name, friend.ip);
+      setFriends(await listReferenceFriendAllocationsBackendFirst());
+      onTriggerToast(`已分配并选择好友席位：${friend.name} (${friend.ip})`);
+    } catch (error) {
+      onTriggerToast(`分配好友席位失败：${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const copyHostInvite = async () => {
+    if (!selectedFriend) {
+      await ensureFriendSlot();
+      return;
+    }
+    await copyInvite();
+  };
+
+  const hostSteps: HostWizardStep[] = [
+    {
+      id: 'select-game',
+      title: '选择游戏',
+      detail: currentGame ? `当前开房目标：${currentGame.display_name}` : '先扫描或选择要开房的游戏。',
+      state: currentGame ? 'done' : 'active',
+      actionLabel: currentGame ? '切换游戏' : '去扫描游戏',
+      action: () => onNavigateTab('games')
+    },
+    {
+      id: 'network',
+      title: '启动组网',
+      detail: runtime.network.ready ? `n2n 已连接：${runtime.network.virtualIp || n2nConfig?.local_ip || '已读取虚拟 IP'}` : status.detail,
+      state: runtime.network.ready ? 'done' : runtime.network.running ? 'active' : n2nConfig?.supernode ? 'active' : 'warning',
+      actionLabel: runtime.network.ready ? '刷新状态' : n2nConfig?.supernode ? '启动 n2n' : '配置组网',
+      action: runtime.network.ready ? () => load('刷新房主向导') : n2nConfig?.supernode ? startHostNetwork : () => onNavigateTab('network'),
+      disabled: Boolean(busy)
+    },
+    {
+      id: 'host-entity',
+      title: requiresDedicatedServer(currentGame) ? '启动服务端' : '启动游戏',
+      detail: requiresDedicatedServer(currentGame)
+        ? (server?.running ? `服务端运行中：${server.message || '已启动'}` : '当前游戏需要专用服务端，启动后再复制邀请。')
+        : (hostPortCheck || '启动游戏后检测本机端口，确认好友可连接的目标端口。'),
+      state: requiresDedicatedServer(currentGame)
+        ? (server?.running ? 'done' : runtime.network.ready ? 'active' : 'pending')
+        : (hostPortCheck.includes('已监听') ? 'done' : runtime.network.ready ? 'active' : 'pending'),
+      actionLabel: requiresDedicatedServer(currentGame)
+        ? (server?.running ? '检测端口' : '启动服务端')
+        : (hostPortCheck.includes('已监听') ? '重新检测端口' : '启动并检测'),
+      action: requiresDedicatedServer(currentGame) && server?.running ? testHostGamePort : launchHostEntity,
+      disabled: Boolean(busy) || !currentGame
+    },
+    {
+      id: 'friend',
+      title: '分配好友 IP',
+      detail: selectedFriend ? `当前邀请对象：${selectedFriend.name} (${selectedFriend.ip})` : '给好友预留一个虚拟 IP，避免多人冲突。',
+      state: selectedFriend ? 'done' : runtime.network.ready ? 'active' : 'pending',
+      actionLabel: selectedFriend ? '更换好友' : '分配好友 IP',
+      action: selectedFriend ? () => onTriggerToast('可在右侧好友 IP 分配区域选择或回收好友席位。') : ensureFriendSlot,
+      disabled: Boolean(busy)
+    },
+    {
+      id: 'invite',
+      title: '生成邀请包',
+      detail: selectedFriend && n2nConfig?.supernode
+        ? '邀请包已根据当前游戏、组网参数和好友席位自动生成。'
+        : '完成组网和好友 IP 分配后即可复制邀请包。',
+      state: selectedFriend && n2nConfig?.supernode ? 'done' : 'pending',
+      actionLabel: '复制邀请包',
+      action: copyHostInvite,
+      disabled: Boolean(busy) || !n2nConfig?.supernode
+    }
+  ];
+
+  const firstPendingHostStep = hostSteps.find((step) => step.state !== 'done');
+
   return (
     <div className="space-y-6" data-lan-helper-product-controlled="recommendation">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -248,6 +426,63 @@ export function ProductRecommendationView({ onTriggerToast, onNavigateTab }: Pro
           >
             {status.nextAction}
           </button>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h3 className="flex items-center gap-2 text-base font-bold text-slate-800">
+              <ShieldCheck className="h-5 w-5 text-amber-600" />
+              房主开房向导
+            </h3>
+            <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">
+              按顺序完成选择游戏、启动组网、启动服务端或游戏、分配好友 IP、复制邀请包。当前缺什么就点对应按钮处理。
+            </p>
+          </div>
+          <button
+            onClick={() => firstPendingHostStep?.action()}
+            disabled={Boolean(busy) || !firstPendingHostStep}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-50"
+          >
+            <Settings className="h-4 w-4" />
+            {busy || firstPendingHostStep?.actionLabel || '开房准备完成'}
+          </button>
+        </div>
+
+        <div className="grid gap-3 xl:grid-cols-5">
+          {hostSteps.map((step, index) => (
+            <article key={step.id} className={`rounded-2xl border p-4 ${stepTone(step.state)}`}>
+              <div className="mb-3 flex items-start justify-between gap-2">
+                <span className="rounded-full bg-white/70 px-2 py-0.5 font-mono text-[10px] font-bold">{index + 1}</span>
+                {step.state === 'done' ? <CheckCircle2 className="h-4 w-4" /> : <span className={`mt-1 h-2 w-2 rounded-full ${step.state === 'active' ? 'bg-amber-500' : step.state === 'warning' ? 'bg-rose-500' : 'bg-slate-300'}`} />}
+              </div>
+              <h4 className="text-sm font-bold">{step.title}</h4>
+              <p className="mt-2 min-h-12 text-xs leading-relaxed opacity-90">{step.detail}</p>
+              <button
+                onClick={() => step.action()}
+                disabled={Boolean(busy) || step.disabled}
+                className="mt-3 w-full rounded-xl bg-white/80 px-3 py-2 text-xs font-bold text-slate-700 ring-1 ring-black/5 hover:bg-white disabled:opacity-50"
+              >
+                {step.actionLabel}
+              </button>
+            </article>
+          ))}
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <div className="rounded-xl bg-slate-50 p-3 text-xs leading-relaxed text-slate-600">
+            <span className="font-bold text-slate-800">n2n 自动检测：</span>
+            {runtime.network.ready ? 'ACK/PONG 已通过。' : runtime.network.running ? 'edge 正在运行，等待 ACK/PONG。' : '尚未启动。'}
+          </div>
+          <div className="rounded-xl bg-slate-50 p-3 text-xs leading-relaxed text-slate-600">
+            <span className="font-bold text-slate-800">游戏端口：</span>
+            {hostPortCheck || `等待检测 ${Number(port) || defaultPort(currentGame)} 端口。`}
+          </div>
+          <div className="rounded-xl bg-slate-50 p-3 text-xs leading-relaxed text-slate-600">
+            <span className="font-bold text-slate-800">邀请包：</span>
+            {selectedFriend ? `已绑定 ${selectedFriend.name}，可复制给好友。` : '尚未分配好友 IP。'}
+          </div>
         </div>
       </section>
 
