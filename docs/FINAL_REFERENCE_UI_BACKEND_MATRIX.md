@@ -77,7 +77,7 @@
 | 导入方案 | `importGameAdapterJson(content)` | 已真实接入 | Product Mode 打开文件选择，读取 JSON 后导入真实 adapter。 |
 | 导出备份 | `exportGameAdapterJson(gameId)` | 已真实接入 | 优先导出最近选中游戏，否则导出本地方案列表第一项，并下载 JSON 文件。 |
 | 一键发布登记至共享适配器库 | `saveGameAdapter(adapter)` | 已真实接入 | 根据编辑器字段生成基础 custom adapter。 |
-| 同步详情面板 | `AdapterRegistrySyncResult` | Product Mode 面板补偿 | 真实结果通过 action toast/runtime snapshot；正式 UI 应展示每个 item 的失败原因。 |
+| 同步详情面板 | `AdapterRegistrySyncResult` | 已真实接入 | Product Mode 会持久保存最近一次同步结果，并展示 `created/updated/skipped/hash_failed/parse_failed/fetch_failed/validation_failed/write_failed` 与每个 item 的 `game_id/status/reason/saved_path/hash`。 |
 
 ## 7. 高级连接工具
 
@@ -118,3 +118,5 @@
 3. **好友席位后端化**：Product Mode 已用 localStorage 持久化好友席位；如果未来要做多人房间/云同步，仍需后端房间 API。
 4. **edge 自动下载**：edge 路径已能深度检测；自动下载/修复 edge.exe 仍属于未来功能。
 5. **Palworld 专用服深度启动**：Palworld adapter 已提供专用服/IP 直连方案；后续仍可做 SteamCMD 安装、配置文件编辑和服务端日志解析。
+6. **方案库手动强制刷新语义**：同步详情已真实展示；但参考 UI 中“手动强制刷新”按钮是否等同“一键更新共享方案”仍需产品语义确认。
+

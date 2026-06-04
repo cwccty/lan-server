@@ -9,6 +9,11 @@ import {
   subscribeReferenceFriendAllocations,
   type ReferenceFriendAllocation
 } from './friendAllocations';
+import {
+  getReferenceAdapterSyncResult,
+  subscribeReferenceAdapterSyncResult,
+  type ReferenceAdapterSyncRecord
+} from './adapterSyncResult';
 import { getReferenceSelectedGame, subscribeReferenceSelectedGame, type ReferenceSelectedGame } from './selectedGame';
 import { useReferenceProductMode } from './useReferenceProductMode';
 
@@ -27,6 +32,7 @@ interface InventoryState {
   server: ServerSessionStatus | null;
   selectedGame: ReferenceSelectedGame | null;
   friends: ReferenceFriendAllocation[];
+  adapterSync: ReferenceAdapterSyncRecord | null;
   error: string;
 }
 
@@ -41,6 +47,7 @@ function emptyState(): InventoryState {
     server: null,
     selectedGame: null,
     friends: [],
+    adapterSync: null,
     error: ''
   };
 }
@@ -83,6 +90,15 @@ function badge(text: string, tone = 'slate') {
     blue: 'bg-indigo-50 text-indigo-700 border-indigo-200'
   };
   return `<span class="rounded-full border px-2 py-0.5 text-[10px] font-bold ${palette[tone] ?? palette.slate}">${escapeHtml(text)}</span>`;
+}
+
+function numberTile(label: string, value: number, tone = 'slate') {
+  return `
+    <div class="rounded-xl border border-slate-100 bg-white/80 p-2">
+      <div class="text-[10px] font-bold text-slate-400">${escapeHtml(label)}</div>
+      <div class="mt-1 font-heading text-lg font-bold ${tone === 'red' ? 'text-rose-600' : tone === 'green' ? 'text-emerald-600' : 'text-slate-800'}">${value}</div>
+    </div>
+  `;
 }
 
 function restoreInventoryPanels() {
@@ -156,14 +172,81 @@ function renderSolutions(state: InventoryState) {
     </tr>
   `);
 
+  const sync = state.adapterSync;
+  const syncResult = sync?.result;
+  const syncItems = syncResult?.items ?? [];
+  const syncFailureCount = syncResult
+    ? syncResult.hash_failed + syncResult.parse_failed + syncResult.fetch_failed + syncResult.validation_failed + syncResult.write_failed
+    : 0;
+  const syncRows = syncItems.map((item) => {
+    const hasHashMismatch = item.expected_sha256 && item.actual_sha256 && item.expected_sha256 !== item.actual_sha256;
+    return `
+      <tr class="border-b border-slate-100 last:border-0">
+        <td class="px-3 py-2">
+          <div class="font-bold text-slate-800">${escapeHtml(item.display_name || item.game_id)}</div>
+          <div class="font-mono text-[10px] text-slate-400">${escapeHtml(item.game_id)}</div>
+        </td>
+        <td class="px-3 py-2">${badge(item.status, item.status === 'created' || item.status === 'updated' || item.status === 'skipped' ? 'green' : 'red')}</td>
+        <td class="px-3 py-2 text-[11px] text-slate-600">${escapeHtml(item.reason || '无说明')}</td>
+        <td class="px-3 py-2">
+          <div class="max-w-[240px] truncate font-mono text-[10px] text-slate-400">${escapeHtml(item.saved_path || item.adapter_url || '未写入')}</div>
+          ${hasHashMismatch ? `<div class="mt-1 font-mono text-[10px] text-rose-600">sha256: ${escapeHtml(item.actual_sha256 || '')} ≠ ${escapeHtml(item.expected_sha256 || '')}</div>` : ''}
+        </td>
+      </tr>
+    `;
+  });
+  const syncPanel = syncResult ? `
+    <div class="mb-4 rounded-xl border border-slate-100 bg-white/75 p-3">
+      <div class="mb-3 flex items-start justify-between gap-3">
+        <div>
+          <div class="font-heading text-sm font-bold text-slate-800">最近一次真实同步详情</div>
+          <div class="mt-1 text-[11px] text-slate-500">
+            来源：${sync.source === 'local' ? '本地示例目录' : '远程方案库'} · ${escapeHtml(new Date(sync.saved_at).toLocaleString())}
+          </div>
+          <div class="mt-1 max-w-full truncate font-mono text-[10px] text-slate-400">${escapeHtml(syncResult.registry_url || '未返回 registry_url')}</div>
+        </div>
+        ${badge(syncResult.ok ? '同步通过' : '同步有异常', syncResult.ok ? 'green' : 'red')}
+      </div>
+      <div class="mb-3 grid grid-cols-2 gap-2 md:grid-cols-5">
+        ${numberTile('总条目', syncResult.total, 'slate')}
+        ${numberTile('新增', syncResult.created, 'green')}
+        ${numberTile('更新', syncResult.updated, 'green')}
+        ${numberTile('跳过', syncResult.skipped, 'slate')}
+        ${numberTile('失败', syncFailureCount, syncFailureCount ? 'red' : 'green')}
+      </div>
+      <div class="mb-3 grid grid-cols-2 gap-2 md:grid-cols-5">
+        ${numberTile('Hash 失败', syncResult.hash_failed, syncResult.hash_failed ? 'red' : 'slate')}
+        ${numberTile('解析失败', syncResult.parse_failed, syncResult.parse_failed ? 'red' : 'slate')}
+        ${numberTile('下载失败', syncResult.fetch_failed, syncResult.fetch_failed ? 'red' : 'slate')}
+        ${numberTile('校验失败', syncResult.validation_failed, syncResult.validation_failed ? 'red' : 'slate')}
+        ${numberTile('写入失败', syncResult.write_failed, syncResult.write_failed ? 'red' : 'slate')}
+      </div>
+      ${
+        syncRows.length
+          ? `<div class="overflow-hidden rounded-xl border border-slate-100 bg-white"><table class="w-full text-left text-xs"><thead class="bg-slate-50 text-[10px] text-slate-400"><tr><th class="px-3 py-2">游戏</th><th class="px-3 py-2">状态</th><th class="px-3 py-2">原因</th><th class="px-3 py-2">路径 / Hash</th></tr></thead><tbody>${syncRows.join('')}</tbody></table></div>`
+          : '<div class="rounded-xl border border-dashed border-slate-200 bg-white/70 p-3 text-[11px] text-slate-500">本次同步没有返回 item 明细。</div>'
+      }
+      ${
+        syncResult.messages?.length
+          ? `<div class="mt-3 rounded-xl bg-slate-50 p-3 text-[11px] text-slate-500">${syncResult.messages.slice(0, 5).map((item) => `<div>${escapeHtml(item)}</div>`).join('')}</div>`
+          : ''
+      }
+    </div>
+  ` : `
+    <div class="mb-4 rounded-xl border border-dashed border-amber-200 bg-white/70 p-3 text-[11px] text-slate-500">
+      尚未记录真实同步详情。点击“恢复默认”或“一键更新共享方案”后，这里会展示每个 adapter 的 created/updated/skipped/失败原因。
+    </div>
+  `;
+
   return `
     <div class="mb-4 flex items-center justify-between gap-3">
       <div>
         <div class="font-heading text-sm font-bold text-slate-800">真实本地共享方案</div>
-        <div class="mt-1 text-[11px] text-slate-500">来自 list_game_adapters，远程同步结果会通过按钮动作单独回填。</div>
+        <div class="mt-1 text-[11px] text-slate-500">来自 list_game_adapters；最近一次同步明细来自 sync_adapter_registry / sync_local_adapter_registry_example。</div>
       </div>
       ${badge(`${state.adapters.length} 个真实方案`, 'amber')}
     </div>
+    ${syncPanel}
     ${
       state.adapters.length === 0
         ? '<div class="rounded-xl border border-dashed border-amber-200 bg-white/70 p-3 text-[11px] text-slate-500">本地暂无可用共享方案。请同步共享方案库或导入 JSON。</div>'
@@ -270,6 +353,7 @@ async function loadInventory(page: PageKind): Promise<InventoryState> {
   ]);
   const selectedGame = getReferenceSelectedGame();
   const friends = listReferenceFriendAllocations();
+  const adapterSync = getReferenceAdapterSyncResult();
   const targetGameId = selectedGame?.game_id || games[0]?.game_id || adapters[0]?.game_id || 'terraria';
   const recommendations = page === 'recommendation'
     ? await collect('读取推荐方案', () => recommendPlans(targetGameId), [])
@@ -285,6 +369,7 @@ async function loadInventory(page: PageKind): Promise<InventoryState> {
     server,
     selectedGame,
     friends,
+    adapterSync,
     error: disconnected
       ? '当前页面没有连接到 Tauri 后端。请用打包后的 lan-helper.exe 打开，普通浏览器预览只能验证界面，不能读取真实扫描/方案/推荐数据。'
       : errors.slice(0, 3).join('；')
@@ -298,6 +383,7 @@ export function ReferenceProductInventoryPatcher() {
   const [loadedKey, setLoadedKey] = useState('');
   const [selectedGameKey, setSelectedGameKey] = useState(() => getReferenceSelectedGame()?.game_id ?? '');
   const [friendsKey, setFriendsKey] = useState(() => String(listReferenceFriendAllocations().length));
+  const [adapterSyncKey, setAdapterSyncKey] = useState(() => getReferenceAdapterSyncResult()?.saved_at ?? '');
 
   useEffect(() => {
     const tick = () => setPage(detectPage());
@@ -324,6 +410,14 @@ export function ReferenceProductInventoryPatcher() {
   }, []);
 
   useEffect(() => {
+    return subscribeReferenceAdapterSyncResult((record) => {
+      setAdapterSyncKey(record?.saved_at ?? '');
+      setLoadedKey('');
+      setState((prev) => ({ ...prev, adapterSync: record }));
+    });
+  }, []);
+
+  useEffect(() => {
     if (!productMode.enabled || !page) {
       restoreInventoryPanels();
       return;
@@ -342,7 +436,7 @@ export function ReferenceProductInventoryPatcher() {
     panel.innerHTML = renderPanel(page, state);
     insertHint(root, page);
 
-    const key = `${page}:${productMode.updated_at}:${selectedGameKey}:${friendsKey}`;
+    const key = `${page}:${productMode.updated_at}:${selectedGameKey}:${friendsKey}:${adapterSyncKey}`;
     if (loadedKey === key || state.loading) return;
     setLoadedKey(key);
     setState((prev) => ({ ...prev, loading: true, error: '' }));
@@ -355,7 +449,7 @@ export function ReferenceProductInventoryPatcher() {
           error: error instanceof Error ? error.message : String(error || '读取真实后端数据失败')
         })
       );
-  }, [productMode.enabled, productMode.updated_at, page, state, loadedKey, selectedGameKey, friendsKey]);
+  }, [productMode.enabled, productMode.updated_at, page, state, loadedKey, selectedGameKey, friendsKey, adapterSyncKey]);
 
   return null;
 }

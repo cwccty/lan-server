@@ -2736,3 +2736,10 @@ pm.cmd run release:preflight。
 - 审计结论：当前不能标记总目标完成；一比一复刻已由 fidelity checker 证明通过，主要后端能力已接入，但仍有 Product Mode 面板补偿和正式受控 UI 缺口。
 - 当前最优先剩余项：方案库真实同步详情面板、高级工具真实实例列表受控化、诊断目标选择器、方案库手动刷新语义整理。
 - 明确不调用目标完成：因为“完全完成”仍缺正式受控 UI 证据，不能仅凭 Product Mode 补偿判定全部完成。
+
+## 2026-06-04 方案库真实同步详情面板
+
+- 新增 `src/reference-adapter/adapterSyncResult.ts`：用 localStorage `lan-helper.referenceAdapterSyncResult` 保存最近一次同步结果，并通过 `lan-helper:reference-adapter-sync-result-changed` 通知页面刷新。
+- Product Mode 下“恢复默认”和“一键更新共享方案”成功后，会保存真实 `AdapterRegistrySyncResult`，不再只依赖 toast/runtime snapshot。
+- 方案库真实面板现在展示同步来源、时间、registry_url、总数、新增、更新、跳过、Hash/解析/下载/校验/写入失败计数，并展示每个 item 的 game_id、display_name、status、reason、saved_path 与 hash mismatch。
+- 下一步推荐：做“高级工具真实实例列表受控化”，把 TCP/UDP/广播桥与通用服务端的运行实例进一步从参考演示卡片中分离出来。

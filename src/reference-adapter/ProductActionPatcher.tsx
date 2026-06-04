@@ -36,6 +36,8 @@ import {
   updateReferenceFriendCheck,
   upsertReferenceFriendAllocation
 } from './friendAllocations';
+import type { AdapterRegistrySyncResult } from '../api/tauri';
+import { setReferenceAdapterSyncResult } from './adapterSyncResult';
 import { getReferenceSelectedGame } from './selectedGame';
 import { useReferenceProductMode } from './useReferenceProductMode';
 
@@ -172,6 +174,30 @@ async function exportReferenceAdapterToFile() {
     if (data.content) {
       downloadTextFile(`lan-helper-adapter-${data.game_id || 'game'}.json`, data.content);
     }
+  }
+  return result;
+}
+
+function isAdapterRegistrySyncResult(value: unknown): value is AdapterRegistrySyncResult {
+  if (!value || typeof value !== 'object') return false;
+  const result = value as Partial<AdapterRegistrySyncResult>;
+  return typeof result.ok === 'boolean'
+    && typeof result.total === 'number'
+    && Array.isArray(result.items);
+}
+
+async function syncReferenceAdapterRegistryAndStore() {
+  const result = await syncReferenceAdapterRegistry(readSolutionsRegistryUrl());
+  if (result.ok && isAdapterRegistrySyncResult(result.data)) {
+    setReferenceAdapterSyncResult('remote', result.data);
+  }
+  return result;
+}
+
+async function syncReferenceLocalAdapterRegistryAndStore() {
+  const result = await syncReferenceLocalAdapterRegistry();
+  if (result.ok && isAdapterRegistrySyncResult(result.data)) {
+    setReferenceAdapterSyncResult('local', result.data);
   }
   return result;
 }
@@ -520,8 +546,8 @@ function useAttachProductActions(enabled: boolean) {
         interceptButton(firstButton('手动强制重扫', '网络诊断与链路性能'), 'diagnostics-generate', () => generateReferenceDiagnostics(getReferenceSelectedGame()?.game_id)),
         interceptButton(firstButton('手动重扫以刷新缓存', '游戏扫描'), 'games-scan-local', () => scanReferenceGames()),
         interceptButton(firstButton('强同步 Steam 自适应映射', '游戏扫描'), 'games-scan-steam-cache', () => scanReferenceGames()),
-        interceptButton(firstButton('一键更新共享方案', '方案库'), 'solutions-sync-remote', () => syncReferenceAdapterRegistry(readSolutionsRegistryUrl())),
-        interceptButton(firstButton('恢复默认', '方案库'), 'solutions-read-local-example', () => syncReferenceLocalAdapterRegistry()),
+        interceptButton(firstButton('一键更新共享方案', '方案库'), 'solutions-sync-remote', () => syncReferenceAdapterRegistryAndStore()),
+        interceptButton(firstButton('恢复默认', '方案库'), 'solutions-read-local-example', () => syncReferenceLocalAdapterRegistryAndStore()),
         interceptButton(firstButton('导入方案', '方案库'), 'solutions-import-adapter-json', () => importReferenceAdapterFromFile()),
         interceptButton(firstButton('导出备份', '方案库'), 'solutions-export-adapter-json', () => exportReferenceAdapterToFile()),
         interceptButton(firstButton('重新测试', '推荐方案'), 'recommendation-test-connectivity', () => testReferenceConnectivity({ host: readHostIpFromRecommendationPage(), ports: [readGamePortFromNetworkForm()], timeout_ms: 1200, mode: 'n2n_game_port' })),

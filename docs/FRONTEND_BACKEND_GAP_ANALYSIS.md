@@ -899,3 +899,10 @@ Terraria 向导
 - 支持范围：Palworld Dedicated Server / IP:端口加入，默认 UDP 8211，虚拟局域网连通，必要时 UDP 单播代理。
 - 明确边界：不承诺官方服务器、Steam 好友大厅或平台匹配强制转换成本地 LAN。
 - 仍需未来增强：SteamCMD 安装器、PalWorldSettings.ini 可视化编辑、服务端日志解析、UDP 可达性专用检测。
+
+## 2026-06-04 方案库同步详情缺口更新
+
+- Product Mode 已新增 `src/reference-adapter/adapterSyncResult.ts`，持久保存最近一次远程/本地方案库同步结果。
+- `ProductActionPatcher` 会在“恢复默认”和“一键更新共享方案”成功后写入真实 `AdapterRegistrySyncResult`。
+- `ProductInventoryPatcher` 的方案库面板已展示同步来源、时间、registry_url、成功/失败计数，以及每个 adapter item 的状态、原因、保存路径和 hash mismatch 信息。
+- 剩余缺口从“同步详情不可见”收窄为：正式受控 React UI 尚未替换参考演示列表；“手动强制刷新”按钮语义仍需产品确认。

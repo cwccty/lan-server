@@ -15,7 +15,7 @@
 1. 参考 UI 一比一复刻已有强证据通过。
 2. 真实后端 API 已覆盖主要能力，并且 Product Mode 已把大量按钮接到真实后端。
 3. 但部分页面仍依赖 **Product Mode DOM patcher / 真实面板补偿**，参考前端本体仍保留演示 state 和演示卡片。
-4. 仍有少量正式前端缺口需要保留记录，例如诊断目标选择器、同步详情受控展示、真实实例列表替换等。
+4. 仍有少量正式前端缺口需要保留记录，例如诊断目标选择器、真实实例列表替换、方案库手动刷新语义等。
 
 因此当前应继续推进，而不是调用目标完成。
 
@@ -150,20 +150,18 @@ Terraria
 - 继续保持 `src/reference-ui` 一比一。
 - 在 Product Mode 下进一步用真实数据覆盖更多列表，或准备正式受控 UI 重构方案。
 
-### 缺口 2：方案库同步详情还没有完全受控展示
+### 已关闭：方案库同步详情真实展示
 
 现状：
 
-- `syncAdapterRegistry()` 已返回 `AdapterRegistrySyncResult.items`。
-- Product Mode 可以获得真实结果。
-- 但最终参考 UI 的同步详情表仍未完全绑定真实 item 逐项失败原因。
+- `syncAdapterRegistry()` / `syncLocalAdapterRegistryExample()` 返回的 `AdapterRegistrySyncResult.items` 已在 Product Mode 中持久保存。
+- 方案库真实面板会展示最近一次同步来源、时间、registry_url、created / updated / skipped / hash_failed / parse_failed / fetch_failed / validation_failed / write_failed。
+- 每个 item 会展示 `game_id / display_name / status / reason / saved_path`，如 hash 不一致会展示 expected/actual 摘要。
 
-下一步建议：
+仍需注意：
 
-- 在 Product Mode 中为方案库增加真实同步详情面板。
-- 显示 `created / updated / skipped / hash_failed / parse_failed / fetch_failed / validation_failed / write_failed`。
-- 展示每个 item 的 `game_id / status / reason / saved_path`。
-
+- 这是 Product Mode 面板级真实展示，不代表 `src/reference-ui` 原始演示卡片已被改成受控 React 数据流。
+- “手动强制刷新”按钮的产品语义仍需整理，避免和“一键更新共享方案”重复。
 ### 缺口 3：诊断目标选择器仍不是正式 UI
 
 现状：
@@ -241,12 +239,11 @@ Terraria
 | 设置中心无后端 | App Settings 后端 |
 | edge 路径假自测 | `testEdgePath()` |
 | Palworld 缺 adapter | 新增 Palworld adapter |
+| 方案库同步详情未展示 item | Product Mode 新增真实同步详情面板，展示计数、失败分类和每个 adapter item 明细 |
 
 ## 下一步优先级
 
-1. **方案库真实同步详情面板**：这是最明确、可落地、能继续减少“假 state”误导的缺口。
-2. **高级工具真实实例列表受控化**：减少参考演示实例误导。
-3. **诊断目标选择器**：提高诊断页解释性。
-4. **手动强制刷新语义整理**：避免与“一键更新共享方案”重复。
-5. **多服务端 session / 房间后端 / edge 自动下载**：保留为后续更大功能块。
-
+1. **高级工具真实实例列表受控化**：继续减少参考演示实例误导。
+2. **诊断目标选择器**：提高诊断页解释性。
+3. **方案库手动刷新语义整理**：明确“手动强制刷新”是否复用同步、只刷新本地列表，还是打开同步详情。
+4. **多服务端 session / 房间后端 / edge 自动下载**：保留为后续更大功能块。
