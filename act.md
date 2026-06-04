@@ -3072,3 +3072,11 @@ pm run tauri:build 均通过；EXE 位于 src-tauri/target/release/lan-helper.ex
 pm run build、cargo check、
 pm run release:preflight 通过；打包时先结束占用旧 EXE 的 lan-helper 进程后 
 pm run tauri:build 成功。
+
+## 2026-06-04 23:43:43 - 推荐方案目标卡片排版修复
+- 用户反馈推荐方案页“真实推荐目标”仍然文字竖排混乱。
+- 修复：ProductRecommendationView 中目标卡片不再使用左右响应式 grid；改为标题/说明全宽横向显示、下拉框独立全宽行，避免卡片宽度变化导致文字被挤成竖排。
+- 已验证：
+pm run build、cargo check、
+pm run release:preflight、
+pm run tauri:build 通过。

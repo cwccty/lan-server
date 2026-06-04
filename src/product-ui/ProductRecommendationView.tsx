@@ -241,10 +241,13 @@ export function ProductRecommendationView({ onTriggerToast, onNavigateTab }: Pro
       <section className="grid gap-6 lg:grid-cols-[1fr_380px]">
         <div className="space-y-4">
           <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-            <div className="mb-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(260px,420px)] lg:items-end">
-              <div className="min-w-0">
-                <h3 className="flex items-center gap-2 text-sm font-bold text-slate-800"><Gamepad2 className="h-4 w-4 text-amber-600" />真实推荐目标</h3>
-                <p className="mt-1 max-w-xl text-xs leading-relaxed text-slate-500">来自游戏扫描页的当前选择；也可以在右侧切换。</p>
+            <div className="mb-4 space-y-3">
+              <div className="w-full min-w-0">
+                <h3 className="flex w-full items-center gap-2 whitespace-nowrap text-sm font-bold text-slate-800">
+                  <Gamepad2 className="h-4 w-4 shrink-0 text-amber-600" />
+                  <span>真实推荐目标</span>
+                </h3>
+                <p className="mt-1 block w-full text-xs leading-relaxed text-slate-500">来自游戏扫描页的当前选择；也可以在下方切换。</p>
               </div>
               <select value={currentGame?.game_id || ''} onChange={(event) => chooseGame(event.target.value)} className="w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-amber-400">
                 {games.map((game) => <option key={game.game_id} value={game.game_id}>{game.display_name} ({game.game_id})</option>)}

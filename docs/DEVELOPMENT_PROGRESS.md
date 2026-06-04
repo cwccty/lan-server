@@ -2178,3 +2178,8 @@ pm run tauri:build 通过，已重新生成 src-tauri/target/release/lan-helper.
 - 修复推荐目标布局、通用组网页英文按钮、Room Key 显示、诊断页溢出、下一步动作/发布检查过长、版本号。
 - 已重新打包 src-tauri/target/release/lan-helper.exe。
 - 下一步推荐：重新打开 EXE，重点复测“停止 n2n 是否变未启动”、Room Key 显示按钮、诊断页是否不再横向出格。
+
+## 2026-06-04 23:43:43 - 进度：修复推荐目标竖排问题
+- src/product-ui/ProductRecommendationView.tsx 已将推荐目标区域改为稳定横向排版。
+- 新 EXE 已重新打包。
+- 下一步推荐：打开推荐方案页确认标题、说明、下拉框是否横向正常；如果正常，继续做全页面视觉间距微调。
