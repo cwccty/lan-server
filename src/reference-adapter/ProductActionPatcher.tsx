@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   analyzeReferenceGameByName,
+  exportReferenceAdapterJson,
   generateReferenceDiagnostics,
+  importReferenceAdapterJson,
   launchReferenceProfile,
   readReferenceN2nLastConfig,
   readReferenceTerrariaServer,
@@ -97,6 +99,63 @@ function readSolutionsRegistryUrl() {
   const root = findPageRoot('方案库');
   const input = root?.querySelector('input[type="text"]') as HTMLInputElement | null;
   return input?.value?.trim() || 'http://127.0.0.1:5173/adapter-registry/index.json';
+}
+
+function chooseJsonFile() {
+  return new Promise<string>((resolve, reject) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,application/json';
+    input.style.display = 'none';
+    input.onchange = () => {
+      const file = input.files?.[0];
+      input.remove();
+      if (!file) {
+        reject(new Error('没有选择要导入的 JSON 文件。'));
+        return;
+      }
+      file.text().then(resolve).catch((error) => reject(error instanceof Error ? error : new Error(String(error))));
+    };
+    document.body.appendChild(input);
+    input.click();
+  });
+}
+
+function downloadTextFile(filename: string, content: string) {
+  const blob = new Blob([content], { type: 'application/json;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+async function importReferenceAdapterFromFile() {
+  try {
+    const content = await chooseJsonFile();
+    return importReferenceAdapterJson(content);
+  } catch (error) {
+    return {
+      ok: false,
+      action: '导入共享游戏方案 JSON',
+      message: error instanceof Error ? error.message : String(error || '导入失败')
+    } satisfies ReferenceActionResult;
+  }
+}
+
+async function exportReferenceAdapterToFile() {
+  const selectedGame = getReferenceSelectedGame();
+  const result = await exportReferenceAdapterJson(selectedGame?.game_id);
+  if (result.ok && result.data && typeof result.data === 'object') {
+    const data = result.data as { game_id?: string; content?: string };
+    if (data.content) {
+      downloadTextFile(`lan-helper-adapter-${data.game_id || 'game'}.json`, data.content);
+    }
+  }
+  return result;
 }
 
 function readHostIpFromRecommendationPage() {
@@ -320,6 +379,8 @@ function useAttachProductActions(enabled: boolean) {
         interceptButton(firstButton('强同步 Steam 自适应映射', '游戏扫描'), 'games-scan-steam-cache', () => scanReferenceGames()),
         interceptButton(firstButton('一键更新共享方案', '方案库'), 'solutions-sync-remote', () => syncReferenceAdapterRegistry(readSolutionsRegistryUrl())),
         interceptButton(firstButton('恢复默认', '方案库'), 'solutions-read-local-example', () => syncReferenceLocalAdapterRegistry()),
+        interceptButton(firstButton('导入方案', '方案库'), 'solutions-import-adapter-json', () => importReferenceAdapterFromFile()),
+        interceptButton(firstButton('导出备份', '方案库'), 'solutions-export-adapter-json', () => exportReferenceAdapterToFile()),
         interceptButton(firstButton('重新测试', '推荐方案'), 'recommendation-test-connectivity', () => testReferenceConnectivity({ host: readHostIpFromRecommendationPage(), ports: [readGamePortFromNetworkForm()], timeout_ms: 1200, mode: 'n2n_game_port' })),
         interceptButton(firstButton('复制主IP', '推荐方案'), 'recommendation-read-n2n-config', () => readReferenceN2nLastConfig()),
         interceptButton(firstButton('一键拷制专属密信包', '推荐方案'), 'recommendation-generate-diagnostics', () => generateReferenceDiagnostics()),

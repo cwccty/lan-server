@@ -1,8 +1,11 @@
 ﻿import {
   analyzeGame,
+  exportGameAdapterJson,
   generateDiagnosticReport,
   getN2nLastConfig,
+  importGameAdapterJson,
   launchProfile,
+  listGameAdapters,
   listPortProxies,
   listUdpBroadcastBridges,
   listUdpProxies,
@@ -129,6 +132,28 @@ export function syncReferenceLocalAdapterRegistry() {
 
 export function syncReferenceAdapterRegistry(registryUrl: string) {
   return withSnapshot('同步共享方案库', () => syncAdapterRegistry(registryUrl));
+}
+
+export function importReferenceAdapterJson(content: string) {
+  return withSnapshot('导入共享游戏方案 JSON', () => importGameAdapterJson(content), true);
+}
+
+export function exportReferenceAdapterJson(gameId?: string) {
+  return withSnapshot('导出共享游戏方案 JSON', async () => {
+    const adapters = await listGameAdapters();
+    const target = gameId
+      ? adapters.find((adapter) => adapter.game_id === gameId)
+      : adapters[0];
+    if (!target) {
+      throw new Error('本地没有可导出的共享游戏方案。请先同步方案库或创建自建方案。');
+    }
+    const content = await exportGameAdapterJson(target.game_id);
+    return {
+      game_id: target.game_id,
+      display_name: target.display_name,
+      content
+    };
+  }, true);
 }
 
 export function readReferenceN2nLastConfig() {

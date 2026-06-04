@@ -842,3 +842,17 @@ Terraria 向导
 - Palworld 仍是参考前端演示项，本地 adapter registry 暂无 Palworld adapter；真实启动失败属于合理后端反馈。
 - 方案编辑器目前只能保存基础 adapter 字段，复杂协议、Steam Relay 插件入口、复杂启动参数模板仍需正式 UI。
 - 高级连接工具参考卡片仍不是完全受控真实实例列表，Product Mode 目前通过真实状态面板补偿。
+
+## 2026-06-04 10:51:21 方案库导入导出缺口关闭与矩阵新增
+
+### 本轮关闭
+
+- 方案库“导入方案”不再只是参考 UI Toast；Product Mode 下已通过文件选择读取 JSON，并调用 importGameAdapterJson(content)。
+- 方案库“导出备份”不再只是参考 UI Toast；Product Mode 下已调用 exportGameAdapterJson(gameId) 并下载真实 JSON。
+- 新增 docs/FINAL_REFERENCE_UI_BACKEND_MATRIX.md，作为最终参考前端 (3) 的逐页对接状态表。
+
+### 仍需正式前端补齐
+
+- “手动强制刷新”和“一键更新共享方案”的语义需要重新区分，否则用户会认为两个按钮作用相同。
+- 同步详情应该绑定 AdapterRegistrySyncResult.items，展示每个失败项原因，而不是只靠 Toast。
+- 导入 JSON 后应在正式 UI 中刷新真实方案列表，并高亮刚导入的方案。

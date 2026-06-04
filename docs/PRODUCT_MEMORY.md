@@ -2493,3 +2493,10 @@ pm.cmd run release:preflight。
 - 推荐方案页 Product Mode 下“真实推荐与邀请摘要”优先使用该选中游戏调用 ecommendPlans(game_id)，不再默认取扫描结果第一项。
 - 推荐页“立即启动本地游戏实体”优先使用该选中游戏的 game_id 调用 launchProfile(game_id, profile_id, config)；如果没有选中游戏，才回退到参考前端选择器。
 - 重要原则：最终参考前端 (3) 的视觉源码继续保持一比一；真实能力通过 Product Mode adapter/patcher 层补齐，不伪造成功。
+
+## 2026-06-04 10:51:21 方案库导入导出真实接入与最终前端对接矩阵
+- 新增 docs/FINAL_REFERENCE_UI_BACKEND_MATRIX.md，逐页记录最终参考前端 (3) 的按钮/区域、对应真实 Tauri API、当前 Product Mode 对接状态和剩余缺口。
+- Product Mode 下方案库“导入方案”已接入真实后端：弹出 JSON 文件选择，读取内容后调用 importGameAdapterJson(content)。
+- Product Mode 下方案库“导出备份”已接入真实后端：优先导出最近选中的真实游戏方案，否则导出本地方案列表第一项，调用 exportGameAdapterJson(gameId) 并下载 JSON 文件。
+- src/reference-adapter/actions.ts 新增 importReferenceAdapterJson() 与 exportReferenceAdapterJson()，保持所有结果来自 Tauri 后端。
+- 当前仍需重点推进：好友席位持久化、推荐启动项 profile 智能选择、指定游戏诊断正式入口、设置中心真实 API、高级工具真实实例列表受控化。
