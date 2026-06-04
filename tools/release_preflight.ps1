@@ -179,6 +179,12 @@ try {
   } else {
     Fail-Check "controlled Diagnostics page replaces Diagnostics patcher" "Product Mode diagnostics must render src/product-ui/ProductDiagnosticsView.tsx and main.tsx must not mount ReferenceProductDiagnosticsPatcher"
   }
+
+  if ((Test-Path "src\product-ui\ProductGameScanView.tsx") -and $appTextForControlledHome -match "ProductGameScanView" -and $appTextForControlledHome -match "currentTab === 'games'" -and $appTextForControlledHome -match "productMode\.enabled") {
+    Pass-Check "controlled Game Scan page replaces reference scan demo"
+  } else {
+    Fail-Check "controlled Game Scan page replaces reference scan demo" "Product Mode games must render src/product-ui/ProductGameScanView.tsx instead of relying on GameScanView simulated scan and ProductInventoryPatcher"
+  }
 } catch {
   Fail-Check "release/product-mode guardrails" ([string]$_)
 }

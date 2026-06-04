@@ -3006,3 +3006,33 @@ pm run release:preflight 通过。
 pm run tauri:build 通过，已重新生成 src-tauri/target/release/lan-helper.exe。
 
 下一步推荐：迁移 游戏扫描。该页目前仍依赖 ProductInventoryPatcher 提供真实扫描结果、真实分析和推荐目标选择；迁移后应由正式页面直接调用 scanGames()、nalyzeGame()、ecommendPlans() 并设置 selectedGame。
+
+## 2026-06-04 22:26:35 游戏扫描 Product 页面受控迁移
+
+目标：继续把 Product Mode patcher 逐页迁移为正式 React 受控页面。
+
+本次完成：
+
+- 新增 src/product-ui/ProductGameScanView.tsx。
+- Product Mode 下 games 路由改为直接渲染 ProductGameScanView，参考模式仍保留 GameScanView 用于视觉对照。
+- 新页面不再使用参考页 INITIAL_GAMES、模拟扫描 setTimeout 或固定缓存时间。
+- 新页面直接使用真实后端能力：
+  - scanGames() 执行真实本地游戏扫描。
+  - nalyzeGame(gameId) 执行真实联机能力分析。
+  - ecommendPlans(gameId) 读取真实推荐预览。
+  - setReferenceSelectedGame(game) 设置真实推荐目标，供推荐方案/诊断等页面复用。
+  - efreshReferenceRuntime(false) 扫描后刷新真实 runtime 快照。
+- 页面支持搜索、筛选、设为推荐目标、真实分析、跳转推荐方案。
+- 	ools/release_preflight.ps1 新增并通过 controlled Game Scan page replaces reference scan demo 守卫，防止未来回退到模拟扫描页或依赖 ProductInventoryPatcher 补真实游戏列表。
+
+验证：
+
+- 
+pm run build 通过。
+- cargo check --manifest-path src-tauri/Cargo.toml 通过。
+- 
+pm run release:preflight 通过。
+- 
+pm run tauri:build 通过，已重新生成 src-tauri/target/release/lan-helper.exe。
+
+下一步推荐：迁移 推荐方案。该页目前仍依赖 ProductInventoryPatcher 提供真实推荐摘要、好友席位、邀请包和推荐目标切换；迁移后应由正式页面直接调用 ecommendPlans()、launchProfile()、getN2nLastConfig()、好友席位后端 API 和 	estConnectivity()。

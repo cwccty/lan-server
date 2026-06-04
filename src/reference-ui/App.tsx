@@ -7,6 +7,7 @@ import { ProductHomeView } from '../product-ui/ProductHomeView';
 import { ProductHeader } from '../product-ui/ProductHeader';
 import SolutionsView from './components/SolutionsView';
 import GameScanView from './components/GameScanView';
+import { ProductGameScanView } from '../product-ui/ProductGameScanView';
 import RecommendProtocolView from './components/RecommendProtocolView';
 import UniversalNetworkView from './components/UniversalNetworkView';
 import { ProductNetworkView } from '../product-ui/ProductNetworkView';
@@ -188,10 +189,17 @@ export default function App() {
             )}
 
             {state.currentTab === 'games' && (
-              <GameScanView
-                onTriggerToast={handleTriggerToast}
-                onNavigateTab={(tab) => updateStateValue('currentTab', tab)}
-              />
+              productMode.enabled ? (
+                <ProductGameScanView
+                  onTriggerToast={handleTriggerToast}
+                  onNavigateTab={(tab) => updateStateValue('currentTab', tab)}
+                />
+              ) : (
+                <GameScanView
+                  onTriggerToast={handleTriggerToast}
+                  onNavigateTab={(tab) => updateStateValue('currentTab', tab)}
+                />
+              )
             )}
 
             {state.currentTab === 'protocol' && (
