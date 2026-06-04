@@ -253,7 +253,7 @@ export function ProductSolutionsView({
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h2 className="font-heading text-2xl font-bold text-slate-800">方案库</h2>
-          <p className="mt-1 text-sm text-slate-500">正式 Product 页面：同步、导入、导出、保存都直接写入真实 adapter 后端。</p>
+          <p className="mt-1 text-sm text-slate-500">同步共享适配器，或保存你确认过的游戏联机方案。</p>
           <p className="mt-1 font-mono text-[11px] text-slate-400">当前真实适配器：{adapters.length} 个 ｜ {busy || '空闲'}</p>
         </div>
         <div className="flex flex-wrap gap-2">

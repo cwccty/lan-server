@@ -215,11 +215,13 @@ pub fn start() -> BackendRuntimeStatus {
 pub fn stop() -> BackendRuntimeStatus {
     let pid = read_recorded_pid();
     let Some(pid) = pid else {
+        stop_orphan_edge_processes();
+        append_edge_log("[manager] n2n stop requested, no recorded pid; orphan cleanup attempted");
         return BackendRuntimeStatus {
             backend_id: "n2n".to_string(),
             running: false,
             virtual_ip: find_n2n_virtual_ip(),
-            message: "没有记录到 n2n edge PID。".to_string(),
+            message: "没有记录到 n2n edge PID，已尝试清理残留 edge/n2n 进程。".to_string(),
         };
     };
 
@@ -228,6 +230,7 @@ pub fn stop() -> BackendRuntimeStatus {
     let output = hide_console_window(&mut command).output();
 
     let _ = fs::remove_file(pid_path());
+    stop_orphan_edge_processes();
     match output {
         Ok(result) if result.status.success() => {
             append_edge_log(&format!("[manager] n2n edge stopped, pid={pid}"));
@@ -273,7 +276,8 @@ pub fn diagnose() -> N2nDiagnostics {
 
     let ack = joined.contains("REGISTER_SUPER_ACK");
     let pong = joined.contains("Rx PONG") || lower.contains(" pong ");
-    let ok_link = joined.contains("[OK] edge <<<") || ack || pong;
+    // ACK/PONG 来自日志，停止后日志仍保留；必须要求当前记录 PID 仍在运行，避免 UI 停止后继续显示“已连接”。
+    let ok_link = running && (joined.contains("[OK] edge <<<") || ack || pong);
     let auth_error = lower.contains("authentication error");
     let ip_mac_conflict = lower.contains("mac or ip address already in use")
         || lower.contains("address already in use")
@@ -323,6 +327,14 @@ pub fn diagnose() -> N2nDiagnostics {
         summary,
         log_path: edge_log_path().to_string_lossy().to_string(),
         recent_logs,
+    }
+}
+
+fn stop_orphan_edge_processes() {
+    for image in ["edge.exe", "n2n.exe"] {
+        let mut command = Command::new("taskkill");
+        command.args(["/IM", image, "/F"]);
+        let _ = hide_console_window(&mut command).output();
     }
 }
 

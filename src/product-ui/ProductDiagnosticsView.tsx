@@ -141,39 +141,73 @@ function severityTone(severity: string) {
   return 'border-slate-100 bg-slate-50 text-slate-600';
 }
 
+function simplifyText(text: string) {
+  return text
+    .replace(/^处理\s+/, '')
+    .replace(/Terraria 服务端尚未证明 30 秒稳定运行：/g, 'Terraria：')
+    .replace(/n2n edge 未运行：/g, 'n2n：')
+    .replace(/n2n edge 运行状态：/g, 'n2n：')
+    .replace(/有游戏方案需要专用服务端，但当前没有观察到服务端会话：/g, '服务端：')
+    .replace(/当前游戏需要专用服务端，但未观察到服务端运行：/g, '服务端：')
+    .replace(/处理 内嵌服务端托管状态可观察：/g, '服务端：')
+    .replace(/如果服务端退出，查看内嵌控制台的最后日志和 exit_code。/g, '查看服务端最后日志。')
+    .replace(/等待至少 30 秒后重新生成诊断报告。/g, '等待 30 秒后重新诊断。')
+    .replace(/在通用组网中心点击“启动 n2n edge”。/g, '在组网中心启动 n2n。')
+    .replace(/启动后等待 10-20 秒，再查看是否出现 ACK\/PONG。/g, '等待 10-20 秒后刷新状态。')
+    .replace(/尚未检测到正在运行的 n2n edge；发布前需要启动一次并确认 supernode 注册成功。/g, '启动 n2n 并确认 ACK/PONG。')
+    .replace(/检测到联机助手记录或系统中正在运行的 n2n edge。/g, 'n2n 正在运行。')
+    .replace(/已从 edge 日志看到 supernode ACK\/PONG，supernode 响应正常。/g, 'ACK/PONG 正常。')
+    .trim();
+}
+
+function uniqueShortList(items: string[] | undefined, limit: number) {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const item of items ?? []) {
+    const text = simplifyText(item);
+    if (!text || seen.has(text)) continue;
+    seen.add(text);
+    result.push(text);
+    if (result.length >= limit) break;
+  }
+  return result;
+}
+
 function CheckRow({ check }: { check: ReleaseCheck }) {
   return (
-    <div className="flex items-start gap-3 rounded-xl border border-slate-100 bg-white p-3">
+    <div className="flex min-w-0 items-start gap-3 rounded-xl border border-slate-100 bg-white p-3">
       {check.ok ? <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-500" /> : <XCircle className="mt-0.5 h-4 w-4 text-rose-500" />}
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-3">
           <p className="text-xs font-bold text-slate-800">{check.label}</p>
           {check.required_for_mvp ? <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">MVP 必需</span> : null}
         </div>
-        <p className="mt-1 text-[11px] leading-relaxed text-slate-500">{check.detail}</p>
+        <p className="mt-1 break-words text-[11px] leading-relaxed text-slate-500">{simplifyText(check.detail)}</p>
       </div>
     </div>
   );
 }
 
 function IssueCard({ issue }: { issue: DiagnosticIssue }) {
+  const actions = uniqueShortList(issue.next_actions, 2);
+  const evidence = uniqueShortList(issue.evidence, 2);
   return (
-    <div className={`rounded-2xl border p-4 ${severityTone(issue.severity)}`}>
+    <div className={`min-w-0 rounded-2xl border p-4 ${severityTone(issue.severity)}`}>
       <div className="flex items-start gap-3">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-        <div>
+        <div className="min-w-0 flex-1">
           <div className="mb-1 flex items-center gap-2">
             <span className="rounded-full bg-white/70 px-2 py-0.5 font-mono text-[10px] font-bold">{issue.severity}</span>
-            <h4 className="text-sm font-bold">{issue.title}</h4>
+            <h4 className="min-w-0 break-words text-sm font-bold">{issue.title}</h4>
           </div>
-          <p className="text-xs leading-relaxed">{issue.detail}</p>
-          {issue.next_actions?.length ? (
+          <p className="break-words text-xs leading-relaxed">{simplifyText(issue.detail)}</p>
+          {actions.length ? (
             <ul className="mt-3 list-disc space-y-1 pl-5 text-xs">
-              {issue.next_actions.map((action) => <li key={action}>{action}</li>)}
+              {actions.map((action) => <li className="break-words" key={action}>{action}</li>)}
             </ul>
           ) : null}
-          {issue.evidence?.length ? (
-            <pre className="mt-3 max-h-28 overflow-auto rounded-xl bg-white/70 p-2 text-[11px] leading-relaxed">{issue.evidence.join('\n')}</pre>
+          {evidence.length ? (
+            <pre className="mt-3 max-h-24 max-w-full overflow-auto whitespace-pre-wrap break-words rounded-xl bg-white/70 p-2 text-[11px] leading-relaxed">{evidence.join('\n')}</pre>
           ) : null}
         </div>
       </div>
@@ -191,6 +225,11 @@ export function ProductDiagnosticsView({ onTriggerToast }: ProductDiagnosticsVie
   const selectedGame = getReferenceSelectedGame();
   const report = record?.report ?? null;
   const issue = report?.most_likely_cause ?? report?.issues?.[0] ?? null;
+  const compactNextActions = uniqueShortList(report?.next_actions, 6);
+  const compactReleaseChecks = (report?.release_checks ?? [])
+    .filter((check) => check.required_for_mvp || !check.ok)
+    .slice(0, 8);
+  const compactIssues = (report?.issues ?? []).slice(0, 5);
 
   useEffect(() => {
     let cancelled = false;
@@ -308,7 +347,7 @@ export function ProductDiagnosticsView({ onTriggerToast }: ProductDiagnosticsVie
         <div>
           <h2 className="font-heading text-2xl font-bold text-slate-800">诊断报告</h2>
           <p className="mt-1 max-w-3xl text-sm text-slate-500">
-            正式 Product 页面，直接生成真实后端诊断报告；不再使用参考页模拟进度和 DOM patcher 替换 JSON。
+            生成当前组网、服务端和适配器状态的诊断结果，帮助定位下一步该做什么。
           </p>
         </div>
         <div className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-bold ${
@@ -414,11 +453,11 @@ export function ProductDiagnosticsView({ onTriggerToast }: ProductDiagnosticsVie
             )}
           </div>
 
-          {report?.next_actions?.length ? (
+          {compactNextActions.length ? (
             <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
               <h3 className="mb-3 text-sm font-bold text-slate-800">下一步动作</h3>
               <ol className="list-decimal space-y-2 pl-5 text-sm text-slate-600">
-                {report.next_actions.map((action) => <li key={action}>{action}</li>)}
+                {compactNextActions.map((action) => <li className="break-words" key={action}>{action}</li>)}
               </ol>
             </div>
           ) : null}
@@ -427,8 +466,8 @@ export function ProductDiagnosticsView({ onTriggerToast }: ProductDiagnosticsVie
             <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
               <h3 className="mb-3 text-sm font-bold text-slate-800">发布检查</h3>
               <div className="space-y-2">
-                {report?.release_checks?.length
-                  ? report.release_checks.map((check) => <CheckRow key={check.id} check={check} />)
+                {compactReleaseChecks.length
+                  ? compactReleaseChecks.map((check) => <CheckRow key={check.id} check={check} />)
                   : <p className="text-sm text-slate-500">暂无发布检查结果。</p>}
               </div>
             </div>
@@ -436,8 +475,8 @@ export function ProductDiagnosticsView({ onTriggerToast }: ProductDiagnosticsVie
             <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
               <h3 className="mb-3 text-sm font-bold text-slate-800">问题列表</h3>
               <div className="space-y-2">
-                {report?.issues?.length
-                  ? report.issues.map((item) => <IssueCard key={item.id} issue={item} />)
+                {compactIssues.length
+                  ? compactIssues.map((item) => <IssueCard key={item.id} issue={item} />)
                   : <p className="text-sm text-slate-500">暂无问题列表。</p>}
               </div>
             </div>

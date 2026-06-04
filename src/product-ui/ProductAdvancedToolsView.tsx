@@ -144,7 +144,7 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
         <div>
           <h2 className="font-heading text-2xl font-bold text-slate-800">高级连接工具</h2>
           <p className="mt-1 max-w-3xl text-sm text-slate-500">
-            这里是正式 Product 页面，直接读取 Tauri 后端状态并调用 TCP/UDP 端口代理、UDP 广播桥和通用服务端接口，不再依赖参考页文字拦截。
+            用于端口代理、UDP 广播桥和通用服务端测试；适合需要高级网络转发的游戏。
           </p>
         </div>
         <button

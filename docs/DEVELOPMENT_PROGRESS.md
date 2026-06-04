@@ -2172,3 +2172,9 @@ pm run tauri:build 通过，已重新生成 src-tauri/target/release/lan-helper.
 - 移除 src/main.tsx 页面级 DOM patcher 挂载，仅保留 runtime bridge/debug。
 - 发布预检和 Tauri 打包通过。
 - 下一步推荐：做一次 EXE 人工验收清单，逐页点击首页/方案库/游戏扫描/推荐方案/组网中心/高级工具/Terraria/诊断/设置，确认每页真实按钮、加载态、错误提示和视觉布局是否符合产品预期。
+
+## 2026-06-04 23:29:54 - 进度：修复 EXE 验收 8 项反馈
+- 修复 n2n 停止、状态判定和旧日志误报已连接问题。
+- 修复推荐目标布局、通用组网页英文按钮、Room Key 显示、诊断页溢出、下一步动作/发布检查过长、版本号。
+- 已重新打包 src-tauri/target/release/lan-helper.exe。
+- 下一步推荐：重新打开 EXE，重点复测“停止 n2n 是否变未启动”、Room Key 显示按钮、诊断页是否不再横向出格。

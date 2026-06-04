@@ -107,7 +107,11 @@ export function startReferenceN2n(config?: NetworkConfig) {
 }
 
 export function stopReferenceN2n() {
-  return withSnapshot('停止 n2n', () => stopNetwork('n2n'));
+  return withSnapshot('停止 n2n', async () => {
+    const result = await stopNetwork('n2n');
+    await new Promise((resolve) => window.setTimeout(resolve, 600));
+    return result;
+  });
 }
 
 export function startReferenceTerrariaServer(config: LaunchConfig = {}) {

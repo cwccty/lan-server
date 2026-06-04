@@ -3057,3 +3057,18 @@ pm run release:preflight 通过。
 pm run build、cargo check、
 pm run release:preflight、
 pm run tauri:build 均通过；EXE 位于 src-tauri/target/release/lan-helper.exe。
+
+## 2026-06-04 23:29:54 - EXE 验收问题修复
+- 修复 n2n 状态混乱：summarizeReferenceRuntime 不再把 edge.exe 可用性当作运行状态；ACK/PONG 必须建立在当前 edge 进程 running=true 上。
+- 修复停止 n2n 不生效/停止后仍显示已连接：后端 
+2n_backend::stop 增加残留 edge.exe/n2n.exe 清理；停止动作后延迟刷新 runtime。
+- 修复通用组网页 Room Key 全是圆点且无法查看：增加显示/隐藏按钮。
+- 修复通用组网页英文按钮：改为“启动 n2n / 停止 n2n / 刷新状态”，并汉化房间名/房间密钥。
+- 修复推荐页“真实推荐目标”文字挤压：改为网格布局，目标说明限制宽度，选择器右侧自适应。
+- 修复诊断页错误信息出格：问题卡片、证据和发布检查增加 min-width/换行/滚动限制。
+- 精简诊断页“下一步动作”和“发布检查”：展示短文本，限制条数，减少重复问题。
+- 版本更新显示改为 v0.1。
+- 验证：
+pm run build、cargo check、
+pm run release:preflight 通过；打包时先结束占用旧 EXE 的 lan-helper 进程后 
+pm run tauri:build 成功。

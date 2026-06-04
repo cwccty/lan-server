@@ -124,7 +124,7 @@ export function ProductGameScanView({ onTriggerToast, onNavigateTab }: ProductGa
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h2 className="font-heading text-2xl font-bold text-slate-800">游戏扫描</h2>
-          <p className="mt-1 text-sm text-slate-500">正式 Product 页面，直接读取真实扫描、真实分析和真实推荐目标。</p>
+          <p className="mt-1 text-sm text-slate-500">扫描本机游戏和本地适配器，判断可用的联机转换方案。</p>
           <p className="mt-1 font-mono text-[11px] text-slate-400">最近真实扫描：{loadedAt || '尚未完成'} ｜ 当前目标：{selectedGame?.display_name || getReferenceSelectedGame()?.display_name || '未选择'}</p>
         </div>
         <div className="flex flex-wrap gap-2">

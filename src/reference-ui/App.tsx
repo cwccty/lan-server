@@ -372,7 +372,7 @@ export default function App() {
                     <Sparkles className="w-5 h-5 animate-spin-slow" />
                   </div>
                   <div>
-                    <h3 className="font-heading text-base font-bold text-slate-800">联机助手 V2.4.1 版本更新</h3>
+                    <h3 className="font-heading text-base font-bold text-slate-800">联机助手 v0.1 版本更新</h3>
                     <p className="text-[10px] text-slate-400 mt-0.5">发布日期: 2026年6月3日</p>
                   </div>
                 </div>

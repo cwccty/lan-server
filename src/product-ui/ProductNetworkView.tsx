@@ -12,7 +12,9 @@ import {
   Server,
   Square,
   Terminal,
-  Wifi
+  Wifi,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import {
   readReferenceN2nLastConfig,
@@ -64,6 +66,7 @@ export function ProductNetworkView({ onTriggerToast, onNavigateTab }: ProductNet
   const [connectHost, setConnectHost] = useState('');
   const [busy, setBusy] = useState('');
   const [lastConnectivity, setLastConnectivity] = useState('');
+  const [showRoomKey, setShowRoomKey] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -163,7 +166,7 @@ export function ProductNetworkView({ onTriggerToast, onNavigateTab }: ProductNet
         <div>
           <h2 className="font-heading text-2xl font-bold text-slate-800">通用组网中心</h2>
           <p className="mt-1 max-w-3xl text-sm text-slate-500">
-            正式 Product 页面，直接保存、启动、停止和刷新 n2n 后端状态；刷新不会重复启动 edge。
+            配置虚拟局域网房间，启动或停止 n2n，并查看当前连接状态。
           </p>
         </div>
         <div className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-bold ${statusTone(runtime)}`}>
@@ -187,12 +190,22 @@ export function ProductNetworkView({ onTriggerToast, onNavigateTab }: ProductNet
 
           <div className="grid gap-4 md:grid-cols-2">
             <label className="block text-xs font-semibold text-slate-600">
-              Room Name
+              房间名
               <input value={roomName} onChange={(event) => setRoomName(event.target.value)} placeholder="共同约定的英文/数字房间名" className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 outline-none focus:border-amber-400" />
             </label>
             <label className="block text-xs font-semibold text-slate-600">
-              Room Key
-              <input value={roomKey} onChange={(event) => setRoomKey(event.target.value)} type="password" placeholder="通信授权密码" className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 outline-none focus:border-amber-400" />
+              房间密钥
+              <div className="mt-1 flex rounded-xl border border-slate-200 bg-slate-50 focus-within:border-amber-400">
+                <input value={roomKey} onChange={(event) => setRoomKey(event.target.value)} type={showRoomKey ? 'text' : 'password'} placeholder="通信授权密码" className="min-w-0 flex-1 rounded-l-xl bg-transparent px-3 py-2 text-sm text-slate-800 outline-none" />
+                <button
+                  type="button"
+                  onClick={() => setShowRoomKey((value) => !value)}
+                  className="inline-flex items-center justify-center rounded-r-xl px-3 text-slate-400 hover:bg-white hover:text-slate-700"
+                  title={showRoomKey ? '隐藏房间密钥' : '显示房间密钥'}
+                >
+                  {showRoomKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </label>
             <label className="block text-xs font-semibold text-slate-600 md:col-span-2">
               Supernode
@@ -215,15 +228,15 @@ export function ProductNetworkView({ onTriggerToast, onNavigateTab }: ProductNet
             </button>
             <button onClick={startN2n} disabled={Boolean(busy)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 py-3 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-60">
               <Play className="h-4 w-4" />
-              Start n2n Edge
+              启动 n2n
             </button>
             <button onClick={stopN2n} disabled={Boolean(busy)} className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-100 px-3 py-3 text-xs font-bold text-rose-600 hover:bg-rose-50 disabled:opacity-60">
               <Square className="h-4 w-4" />
-              Stop n2n Edge
+              停止 n2n
             </button>
             <button onClick={refreshStatus} disabled={Boolean(busy)} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-3 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60">
               <RefreshCw className={`h-4 w-4 ${busy === '刷新节点状态' ? 'animate-spin' : ''}`} />
-              Refresh Node Status
+              刷新状态
             </button>
           </div>
         </section>

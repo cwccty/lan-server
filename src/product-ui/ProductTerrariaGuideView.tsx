@@ -120,7 +120,7 @@ export function ProductTerrariaGuideView({ onTriggerToast }: ProductTerrariaGuid
         <div>
           <h2 className="font-heading text-2xl font-bold text-slate-800">Terraria 向导</h2>
           <p className="mt-1 max-w-3xl text-sm text-slate-500">
-            正式 Product 页面，直接控制真实 Terraria 服务端会话；不再生成模拟日志，也不再用 setTimeout 假装启动成功。
+            在程序内启动和管理 Terraria 服务端，并把运行状态同步到诊断报告。
           </p>
         </div>
         <div className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-bold ${statusTone(terraria)}`}>

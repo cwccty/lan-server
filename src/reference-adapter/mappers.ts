@@ -4,13 +4,15 @@ export function summarizeReferenceRuntime(snapshot: ReferenceRuntimeSnapshot): R
   const n2nBackend = snapshot.backends.find((backend) => backend.id === 'n2n');
   const n2n = snapshot.n2n;
   const config = snapshot.n2n_last_config;
-  const networkRunning = Boolean(n2n?.running || n2nBackend?.available);
-  const networkReady = Boolean(n2n?.ok_link);
+  // available 只代表 edge.exe 存在，不能当作 edge 正在运行。
+  // ok_link 也必须建立在当前 edge 进程仍运行的基础上，否则停止后旧 ACK/PONG 日志会误报“已连接”。
+  const networkRunning = Boolean(n2n?.running);
+  const networkReady = Boolean(n2n?.running && n2n?.ok_link);
   const virtualIp = n2n?.virtual_ip || n2nBackend?.virtual_ip || config?.local_ip || '';
   const supernode = n2n?.supernode || config?.supernode || '';
 
   return {
-    network_label: n2n?.summary || n2nBackend?.notes?.[0] || (networkRunning ? 'n2n 运行中，等待真实诊断。' : 'n2n 未运行或未检测到。'),
+    network_label: n2n?.summary || n2nBackend?.notes?.[0] || (networkRunning ? 'n2n 运行中，等待真实诊断。' : 'n2n 未运行。'),
     network_running: networkRunning,
     network_ready: networkReady,
     virtual_ip: virtualIp,

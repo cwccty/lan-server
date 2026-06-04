@@ -126,7 +126,7 @@ export function ProductSettingsView({ onTriggerToast }: ProductSettingsViewProps
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h2 className="font-heading text-2xl font-bold text-slate-800">设置与帮助</h2>
-          <p className="mt-1 text-sm text-slate-500">正式 Product 页面：所有配置读取、保存、恢复默认和 edge 检测均来自真实后端。</p>
+          <p className="mt-1 text-sm text-slate-500">配置本地工具路径、默认 supernode 和共享方案库地址。</p>
           <p className="mt-1 font-mono text-[11px] text-slate-400">更新时间：{settings.updated_at || '尚未读取'} ｜ {busy || '空闲'}</p>
         </div>
         <div className="flex flex-wrap gap-2">

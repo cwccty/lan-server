@@ -230,7 +230,7 @@ export function ProductRecommendationView({ onTriggerToast, onNavigateTab }: Pro
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h2 className="font-heading text-2xl font-bold text-slate-800">推荐方案与向导</h2>
-          <p className="mt-1 text-sm text-slate-500">正式 Product 页面，直接读取真实推荐、n2n 配置、服务端状态、好友席位和邀请包。</p>
+          <p className="mt-1 text-sm text-slate-500">根据已扫描游戏、组网状态和服务端状态，生成可执行的联机方案。</p>
         </div>
         <button onClick={() => load('手动刷新推荐方案')} disabled={Boolean(busy)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60">
           <RefreshCw className={`h-4 w-4 ${busy ? 'animate-spin' : ''}`} />
@@ -241,12 +241,12 @@ export function ProductRecommendationView({ onTriggerToast, onNavigateTab }: Pro
       <section className="grid gap-6 lg:grid-cols-[1fr_380px]">
         <div className="space-y-4">
           <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-            <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-              <div>
+            <div className="mb-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(260px,420px)] lg:items-end">
+              <div className="min-w-0">
                 <h3 className="flex items-center gap-2 text-sm font-bold text-slate-800"><Gamepad2 className="h-4 w-4 text-amber-600" />真实推荐目标</h3>
-                <p className="mt-1 text-xs text-slate-500">来自游戏扫描页选中的真实游戏，也可在这里切换。</p>
+                <p className="mt-1 max-w-xl text-xs leading-relaxed text-slate-500">来自游戏扫描页的当前选择；也可以在右侧切换。</p>
               </div>
-              <select value={currentGame?.game_id || ''} onChange={(event) => chooseGame(event.target.value)} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-amber-400">
+              <select value={currentGame?.game_id || ''} onChange={(event) => chooseGame(event.target.value)} className="w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-amber-400">
                 {games.map((game) => <option key={game.game_id} value={game.game_id}>{game.display_name} ({game.game_id})</option>)}
               </select>
             </div>

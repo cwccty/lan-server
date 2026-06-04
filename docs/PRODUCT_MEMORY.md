@@ -2862,3 +2862,11 @@ pm run tauri:build 通过，已重新生成 src-tauri/target/release/lan-helper.
 - 方案库和设置页以前是最后两个依赖 patcher 的页面，现在已分别由 ProductSolutionsView 和 ProductSettingsView 承接真实后端逻辑。
 - 产品规则：以后新增/修改页面应优先在 src/product-ui 做正式受控组件，禁止再用 DOM 查询/按钮文本拦截作为发布实现。
 - 预检规则已经固化这一点：elease does not mount page DOM patchers 和 ll Product pages declare controlled markers 必须通过。
+
+## 2026-06-04 23:29:54 - 用户截图验收反馈的产品规则
+- n2n 状态必须以当前运行进程为准，不能用历史 ACK/PONG 日志或 edge.exe 是否存在来显示“已连接”。
+- 停止 n2n 后 UI 必须刷新为未运行/未启动；如果旧进程残留，后端应尝试清理。
+- 面向用户页面不能出现开发说明：例如“正式 Product 页面”“DOM patcher”等字样应替换为用户能理解的说明。
+- 诊断页的下一步动作应短、少、可执行；发布检查只显示关键项，避免长证据撑破卡片。
+- Room Key/密钥字段必须提供显示/隐藏切换，便于用户确认输入。
+- 版本显示当前采用 v0.1。

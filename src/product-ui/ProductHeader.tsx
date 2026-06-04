@@ -71,13 +71,13 @@ export function ProductHeader({ onOpenDiagnostics, onTabChange, onTriggerToast }
             onClick={() => onTabChange('home')}
             className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
           >
-            本心特性
+            首页
           </button>
           <button
             onClick={() => onTabChange('settings')}
             className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
           >
-            支持中心
+            设置
           </button>
         </nav>
       </div>
