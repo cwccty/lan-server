@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-06-03",
+  "updated_at": "2026-06-04",
   "description": "Lan Helper local adapter registry example. Can be hosted by VPS, static HTTP server, GitHub Pages, or any HTTPS static file hosting.",
   "games": [
     {
@@ -8,6 +8,12 @@
       "steam_appid": null,
       "adapter_url": "games/minecraft_java.json",
       "sha256": "0852d4e55475ff746e0570b0aebe7b63300b290d00ef3a52e9712d0d8d929ea1"
+    },
+    {
+      "game_id": "palworld",
+      "steam_appid": "1623730",
+      "adapter_url": "games/palworld.json",
+      "sha256": "e4b881505fa17252d01e53512dfe63f27ce181ac736c55b5c0db6af2ae17db9b"
     },
     {
       "game_id": "stardew_valley",

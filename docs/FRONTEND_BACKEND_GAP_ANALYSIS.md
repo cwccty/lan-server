@@ -891,3 +891,11 @@ Terraria 向导
 - 当前处理：新增 	estEdgePath(path)，检查路径存在性、文件属性、文件名合理性，并尝试执行 -h 获取帮助/版本线索。
 - Product Mode 设置页“联机自测”已接入该真实检测。
 - 仍需未来功能：自动下载 edge.exe、自动修复路径、自动安装/检查 TAP/Wintun 驱动。
+
+## 2026-06-04 13:45:38 Palworld adapter 缺口关闭
+
+- 原缺口：最终参考前端包含 Palworld 演示项，但本地 adapter registry 没有 Palworld，导致真实推荐/启动可能失败。
+- 当前处理：新增 Palworld adapter 到本地 adapters 与 adapter-registry 示例，并更新 registry index SHA256。
+- 支持范围：Palworld Dedicated Server / IP:端口加入，默认 UDP 8211，虚拟局域网连通，必要时 UDP 单播代理。
+- 明确边界：不承诺官方服务器、Steam 好友大厅或平台匹配强制转换成本地 LAN。
+- 仍需未来增强：SteamCMD 安装器、PalWorldSettings.ini 可视化编辑、服务端日志解析、UDP 可达性专用检测。

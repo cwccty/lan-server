@@ -2723,3 +2723,10 @@ pm.cmd run release:preflight。
 - 前端新增 API：	estEdgePath(path?: string | null)。
 - Product Mode 设置页“联机自测”已从读取 settings 升级为调用 	estEdgePath(当前输入路径)。
 - docs/FINAL_REFERENCE_UI_BACKEND_MATRIX.md 与 docs/FRONTEND_BACKEND_API_MAP.md 已更新，edge 路径深度检测缺口关闭；自动下载/修复 edge 仍作为未来功能。
+
+## 2026-06-04 13:45:38 Palworld 真实 adapter 接入
+- 新增 dapter-registry/games/palworld.json 和 dapters/games/palworld.json。
+- 更新 dapter-registry/index.json，当前本地示例 registry 游戏数为 4：Minecraft Java、Palworld、Stardew Valley、Terraria。
+- Palworld adapter 覆盖专用服务端/IP 直连流程：虚拟局域网 + UDP 8211 + 必要时 UDP 单播代理。
+- 明确不承诺把官方服务器、Steam 好友大厅或平台匹配强制转换为本地 LAN；仅覆盖可通过 IP/端口加入的专用服流程。
+- docs/FINAL_REFERENCE_UI_BACKEND_MATRIX.md 已移除“缺 Palworld adapter”的剩余缺口，并保留未来深度能力：SteamCMD 安装、配置文件编辑、服务端日志解析。

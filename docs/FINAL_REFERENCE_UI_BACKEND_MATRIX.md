@@ -114,7 +114,7 @@
 ## 当前最重要的剩余缺口
 
 1. **真实实例列表替换**：高级工具、游戏扫描、方案库、推荐页目前大量通过 Product Mode 面板补偿，正式产品最好重构为受控 React 数据流。
-2. **Palworld adapter**：参考前端有 Palworld 展示项，本地方案库暂未提供 Palworld adapter。
-3. **诊断目标选择器**：Product Mode 已能按最近选中游戏生成指定诊断，但正式 UI 仍应让用户显式选择“全局/某个游戏”。
-4. **好友席位后端化**：Product Mode 已用 localStorage 持久化好友席位；如果未来要做多人房间/云同步，仍需后端房间 API。
-5. **edge 自动下载**：edge 路径已能深度检测；自动下载/修复 edge.exe 仍属于未来功能。
+2. **诊断目标选择器**：Product Mode 已能按最近选中游戏生成指定诊断，但正式 UI 仍应让用户显式选择“全局/某个游戏”。
+3. **好友席位后端化**：Product Mode 已用 localStorage 持久化好友席位；如果未来要做多人房间/云同步，仍需后端房间 API。
+4. **edge 自动下载**：edge 路径已能深度检测；自动下载/修复 edge.exe 仍属于未来功能。
+5. **Palworld 专用服深度启动**：Palworld adapter 已提供专用服/IP 直连方案；后续仍可做 SteamCMD 安装、配置文件编辑和服务端日志解析。

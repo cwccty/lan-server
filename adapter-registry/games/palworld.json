@@ -1,0 +1,109 @@
+{
+  "game_id": "palworld",
+  "display_name": "Palworld / 幻兽帕鲁",
+  "steam_appid": "1623730",
+  "capabilities": [
+    "ip_join",
+    "dedicated_server"
+  ],
+  "multiplayer_conversion": {
+    "capability": "hidden_dedicated_server",
+    "methods": [
+      "virtual_lan",
+      "dedicated_server_launcher",
+      "port_proxy",
+      "manual_guide"
+    ],
+    "can_convert_to_lan": true,
+    "risk_level": "medium",
+    "notes": [
+      "Palworld 支持专用服务器与 IP/端口加入；联机助手主要负责虚拟局域网、端口提示、UDP 代理和邀请信息。",
+      "该适配器不承诺把官方服务器、Steam 好友大厅或平台匹配强制转换成本地 LAN，只覆盖可通过 IP/端口加入的专用服流程。",
+      "默认游戏端口为 UDP 8211；如果服务端配置改过端口，请以实际端口为准。"
+    ],
+    "required_components": [
+      "n2n/Radmin/已有局域网",
+      "PalServer-Win64-Shipping.exe 或 SteamCMD 安装的 Palworld Dedicated Server",
+      "UDP 8211 或实际服务端端口",
+      "必要时启用 UDP 端口代理"
+    ]
+  },
+  "network_type": "dedicated_server",
+  "connection_plan": {
+    "summary": "房主启动 Palworld 专用服务器，双方进入同一虚拟局域网后，好友通过房主虚拟 IP:8211 加入。",
+    "host_role": "房主启动 Palworld Dedicated Server 或 PalServer-Win64-Shipping.exe，并确认服务端监听 UDP 8211 或实际配置端口；保持 n2n edge 在线。",
+    "join_role": "加入者进入同一虚拟局域网后，在 Palworld 多人游戏/专用服务器地址中输入 房主虚拟 IP:8211 或实际端口。",
+    "default_join_host": "房主虚拟 IP",
+    "default_join_port": 8211,
+    "requires_virtual_lan": true,
+    "requires_tcp_port_proxy": false,
+    "requires_udp_broadcast_bridge": false,
+    "requires_dedicated_server": true,
+    "invite_template": [
+      "双方先进入同一虚拟局域网。",
+      "房主启动 Palworld 专用服务器，并确认 UDP 8211 端口开放。",
+      "加入者连接 房主虚拟 IP:8211。",
+      "如果直连失败，先用联机助手检测虚拟 IP 与端口，再按需启用 UDP 端口代理。"
+    ],
+    "troubleshooting": [
+      "确认服务端进程已启动，且实际端口与邀请包端口一致。",
+      "Palworld 默认是 UDP 8211；TCP 端口测试失败不一定代表 UDP 服务不可用。",
+      "如果虚拟网内能互 ping 但游戏无法加入，检查 Windows 防火墙是否允许 PalServer/Palworld 通过 UDP。",
+      "如果服务端绑定地址或 NAT 行为异常，可尝试高级连接工具中的 UDP 单播代理。"
+    ]
+  },
+  "adapter_source": "registry",
+  "executables": [
+    "Palworld.exe",
+    "PalServer-Win64-Shipping.exe",
+    "PalServer.exe"
+  ],
+  "default_ports": [
+    8211
+  ],
+  "launch_profiles": [
+    {
+      "id": "client",
+      "name": "启动游戏客户端",
+      "type": "client",
+      "exe": "Palworld.exe",
+      "args": []
+    },
+    {
+      "id": "server",
+      "name": "启动 Palworld 专用服务端",
+      "type": "server",
+      "exe": "PalServer-Win64-Shipping.exe",
+      "arg_templates": [
+        "-port={{port}}",
+        "-players={{max_players}}",
+        "-useperfthreads",
+        "-NoAsyncLoadingThread",
+        "-UseMultithreadForDS"
+      ],
+      "config_fields": [
+        {
+          "id": "port",
+          "label": "服务端 UDP 端口",
+          "type": "number",
+          "default_value": "8211",
+          "required": true,
+          "help": "Palworld 专用服务器默认 UDP 端口为 8211。"
+        },
+        {
+          "id": "max_players",
+          "label": "最大人数",
+          "type": "number",
+          "default_value": "16",
+          "required": true,
+          "help": "请不要超过服务端配置和机器性能可承受范围。"
+        }
+      ]
+    },
+    {
+      "id": "docs",
+      "name": "查看连接说明",
+      "type": "docs"
+    }
+  ]
+}
