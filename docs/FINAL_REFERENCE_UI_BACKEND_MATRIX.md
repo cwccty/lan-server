@@ -50,15 +50,15 @@
 | 查看推荐配置方案 | `scanGames()` + `analyzeGame(game_id)` | 已真实接入 | 同上。 |
 | 创建局域网组网草稿 | `scanGames()` + `analyzeGame(game_id)` | 已真实接入 | 当前是分析入口，后续正式 UI 应进入方案编辑器并预填。 |
 | 创建网络方案 | `scanGames()` + `analyzeGame(game_id)` | 已真实接入 | 当前是分析入口，后续正式 UI 应生成可保存 adapter 草稿。 |
-| 真实扫描结果列表 | `scanGames()` + `listGameAdapters()` | Product Mode 面板补偿 | 参考卡片仍是演示数组，真实数据通过面板展示。 |
+| 真实扫描结果列表 | `scanGames()` + `listGameAdapters()` + `analyzeGame(gameId)` | 已真实接入 | Product Mode 面板展示真实扫描游戏，并提供“设为推荐目标/真实分析”行级操作；参考卡片仍保留视觉演示但不作为真实依据。 |
 
 ## 5. 推荐方案
 
 | 前端区域/按钮 | 对应真实 API | 当前状态 | 说明 |
 |---|---|---|---|
-| 推荐列表 | `recommendPlans(game_id)` | Product Mode 面板补偿 | 优先使用游戏扫描页保存的真实选中游戏。 |
-| n2n 摘要 | `getN2nLastConfig()` | Product Mode 面板补偿 | 用于邀请摘要。 |
-| 服务端状态 | `readServerSession()` | Product Mode 面板补偿 | 用于邀请摘要。 |
+| 推荐列表 | `recommendPlans(game_id)` | 已真实接入 | Product Mode 真实面板按当前真实推荐目标读取推荐，并可直接切换目标。 |
+| n2n 摘要 | `getN2nLastConfig()` | 已真实接入 | Product Mode 真实邀请摘要读取最近 n2n 配置。 |
+| 服务端状态 | `readServerSession()` | 已真实接入 | Product Mode 真实邀请摘要读取当前服务端单会话状态。 |
 | 重新测试 | `testConnectivity(target)` | 已真实接入 | 当前读取页面 host/port，失败不应判定为绝对不能联机。 |
 | 复制主 IP | `getN2nLastConfig()` | 已真实接入 | 当前动作读取真实配置并 Toast。 |
 | 一键拷制专属密信包 | `generateDiagnosticReportForGame(gameId)` / `generateDiagnosticReport()` | 已真实接入 | 有真实选中游戏时生成指定游戏诊断摘要。 |
@@ -113,7 +113,7 @@
 
 ## 当前最重要的剩余缺口
 
-1. **真实实例列表替换**：高级工具已在 Product Mode 下形成可操作真实实例清单；游戏扫描、方案库、推荐页仍有部分参考演示列表，正式产品最好重构为受控 React 数据流。
+1. **真实实例列表替换**：高级工具、游戏扫描、方案库、推荐页均已有 Product Mode 真实面板和关键行级操作；正式产品若要完全摆脱 DOM patcher，仍应重构为受控 React 数据流。
 2. **好友席位后端化**：Product Mode 已用 localStorage 持久化好友席位；如果未来要做多人房间/云同步，仍需后端房间 API。
 3. **edge 自动下载**：edge 路径已能深度检测；自动下载/修复 edge.exe 仍属于未来功能。
 4. **Palworld 专用服深度启动**：Palworld adapter 已提供专用服/IP 直连方案；后续仍可做 SteamCMD 安装、配置文件编辑和服务端日志解析。

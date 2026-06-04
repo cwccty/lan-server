@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getN2nLastConfig, listGameAdapters, readServerSession, recommendPlans, scanGames } from '../api/tauri';
+import { analyzeGame, getN2nLastConfig, listGameAdapters, readServerSession, recommendPlans, scanGames } from '../api/tauri';
 import type { GameAdapter, GameSummary } from '../types/game';
 import type { NetworkConfig } from '../types/network';
 import type { Recommendation } from '../types/recommendation';
@@ -15,7 +15,7 @@ import {
   subscribeReferenceAdapterSyncResult,
   type ReferenceAdapterSyncRecord
 } from './adapterSyncResult';
-import { getReferenceSelectedGame, subscribeReferenceSelectedGame, type ReferenceSelectedGame } from './selectedGame';
+import { getReferenceSelectedGame, setReferenceSelectedGame, subscribeReferenceSelectedGame, type ReferenceSelectedGame } from './selectedGame';
 import { useReferenceProductMode } from './useReferenceProductMode';
 
 const PANEL_ATTR = 'data-lan-helper-product-inventory-panel';
@@ -93,6 +93,20 @@ function badge(text: string, tone = 'slate') {
   return `<span class="rounded-full border px-2 py-0.5 text-[10px] font-bold ${palette[tone] ?? palette.slate}">${escapeHtml(text)}</span>`;
 }
 
+function actionButton(action: string, label: string, gameId = '') {
+  return `<button type="button" data-lan-helper-inventory-action="${escapeHtml(action)}" data-lan-helper-game-id="${escapeHtml(gameId)}" class="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-bold text-slate-600 shadow-sm transition hover:border-amber-300 hover:text-amber-700 disabled:opacity-50">${escapeHtml(label)}</button>`;
+}
+
+function dispatchProductAction(action: string, ok: boolean, message: string, data?: unknown) {
+  window.dispatchEvent(new CustomEvent('lan-helper:reference-product-action', {
+    detail: {
+      actionId: `inventory-${action}`,
+      result: { ok, action, message, data },
+      at: new Date().toISOString()
+    }
+  }));
+}
+
 function numberTile(label: string, value: number, tone = 'slate') {
   return `
     <div class="rounded-xl border border-slate-100 bg-white/80 p-2">
@@ -125,14 +139,18 @@ function renderGames(state: InventoryState) {
   const rows = state.games.map((game) => {
     const hasAdapter = state.adapters.some((adapter) => adapter.game_id === game.game_id);
     const ports = game.connection_plan?.default_join_port ? `默认端口 ${game.connection_plan.default_join_port}` : '';
+    const selected = state.selectedGame?.game_id === game.game_id;
     return `
-      <div class="rounded-xl border border-amber-100 bg-white/85 p-3">
+      <div class="rounded-xl border ${selected ? 'border-emerald-200 bg-emerald-50/70' : 'border-amber-100 bg-white/85'} p-3">
         <div class="flex items-start justify-between gap-3">
           <div>
             <div class="font-heading text-sm font-bold text-slate-800">${escapeHtml(game.display_name)}</div>
             <div class="mt-1 font-mono text-[10px] text-slate-400">${escapeHtml(game.game_id)}${game.steam_appid ? ` · Steam ${escapeHtml(game.steam_appid)}` : ''}</div>
           </div>
-          ${badge(hasAdapter ? '已有共享方案' : '待认定', hasAdapter ? 'green' : 'amber')}
+          <div class="flex flex-wrap justify-end gap-1.5">
+            ${selected ? badge('当前推荐目标', 'green') : ''}
+            ${badge(hasAdapter ? '已有共享方案' : '待认定', hasAdapter ? 'green' : 'amber')}
+          </div>
         </div>
         <div class="mt-2 text-[11px] text-slate-600">${escapeHtml(game.connection_plan?.summary ?? game.network_type ?? '后端未返回联机方案摘要')}</div>
         <div class="mt-2 flex flex-wrap gap-1.5">
@@ -140,6 +158,10 @@ function renderGames(state: InventoryState) {
           ${ports ? badge(ports, 'slate') : ''}
         </div>
         ${game.detected_path ? `<div class="mt-2 truncate font-mono text-[10px] text-slate-400">${escapeHtml(game.detected_path)}</div>` : ''}
+        <div class="mt-3 flex flex-wrap gap-2">
+          ${actionButton('select-game', selected ? '已设为目标' : '设为推荐目标', game.game_id)}
+          ${actionButton('analyze-game', '真实分析', game.game_id)}
+        </div>
       </div>
     `;
   });
@@ -148,9 +170,12 @@ function renderGames(state: InventoryState) {
     <div class="mb-4 flex items-center justify-between gap-3">
       <div>
         <div class="font-heading text-sm font-bold text-slate-800">真实后端扫描结果</div>
-        <div class="mt-1 text-[11px] text-slate-500">来自 scan_games 与 list_game_adapters，不使用参考前端演示数组。</div>
+        <div class="mt-1 text-[11px] text-slate-500">来自 scan_games 与 list_game_adapters。可在这里直接选择真实推荐目标，不再依赖下方参考演示卡片。</div>
       </div>
-      ${badge(`${state.games.length} 款游戏 / ${state.adapters.length} 个方案`, 'amber')}
+      <div class="flex flex-wrap justify-end gap-1.5">
+        ${state.selectedGame ? badge(`目标: ${state.selectedGame.display_name}`, 'green') : badge('未选推荐目标', 'amber')}
+        ${badge(`${state.games.length} 款游戏 / ${state.adapters.length} 个方案`, 'amber')}
+      </div>
     </div>
     ${
       state.games.length === 0
@@ -304,6 +329,15 @@ function renderRecommendation(state: InventoryState) {
       </div>
     </div>
   `);
+  const targetRows = state.games.slice(0, 8).map((item) => {
+    const active = item.game_id === game?.game_id;
+    return `
+      <div class="flex items-center justify-between gap-2 rounded-lg ${active ? 'bg-emerald-50' : 'bg-slate-50'} px-2 py-1.5">
+        <span class="min-w-0 truncate"><strong>${escapeHtml(item.display_name)}</strong> <span class="font-mono text-[10px] text-slate-400">${escapeHtml(item.game_id)}</span></span>
+        ${active ? badge('当前', 'green') : actionButton('select-game', '切换', item.game_id)}
+      </div>
+    `;
+  });
 
   return `
     <div class="mb-4 flex items-center justify-between gap-3">
@@ -315,6 +349,17 @@ function renderRecommendation(state: InventoryState) {
         ${badge(game?.display_name ?? '未扫描游戏', game ? 'amber' : 'red')}
         ${state.selectedGame ? badge('已绑定选中游戏', 'green') : badge('未手动选择', 'slate')}
       </div>
+    </div>
+    <div class="mb-3 rounded-xl border border-indigo-100 bg-indigo-50/60 p-3 text-[11px] text-slate-600">
+      <div class="mb-2 flex items-center justify-between gap-2">
+        <div class="font-heading text-sm font-bold text-slate-800">真实推荐目标</div>
+        ${game ? actionButton('analyze-game', '重新分析当前目标', game.game_id) : ''}
+      </div>
+      ${
+        targetRows.length
+          ? `<div class="grid grid-cols-1 gap-1.5 md:grid-cols-2">${targetRows.join('')}</div>`
+          : '<div class="rounded-lg border border-dashed border-indigo-200 bg-white/70 p-2 text-slate-500">暂无真实扫描游戏。请先在游戏扫描页触发真实扫描。</div>'
+      }
     </div>
     <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
       <div class="space-y-2">${recommendationRows.length > 0 ? recommendationRows.join('') : '<div class="rounded-xl border border-dashed border-amber-200 bg-white/70 p-3 text-[11px] text-slate-500">暂无真实推荐结果。请先扫描游戏或选择有适配器的游戏。</div>'}</div>
@@ -456,8 +501,52 @@ export function ReferenceProductInventoryPatcher() {
     panel.innerHTML = renderPanel(page, state);
     insertHint(root, page);
 
+    const handleInventoryAction = async (event: MouseEvent) => {
+      const button = (event.target as HTMLElement | null)?.closest<HTMLButtonElement>('[data-lan-helper-inventory-action]');
+      if (!button || !panel?.contains(button)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const action = button.dataset.lanHelperInventoryAction || '';
+      const gameId = button.dataset.lanHelperGameId || '';
+      const game = state.games.find((item) => item.game_id === gameId)
+        ?? state.adapters.find((item) => item.game_id === gameId);
+      button.disabled = true;
+      const original = button.textContent ?? '';
+      button.textContent = '处理中...';
+      try {
+        if (!game) throw new Error(gameId ? `真实后端列表中没有找到游戏：${gameId}` : '缺少游戏 ID。');
+        if (action === 'select-game') {
+          const selected = setReferenceSelectedGame(game);
+          setLoadedKey('');
+          setSelectedGameKey(selected.game_id);
+          setState((prev) => ({ ...prev, selectedGame: selected }));
+          dispatchProductAction('选择真实推荐目标', true, `已将 ${selected.display_name} 设为推荐目标。`, selected);
+          return;
+        }
+        if (action === 'analyze-game') {
+          const selected = setReferenceSelectedGame(game);
+          const analysis = await analyzeGame(game.game_id);
+          setLoadedKey('');
+          setSelectedGameKey(selected.game_id);
+          setState((prev) => ({ ...prev, selectedGame: selected }));
+          dispatchProductAction('真实分析游戏联机能力', true, `已完成 ${selected.display_name} 的真实联机能力分析。`, analysis);
+          return;
+        }
+        throw new Error(`未知真实库存动作：${action}`);
+      } catch (error) {
+        dispatchProductAction(action || '真实库存动作', false, error instanceof Error ? error.message : String(error || '操作失败'));
+      } finally {
+        button.disabled = false;
+        button.textContent = original;
+      }
+    };
+
+    panel.addEventListener('click', handleInventoryAction, true);
+
     const key = `${page}:${productMode.updated_at}:${selectedGameKey}:${friendsKey}:${adapterSyncKey}:${adapterRefreshKey}`;
-    if (loadedKey === key || state.loading) return;
+    if (loadedKey === key || state.loading) {
+      return () => panel?.removeEventListener('click', handleInventoryAction, true);
+    }
     setLoadedKey(key);
     setState((prev) => ({ ...prev, loading: true, error: '' }));
     loadInventory(page)
@@ -469,6 +558,7 @@ export function ReferenceProductInventoryPatcher() {
           error: error instanceof Error ? error.message : String(error || '读取真实后端数据失败')
         })
       );
+    return () => panel?.removeEventListener('click', handleInventoryAction, true);
   }, [productMode.enabled, productMode.updated_at, page, state, loadedKey, selectedGameKey, friendsKey, adapterSyncKey, adapterRefreshKey]);
 
   return null;
