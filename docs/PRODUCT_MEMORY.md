@@ -2591,3 +2591,12 @@ pm.cmd run release:preflight。
 - 推荐页真实面板新增“真实推荐目标”区：展示真实扫描游戏列表，可切换目标并重新分析当前目标。
 - 这一步进一步降低了 `src/reference-ui` 演示数组对用户判断的影响；参考 UI 仍保持一比一不改。
 - 下一步推荐：补“复制/导出诊断报告正式入口”，让真实诊断报告可直接复制或导出文本。
+
+## 2026-06-04 诊断报告复制与导出入口
+
+- `ReferenceProductDiagnosticsPatcher` 新增统一纯文本格式化：`formatDiagnosticRecord(record)`。
+- Product Mode 诊断页在已有真实报告时显示“复制报告”和“导出文本”。
+- 复制报告使用 `navigator.clipboard.writeText()`，若环境不支持剪贴板会明确失败并提示使用导出文本。
+- 导出文本使用 Blob 下载 `.txt`，内容来自最近一次真实 `lan-helper.referenceDiagnosticRecord`，不生成空报告、不伪造成功。
+- `docs/FINAL_REFERENCE_UI_BACKEND_MATRIX.md` 已把“导出文本 / 复制报告”从缺口改为已真实接入。
+- 下一步推荐：做好友席位后端化评估，明确 localStorage 是否足够 MVP，还是需要 room API。

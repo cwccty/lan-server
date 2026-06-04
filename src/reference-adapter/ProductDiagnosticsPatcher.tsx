@@ -80,6 +80,77 @@ function saveDiagnosticRecord(record: DiagnosticRecord) {
   window.localStorage.setItem(DIAGNOSTIC_RECORD_KEY, JSON.stringify(record));
 }
 
+function formatDiagnosticRecord(record: DiagnosticRecord) {
+  const report = record.report;
+  const issue = report.most_likely_cause ?? report.issues?.[0];
+  const lines = [
+    '# 联机助手真实诊断报告',
+    '',
+    `诊断目标: ${record.target_label}`,
+    `目标模式: ${record.target_mode}`,
+    record.target_game_id ? `游戏 ID: ${record.target_game_id}` : '',
+    `报告生成时间: ${record.generated_at}`,
+    `后端报告时间: ${report.generated_at}`,
+    `应用版本: ${report.app_version}`,
+    `系统: ${report.os}`,
+    `发布检查: ${report.release_ready ? '通过' : '未通过'} (${report.required_passed}/${report.required_total})`,
+    '',
+    '## 摘要',
+    report.summary || '无摘要',
+    '',
+    '## 最可能原因',
+    issue ? `${issue.severity.toUpperCase()} / ${issue.title}\n${issue.detail}` : '暂无',
+    '',
+    '## 下一步动作',
+    ...(report.next_actions?.length ? report.next_actions.map((item, index) => `${index + 1}. ${item}`) : ['暂无']),
+    '',
+    '## 问题列表',
+    ...(report.issues?.length
+      ? report.issues.flatMap((item, index) => [
+          `${index + 1}. [${item.severity}] ${item.title}`,
+          `   ${item.detail}`,
+          ...(item.next_actions ?? []).map((action) => `   - ${action}`),
+          ...(item.evidence ?? []).map((evidence) => `   evidence: ${evidence}`)
+        ])
+      : ['暂无']),
+    '',
+    '## 发布检查',
+    ...(report.release_checks?.length
+      ? report.release_checks.map((item) => `- ${item.ok ? 'PASS' : 'FAIL'} ${item.label}: ${item.detail}`)
+      : ['暂无']),
+    '',
+    '## 详细信息',
+    ...(report.details?.length ? report.details.map((item) => `- ${item}`) : ['暂无'])
+  ].filter((line) => line !== '');
+  return lines.join('\n');
+}
+
+async function copyDiagnosticRecord(record: DiagnosticRecord) {
+  const clipboard = navigator.clipboard;
+  if (!clipboard || typeof clipboard.writeText !== 'function') {
+    throw new Error('当前环境不支持剪贴板写入，请使用“导出文本”保存报告。');
+  }
+  const content = formatDiagnosticRecord(record);
+  await clipboard.writeText(content);
+  return content;
+}
+
+function downloadDiagnosticRecord(record: DiagnosticRecord) {
+  const content = formatDiagnosticRecord(record);
+  const safeTarget = record.target_label.replace(/[^\u4e00-\u9fa5\w.-]+/g, '-').replace(/-+/g, '-').slice(0, 80) || 'diagnostic';
+  const filename = `lan-helper-diagnostic-${safeTarget}-${new Date(record.generated_at).getTime() || Date.now()}.txt`;
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1500);
+  return { filename, content };
+}
+
 function rememberAndSet(node: HTMLElement, marker: string, text: string) {
   if (!node.dataset.lanHelperOriginalText) node.dataset.lanHelperOriginalText = node.textContent ?? '';
   node.textContent = text;
@@ -191,6 +262,10 @@ function renderDiagnosticPanel(options: GameSummary[], target: DiagnosticTargetS
               <div class="font-bold text-slate-800">${escapeHtml(report.summary || '无摘要')}</div>
               ${issue ? `<div class="mt-2 text-[11px] text-slate-600"><strong>${escapeHtml(issue.title)}</strong>：${escapeHtml(issue.detail)}</div>` : ''}
               ${report.next_actions?.length ? `<div class="mt-2 text-[11px] text-slate-500">下一步：${report.next_actions.slice(0, 3).map(escapeHtml).join(' / ')}</div>` : ''}
+              <div class="mt-3 flex flex-wrap gap-2">
+                <button type="button" data-lan-helper-diagnostics-action="copy-report" class="rounded-xl bg-slate-950 px-3 py-1.5 text-[11px] font-bold text-white shadow-sm transition hover:bg-slate-800">复制报告</button>
+                <button type="button" data-lan-helper-diagnostics-action="export-report" class="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-600 shadow-sm transition hover:border-amber-300 hover:text-amber-700">导出文本</button>
+              </div>
               <div class="mt-2 font-mono text-[10px] text-slate-400">报告时间：${escapeHtml(record.generated_at)}｜后端版本：${escapeHtml(report.app_version || 'unknown')}</div>
             `
             : '<div class="text-[11px] text-slate-500">尚未生成真实诊断报告。选择范围后点击“生成真实诊断”。</div>'
@@ -341,6 +416,20 @@ export function ReferenceProductDiagnosticsPatcher() {
       const original = button.textContent ?? '';
       button.textContent = '处理中...';
       try {
+        if (action === 'copy-report') {
+          const currentRecord = readDiagnosticRecord();
+          if (!currentRecord) throw new Error('尚未生成真实诊断报告，请先点击“生成真实诊断”。');
+          const content = await copyDiagnosticRecord(currentRecord);
+          dispatchProductAction('复制真实诊断报告', true, '真实诊断报告已复制到剪贴板。', { target: currentRecord.target_label, content });
+          return;
+        }
+        if (action === 'export-report') {
+          const currentRecord = readDiagnosticRecord();
+          if (!currentRecord) throw new Error('尚未生成真实诊断报告，请先点击“生成真实诊断”。');
+          const result = downloadDiagnosticRecord(currentRecord);
+          dispatchProductAction('导出真实诊断报告', true, `真实诊断报告已导出：${result.filename}`, { target: currentRecord.target_label, filename: result.filename });
+          return;
+        }
         if (action === 'refresh-options') {
           const games = await scanGames();
           setOptions(games);

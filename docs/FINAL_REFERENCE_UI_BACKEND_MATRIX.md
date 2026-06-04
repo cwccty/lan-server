@@ -99,7 +99,7 @@
 | 手动强制重扫 | `generateDiagnosticReportForGame(gameId)` / `generateDiagnosticReport()` | 已真实接入 | Product Mode 有最近选中游戏时优先生成指定游戏诊断；没有选中游戏时回退全局诊断。 |
 | 诊断页真实面板 | `generateDiagnosticReport()` / `generateDiagnosticReportForGame(gameId)` / runtime snapshot / selected game | 已真实接入 | Product Mode 新增真实诊断目标选择器，支持全局环境、当前选中游戏、指定游戏，并持久保存最近一次真实报告。 |
 | 指定游戏诊断 | `generateDiagnosticReportForGame(gameId)` | 已真实接入 | 诊断页 Product Mode 已提供“当前选中游戏 / 指定游戏”选择器。 |
-| 导出文本 / 复制报告 | 前端能力 | 已记录缺口 | 需要正式 UI 绑定真实报告内容。 |
+| 导出文本 / 复制报告 | `localStorage: lan-helper.referenceDiagnosticRecord` + 前端 Blob/Clipboard | 已真实接入 | Product Mode 诊断页基于最近一次真实 `DiagnosticReport` 生成统一纯文本，支持复制到剪贴板和导出 `.txt`。 |
 
 ## 9. 设置 / 帮助
 
