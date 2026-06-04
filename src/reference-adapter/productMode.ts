@@ -8,7 +8,20 @@ export interface ReferenceProductModeState {
 
 function readStoredValue() {
   try {
-    return window.localStorage.getItem(STORAGE_KEY) === '1';
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    if (stored === '1') return true;
+    if (stored === '0') return false;
+
+    // 打包后的 EXE 必须默认进入真实产品模式，不能把一比一参考稿里的
+    // 24ms、75%、n2n.edge.me 等演示状态当成真实产品状态展示给用户。
+    // 普通浏览器预览仍保持参考模式，方便继续做视觉保真检查。
+    return Boolean((window as typeof window & {
+      __TAURI__?: unknown;
+      __TAURI_INTERNALS__?: unknown;
+    }).__TAURI__ || (window as typeof window & {
+      __TAURI__?: unknown;
+      __TAURI_INTERNALS__?: unknown;
+    }).__TAURI_INTERNALS__);
   } catch {
     return false;
   }

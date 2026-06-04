@@ -2796,3 +2796,21 @@ pm.cmd run release:preflight。
 - `friendAllocations.ts` 改为后端优先、localStorage 兜底；Product Mode 的分配、选择、回收、检测摘要已接后端。
 - MVP 决策：当前版本不做云房间；本地后端持久化足够支撑单机/房主邀请包流程。云房间、账号、多人同步、管理员统一分配 IP 作为未来 room API。
 - 下一步推荐：进行目标完成度审计，确认是否只剩“架构性未来项/受控 React 重构评估”，还是仍有必须补齐的真实功能缺口。
+
+## 2026-06-04 19:33:45 发布版默认真实模式修复
+
+用户打开 src-tauri\target\release\lan-helper.exe 后发现首页仍显示参考前端演示状态，例如 就绪: 24ms、75%、虚拟服主在线、
+2n.edge.me:7777、检测通过 等。审计结论：不能视为完全完成，原因是 packaged EXE 首次启动时 lan-helper.referenceProductMode 缺省为关闭，导致默认进入参考展示模式。
+
+本次修复：
+
+- src/reference-adapter/productMode.ts：当运行在 Tauri/EXE 环境且用户未显式设置 Product Mode 时，默认启用真实产品模式；普通浏览器预览仍保持参考模式，保证一比一视觉保真检查不受影响。
+- src/reference-adapter/ProductHomePatcher.tsx：Product Mode 下替换首页关键演示值：75%、24ms、
+2n.edge.me:7777、检测通过/无需配置防火墙、北京联通服务器节点 等，改为真实 runtime 或待配置/需诊断状态。
+- 重新执行 
+pm run build、cargo check --manifest-path src-tauri/Cargo.toml、
+pm run release:preflight，均通过。
+- 重新执行 
+pm run tauri:build，生成新版 src-tauri/target/release/lan-helper.exe。
+
+产品判断：此前说“主要前后端已对应”只适用于 Product Mode 开启后的真实接入层；发布 EXE 默认进入参考模式是不合格的产品行为，已修复。下一步仍需继续把 Product Mode patcher 逐步迁移为正式受控 React 页面。
