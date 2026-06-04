@@ -2513,3 +2513,11 @@ pm.cmd run release:preflight。
 - Product Mode 下诊断页“手动强制重扫”和推荐页“一键拷制专属密信包”会优先使用最近选中的真实游戏生成诊断。
 - ReferenceProductDiagnosticsPatcher 会在诊断页显示当前诊断目标：具体游戏名或“全局”。
 - docs/FINAL_REFERENCE_UI_BACKEND_MATRIX.md 已把指定游戏诊断标记为已真实接入；剩余是正式 UI 需要提供明确的诊断目标选择器。
+
+## 2026-06-04 12:37:12 Product Mode 好友席位持久化与真实邀请包
+- 新增 src/reference-adapter/friendAllocations.ts，用 localStorage: lan-helper.referenceFriendAllocations 持久保存推荐页好友席位，并维护当前选中好友。
+- Product Mode 下推荐页“分配并生成推荐信”会保存好友昵称/IP，“生存邀请包/生成邀请包”会选择当前邀请对象，“回收席位”会删除持久席位。
+- 推荐页“探测”现在会检测当前选中好友虚拟 IP 的游戏端口，并把最近检测摘要写入好友席位。
+- 推荐页“复制完整邀请凭证包”会基于最近 n2n 配置、真实选中游戏、好友席位和游戏端口生成真实邀请包，不再只复制参考 UI 演示文本。
+- ProductInventoryPatcher 的推荐页真实面板会展示 Product Mode 持久好友席位、好友预留 IP 和最近检测结果。
+- 剩余：若未来做云房间/多人统一管理，需要新增后端房间 API；当前为本地 Product Mode 持久化。

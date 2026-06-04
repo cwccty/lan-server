@@ -4,6 +4,11 @@ import type { GameAdapter, GameSummary } from '../types/game';
 import type { NetworkConfig } from '../types/network';
 import type { Recommendation } from '../types/recommendation';
 import type { ServerSessionStatus } from '../types/serverSession';
+import {
+  listReferenceFriendAllocations,
+  subscribeReferenceFriendAllocations,
+  type ReferenceFriendAllocation
+} from './friendAllocations';
 import { getReferenceSelectedGame, subscribeReferenceSelectedGame, type ReferenceSelectedGame } from './selectedGame';
 import { useReferenceProductMode } from './useReferenceProductMode';
 
@@ -21,6 +26,7 @@ interface InventoryState {
   n2nConfig: NetworkConfig | null;
   server: ServerSessionStatus | null;
   selectedGame: ReferenceSelectedGame | null;
+  friends: ReferenceFriendAllocation[];
   error: string;
 }
 
@@ -34,6 +40,7 @@ function emptyState(): InventoryState {
     n2nConfig: null,
     server: null,
     selectedGame: null,
+    friends: [],
     error: ''
   };
 }
@@ -174,13 +181,16 @@ function renderRecommendation(state: InventoryState) {
       } as GameSummary
     : state.games[0];
   const config = state.n2nConfig;
+  const selectedFriend = state.friends.find((item) => item.status === 'selected') ?? state.friends[state.friends.length - 1];
   const invite = [
     '[联机助手真实邀请摘要]',
     `游戏: ${game?.display_name ?? '未选择'}`,
     `房主虚拟 IP: ${config?.local_ip ?? '未读取'}`,
+    selectedFriend ? `好友预留 IP: ${selectedFriend.ip} (${selectedFriend.name})` : '好友预留 IP: 未分配',
     `Supernode: ${config?.supernode ?? '未读取'}`,
     `房间名: ${config?.room_name ?? '未读取'}`,
     `默认端口: ${game?.connection_plan?.default_join_port ?? game?.connection_plan?.default_join_host ?? '待按方案确认'}`,
+    `好友检测: ${selectedFriend?.last_check_summary ?? '未检测'}`,
     `服务端状态: ${state.server?.running ? '运行中' : '未运行'}`,
     `最近更新时间: ${state.loadedAt || '未加载'}`
   ].join('\n');
@@ -213,7 +223,24 @@ function renderRecommendation(state: InventoryState) {
     </div>
     <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
       <div class="space-y-2">${recommendationRows.length > 0 ? recommendationRows.join('') : '<div class="rounded-xl border border-dashed border-amber-200 bg-white/70 p-3 text-[11px] text-slate-500">暂无真实推荐结果。请先扫描游戏或选择有适配器的游戏。</div>'}</div>
-      <pre class="max-h-64 overflow-auto rounded-xl border border-slate-800 bg-slate-950 p-3 font-mono text-[11px] leading-relaxed text-amber-100">${escapeHtml(invite)}</pre>
+      <div class="space-y-2">
+        <pre class="max-h-64 overflow-auto rounded-xl border border-slate-800 bg-slate-950 p-3 font-mono text-[11px] leading-relaxed text-amber-100">${escapeHtml(invite)}</pre>
+        <div class="rounded-xl border border-slate-100 bg-white/80 p-3 text-[11px] text-slate-600">
+          <div class="mb-2 flex items-center justify-between gap-2">
+            <span class="font-bold text-slate-800">Product Mode 好友席位</span>
+            ${badge(`${state.friends.length} 个持久席位`, state.friends.length ? 'green' : 'slate')}
+          </div>
+          ${
+            state.friends.length
+              ? `<div class="space-y-1.5">${state.friends.map((friend) => `
+                <div class="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-2 py-1.5">
+                  <span><strong>${escapeHtml(friend.name)}</strong> <span class="font-mono">${escapeHtml(friend.ip)}</span></span>
+                  <span class="text-[10px] text-slate-400">${escapeHtml(friend.last_check_summary || friend.status)}</span>
+                </div>`).join('')}</div>`
+              : '<div class="text-slate-400">尚未通过 Product Mode 保存好友席位。点击“分配并生成推荐信”后会持久保存。</div>'
+          }
+        </div>
+      </div>
     </div>
   `;
 }
@@ -242,6 +269,7 @@ async function loadInventory(page: PageKind): Promise<InventoryState> {
     collect('读取服务端状态', readServerSession, null)
   ]);
   const selectedGame = getReferenceSelectedGame();
+  const friends = listReferenceFriendAllocations();
   const targetGameId = selectedGame?.game_id || games[0]?.game_id || adapters[0]?.game_id || 'terraria';
   const recommendations = page === 'recommendation'
     ? await collect('读取推荐方案', () => recommendPlans(targetGameId), [])
@@ -256,6 +284,7 @@ async function loadInventory(page: PageKind): Promise<InventoryState> {
     n2nConfig,
     server,
     selectedGame,
+    friends,
     error: disconnected
       ? '当前页面没有连接到 Tauri 后端。请用打包后的 lan-helper.exe 打开，普通浏览器预览只能验证界面，不能读取真实扫描/方案/推荐数据。'
       : errors.slice(0, 3).join('；')
@@ -268,6 +297,7 @@ export function ReferenceProductInventoryPatcher() {
   const [state, setState] = useState<InventoryState>(() => emptyState());
   const [loadedKey, setLoadedKey] = useState('');
   const [selectedGameKey, setSelectedGameKey] = useState(() => getReferenceSelectedGame()?.game_id ?? '');
+  const [friendsKey, setFriendsKey] = useState(() => String(listReferenceFriendAllocations().length));
 
   useEffect(() => {
     const tick = () => setPage(detectPage());
@@ -282,6 +312,14 @@ export function ReferenceProductInventoryPatcher() {
       setSelectedGameKey(nextKey);
       setLoadedKey('');
       setState((prev) => ({ ...prev, selectedGame: game }));
+    });
+  }, []);
+
+  useEffect(() => {
+    return subscribeReferenceFriendAllocations((friends) => {
+      setFriendsKey(`${friends.length}:${friends.map((item) => `${item.id}:${item.updated_at}`).join('|')}`);
+      setLoadedKey('');
+      setState((prev) => ({ ...prev, friends }));
     });
   }, []);
 
@@ -304,7 +342,7 @@ export function ReferenceProductInventoryPatcher() {
     panel.innerHTML = renderPanel(page, state);
     insertHint(root, page);
 
-    const key = `${page}:${productMode.updated_at}:${selectedGameKey}`;
+    const key = `${page}:${productMode.updated_at}:${selectedGameKey}:${friendsKey}`;
     if (loadedKey === key || state.loading) return;
     setLoadedKey(key);
     setState((prev) => ({ ...prev, loading: true, error: '' }));
@@ -317,7 +355,7 @@ export function ReferenceProductInventoryPatcher() {
           error: error instanceof Error ? error.message : String(error || '读取真实后端数据失败')
         })
       );
-  }, [productMode.enabled, productMode.updated_at, page, state, loadedKey, selectedGameKey]);
+  }, [productMode.enabled, productMode.updated_at, page, state, loadedKey, selectedGameKey, friendsKey]);
 
   return null;
 }

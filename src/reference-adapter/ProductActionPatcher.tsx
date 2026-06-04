@@ -26,6 +26,13 @@ import {
 } from './actions';
 import type { NetworkConfig } from '../types/network';
 import type { LaunchConfig } from '../types/recommendation';
+import {
+  getReferenceSelectedFriend,
+  removeReferenceFriendAllocation,
+  selectReferenceFriendAllocation,
+  updateReferenceFriendCheck,
+  upsertReferenceFriendAllocation
+} from './friendAllocations';
 import { getReferenceSelectedGame } from './selectedGame';
 import { useReferenceProductMode } from './useReferenceProductMode';
 
@@ -56,6 +63,14 @@ function firstButton(text: string, headingText: string) {
   return Array.from(root.querySelectorAll<HTMLButtonElement>('button')).find((button) => {
     return textOf(button).includes(text) && isVisible(button);
   }) ?? null;
+}
+
+function buttonsByText(text: string, headingText: string) {
+  const root = findPageRoot(headingText);
+  if (!root) return [];
+  return Array.from(root.querySelectorAll<HTMLButtonElement>('button')).filter((button) => {
+    return textOf(button).includes(text) && isVisible(button);
+  });
 }
 
 function findInputByLabel(labelText: string) {
@@ -171,10 +186,115 @@ function readGamePortFromNetworkForm() {
   return Number.isFinite(port) ? port : 7777;
 }
 
+function findInputByPlaceholder(placeholderPart: string) {
+  return Array.from(document.querySelectorAll<HTMLInputElement>('input')).find((item) =>
+    (item.placeholder ?? '').includes(placeholderPart)
+  ) ?? null;
+}
+
+function readFriendAllocationForm() {
+  return {
+    name: findInputByPlaceholder('隔壁老王')?.value?.trim() || '',
+    ip: findInputByPlaceholder('10.0.8.5')?.value?.trim() || ''
+  };
+}
+
 function closestGameNameFromButton(button: HTMLButtonElement) {
   const card = button.closest('article, [class*="rounded-2xl"]');
   const heading = card?.querySelector('h3, h4');
   return heading ? textOf(heading) : undefined;
+}
+
+function closestFriendFromButton(button: HTMLButtonElement) {
+  const row = button.closest('div[class*="p-3"], div[class*="flex"]');
+  const text = textOf(row ?? button);
+  const ip = text.match(/10\.\d+\.\d+\.\d+/)?.[0] || '';
+  const name =
+    row?.querySelector('span.font-bold, strong, span')?.textContent?.trim()
+    || text.replace(/预留 IPv4:.*/u, '').replace(/活跃在线|握手自测|就绪等待|生成邀请包|生存邀请包|回收席位/g, '').trim();
+  return { name, ip };
+}
+
+function createLocalActionResult<T>(action: string, data: T, message: string): ReferenceActionResult<T> {
+  return { ok: true, action, data, message };
+}
+
+function createLocalActionError(action: string, error: unknown): ReferenceActionResult {
+  return {
+    ok: false,
+    action,
+    message: error instanceof Error ? error.message : String(error || '操作失败')
+  };
+}
+
+function reserveReferenceFriendFromForm(): ReferenceActionResult {
+  try {
+    const form = readFriendAllocationForm();
+    const friend = upsertReferenceFriendAllocation(form.name, form.ip);
+    return createLocalActionResult('保存好友虚拟 IP 席位', friend, `已保存 ${friend.name} -> ${friend.ip}，并设为当前邀请对象。`);
+  } catch (error) {
+    return createLocalActionError('保存好友虚拟 IP 席位', error);
+  }
+}
+
+function selectReferenceFriendFromButton(button: HTMLButtonElement): ReferenceActionResult {
+  try {
+    const friendInfo = closestFriendFromButton(button);
+    const friend = selectReferenceFriendAllocation(friendInfo.name, friendInfo.ip);
+    return createLocalActionResult('选择好友邀请对象', friend, `当前邀请对象：${friend.name} (${friend.ip})。`);
+  } catch (error) {
+    return createLocalActionError('选择好友邀请对象', error);
+  }
+}
+
+function removeReferenceFriendFromButton(button: HTMLButtonElement): ReferenceActionResult {
+  try {
+    const friendInfo = closestFriendFromButton(button);
+    const friend = removeReferenceFriendAllocation(friendInfo.name, friendInfo.ip);
+    return createLocalActionResult('回收好友虚拟 IP 席位', friend, `已回收 ${friend.name} (${friend.ip})。`);
+  } catch (error) {
+    return createLocalActionError('回收好友虚拟 IP 席位', error);
+  }
+}
+
+async function testSelectedReferenceFriend() {
+  const friend = getReferenceSelectedFriend();
+  if (!friend) return createLocalActionError('检测好友连接', new Error('请先分配或选择一个好友席位。'));
+  const port = readGamePortFromNetworkForm();
+  const result = await testReferenceConnectivity({ host: friend.ip, ports: [port], timeout_ms: 1200, mode: 'n2n_game_port' });
+  const reachable = Boolean((result.data as any)?.reachable);
+  const summary = reachable ? `端口 ${port} 有响应` : `端口 ${port} 未检测到响应，可能好友不是服务端或尚未启动游戏`;
+  updateReferenceFriendCheck(friend.ip, summary);
+  return {
+    ...result,
+    action: '检测好友连接',
+    message: `${friend.name} (${friend.ip})：${summary}`
+  };
+}
+
+async function copyReferenceInvitePackage() {
+  const selectedGame = getReferenceSelectedGame();
+  const friend = getReferenceSelectedFriend();
+  const n2nResult = await readReferenceN2nLastConfig();
+  const config = n2nResult.ok ? n2nResult.data as NetworkConfig : undefined;
+  const port = readGamePortFromNetworkForm();
+  const invite = [
+    '[联机助手真实邀请包]',
+    `游戏: ${selectedGame?.display_name || '未选择'}`,
+    `房主虚拟 IP: ${config?.local_ip || '未读取'}`,
+    friend ? `好友预留 IP: ${friend.ip} (${friend.name})` : '好友预留 IP: 未分配',
+    `Supernode: ${config?.supernode || '未读取'}`,
+    `房间名: ${config?.room_name || '未读取'}`,
+    `游戏端口: ${port}`,
+    `好友检测: ${friend?.last_check_summary || '未检测'}`,
+    '使用说明: 好友进入同一虚拟局域网后，在游戏内连接房主虚拟 IP 与上述端口。'
+  ].join('\n');
+
+  if (!navigator.clipboard) {
+    throw new Error('当前环境不支持剪贴板写入，请从结果面板手动复制真实邀请包。');
+  }
+  await navigator.clipboard.writeText(invite);
+  return createLocalActionResult('复制真实邀请包', { invite, friend, n2n: config }, '真实邀请包已按最近 n2n 配置、选中游戏和好友席位生成。');
 }
 
 function readRecommendationLaunchForm() {
@@ -385,6 +505,12 @@ function useAttachProductActions(enabled: boolean) {
         interceptButton(firstButton('复制主IP', '推荐方案'), 'recommendation-read-n2n-config', () => readReferenceN2nLastConfig()),
         interceptButton(firstButton('一键拷制专属密信包', '推荐方案'), 'recommendation-generate-diagnostics', () => generateReferenceDiagnostics(getReferenceSelectedGame()?.game_id)),
         interceptButton(firstButton('立即启动本地游戏实体', '推荐方案'), 'recommendation-launch-profile', () => launchReferenceProfile(readRecommendationLaunchForm())),
+        interceptButton(firstButton('分配并生成推荐信', '推荐方案'), 'recommendation-reserve-friend-ip', () => Promise.resolve(reserveReferenceFriendFromForm())),
+        ...buttonsByText('生存邀请包', '推荐方案').map((button) => interceptButton(button, 'recommendation-select-friend-invite', (target) => Promise.resolve(selectReferenceFriendFromButton(target)))),
+        ...buttonsByText('生成邀请包', '推荐方案').map((button) => interceptButton(button, 'recommendation-select-friend-invite', (target) => Promise.resolve(selectReferenceFriendFromButton(target)))),
+        ...buttonsByText('回收席位', '推荐方案').map((button) => interceptButton(button, 'recommendation-remove-friend-ip', (target) => Promise.resolve(removeReferenceFriendFromButton(target)))),
+        interceptButton(firstButton('探测', '推荐方案'), 'recommendation-test-selected-friend', () => testSelectedReferenceFriend()),
+        interceptButton(firstButton('复制完整邀请凭证包', '推荐方案'), 'recommendation-copy-real-invite', () => copyReferenceInvitePackage()),
         interceptButton(firstButton('查看分析与推荐方案', '游戏扫描'), 'games-analyze-selected', (button) => analyzeReferenceGameByName(closestGameNameFromButton(button))),
         interceptButton(firstButton('查看推荐配置方案', '游戏扫描'), 'games-analyze-modal-selected', (button) => analyzeReferenceGameByName(closestGameNameFromButton(button))),
         interceptButton(firstButton('创建局域网组网草稿', '游戏扫描'), 'games-create-draft-analysis', (button) => analyzeReferenceGameByName(closestGameNameFromButton(button))),

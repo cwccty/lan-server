@@ -61,10 +61,11 @@
 | 服务端状态 | `readServerSession()` | Product Mode 面板补偿 | 用于邀请摘要。 |
 | 重新测试 | `testConnectivity(target)` | 已真实接入 | 当前读取页面 host/port，失败不应判定为绝对不能联机。 |
 | 复制主 IP | `getN2nLastConfig()` | 已真实接入 | 当前动作读取真实配置并 Toast。 |
-| 一键拷制专属密信包 | `generateDiagnosticReport()` | 已真实接入 | 当前用诊断摘要补偿邀请包真实性。 |
+| 一键拷制专属密信包 | `generateDiagnosticReportForGame(gameId)` / `generateDiagnosticReport()` | 已真实接入 | 有真实选中游戏时生成指定游戏诊断摘要。 |
 | 立即启动本地游戏实体 | `recommendPlans(game_id)` + `launchProfile(game_id, profile_id, config)` | 已真实接入 | 优先使用真实选中游戏，并优先采用真实推荐结果里的 `launch_profile_id`；没有推荐启动项时才回退到默认 profile。 |
-| 分配好友 IP / 回收席位 | 前端本地状态 | 已记录缺口 | 目前没有专门后端持久化好友席位 API；邀请包需要继续通过前端状态管理。 |
-| 检测好友连接 | `testConnectivity(target)` | 部分已接入 | 旧推荐页已有入口；最终参考 UI 的好友席位按钮仍需更精确绑定好友 IP。 |
+| 分配好友 IP / 选择邀请包 / 回收席位 | `localStorage: lan-helper.referenceFriendAllocations` | Product Mode 面板补偿 | 不改参考 UI 源码；Product Mode 拦截按钮并持久保存好友席位。正式后端如需多人房间管理，可再新增 API。 |
+| 检测好友连接 | `testConnectivity(target)` + 好友席位存储 | 已真实接入 | “探测”会检测当前选中好友虚拟 IP 的游戏端口，并记录最近检测摘要。 |
+| 复制完整邀请凭证包 | `getN2nLastConfig()` + 好友席位 + 选中游戏 | 已真实接入 | Product Mode 会复制真实邀请包，不再只复制参考 UI 演示文本。 |
 
 ## 6. 方案库
 
@@ -111,7 +112,7 @@
 ## 当前最重要的剩余缺口
 
 1. **真实实例列表替换**：高级工具、游戏扫描、方案库、推荐页目前大量通过 Product Mode 面板补偿，正式产品最好重构为受控 React 数据流。
-2. **好友席位持久化**：最终参考 UI 有好友 IP 分配大厅，但后端没有专门的 friend allocation 存储 API。
-3. **设置中心真实 API**：目前没有完整 App Settings 后端命令。
-4. **Palworld adapter**：参考前端有 Palworld 展示项，本地方案库暂未提供 Palworld adapter。
-5. **诊断目标选择器**：Product Mode 已能按最近选中游戏生成指定诊断，但正式 UI 仍应让用户显式选择“全局/某个游戏”。 
+2. **设置中心真实 API**：目前没有完整 App Settings 后端命令。
+3. **Palworld adapter**：参考前端有 Palworld 展示项，本地方案库暂未提供 Palworld adapter。
+4. **诊断目标选择器**：Product Mode 已能按最近选中游戏生成指定诊断，但正式 UI 仍应让用户显式选择“全局/某个游戏”。
+5. **好友席位后端化**：Product Mode 已用 localStorage 持久化好友席位；如果未来要做多人房间/云同步，仍需后端房间 API。
