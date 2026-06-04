@@ -61,7 +61,11 @@ function findPageRoot(headingText: string) {
     return textOf(heading).includes(headingText) && isVisible(heading);
   });
   const heading = headings.length > 0 ? headings[headings.length - 1] : null;
-  return heading?.closest('.space-y-6') ?? heading?.closest('main > div > div') ?? null;
+  const root = heading?.closest('.space-y-6') ?? heading?.closest('main > div > div') ?? null;
+  if (root?.querySelector('[data-lan-helper-product-controlled]') || (root as HTMLElement | null)?.dataset?.lanHelperProductControlled) {
+    return null;
+  }
+  return root;
 }
 
 function firstButton(text: string, headingText: string) {

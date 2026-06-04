@@ -71,7 +71,11 @@ function findPageRoot(page: PageKind) {
   const heading = Array.from(document.querySelectorAll<HTMLElement>('main h1, main h2, main h3')).find((node) =>
     textOf(node).includes(label)
   );
-  return heading?.closest('.space-y-6') ?? heading?.closest('main > div > div') ?? null;
+  const root = heading?.closest('.space-y-6') ?? heading?.closest('main > div > div') ?? null;
+  if (root?.querySelector('[data-lan-helper-product-controlled]') || (root as HTMLElement | null)?.dataset?.lanHelperProductControlled) {
+    return null;
+  }
+  return root;
 }
 
 function escapeHtml(value: string) {

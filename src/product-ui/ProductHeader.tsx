@@ -64,7 +64,7 @@ export function ProductHeader({ onOpenDiagnostics, onTabChange, onTriggerToast }
   const actionIsStop = runtime.network.running || runtime.network.ready;
 
   return (
-    <header className="fixed top-0 right-0 w-[calc(100%-260px)] h-16 bg-white/70 backdrop-blur-lg border-b border-[#eeeef0] flex justify-between items-center px-8 z-45 shadow-sm">
+    <header className="fixed top-0 right-0 w-[calc(100%-276px)] h-16 bg-white/70 backdrop-blur-lg border-b border-[#eeeef0] flex justify-between items-center px-8 z-45 shadow-sm">
       <div className="flex items-center gap-6">
         <nav className="flex gap-6 font-sans text-sm font-medium">
           <button

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AppState, AppTab, NetworkStatus } from './types';
 import Sidebar from './components/Sidebar';
+import { ProductSidebar } from '../product-ui/ProductSidebar';
 import Header from './components/Header';
 import HomeView from './components/HomeView';
 import { ProductHomeView } from '../product-ui/ProductHomeView';
@@ -9,6 +10,7 @@ import SolutionsView from './components/SolutionsView';
 import GameScanView from './components/GameScanView';
 import { ProductGameScanView } from '../product-ui/ProductGameScanView';
 import RecommendProtocolView from './components/RecommendProtocolView';
+import { ProductRecommendationView } from '../product-ui/ProductRecommendationView';
 import UniversalNetworkView from './components/UniversalNetworkView';
 import { ProductNetworkView } from '../product-ui/ProductNetworkView';
 import AdvancedToolsView from './components/AdvancedToolsView';
@@ -109,24 +111,44 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-100/40 text-slate-700 font-sans selection:bg-amber-500/20 selection:text-amber-900 selection:antialiased">
       {/* Sidebar Navigation */}
-      <Sidebar
-        currentTab={state.currentTab}
-        onChangeTab={(tab) => {
-          updateStateValue('currentTab', tab);
-          handleTriggerToast(`切换至面板: ${
-            tab === 'home' ? '首页' :
-            tab === 'solutions' ? '方案库' :
-            tab === 'games' ? '游戏扫描' :
-            tab === 'protocol' ? '推荐方案' :
-            tab === 'network' ? '通用组网中心' :
-            tab === 'advanced_tools' ? '高级连接工具' :
-            tab === 'terraria' ? 'Terraria 向导' :
-            tab === 'diagnostics' ? '诊断报告' : '设置与帮助'
-          }`);
-        }}
-        status={state.netStatus}
-        onShowVersion={() => setShowVersionModal(true)}
-      />
+      {productMode.enabled ? (
+        <ProductSidebar
+          currentTab={state.currentTab}
+          onChangeTab={(tab) => {
+            updateStateValue('currentTab', tab);
+            handleTriggerToast(`切换至面板: ${
+              tab === 'home' ? '首页' :
+              tab === 'solutions' ? '方案库' :
+              tab === 'games' ? '游戏扫描' :
+              tab === 'protocol' ? '推荐方案' :
+              tab === 'network' ? '通用组网中心' :
+              tab === 'advanced_tools' ? '高级连接工具' :
+              tab === 'terraria' ? 'Terraria 向导' :
+              tab === 'diagnostics' ? '诊断报告' : '设置与帮助'
+            }`);
+          }}
+          onShowVersion={() => setShowVersionModal(true)}
+        />
+      ) : (
+        <Sidebar
+          currentTab={state.currentTab}
+          onChangeTab={(tab) => {
+            updateStateValue('currentTab', tab);
+            handleTriggerToast(`切换至面板: ${
+              tab === 'home' ? '首页' :
+              tab === 'solutions' ? '方案库' :
+              tab === 'games' ? '游戏扫描' :
+              tab === 'protocol' ? '推荐方案' :
+              tab === 'network' ? '通用组网中心' :
+              tab === 'advanced_tools' ? '高级连接工具' :
+              tab === 'terraria' ? 'Terraria 向导' :
+              tab === 'diagnostics' ? '诊断报告' : '设置与帮助'
+            }`);
+          }}
+          status={state.netStatus}
+          onShowVersion={() => setShowVersionModal(true)}
+        />
+      )}
 
       {/* Header Panel */}
       {productMode.enabled ? (
@@ -150,7 +172,7 @@ export default function App() {
       )}
 
       {/* Main Content Render area */}
-      <main className="ml-[260px] pt-24 px-8 pb-12 min-h-screen">
+      <main className={`${productMode.enabled ? 'ml-[276px]' : 'ml-[260px]'} pt-24 px-8 pb-12 min-h-screen`}>
         <AnimatePresence mode="wait">
           <motion.div
             key={state.currentTab}
@@ -203,10 +225,17 @@ export default function App() {
             )}
 
             {state.currentTab === 'protocol' && (
-              <RecommendProtocolView
-                onTriggerToast={handleTriggerToast}
-                onNavigateTab={(tab) => updateStateValue('currentTab', tab)}
-              />
+              productMode.enabled ? (
+                <ProductRecommendationView
+                  onTriggerToast={handleTriggerToast}
+                  onNavigateTab={(tab) => updateStateValue('currentTab', tab)}
+                />
+              ) : (
+                <RecommendProtocolView
+                  onTriggerToast={handleTriggerToast}
+                  onNavigateTab={(tab) => updateStateValue('currentTab', tab)}
+                />
+              )
             )}
 
             {state.currentTab === 'network' && (

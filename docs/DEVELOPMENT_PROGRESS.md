@@ -2157,3 +2157,10 @@ pm run release:preflight 通过。
 pm run tauri:build 通过，已重新生成 src-tauri/target/release/lan-helper.exe。
 
 下一步推荐：迁移 推荐方案。该页目前仍依赖 ProductInventoryPatcher 提供真实推荐摘要、好友席位、邀请包和推荐目标切换；迁移后应由正式页面直接调用 ecommendPlans()、launchProfile()、getN2nLastConfig()、好友席位后端 API 和 	estConnectivity()。
+
+## 2026-06-04 22:41:55 - 进度：补齐 EXE 高级工具导航栏目
+- 新增正式受控侧边栏：src/product-ui/ProductSidebar.tsx。
+- src/reference-ui/App.tsx 在 Product Mode 下渲染 ProductSidebar，Reference Mode 下继续渲染参考稿 Sidebar。
+- 主内容左边距按模式切换：Product Mode 276px，Reference Mode 260px。
+- 验证通过：构建、Rust 检查、发布预检。
+- 下一步：完成未收尾的推荐方案迁移提交，然后继续迁移“方案库”和“设置与帮助”为正式受控页面，减少 patcher 依赖。

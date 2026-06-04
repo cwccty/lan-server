@@ -3036,3 +3036,12 @@ pm run release:preflight 通过。
 pm run tauri:build 通过，已重新生成 src-tauri/target/release/lan-helper.exe。
 
 下一步推荐：迁移 推荐方案。该页目前仍依赖 ProductInventoryPatcher 提供真实推荐摘要、好友席位、邀请包和推荐目标切换；迁移后应由正式页面直接调用 ecommendPlans()、launchProfile()、getN2nLastConfig()、好友席位后端 API 和 	estConnectivity()。
+
+## 2026-06-04 22:41:55 - Product Sidebar 分组修正
+- 用户指出当前 EXE 与设计前端不一致，缺少“高级工具”这一栏。
+- 根因确认：EXE 当前入口使用 src/reference-ui/components/Sidebar.tsx 作为侧边栏；此前“高级连接工具”只是普通菜单项，没有以独立分组呈现。
+- 架构修正：不直接修改参考稿文件，新增 src/product-ui/ProductSidebar.tsx 作为 Product Mode/EXE 正式侧边栏；参考模式继续保持 C:\Users\ty\Downloads\联机助手 (3)\src 一比一视觉守卫。
+- 正式侧边栏分组：开始、准备、执行、高级工具、排查、系统；“高级连接工具”位于“高级工具”分组，入口对应真实 ProductAdvancedToolsView。
+- 已验证：
+pm run build、cargo check、
+pm run release:preflight 通过。

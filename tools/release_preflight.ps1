@@ -156,6 +156,17 @@ try {
     Fail-Check "controlled Header replaces Header patcher" "Product Mode header must render src/product-ui/ProductHeader.tsx and main.tsx must not mount ReferenceProductHeaderPatcher"
   }
 
+  if ((Test-Path "src\product-ui\ProductSidebar.tsx") -and $appTextForControlledHome -match "ProductSidebar" -and $appTextForControlledHome -match "productMode\.enabled") {
+    $productSidebarText = Get-Content "src\product-ui\ProductSidebar.tsx" -Raw -Encoding UTF8
+    if ($productSidebarText -match "高级工具" -and $productSidebarText -match "高级连接工具" -and $productSidebarText -match "advanced_tools") {
+      Pass-Check "controlled Product Sidebar includes Advanced Tools section"
+    } else {
+      Fail-Check "controlled Product Sidebar includes Advanced Tools section" "ProductSidebar must expose a visible 高级工具 section with advanced_tools navigation"
+    }
+  } else {
+    Fail-Check "controlled Product Sidebar includes Advanced Tools section" "Product Mode must render src/product-ui/ProductSidebar.tsx instead of relying only on the reference Sidebar"
+  }
+
   if ((Test-Path "src\product-ui\ProductAdvancedToolsView.tsx") -and $appTextForControlledHome -match "ProductAdvancedToolsView" -and $appTextForControlledHome -match "advanced_tools" -and $appTextForControlledHome -match "productMode\.enabled" -and $mainTextForProductMode -notmatch "ReferenceProductAdvancedToolsPatcher") {
     Pass-Check "controlled Advanced Tools page replaces Advanced Tools patcher"
   } else {
@@ -185,6 +196,12 @@ try {
   } else {
     Fail-Check "controlled Game Scan page replaces reference scan demo" "Product Mode games must render src/product-ui/ProductGameScanView.tsx instead of relying on GameScanView simulated scan and ProductInventoryPatcher"
   }
+
+  if ((Test-Path "src\product-ui\ProductRecommendationView.tsx") -and $appTextForControlledHome -match "ProductRecommendationView" -and $appTextForControlledHome -match "currentTab === 'protocol'" -and $appTextForControlledHome -match "productMode\.enabled") {
+    Pass-Check "controlled Recommendation page replaces reference recommendation demo"
+  } else {
+    Fail-Check "controlled Recommendation page replaces reference recommendation demo" "Product Mode protocol must render src/product-ui/ProductRecommendationView.tsx instead of relying on RecommendProtocolView and ProductInventoryPatcher"
+  }
 } catch {
   Fail-Check "release/product-mode guardrails" ([string]$_)
 }
@@ -195,6 +212,7 @@ try {
 # leaves only reference UI demo handlers.
 try {
   $sidebarText = Get-Content "src\reference-ui\components\Sidebar.tsx" -Raw -Encoding UTF8
+  $productSidebarTextForNav = if (Test-Path "src\product-ui\ProductSidebar.tsx") { Get-Content "src\product-ui\ProductSidebar.tsx" -Raw -Encoding UTF8 } else { "" }
   $appText = Get-Content "src\reference-ui\App.tsx" -Raw -Encoding UTF8
   $actionsText = Get-Content "src\reference-adapter\actions.ts" -Raw -Encoding UTF8
   $actionPatcherText = Get-Content "src\reference-adapter\ProductActionPatcher.tsx" -Raw -Encoding UTF8
@@ -211,7 +229,7 @@ try {
     "设置与帮助"
   )
   $missingNavLabels = @($requiredNavLabels | Where-Object {
-    $sidebarText -notmatch [regex]::Escape($_)
+    (($sidebarText + "`n" + $productSidebarTextForNav) -notmatch [regex]::Escape($_))
   })
   if ($missingNavLabels.Count -eq 0 -and $appText -match "currentTab === 'advanced_tools'" -and $appText -match "AdvancedToolsView") {
     Pass-Check "core navigation includes all product pages"
