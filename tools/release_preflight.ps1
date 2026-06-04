@@ -123,18 +123,27 @@ try {
     Fail-Check "EXE forces Product Mode" "src/reference-adapter/productMode.ts must force Product Mode under Tauri before reading stored 0/1"
   }
 
-  $requiredProductPatcherNames = @(
-    "ReferenceProductRuntimeBridgeController",
+  if ($mainTextForProductMode -match "ReferenceProductRuntimeBridgeController") {
+    Pass-Check "release mounts Product runtime bridge"
+  } else {
+    Fail-Check "release mounts Product runtime bridge" "src/main.tsx must mount ReferenceProductRuntimeBridgeController"
+  }
+
+  $forbiddenPagePatchers = @(
+    "ReferenceProductHeaderPatcher",
+    "ReferenceProductHomePatcher",
+    "ReferenceProductDiagnosticsPatcher",
     "ReferenceProductActionPatcher",
     "ReferenceProductActionResultPatcher",
+    "ReferenceProductAdvancedToolsPatcher",
     "ReferenceProductInventoryPatcher",
     "ReferenceProductSettingsPatcher"
   )
-  $missingProductPatchers = @($requiredProductPatcherNames | Where-Object { $mainTextForProductMode -notmatch [regex]::Escape($_) })
-  if ($missingProductPatchers.Count -eq 0) {
-    Pass-Check "release mounts Product Mode patchers"
+  $mountedPagePatchers = @($forbiddenPagePatchers | Where-Object { $mainTextForProductMode -match [regex]::Escape($_) })
+  if ($mountedPagePatchers.Count -eq 0) {
+    Pass-Check "release does not mount page DOM patchers"
   } else {
-    Fail-Check "release mounts Product Mode patchers" ("missing in src/main.tsx: " + ($missingProductPatchers -join ", "))
+    Fail-Check "release does not mount page DOM patchers" ("mounted in src/main.tsx: " + ($mountedPagePatchers -join ", "))
   }
 
   if ($mainTextForProductMode -match "from './reference-ui/App'" -and $mainTextForProductMode -notmatch "from './App'") {
@@ -154,6 +163,17 @@ try {
     Pass-Check "controlled Header replaces Header patcher"
   } else {
     Fail-Check "controlled Header replaces Header patcher" "Product Mode header must render src/product-ui/ProductHeader.tsx and main.tsx must not mount ReferenceProductHeaderPatcher"
+  }
+
+  if ((Test-Path "src\product-ui\ProductSolutionsView.tsx") -and $appTextForControlledHome -match "ProductSolutionsView" -and $appTextForControlledHome -match "currentTab === 'solutions'" -and $appTextForControlledHome -match "productMode\.enabled" -and $mainTextForProductMode -notmatch "ReferenceProductInventoryPatcher") {
+    $solutionsText = Get-Content "src\product-ui\ProductSolutionsView.tsx" -Raw -Encoding UTF8
+    if ($solutionsText -match "listGameAdapters" -and $solutionsText -match "syncAdapterRegistry" -and $solutionsText -match "saveGameAdapter" -and $solutionsText -match "data-lan-helper-product-controlled=`"solutions`"") {
+      Pass-Check "controlled Solutions page replaces Inventory patcher"
+    } else {
+      Fail-Check "controlled Solutions page replaces Inventory patcher" "ProductSolutionsView must wire real adapter APIs and mark itself product-controlled"
+    }
+  } else {
+    Fail-Check "controlled Solutions page replaces Inventory patcher" "Product Mode solutions must render src/product-ui/ProductSolutionsView.tsx and main.tsx must not mount ReferenceProductInventoryPatcher"
   }
 
   if ((Test-Path "src\product-ui\ProductSidebar.tsx") -and $appTextForControlledHome -match "ProductSidebar" -and $appTextForControlledHome -match "productMode\.enabled") {
@@ -201,6 +221,46 @@ try {
     Pass-Check "controlled Recommendation page replaces reference recommendation demo"
   } else {
     Fail-Check "controlled Recommendation page replaces reference recommendation demo" "Product Mode protocol must render src/product-ui/ProductRecommendationView.tsx instead of relying on RecommendProtocolView and ProductInventoryPatcher"
+  }
+
+  if ((Test-Path "src\product-ui\ProductSettingsView.tsx") -and $appTextForControlledHome -match "ProductSettingsView" -and $appTextForControlledHome -match "currentTab === 'settings'" -and $appTextForControlledHome -match "productMode\.enabled" -and $mainTextForProductMode -notmatch "ReferenceProductSettingsPatcher") {
+    $settingsText = Get-Content "src\product-ui\ProductSettingsView.tsx" -Raw -Encoding UTF8
+    if ($settingsText -match "getAppSettings" -and $settingsText -match "saveAppSettings" -and $settingsText -match "resetAppSettings" -and $settingsText -match "testEdgePath" -and $settingsText -match "data-lan-helper-product-controlled=`"settings`"") {
+      Pass-Check "controlled Settings page replaces Settings patcher"
+    } else {
+      Fail-Check "controlled Settings page replaces Settings patcher" "ProductSettingsView must wire real settings APIs and mark itself product-controlled"
+    }
+  } else {
+    Fail-Check "controlled Settings page replaces Settings patcher" "Product Mode settings must render src/product-ui/ProductSettingsView.tsx and main.tsx must not mount ReferenceProductSettingsPatcher"
+  }
+
+  $controlledPageMarkers = @{
+    "home" = "src\product-ui\ProductHomeView.tsx"
+    "solutions" = "src\product-ui\ProductSolutionsView.tsx"
+    "games" = "src\product-ui\ProductGameScanView.tsx"
+    "recommendation" = "src\product-ui\ProductRecommendationView.tsx"
+    "network" = "src\product-ui\ProductNetworkView.tsx"
+    "advanced_tools" = "src\product-ui\ProductAdvancedToolsView.tsx"
+    "terraria" = "src\product-ui\ProductTerrariaGuideView.tsx"
+    "diagnostics" = "src\product-ui\ProductDiagnosticsView.tsx"
+    "settings" = "src\product-ui\ProductSettingsView.tsx"
+  }
+  $missingControlledMarkers = @()
+  foreach ($marker in $controlledPageMarkers.Keys) {
+    $path = $controlledPageMarkers[$marker]
+    if (-not (Test-Path $path)) {
+      $missingControlledMarkers += "$marker missing file"
+      continue
+    }
+    $text = Get-Content $path -Raw -Encoding UTF8
+    if ($text -notmatch "data-lan-helper-product-controlled=`"$([regex]::Escape($marker))`"") {
+      $missingControlledMarkers += $marker
+    }
+  }
+  if ($missingControlledMarkers.Count -eq 0) {
+    Pass-Check "all Product pages declare controlled markers"
+  } else {
+    Fail-Check "all Product pages declare controlled markers" ("missing markers: " + ($missingControlledMarkers -join ", "))
   }
 } catch {
   Fail-Check "release/product-mode guardrails" ([string]$_)

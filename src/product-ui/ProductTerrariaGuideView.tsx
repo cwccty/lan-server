@@ -115,7 +115,7 @@ export function ProductTerrariaGuideView({ onTriggerToast }: ProductTerrariaGuid
   const logs = lastLines(terraria.recentLogs, 24);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-lan-helper-product-controlled="terraria">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h2 className="font-heading text-2xl font-bold text-slate-800">Terraria 向导</h2>

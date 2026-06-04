@@ -7,6 +7,7 @@ import HomeView from './components/HomeView';
 import { ProductHomeView } from '../product-ui/ProductHomeView';
 import { ProductHeader } from '../product-ui/ProductHeader';
 import SolutionsView from './components/SolutionsView';
+import { ProductSolutionsView } from '../product-ui/ProductSolutionsView';
 import GameScanView from './components/GameScanView';
 import { ProductGameScanView } from '../product-ui/ProductGameScanView';
 import RecommendProtocolView from './components/RecommendProtocolView';
@@ -19,6 +20,7 @@ import { ProductTerrariaGuideView } from '../product-ui/ProductTerrariaGuideView
 import DiagnosticsView from './components/DiagnosticsView';
 import { ProductDiagnosticsView } from '../product-ui/ProductDiagnosticsView';
 import SettingsView from './components/SettingsView';
+import { ProductSettingsView } from '../product-ui/ProductSettingsView';
 import { ProductAdvancedToolsView } from '../product-ui/ProductAdvancedToolsView';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, X, Gift, CheckCircle } from 'lucide-react';
@@ -203,11 +205,19 @@ export default function App() {
             )}
 
             {state.currentTab === 'solutions' && (
-              <SolutionsView
-                onTriggerToast={handleTriggerToast}
-                solutionsUrl={state.solutions_url}
-                onUpdateSolutionsUrl={(url) => updateStateValue('solutions_url', url)}
-              />
+              productMode.enabled ? (
+                <ProductSolutionsView
+                  onTriggerToast={handleTriggerToast}
+                  solutionsUrl={state.solutions_url}
+                  onUpdateSolutionsUrl={(url) => updateStateValue('solutions_url', url)}
+                />
+              ) : (
+                <SolutionsView
+                  onTriggerToast={handleTriggerToast}
+                  solutionsUrl={state.solutions_url}
+                  onUpdateSolutionsUrl={(url) => updateStateValue('solutions_url', url)}
+                />
+              )
             )}
 
             {state.currentTab === 'games' && (
@@ -295,12 +305,16 @@ export default function App() {
             )}
 
             {state.currentTab === 'settings' && (
-              <SettingsView
-                onTriggerToast={handleTriggerToast}
-                edgePath={state.edgePath}
-                supernode_default={state.supernode_default}
-                onUpdateState={updateStateValue}
-              />
+              productMode.enabled ? (
+                <ProductSettingsView onTriggerToast={handleTriggerToast} />
+              ) : (
+                <SettingsView
+                  onTriggerToast={handleTriggerToast}
+                  edgePath={state.edgePath}
+                  supernode_default={state.supernode_default}
+                  onUpdateState={updateStateValue}
+                />
+              )
             )}
           </motion.div>
         </AnimatePresence>

@@ -12,6 +12,7 @@ import {
   User,
   Wand2,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { AppTab } from '../reference-ui/types';
 
 interface ProductSidebarProps {
@@ -24,7 +25,7 @@ interface ProductMenuItem {
   id: AppTab;
   label: string;
   hint: string;
-  icon: typeof Home;
+  icon: LucideIcon;
   badge?: string;
   alert?: boolean;
 }

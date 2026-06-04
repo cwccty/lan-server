@@ -3045,3 +3045,15 @@ pm run tauri:build 通过，已重新生成 src-tauri/target/release/lan-helper.
 - 已验证：
 pm run build、cargo check、
 pm run release:preflight 通过。
+
+## 2026-06-04 22:58:58 - Product Mode 页面 patcher 迁移完成阶段
+- 新增 src/product-ui/ProductSolutionsView.tsx：方案库改为正式 React 受控页面，直接接入 listGameAdapters、syncAdapterRegistry、syncLocalAdapterRegistryExample、importGameAdapterJson、exportGameAdapterJson、saveGameAdapter。
+- 新增 src/product-ui/ProductSettingsView.tsx：设置与帮助改为正式 React 受控页面，直接接入 getAppSettings、saveAppSettings、esetAppSettings、	estEdgePath、openPath。
+- src/reference-ui/App.tsx 在 Product Mode 下渲染全部 src/product-ui/* 页面；Reference Mode 仍保留参考前端一比一对照。
+- src/main.tsx 已移除页面级 DOM patcher：ReferenceProductActionPatcher、ReferenceProductActionResultPatcher、ReferenceProductInventoryPatcher、ReferenceProductSettingsPatcher 等不再挂载。
+- 所有 Product 页面统一增加 data-lan-helper-product-controlled 标记。
+- 	ools/release_preflight.ps1 已新增守卫：发布入口不允许挂页面 DOM patcher，且所有 Product 页面必须声明受控标记。
+- 已验证并打包：
+pm run build、cargo check、
+pm run release:preflight、
+pm run tauri:build 均通过；EXE 位于 src-tauri/target/release/lan-helper.exe。

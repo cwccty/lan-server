@@ -158,7 +158,7 @@ export function ProductNetworkView({ onTriggerToast, onNavigateTab }: ProductNet
   const logs = runtime.snapshot?.n2n?.recent_logs?.slice(-10) ?? [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-lan-helper-product-controlled="network">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h2 className="font-heading text-2xl font-bold text-slate-800">通用组网中心</h2>

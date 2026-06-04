@@ -139,7 +139,7 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
   const server = runtime.snapshot?.server_session ?? null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-lan-helper-product-controlled="advanced_tools">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h2 className="font-heading text-2xl font-bold text-slate-800">高级连接工具</h2>

@@ -2856,3 +2856,9 @@ pm run tauri:build 通过，已重新生成 src-tauri/target/release/lan-helper.
 - src/product-ui/ProductSidebar.tsx 是正式产品侧边栏来源，允许与参考稿不同，但必须保持真实后端页面入口。
 - src/reference-ui/components/Sidebar.tsx 继续作为参考前端一致性文件，不应直接修改来修正式产品导航问题。
 - 用户明确反馈：实际 EXE 视觉优先，不能用“源码里有高级连接工具菜单项”代替“设计上存在高级工具栏目”。
+
+## 2026-06-04 22:58:58 - Product Mode 不再依赖页面级 DOM patcher
+- 目标“把 Product Mode patcher 逐页迁移为正式 React 受控页面”已达到一个关键里程碑：发布入口 src/main.tsx 只保留 runtime bridge/debug，不再挂页面按钮拦截或结果改写 patcher。
+- 方案库和设置页以前是最后两个依赖 patcher 的页面，现在已分别由 ProductSolutionsView 和 ProductSettingsView 承接真实后端逻辑。
+- 产品规则：以后新增/修改页面应优先在 src/product-ui 做正式受控组件，禁止再用 DOM 查询/按钮文本拦截作为发布实现。
+- 预检规则已经固化这一点：elease does not mount page DOM patchers 和 ll Product pages declare controlled markers 必须通过。

@@ -113,7 +113,7 @@ export function ProductHomeView({
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-lan-helper-product-controlled="home">
       <div className="mb-4">
         <h2 className="font-heading text-2xl font-bold text-slate-800">桌面大厅</h2>
         <p className="font-sans text-sm text-slate-500 mt-1">

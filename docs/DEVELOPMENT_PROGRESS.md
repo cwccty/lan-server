@@ -2164,3 +2164,11 @@ pm run tauri:build 通过，已重新生成 src-tauri/target/release/lan-helper.
 - 主内容左边距按模式切换：Product Mode 276px，Reference Mode 260px。
 - 验证通过：构建、Rust 检查、发布预检。
 - 下一步：完成未收尾的推荐方案迁移提交，然后继续迁移“方案库”和“设置与帮助”为正式受控页面，减少 patcher 依赖。
+
+## 2026-06-04 22:58:58 - 进度：逐页受控迁移完成并移除发布入口页面 patcher
+- 完成 ProductSolutionsView：真实方案库同步、导入、导出、自建 adapter 保存。
+- 完成 ProductSettingsView：真实设置读取、保存、恢复默认、edge.exe 检测、目录打开。
+- 补齐全部 Product 页面 data-lan-helper-product-controlled 标记。
+- 移除 src/main.tsx 页面级 DOM patcher 挂载，仅保留 runtime bridge/debug。
+- 发布预检和 Tauri 打包通过。
+- 下一步推荐：做一次 EXE 人工验收清单，逐页点击首页/方案库/游戏扫描/推荐方案/组网中心/高级工具/Terraria/诊断/设置，确认每页真实按钮、加载态、错误提示和视觉布局是否符合产品预期。
