@@ -1,4 +1,7 @@
-﻿import { useEffect, useState, type ReactNode } from 'react';
+﻿// Deprecated legacy layout.
+// 当前发布入口使用 src/reference-ui/components/Sidebar.tsx 和最终参考前端 (3)。
+// 本布局不是当前 EXE 的侧边栏来源，保留仅用于历史对照。
+import { useEffect, useState, type ReactNode } from 'react';
 
 type Page = 'home' | 'wizard' | 'scan' | 'detail' | 'network' | 'recommendation' | 'diagnostics' | 'adapters';
 
@@ -109,3 +112,4 @@ export function Layout({
     </div>
   );
 }
+

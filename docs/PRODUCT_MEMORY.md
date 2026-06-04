@@ -2640,3 +2640,14 @@ ull 契约，避免真实后端返回 null 时构建失败。
 pm run build、cargo check --manifest-path src-tauri/Cargo.toml、	ools/release_preflight.ps1。
 - 下一步：执行 
 pm run tauri:build 生成新版 EXE，并考虑标注/移除旧入口 src/App.tsx 与 src/components/Layout.tsx。
+
+## 2026-06-04 20:41:57 发布 EXE 强制真实 Product Mode
+
+本轮继续收敛前后端对接的发布风险：
+
+- src/reference-adapter/productMode.ts：Tauri/EXE 环境现在强制返回 Product Mode=true，不再尊重旧 WebView localStorage 中可能残留的 lan-helper.referenceProductMode=0。浏览器预览仍可保持参考模式，用于视觉保真。
+- src/reference-adapter/DebugPanel.tsx：修正调试面板文案，明确“浏览器预览默认关闭；Tauri EXE 发布版强制开启真实产品接入”。
+- src/App.tsx、src/components/Layout.tsx：加 deprecated 注释，明确当前发布入口是 src/main.tsx -> src/reference-ui/App，旧壳不是 EXE 前端来源。
+- 	ools/release_preflight.ps1：把检查从“EXE defaults to Product Mode”升级为“EXE forces Product Mode”，并新增 legacy shell is not release entry gate，防止后续误把旧 App Shell 当发布入口。
+
+原因：用户已多次通过截图发现“打开 EXE 与最终设计稿/真实接入不一致”。发布版必须防止任何旧状态或旧入口导致展示稿模式泄漏。

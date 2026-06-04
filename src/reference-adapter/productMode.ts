@@ -8,20 +8,23 @@ export interface ReferenceProductModeState {
 
 function readStoredValue() {
   try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored === '1') return true;
-    if (stored === '0') return false;
-
-    // 打包后的 EXE 必须默认进入真实产品模式，不能把一比一参考稿里的
-    // 24ms、75%、n2n.edge.me 等演示状态当成真实产品状态展示给用户。
-    // 普通浏览器预览仍保持参考模式，方便继续做视觉保真检查。
-    return Boolean((window as typeof window & {
+    const isTauriRuntime = Boolean((window as typeof window & {
       __TAURI__?: unknown;
       __TAURI_INTERNALS__?: unknown;
     }).__TAURI__ || (window as typeof window & {
       __TAURI__?: unknown;
       __TAURI_INTERNALS__?: unknown;
     }).__TAURI_INTERNALS__);
+
+    // 发布 EXE 不能因为旧 WebView localStorage 曾保存过 "0" 而退回参考展示模式。
+    // Tauri/EXE 环境始终启用真实产品接入；只有普通浏览器预览允许关闭，
+    // 用于继续检查最终参考 UI 的视觉保真。
+    if (isTauriRuntime) return true;
+
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    if (stored === '1') return true;
+    if (stored === '0') return false;
+    return false;
   } catch {
     return false;
   }
@@ -60,3 +63,4 @@ export function subscribeReferenceProductMode(listener: (state: ReferenceProduct
 }
 
 export { EVENT_NAME as REFERENCE_PRODUCT_MODE_EVENT };
+

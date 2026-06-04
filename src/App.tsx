@@ -1,3 +1,6 @@
+// Deprecated legacy shell.
+// 当前发布入口是 `src/main.tsx -> src/reference-ui/App`，不是这个文件。
+// 保留本文件仅用于历史对照；不要在发布版或前后端对接审计中把它当作真实入口。
 import { useEffect, useState } from 'react';
 import { Layout } from './components/Layout';
 import { HomePage } from './pages/HomePage';

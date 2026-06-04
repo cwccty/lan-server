@@ -113,10 +113,10 @@ export function ReferenceRuntimeDebugPanel() {
                       : 'border-slate-700 text-slate-200 hover:bg-slate-800'
                   }`}
                 >
-                  {productMode.enabled ? '关闭产品化接入，保持参考 UI' : '开启产品化接入实验'}
+                  {productMode.enabled ? '产品化接入已开启' : '开启产品化接入实验'}
                 </button>
                 <p className="mt-2 leading-relaxed text-slate-500">
-                  默认关闭，保证界面一比一。开启后，后续 wrapper 才允许读取真实状态并替换参考图中的模拟文案。
+                  浏览器预览默认关闭，用于检查一比一视觉保真；Tauri EXE 发布版强制开启真实产品接入，避免把参考图模拟文案当成真实状态。
                 </p>
               </div>
             </div>
@@ -184,3 +184,4 @@ export function ReferenceRuntimeDebugPanel() {
     </div>
   );
 }
+

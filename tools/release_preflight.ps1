@@ -117,10 +117,10 @@ if ($publishText) {
 try {
   $productModeText = Get-Content "src\reference-adapter\productMode.ts" -Raw -Encoding UTF8
   $mainTextForProductMode = Get-Content "src\main.tsx" -Raw -Encoding UTF8
-  if ($productModeText -match "__TAURI__" -and $productModeText -match "__TAURI_INTERNALS__") {
-    Pass-Check "EXE defaults to Product Mode" "Tauri runtime detection present"
+  if ($productModeText -match "__TAURI__" -and $productModeText -match "__TAURI_INTERNALS__" -and $productModeText -match "if \(isTauriRuntime\) return true") {
+    Pass-Check "EXE forces Product Mode" "Tauri runtime ignores stale localStorage reference-mode value"
   } else {
-    Fail-Check "EXE defaults to Product Mode" "src/reference-adapter/productMode.ts must enable Product Mode by default under Tauri"
+    Fail-Check "EXE forces Product Mode" "src/reference-adapter/productMode.ts must force Product Mode under Tauri before reading stored 0/1"
   }
 
   $requiredProductPatcherNames = @(
@@ -139,6 +139,12 @@ try {
     Pass-Check "release mounts Product Mode patchers"
   } else {
     Fail-Check "release mounts Product Mode patchers" ("missing in src/main.tsx: " + ($missingProductPatchers -join ", "))
+  }
+
+  if ($mainTextForProductMode -match "from './reference-ui/App'" -and $mainTextForProductMode -notmatch "from './App'") {
+    Pass-Check "legacy shell is not release entry"
+  } else {
+    Fail-Check "legacy shell is not release entry" "src/main.tsx must use src/reference-ui/App and must not import deprecated src/App.tsx"
   }
 } catch {
   Fail-Check "release/product-mode guardrails" ([string]$_)
@@ -328,3 +334,5 @@ if ($failed.Count -gt 0) {
 }
 
 Write-Host "`nPASS: release preflight checks completed." -ForegroundColor Green
+
+
