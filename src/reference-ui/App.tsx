@@ -9,6 +9,7 @@ import SolutionsView from './components/SolutionsView';
 import GameScanView from './components/GameScanView';
 import RecommendProtocolView from './components/RecommendProtocolView';
 import UniversalNetworkView from './components/UniversalNetworkView';
+import { ProductNetworkView } from '../product-ui/ProductNetworkView';
 import AdvancedToolsView from './components/AdvancedToolsView';
 import TerrariaGuideView from './components/TerrariaGuideView';
 import DiagnosticsView from './components/DiagnosticsView';
@@ -199,18 +200,25 @@ export default function App() {
             )}
 
             {state.currentTab === 'network' && (
-              <UniversalNetworkView
-                onTriggerToast={handleTriggerToast}
-                roomName={state.roomName}
-                roomKey={state.roomKey}
-                supernode={state.supernode}
-                virtualIpInput={state.virtualIpInput}
-                gamePort={state.gamePort}
-                tcpProxy={state.tcpProxy}
-                udpProxy={state.udpProxy}
-                udpBroadcastBridge={state.udpBroadcastBridge}
-                onUpdateState={updateStateValue}
-              />
+              productMode.enabled ? (
+                <ProductNetworkView
+                  onTriggerToast={handleTriggerToast}
+                  onNavigateTab={(tab) => updateStateValue('currentTab', tab)}
+                />
+              ) : (
+                <UniversalNetworkView
+                  onTriggerToast={handleTriggerToast}
+                  roomName={state.roomName}
+                  roomKey={state.roomKey}
+                  supernode={state.supernode}
+                  virtualIpInput={state.virtualIpInput}
+                  gamePort={state.gamePort}
+                  tcpProxy={state.tcpProxy}
+                  udpProxy={state.udpProxy}
+                  udpBroadcastBridge={state.udpBroadcastBridge}
+                  onUpdateState={updateStateValue}
+                />
+              )
             )}
 
             {state.currentTab === 'advanced_tools' && (

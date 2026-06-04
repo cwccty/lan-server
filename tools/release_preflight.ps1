@@ -162,6 +162,12 @@ try {
   } else {
     Fail-Check "controlled Advanced Tools page replaces Advanced Tools patcher" "Product Mode advanced_tools must render src/product-ui/ProductAdvancedToolsView.tsx and main.tsx must not mount ReferenceProductAdvancedToolsPatcher"
   }
+
+  if ((Test-Path "src\product-ui\ProductNetworkView.tsx") -and $appTextForControlledHome -match "ProductNetworkView" -and $appTextForControlledHome -match "currentTab === 'network'" -and $appTextForControlledHome -match "productMode\.enabled") {
+    Pass-Check "controlled Network page replaces reference Network form"
+  } else {
+    Fail-Check "controlled Network page replaces reference Network form" "Product Mode network must render src/product-ui/ProductNetworkView.tsx instead of relying on UniversalNetworkView button interception"
+  }
 } catch {
   Fail-Check "release/product-mode guardrails" ([string]$_)
 }

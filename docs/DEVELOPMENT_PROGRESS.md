@@ -2036,3 +2036,33 @@ pm run release:preflight 通过。
 pm run tauri:build 通过，已重新生成 src-tauri/target/release/lan-helper.exe。
 
 下一步推荐：继续迁移 通用组网中心 为正式受控 Product 页面，因为它是 n2n 配置、启动、停止、刷新状态的核心路径，且当前仍主要依赖参考页表单 + action patcher。
+
+## 2026-06-04 22:07:51 通用组网中心 Product 页面受控迁移
+
+目标：继续把 Product Mode patcher 逐页迁移为正式 React 受控页面。
+
+本次完成：
+
+- 新增 src/product-ui/ProductNetworkView.tsx。
+- Product Mode 下 
+etwork 路由改为直接渲染 ProductNetworkView，参考模式仍保留 UniversalNetworkView 用于视觉对照。
+- 新页面直接使用真实后端能力：
+  - eadReferenceN2nLastConfig() 首次进入读取最近 n2n 配置并回填表单。
+  - saveReferenceN2nConfig() 保存 room/key/supernode/local_ip。
+  - startReferenceN2n() 保存并启动真实 n2n edge。
+  - stopReferenceN2n() 停止真实 n2n edge。
+  - efreshReferenceRuntime() 刷新节点状态，明确不重复启动 n2n。
+  - 	estConnectivity() 对目标虚拟 IP 与游戏端口做连通性检测。
+- 	ools/release_preflight.ps1 新增并通过 controlled Network page replaces reference Network form 守卫，防止未来又依赖 UniversalNetworkView 按钮文字拦截。
+
+验证：
+
+- 
+pm run build 通过。
+- cargo check --manifest-path src-tauri/Cargo.toml 通过。
+- 
+pm run release:preflight 通过。
+- 
+pm run tauri:build 通过，已重新生成 src-tauri/target/release/lan-helper.exe。
+
+下一步推荐：迁移 Terraria 向导 为正式受控 Product 页面，因为它目前仍包含参考页模拟日志、模拟启动状态和 Product Mode 动作拦截；迁移后服务端启动/停止/命令/日志都应直接由 eadServerSession()、startGameServerSession()、sendServerCommand() 驱动。
