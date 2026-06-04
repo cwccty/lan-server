@@ -302,6 +302,20 @@ try {
     Fail-Check "invite packet paste flow is wired" "Network page must detect pasted invite packets and Recommendation page must build the shared packet format including room key"
   }
 
+  if ($networkProductText -match "仅填入参数" -and
+      $networkProductText -match "保存并启动 n2n" -and
+      $networkProductText -match "startFromInvite" -and
+      $networkProductText -match "saveReferenceN2nConfig" -and
+      $networkProductText -match "startReferenceN2n" -and
+      $networkProductText -match "inviteJoinResult" -and
+      $networkProductText -match "已加入好友房间" -and
+      $networkProductText -match "复制错误给房主" -and
+      $networkProductText -match "classifyJoinFailure") {
+    Pass-Check "invite one-click join flow is wired"
+  } else {
+    Fail-Check "invite one-click join flow is wired" "Network page must support fill-only, save-and-start n2n, join result cards, failure classification, and copy-error-to-host"
+  }
+
   if ($errorActionsText -match "classifyDiagnosticIssue" -and
       $errorActionsText -match "goto-network" -and
       $errorActionsText -match "copy-supernode-check" -and
