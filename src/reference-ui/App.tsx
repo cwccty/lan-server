@@ -13,6 +13,7 @@ import AdvancedToolsView from './components/AdvancedToolsView';
 import TerrariaGuideView from './components/TerrariaGuideView';
 import DiagnosticsView from './components/DiagnosticsView';
 import SettingsView from './components/SettingsView';
+import { ProductAdvancedToolsView } from '../product-ui/ProductAdvancedToolsView';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, X, Gift, CheckCircle } from 'lucide-react';
 import { useReferenceProductMode } from '../reference-adapter/useReferenceProductMode';
@@ -213,7 +214,11 @@ export default function App() {
             )}
 
             {state.currentTab === 'advanced_tools' && (
-              <AdvancedToolsView onTriggerToast={handleTriggerToast} />
+              productMode.enabled ? (
+                <ProductAdvancedToolsView onTriggerToast={handleTriggerToast} />
+              ) : (
+                <AdvancedToolsView onTriggerToast={handleTriggerToast} />
+              )
             )}
 
             {state.currentTab === 'terraria' && (

@@ -6,7 +6,6 @@ import {
   ReferenceProductDiagnosticsPatcher,
   ReferenceProductActionPatcher,
   ReferenceProductActionResultPatcher,
-  ReferenceProductAdvancedToolsPatcher,
   ReferenceProductInventoryPatcher,
   ReferenceProductSettingsPatcher,
   ReferenceProductRuntimeBridgeController,
@@ -20,7 +19,6 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
     <ReferenceProductDiagnosticsPatcher />
     <ReferenceProductActionPatcher />
     <ReferenceProductActionResultPatcher />
-    <ReferenceProductAdvancedToolsPatcher />
     <ReferenceProductInventoryPatcher />
     <ReferenceProductSettingsPatcher />
     <ReferenceRuntimeDebugPanel />

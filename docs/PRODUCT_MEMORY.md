@@ -2698,3 +2698,34 @@ pm run tauri:build，生成新版 src-tauri/target/release/lan-helper.exe。
 - 首页已开始迁移为 src/product-ui/ProductHomeView.tsx，Product Mode 下直接渲染受控 React 页面，不再依赖 ReferenceProductHomePatcher。
 - 顶部栏已开始迁移为 src/product-ui/ProductHeader.tsx，Product Mode 下直接读取 runtime 并调用真实 n2n 启停/刷新动作，不再挂载 ReferenceProductHeaderPatcher。
 - 下一步建议：继续迁移 通用组网中心 或 高级连接工具 为正式受控 Product 页面，逐步减少 DOM patcher。
+
+## 2026-06-04 22:01:36 高级连接工具 Product 页面受控迁移
+
+目标：继续把 Product Mode patcher 逐页迁移为正式 React 受控页面。
+
+本次完成：
+
+- 新增 src/product-ui/ProductAdvancedToolsView.tsx。
+- Product Mode 下 dvanced_tools 路由改为直接渲染 ProductAdvancedToolsView，参考模式仍保留 AdvancedToolsView 用于视觉对照。
+- src/main.tsx 不再挂载 ReferenceProductAdvancedToolsPatcher，高级工具页不再通过 DOM 插入/文字替换承接真实状态。
+- 新页面直接使用真实后端能力：
+  - startReferenceAdvancedProxy() 启动 TCP/UDP/UDP Broadcast Bridge。
+  - selfTestReferenceAdvancedProxy() 执行 TCP/UDP/广播桥单机自测。
+  - stopPortProxy()、stopUdpProxy()、stopUdpBroadcastBridge() 按实例停止。
+  - startReferenceGenericServer() 启动通用 exe/bat/cmd/jar 服务端。
+  - sendServerCommand() 发送服务端控制台命令。
+  - stopServerSession() 停止通用服务端。
+  - efreshReferenceRuntime() 刷新真实实例列表。
+- 	ools/release_preflight.ps1 新增并通过 controlled Advanced Tools page replaces Advanced Tools patcher 守卫，防止未来又把该页退回 DOM patcher。
+
+验证：
+
+- 
+pm run build 通过。
+- cargo check --manifest-path src-tauri/Cargo.toml 通过。
+- 
+pm run release:preflight 通过。
+- 
+pm run tauri:build 通过，已重新生成 src-tauri/target/release/lan-helper.exe。
+
+下一步推荐：继续迁移 通用组网中心 为正式受控 Product 页面，因为它是 n2n 配置、启动、停止、刷新状态的核心路径，且当前仍主要依赖参考页表单 + action patcher。

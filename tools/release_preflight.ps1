@@ -128,7 +128,6 @@ try {
     "ReferenceProductDiagnosticsPatcher",
     "ReferenceProductActionPatcher",
     "ReferenceProductActionResultPatcher",
-    "ReferenceProductAdvancedToolsPatcher",
     "ReferenceProductInventoryPatcher",
     "ReferenceProductSettingsPatcher"
   )
@@ -156,6 +155,12 @@ try {
     Pass-Check "controlled Header replaces Header patcher"
   } else {
     Fail-Check "controlled Header replaces Header patcher" "Product Mode header must render src/product-ui/ProductHeader.tsx and main.tsx must not mount ReferenceProductHeaderPatcher"
+  }
+
+  if ((Test-Path "src\product-ui\ProductAdvancedToolsView.tsx") -and $appTextForControlledHome -match "ProductAdvancedToolsView" -and $appTextForControlledHome -match "advanced_tools" -and $appTextForControlledHome -match "productMode\.enabled" -and $mainTextForProductMode -notmatch "ReferenceProductAdvancedToolsPatcher") {
+    Pass-Check "controlled Advanced Tools page replaces Advanced Tools patcher"
+  } else {
+    Fail-Check "controlled Advanced Tools page replaces Advanced Tools patcher" "Product Mode advanced_tools must render src/product-ui/ProductAdvancedToolsView.tsx and main.tsx must not mount ReferenceProductAdvancedToolsPatcher"
   }
 } catch {
   Fail-Check "release/product-mode guardrails" ([string]$_)
