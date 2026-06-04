@@ -63,6 +63,7 @@ export default function App() {
   // UI States
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showVersionModal, setShowVersionModal] = useState(false);
+  const [visitedProductTabs, setVisitedProductTabs] = useState<Set<AppTab>>(() => new Set<AppTab>(['home']));
 
   // Auto-hide toast after 3 seconds
   useEffect(() => {
@@ -78,12 +79,44 @@ export default function App() {
     setToastMessage(msg);
   };
 
+  const navigateTab = (tab: AppTab, showToast = false) => {
+    setState((prev) => {
+      if (prev.currentTab === tab) return prev;
+      return {
+        ...prev,
+        currentTab: tab
+      };
+    });
+    if (showToast) {
+      handleTriggerToast(`切换至面板: ${
+        tab === 'home' ? '首页' :
+        tab === 'solutions' ? '方案库' :
+        tab === 'games' ? '游戏扫描' :
+        tab === 'protocol' ? '推荐方案' :
+        tab === 'network' ? '通用组网中心' :
+        tab === 'advanced_tools' ? '高级连接工具' :
+        tab === 'terraria' ? 'Terraria 向导' :
+        tab === 'diagnostics' ? '诊断报告' : '设置与帮助'
+      }`);
+    }
+  };
+
   const updateStateValue = (key: string, value: any) => {
     setState((prev) => ({
       ...prev,
       [key]: value
     }));
   };
+
+  useEffect(() => {
+    if (!productMode.enabled) return;
+    setVisitedProductTabs((prev) => {
+      if (prev.has(state.currentTab)) return prev;
+      const next = new Set(prev);
+      next.add(state.currentTab);
+      return next;
+    });
+  }, [productMode.enabled, state.currentTab]);
 
   const handleToggleNetwork = () => {
     if (state.netStatus === 'online') {
@@ -106,9 +139,12 @@ export default function App() {
   };
 
   const handleOpenDiagnostics = () => {
-    updateStateValue('currentTab', 'diagnostics');
-    handleTriggerToast('正在跳转配置，加载本地故障检查单...');
+    navigateTab('diagnostics');
   };
+
+  const productPageClass = (tab: AppTab) => (
+    state.currentTab === tab ? 'block' : 'hidden'
+  );
 
   return (
     <div className="min-h-screen bg-slate-100/40 text-slate-700 font-sans selection:bg-amber-500/20 selection:text-amber-900 selection:antialiased">
@@ -116,37 +152,13 @@ export default function App() {
       {productMode.enabled ? (
         <ProductSidebar
           currentTab={state.currentTab}
-          onChangeTab={(tab) => {
-            updateStateValue('currentTab', tab);
-            handleTriggerToast(`切换至面板: ${
-              tab === 'home' ? '首页' :
-              tab === 'solutions' ? '方案库' :
-              tab === 'games' ? '游戏扫描' :
-              tab === 'protocol' ? '推荐方案' :
-              tab === 'network' ? '通用组网中心' :
-              tab === 'advanced_tools' ? '高级连接工具' :
-              tab === 'terraria' ? 'Terraria 向导' :
-              tab === 'diagnostics' ? '诊断报告' : '设置与帮助'
-            }`);
-          }}
+          onChangeTab={(tab) => navigateTab(tab)}
           onShowVersion={() => setShowVersionModal(true)}
         />
       ) : (
         <Sidebar
           currentTab={state.currentTab}
-          onChangeTab={(tab) => {
-            updateStateValue('currentTab', tab);
-            handleTriggerToast(`切换至面板: ${
-              tab === 'home' ? '首页' :
-              tab === 'solutions' ? '方案库' :
-              tab === 'games' ? '游戏扫描' :
-              tab === 'protocol' ? '推荐方案' :
-              tab === 'network' ? '通用组网中心' :
-              tab === 'advanced_tools' ? '高级连接工具' :
-              tab === 'terraria' ? 'Terraria 向导' :
-              tab === 'diagnostics' ? '诊断报告' : '设置与帮助'
-            }`);
-          }}
+          onChangeTab={(tab) => navigateTab(tab, true)}
           status={state.netStatus}
           onShowVersion={() => setShowVersionModal(true)}
         />
@@ -157,7 +169,7 @@ export default function App() {
         <ProductHeader
           onOpenDiagnostics={handleOpenDiagnostics}
           onTabChange={(tab) => {
-            updateStateValue('currentTab', tab);
+            navigateTab(tab);
           }}
           onTriggerToast={handleTriggerToast}
         />
@@ -168,13 +180,80 @@ export default function App() {
           onToggleNetwork={handleToggleNetwork}
           onOpenDiagnostics={handleOpenDiagnostics}
           onTabChange={(tab) => {
-            updateStateValue('currentTab', tab);
+            navigateTab(tab, true);
           }}
         />
       )}
 
       {/* Main Content Render area */}
       <main className={`${productMode.enabled ? 'ml-[276px]' : 'ml-[260px]'} pt-24 px-8 pb-12 min-h-screen`}>
+        {productMode.enabled ? (
+          <div className="w-full max-w-7xl mx-auto">
+            {visitedProductTabs.has('home') && (
+              <section className={productPageClass('home')}>
+                <ProductHomeView
+                  role={state.role}
+                  onRoleChange={(role) => updateStateValue('role', role)}
+                  onNavigateTab={(tab) => navigateTab(tab)}
+                  onTriggerToast={handleTriggerToast}
+                />
+              </section>
+            )}
+            {visitedProductTabs.has('solutions') && (
+              <section className={productPageClass('solutions')}>
+                <ProductSolutionsView
+                  onTriggerToast={handleTriggerToast}
+                  solutionsUrl={state.solutions_url}
+                  onUpdateSolutionsUrl={(url) => updateStateValue('solutions_url', url)}
+                />
+              </section>
+            )}
+            {visitedProductTabs.has('games') && (
+              <section className={productPageClass('games')}>
+                <ProductGameScanView
+                  onTriggerToast={handleTriggerToast}
+                  onNavigateTab={(tab) => navigateTab(tab)}
+                />
+              </section>
+            )}
+            {visitedProductTabs.has('protocol') && (
+              <section className={productPageClass('protocol')}>
+                <ProductRecommendationView
+                  onTriggerToast={handleTriggerToast}
+                  onNavigateTab={(tab) => navigateTab(tab)}
+                />
+              </section>
+            )}
+            {visitedProductTabs.has('network') && (
+              <section className={productPageClass('network')}>
+                <ProductNetworkView
+                  onTriggerToast={handleTriggerToast}
+                  onNavigateTab={(tab) => navigateTab(tab)}
+                />
+              </section>
+            )}
+            {visitedProductTabs.has('advanced_tools') && (
+              <section className={productPageClass('advanced_tools')}>
+                <ProductAdvancedToolsView onTriggerToast={handleTriggerToast} />
+              </section>
+            )}
+            {visitedProductTabs.has('terraria') && (
+              <section className={productPageClass('terraria')}>
+                <ProductTerrariaGuideView onTriggerToast={handleTriggerToast} />
+              </section>
+            )}
+            {visitedProductTabs.has('diagnostics') && (
+              <section className={productPageClass('diagnostics')}>
+                <ProductDiagnosticsView onTriggerToast={handleTriggerToast} />
+              </section>
+            )}
+            {visitedProductTabs.has('settings') && (
+              <section className={productPageClass('settings')}>
+                <ProductSettingsView onTriggerToast={handleTriggerToast} />
+              </section>
+            )}
+          </div>
+        ) : (
         <AnimatePresence mode="wait">
           <motion.div
             key={state.currentTab}
@@ -189,7 +268,7 @@ export default function App() {
                 <ProductHomeView
                   role={state.role}
                   onRoleChange={(role) => updateStateValue('role', role)}
-                  onNavigateTab={(tab) => updateStateValue('currentTab', tab)}
+                  onNavigateTab={(tab) => navigateTab(tab)}
                   onTriggerToast={handleTriggerToast}
                 />
               ) : (
@@ -224,12 +303,12 @@ export default function App() {
               productMode.enabled ? (
                 <ProductGameScanView
                   onTriggerToast={handleTriggerToast}
-                  onNavigateTab={(tab) => updateStateValue('currentTab', tab)}
+                  onNavigateTab={(tab) => navigateTab(tab)}
                 />
               ) : (
                 <GameScanView
                   onTriggerToast={handleTriggerToast}
-                  onNavigateTab={(tab) => updateStateValue('currentTab', tab)}
+                  onNavigateTab={(tab) => navigateTab(tab)}
                 />
               )
             )}
@@ -238,7 +317,7 @@ export default function App() {
               productMode.enabled ? (
                 <ProductRecommendationView
                   onTriggerToast={handleTriggerToast}
-                  onNavigateTab={(tab) => updateStateValue('currentTab', tab)}
+                  onNavigateTab={(tab) => navigateTab(tab)}
                 />
               ) : (
                 <RecommendProtocolView
@@ -318,6 +397,7 @@ export default function App() {
             )}
           </motion.div>
         </AnimatePresence>
+        )}
       </main>
 
       {/* Global Interactive Float Toasts */}

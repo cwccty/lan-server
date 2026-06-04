@@ -2183,3 +2183,10 @@ pm run tauri:build 通过，已重新生成 src-tauri/target/release/lan-helper.
 - src/product-ui/ProductRecommendationView.tsx 已将推荐目标区域改为稳定横向排版。
 - 新 EXE 已重新打包。
 - 下一步推荐：打开推荐方案页确认标题、说明、下拉框是否横向正常；如果正常，继续做全页面视觉间距微调。
+
+## 2026-06-05 00:01:18 - 进度：优化多次点击卡顿
+- src/reference-ui/App.tsx 新增 Product 页面 keep-alive 渲染路径。
+- ProductRuntimeBridgeController 轮询间隔调整到 30 秒。
+- DebugPanel 改为打开时才订阅 runtime 快照事件。
+- 新 EXE 已重新打包。
+- 下一步推荐：实际快速连续点击左侧菜单 1-2 分钟，观察是否还有明显卡顿；如果仍有，再做更细的按页懒加载和组件 memo。

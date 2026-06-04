@@ -3080,3 +3080,14 @@ pm run tauri:build 成功。
 pm run build、cargo check、
 pm run release:preflight、
 pm run tauri:build 通过。
+
+## 2026-06-05 00:01:18 - 多次点击卡顿优化
+- Product Mode 页面切换改为 keep-alive：访问过的 Product 页面保留在内存中，切换时只隐藏/显示，不再反复卸载重挂。
+- 影响：游戏扫描、推荐方案、组网中心、Terraria、设置等页面的首次加载请求不会在每次切回时重复触发，减少多次点击后的卡顿。
+- Product Mode 侧边栏切页不再弹 toast，避免连续点击产生大量 toast 动画和状态更新。
+- Runtime bridge 自动轮询从 15 秒降到 30 秒，减少后台周期性重渲染压力。
+- DebugPanel 只在打开时订阅 runtime 事件，关闭时不再跟随每次快照更新。
+- 已验证并打包：
+pm run build、cargo check、
+pm run release:preflight、
+pm run tauri:build 通过。

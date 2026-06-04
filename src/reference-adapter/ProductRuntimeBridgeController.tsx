@@ -16,7 +16,8 @@ export function ReferenceProductRuntimeBridgeController() {
     }
 
     startReferenceRuntimeBridge({
-      intervalMs: 15000,
+      // 发布界面只需要轻量保活状态；频繁轮询会让所有订阅 runtime 的页面周期性重渲染。
+      intervalMs: 30000,
       includeDiagnostics: false,
       includeInventory: false
     });

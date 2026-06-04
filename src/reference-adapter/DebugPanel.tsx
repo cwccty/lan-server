@@ -32,18 +32,22 @@ export function ReferenceRuntimeDebugPanel() {
       }
     };
 
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
     const handleSnapshot = (event: Event) => {
       const custom = event as CustomEvent<ReferenceRuntimeSnapshot>;
       setSnapshot(custom.detail ?? readCurrentSnapshot());
     };
-
-    window.addEventListener('keydown', handleKeyDown);
     window.addEventListener(REFERENCE_RUNTIME_EVENT, handleSnapshot as EventListener);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener(REFERENCE_RUNTIME_EVENT, handleSnapshot as EventListener);
-    };
-  }, []);
+    setSnapshot(readCurrentSnapshot());
+    return () => window.removeEventListener(REFERENCE_RUNTIME_EVENT, handleSnapshot as EventListener);
+  }, [open]);
 
   const runAction = async (label: string, action: () => Promise<ReferenceActionResult>) => {
     setBusyAction(label);
