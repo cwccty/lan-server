@@ -2898,3 +2898,19 @@ pm.cmd run build 通过。
 pm.cmd run release:preflight 通过。
 
 下一步推荐：打开 EXE 做人工验收，重点测试“好友粘贴邀请包 -> 提示是否进入 -> 自动填入 -> 保存并启动 n2n”和“诊断问题按钮能跳到正确页面/复制 VPS 命令”。
+
+## 2026-06-05 00:46:57 - 发布预检补充：状态中心/邀请包/修复建议守卫
+- 	ools/release_preflight.ps1 新增三项发布守卫：
+  - Product status center covers core states：检查 statusCenter.ts 覆盖 7 个核心状态，并确认首页、顶部栏、组网中心、推荐方案页引用统一状态中心。
+  - invite packet paste flow is wired：检查邀请包构建/解析、房间密钥字段、推荐页生成邀请包、组网页检测“检测到其他玩家的邀请，是否进入”。
+  - diagnostic issue fix actions are wired：检查诊断错误分类和修复建议按钮已接入诊断页。
+- 目的：防止未来把这三项能力退回成纯 UI 文案或被误删。
+
+验证：
+- 
+pm.cmd run build 通过。
+- cargo check --manifest-path src-tauri\\Cargo.toml 通过。
+- 
+pm.cmd run release:preflight 通过，新增三项守卫均 PASS。
+
+下一步推荐：实际打开 EXE 做粘贴邀请包和诊断修复按钮人工验收；若通过，可进入下一大块“发布前体验闭环：首屏引导、邀请包导入后的保存并启动、失败态恢复”。

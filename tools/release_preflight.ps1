@@ -262,6 +262,58 @@ try {
   } else {
     Fail-Check "all Product pages declare controlled markers" ("missing markers: " + ($missingControlledMarkers -join ", "))
   }
+
+  $statusCenterText = if (Test-Path "src\product-ui\statusCenter.ts") { Get-Content "src\product-ui\statusCenter.ts" -Raw -Encoding UTF8 } else { "" }
+  $homeProductText = Get-Content "src\product-ui\ProductHomeView.tsx" -Raw -Encoding UTF8
+  $headerProductText = Get-Content "src\product-ui\ProductHeader.tsx" -Raw -Encoding UTF8
+  $networkProductText = Get-Content "src\product-ui\ProductNetworkView.tsx" -Raw -Encoding UTF8
+  $recommendationProductText = Get-Content "src\product-ui\ProductRecommendationView.tsx" -Raw -Encoding UTF8
+  $diagnosticsProductText = Get-Content "src\product-ui\ProductDiagnosticsView.tsx" -Raw -Encoding UTF8
+  $invitePacketText = if (Test-Path "src\product-ui\invitePacket.ts") { Get-Content "src\product-ui\invitePacket.ts" -Raw -Encoding UTF8 } else { "" }
+  $errorActionsText = if (Test-Path "src\product-ui\errorActions.ts") { Get-Content "src\product-ui\errorActions.ts" -Raw -Encoding UTF8 } else { "" }
+
+  if ($statusCenterText -match "ProductConnectionStage" -and
+      $statusCenterText -match "not_configured" -and
+      $statusCenterText -match "configured_not_started" -and
+      $statusCenterText -match "starting" -and
+      $statusCenterText -match "network_ready" -and
+      $statusCenterText -match "server_missing" -and
+      $statusCenterText -match "ready_to_invite" -and
+      $statusCenterText -match "has_problem" -and
+      $homeProductText -match "resolveProductStatusCenter" -and
+      $headerProductText -match "resolveProductStatusCenter" -and
+      $networkProductText -match "resolveProductStatusCenter" -and
+      $recommendationProductText -match "resolveProductStatusCenter") {
+    Pass-Check "Product status center covers core states"
+  } else {
+    Fail-Check "Product status center covers core states" "statusCenter.ts must define all product stages and Home/Header/Network/Recommendation must use resolveProductStatusCenter"
+  }
+
+  if ($invitePacketText -match "\[联机助手真实邀请包\]" -and
+      $invitePacketText -match "parseLanInvitePacket" -and
+      $invitePacketText -match "buildLanInvitePacket" -and
+      $invitePacketText -match "房间密钥" -and
+      $networkProductText -match "检测到其他玩家的邀请，是否进入" -and
+      $networkProductText -match "parseLanInvitePacket" -and
+      $networkProductText -match "invitePacketToNetworkConfig" -and
+      $recommendationProductText -match "buildLanInvitePacket") {
+    Pass-Check "invite packet paste flow is wired"
+  } else {
+    Fail-Check "invite packet paste flow is wired" "Network page must detect pasted invite packets and Recommendation page must build the shared packet format including room key"
+  }
+
+  if ($errorActionsText -match "classifyDiagnosticIssue" -and
+      $errorActionsText -match "goto-network" -and
+      $errorActionsText -match "copy-supernode-check" -and
+      $errorActionsText -match "goto-terraria" -and
+      $errorActionsText -match "goto-advanced" -and
+      $diagnosticsProductText -match "classifyDiagnosticIssue" -and
+      $diagnosticsProductText -match "onNavigateTab" -and
+      $diagnosticsProductText -match "runFixAction") {
+    Pass-Check "diagnostic issue fix actions are wired"
+  } else {
+    Fail-Check "diagnostic issue fix actions are wired" "Diagnostics page must classify issues and expose low-risk fix actions or navigation"
+  }
 } catch {
   Fail-Check "release/product-mode guardrails" ([string]$_)
 }
