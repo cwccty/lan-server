@@ -14,6 +14,7 @@ import AdvancedToolsView from './components/AdvancedToolsView';
 import TerrariaGuideView from './components/TerrariaGuideView';
 import { ProductTerrariaGuideView } from '../product-ui/ProductTerrariaGuideView';
 import DiagnosticsView from './components/DiagnosticsView';
+import { ProductDiagnosticsView } from '../product-ui/ProductDiagnosticsView';
 import SettingsView from './components/SettingsView';
 import { ProductAdvancedToolsView } from '../product-ui/ProductAdvancedToolsView';
 import { motion, AnimatePresence } from 'motion/react';
@@ -249,7 +250,11 @@ export default function App() {
             )}
 
             {state.currentTab === 'diagnostics' && (
-              <DiagnosticsView onTriggerToast={handleTriggerToast} />
+              productMode.enabled ? (
+                <ProductDiagnosticsView onTriggerToast={handleTriggerToast} />
+              ) : (
+                <DiagnosticsView onTriggerToast={handleTriggerToast} />
+              )
             )}
 
             {state.currentTab === 'settings' && (

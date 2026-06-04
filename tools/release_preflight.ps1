@@ -125,7 +125,6 @@ try {
 
   $requiredProductPatcherNames = @(
     "ReferenceProductRuntimeBridgeController",
-    "ReferenceProductDiagnosticsPatcher",
     "ReferenceProductActionPatcher",
     "ReferenceProductActionResultPatcher",
     "ReferenceProductInventoryPatcher",
@@ -173,6 +172,12 @@ try {
     Pass-Check "controlled Terraria page replaces simulated Terraria guide"
   } else {
     Fail-Check "controlled Terraria page replaces simulated Terraria guide" "Product Mode terraria must render src/product-ui/ProductTerrariaGuideView.tsx instead of relying on TerrariaGuideView simulated logs and button interception"
+  }
+
+  if ((Test-Path "src\product-ui\ProductDiagnosticsView.tsx") -and $appTextForControlledHome -match "ProductDiagnosticsView" -and $appTextForControlledHome -match "currentTab === 'diagnostics'" -and $appTextForControlledHome -match "productMode\.enabled" -and $mainTextForProductMode -notmatch "ReferenceProductDiagnosticsPatcher") {
+    Pass-Check "controlled Diagnostics page replaces Diagnostics patcher"
+  } else {
+    Fail-Check "controlled Diagnostics page replaces Diagnostics patcher" "Product Mode diagnostics must render src/product-ui/ProductDiagnosticsView.tsx and main.tsx must not mount ReferenceProductDiagnosticsPatcher"
   }
 } catch {
   Fail-Check "release/product-mode guardrails" ([string]$_)

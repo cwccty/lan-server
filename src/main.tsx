@@ -3,7 +3,6 @@ import ReactDOM from 'react-dom/client';
 import App from './reference-ui/App';
 import './reference-runtime.css';
 import {
-  ReferenceProductDiagnosticsPatcher,
   ReferenceProductActionPatcher,
   ReferenceProductActionResultPatcher,
   ReferenceProductInventoryPatcher,
@@ -16,7 +15,6 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <App />
     <ReferenceProductRuntimeBridgeController />
-    <ReferenceProductDiagnosticsPatcher />
     <ReferenceProductActionPatcher />
     <ReferenceProductActionResultPatcher />
     <ReferenceProductInventoryPatcher />

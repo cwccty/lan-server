@@ -2976,3 +2976,33 @@ pm run release:preflight 通过。
 pm run tauri:build 通过，已重新生成 src-tauri/target/release/lan-helper.exe。
 
 下一步推荐：迁移 诊断报告 或 游戏扫描。优先建议迁移 诊断报告，因为它需要把全局诊断/指定游戏诊断/复制导出从 ProductDiagnosticsPatcher 变成正式页面状态。
+
+## 2026-06-04 22:21:32 诊断报告 Product 页面受控迁移
+
+目标：继续把 Product Mode patcher 逐页迁移为正式 React 受控页面。
+
+本次完成：
+
+- 新增 src/product-ui/ProductDiagnosticsView.tsx。
+- Product Mode 下 diagnostics 路由改为直接渲染 ProductDiagnosticsView，参考模式仍保留 DiagnosticsView 用于视觉对照。
+- src/main.tsx 不再挂载 ReferenceProductDiagnosticsPatcher。
+- 新页面直接使用真实后端能力：
+  - generateDiagnosticReport() 生成全局诊断。
+  - generateDiagnosticReportForGame(gameId) 生成指定游戏诊断。
+  - scanGames() 与 listGameAdapters() 生成诊断目标列表。
+  - eadReferenceRuntimeSnapshot({ includeDiagnostics: true }) 刷新真实 runtime 快照。
+- 新页面自身管理诊断目标、最近报告、复制报告、导出文本，不再通过 DOM 插入面板或替换参考页 JSON。
+- 最近报告继续写入 localStorage: lan-helper.referenceDiagnosticRecord，诊断目标继续写入 localStorage: lan-helper.referenceDiagnosticTarget，保证页面重开后可保留最近结果。
+- 	ools/release_preflight.ps1 新增并通过 controlled Diagnostics page replaces Diagnostics patcher 守卫，防止未来回退到 ProductDiagnosticsPatcher。
+
+验证：
+
+- 
+pm run build 通过。
+- cargo check --manifest-path src-tauri/Cargo.toml 通过。
+- 
+pm run release:preflight 通过。
+- 
+pm run tauri:build 通过，已重新生成 src-tauri/target/release/lan-helper.exe。
+
+下一步推荐：迁移 游戏扫描。该页目前仍依赖 ProductInventoryPatcher 提供真实扫描结果、真实分析和推荐目标选择；迁移后应由正式页面直接调用 scanGames()、nalyzeGame()、ecommendPlans() 并设置 selectedGame。
