@@ -301,6 +301,49 @@ export function ProductNetworkView({ onTriggerToast, onNavigateTab }: ProductNet
               刷新状态
             </button>
           </div>
+
+          <div className="mt-6 rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
+            <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-slate-800">连接准备清单</h3>
+                <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                  先保存参数，再启动 n2n。看到 ACK/PONG 后，房主复制邀请包，好友粘贴邀请包加入同一虚拟局域网。
+                </p>
+              </div>
+              <span className={`w-fit rounded-full border px-3 py-1 text-[11px] font-bold ${productStatusToneClasses(status.tone)}`}>
+                {status.label}
+              </span>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="rounded-xl border border-white bg-white p-3">
+                <div className="mb-2 flex items-center gap-2 text-xs font-bold text-slate-800">
+                  <Globe className="h-4 w-4 text-amber-600" />
+                  Supernode
+                </div>
+                <p className="break-words font-mono text-xs text-slate-700">{supernode || runtime.network.supernode || '未填写'}</p>
+                <p className="mt-2 text-[11px] leading-relaxed text-slate-500">负责让异地玩家找到同一个虚拟房间。</p>
+              </div>
+
+              <div className="rounded-xl border border-white bg-white p-3">
+                <div className="mb-2 flex items-center gap-2 text-xs font-bold text-slate-800">
+                  <KeyRound className="h-4 w-4 text-amber-600" />
+                  房间凭证
+                </div>
+                <p className="break-words font-mono text-xs text-slate-700">{roomName || '未填写'} / {roomKey ? '密钥已填写' : '密钥未填写'}</p>
+                <p className="mt-2 text-[11px] leading-relaxed text-slate-500">房主和好友必须使用同一房间名与密钥。</p>
+              </div>
+
+              <div className="rounded-xl border border-white bg-white p-3">
+                <div className="mb-2 flex items-center gap-2 text-xs font-bold text-slate-800">
+                  <Wifi className="h-4 w-4 text-amber-600" />
+                  游戏连接
+                </div>
+                <p className="break-words font-mono text-xs text-slate-700">{localIp || runtime.network.virtualIp || '未分配'} : {gamePort || '未填写'}</p>
+                <p className="mt-2 text-[11px] leading-relaxed text-slate-500">好友在游戏内连接房主虚拟 IP 和端口。</p>
+              </div>
+            </div>
+          </div>
         </section>
 
         <aside className="space-y-4">

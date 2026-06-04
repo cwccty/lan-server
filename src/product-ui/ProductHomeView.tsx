@@ -186,14 +186,14 @@ export function ProductHomeView({
         </div>
 
         <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center relative overflow-hidden">
-          <h3 className="font-heading text-sm font-bold text-slate-800 mb-6 w-full text-left">真实就绪状态</h3>
+          <h3 className="font-heading text-sm font-bold text-slate-800 mb-5 w-full text-left">真实就绪状态</h3>
 
-          <div className="relative w-32 h-32 mb-4 flex items-center justify-center">
+          <div className="relative w-40 h-40 mb-4 flex items-center justify-center">
             <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-              <circle className="text-slate-100" strokeWidth="8" stroke="currentColor" fill="transparent" r={radius} cx="50" cy="50" />
+              <circle className="text-slate-100" strokeWidth="7" stroke="currentColor" fill="transparent" r={radius} cx="50" cy="50" />
               <circle
                 className={`${runtime.network.ready ? 'text-emerald-500' : runtime.network.hasError ? 'text-rose-500' : 'text-amber-500'} transition-all duration-500`}
-                strokeWidth="8"
+                strokeWidth="7"
                 strokeDasharray={circumference}
                 strokeDashoffset={strokeDashoffset}
                 strokeLinecap="round"
@@ -204,8 +204,8 @@ export function ProductHomeView({
                 cy="50"
               />
             </svg>
-            <div className="absolute flex flex-col items-center justify-center px-2">
-              <span className={`font-heading text-xl font-bold ${statusTone(productStatus.tone)}`}>{currentStatus}</span>
+            <div className="absolute flex max-w-[108px] flex-col items-center justify-center px-2">
+              <span className={`whitespace-nowrap font-heading text-lg font-bold leading-tight ${statusTone(productStatus.tone)}`}>{currentStatus}</span>
               <span className="font-sans text-[10px] text-slate-400 font-medium">后端状态</span>
             </div>
           </div>
