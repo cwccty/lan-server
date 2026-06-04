@@ -20,7 +20,7 @@ export interface DiagnosticReport {
   app_version: string;
   os: string;
   summary: string;
-  most_likely_cause?: DiagnosticIssue;
+  most_likely_cause?: DiagnosticIssue | null;
   issues: DiagnosticIssue[];
   release_ready: boolean;
   required_passed: number;

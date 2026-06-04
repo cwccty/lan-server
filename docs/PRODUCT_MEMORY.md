@@ -2628,3 +2628,15 @@ pm run release:preflight，均通过。
 pm run tauri:build，生成新版 src-tauri/target/release/lan-helper.exe。
 
 产品判断：此前说“主要前后端已对应”只适用于 Product Mode 开启后的真实接入层；发布 EXE 默认进入参考模式是不合格的产品行为，已修复。下一步仍需继续把 Product Mode patcher 逐步迁移为正式受控 React 页面。
+
+## 2026-06-04 20:32:04 前后端接口 subagent 审计与修复
+
+- 新增 docs/SUBAGENT_FRONTEND_BACKEND_AUDIT.md，记录三 worker 提示词、审计结论、无效 worker 处理和主 Agent 审核结果。
+- 修复 Refresh Node Status 误调用 startReferenceN2n 的问题，改为只刷新真实 runtime snapshot。
+- 补齐 TypeScript 与 Rust/serde 对接中的 
+ull 契约，避免真实后端返回 null 时构建失败。
+- 补强 	ools/release_preflight.ps1：核心导航入口、Product Mode 默认、Product patcher 挂载、核心 API wiring、刷新不启动 n2n、最终设计稿 (3) 均纳入 gate。
+- 已通过 
+pm run build、cargo check --manifest-path src-tauri/Cargo.toml、	ools/release_preflight.ps1。
+- 下一步：执行 
+pm run tauri:build 生成新版 EXE，并考虑标注/移除旧入口 src/App.tsx 与 src/components/Layout.tsx。

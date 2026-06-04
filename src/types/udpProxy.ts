@@ -1,12 +1,12 @@
 export interface UdpProxyConfig {
-  id?: string;
+  id?: string | null;
   listen_host: string;
   listen_port: number;
   target_host: string;
   target_port: number;
-  label?: string;
-  game_id?: string;
-  client_ttl_seconds?: number;
+  label?: string | null;
+  game_id?: string | null;
+  client_ttl_seconds?: number | null;
 }
 
 export interface UdpProxyStatus {
@@ -19,7 +19,7 @@ export interface UdpProxyStatus {
   packets_out: number;
   bytes_in: number;
   bytes_out: number;
-  last_error?: string;
+  last_error?: string | null;
   logs: string[];
 }
 

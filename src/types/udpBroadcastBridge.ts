@@ -1,12 +1,12 @@
 export interface UdpBroadcastBridgeConfig {
-  id?: string;
+  id?: string | null;
   listen_host: string;
   listen_port: number;
   forward_targets: string[];
-  label?: string;
-  game_id?: string;
-  allow_broadcast?: boolean;
-  duplicate_ttl_ms?: number;
+  label?: string | null;
+  game_id?: string | null;
+  allow_broadcast?: boolean | null;
+  duplicate_ttl_ms?: number | null;
 }
 
 export interface UdpBroadcastBridgeStatus {
@@ -19,7 +19,7 @@ export interface UdpBroadcastBridgeStatus {
   dropped_packets: number;
   bytes_in: number;
   bytes_out: number;
-  last_error?: string;
+  last_error?: string | null;
   logs: string[];
 }
 

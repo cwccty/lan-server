@@ -4,10 +4,10 @@ export interface Recommendation {
   id: string;
   title: string;
   level: RecommendationLevel;
-  backend_id?: string;
-  estimated_latency_ms?: number;
+  backend_id?: string | null;
+  estimated_latency_ms?: number | null;
   required_actions: string[];
-  launch_profile_id?: string;
+  launch_profile_id?: string | null;
 }
 
 export type LaunchConfig = Record<string, string | number | boolean>;

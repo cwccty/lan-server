@@ -43,8 +43,8 @@ export interface GameConnectionPlan {
   summary: string;
   host_role: string;
   join_role: string;
-  default_join_host?: string;
-  default_join_port?: number;
+  default_join_host?: string | null;
+  default_join_port?: number | null;
   requires_virtual_lan: boolean;
   requires_tcp_port_proxy: boolean;
   requires_udp_broadcast_bridge: boolean;
@@ -66,30 +66,30 @@ export interface LaunchConfigField {
   id: string;
   label: string;
   type: 'text' | 'number' | 'password' | 'select' | 'checkbox';
-  default_value?: string;
-  required?: boolean;
-  help?: string;
-  options?: string[];
+  default_value?: string | null;
+  required?: boolean | null;
+  help?: string | null;
+  options?: string[] | null;
 }
 
 export interface LaunchProfile {
   id: string;
   name: string;
   type: 'client' | 'server' | 'docs';
-  exe?: string;
-  args?: string[];
-  arg_templates?: string[];
-  stdin_templates?: string[];
-  config_fields?: LaunchConfigField[];
+  exe?: string | null;
+  args?: string[] | null;
+  arg_templates?: string[] | null;
+  stdin_templates?: string[] | null;
+  config_fields?: LaunchConfigField[] | null;
 }
 
 export interface GameSummary {
   game_id: string;
   display_name: string;
-  steam_appid?: string;
-  detected_path?: string;
+  steam_appid?: string | null;
+  detected_path?: string | null;
   capabilities: GameCapability[];
-  multiplayer_conversion?: MultiplayerConversionProfile;
+  multiplayer_conversion?: MultiplayerConversionProfile | null;
   network_type?: GameNetworkType;
   connection_plan?: GameConnectionPlan;
   adapter_source?: 'builtin' | 'registry' | 'custom' | 'steam_scan' | string;
@@ -105,9 +105,9 @@ export interface GameAnalysis extends GameSummary {
 export interface GameAdapter {
   game_id: string;
   display_name: string;
-  steam_appid?: string;
+  steam_appid?: string | null;
   capabilities: GameCapability[];
-  multiplayer_conversion?: MultiplayerConversionProfile;
+  multiplayer_conversion?: MultiplayerConversionProfile | null;
   network_type?: GameNetworkType;
   connection_plan?: GameConnectionPlan;
   adapter_source?: 'builtin' | 'registry' | 'custom' | 'steam_scan' | string;

@@ -78,9 +78,12 @@ Write-Host "FullBuild: $FullBuild  RunCargoTests: $RunCargoTests  SkipTauriBuild
   "docs\RELEASE_VALIDATION_LOG.md",
   "docs\PRODUCT_MEMORY.md",
   "docs\DEVELOPMENT_PROGRESS.md",
+  "docs\FINAL_REFERENCE_UI_BACKEND_MATRIX.md",
+  "docs\GOAL_COMPLETION_AUDIT.md",
   "src\reference-runtime.css",
   "adapter-registry\index.json",
   "tools\check_reference_runtime_css.ps1",
+  "tools\check_reference_ui_fidelity.ps1",
   "tools\update_adapter_registry_index.ps1"
 ) | ForEach-Object { Test-RequiredFile $_ }
 
@@ -106,12 +109,130 @@ if ($publishText) {
   Pass-Check "no UI over-claim: publish-ready text"
 }
 
+# Release/product-mode guardrails.
+# The packaged EXE must default to Product Mode so reference-only demo data
+# (for example hard-coded latency, success-rate and host samples) cannot be
+# mistaken for live backend state in the release build. Browser preview may
+# still remain reference-first for visual-fidelity review.
+try {
+  $productModeText = Get-Content "src\reference-adapter\productMode.ts" -Raw -Encoding UTF8
+  $mainTextForProductMode = Get-Content "src\main.tsx" -Raw -Encoding UTF8
+  if ($productModeText -match "__TAURI__" -and $productModeText -match "__TAURI_INTERNALS__") {
+    Pass-Check "EXE defaults to Product Mode" "Tauri runtime detection present"
+  } else {
+    Fail-Check "EXE defaults to Product Mode" "src/reference-adapter/productMode.ts must enable Product Mode by default under Tauri"
+  }
+
+  $requiredProductPatcherNames = @(
+    "ReferenceProductRuntimeBridgeController",
+    "ReferenceProductHeaderPatcher",
+    "ReferenceProductHomePatcher",
+    "ReferenceProductDiagnosticsPatcher",
+    "ReferenceProductActionPatcher",
+    "ReferenceProductActionResultPatcher",
+    "ReferenceProductAdvancedToolsPatcher",
+    "ReferenceProductInventoryPatcher",
+    "ReferenceProductSettingsPatcher"
+  )
+  $missingProductPatchers = @($requiredProductPatcherNames | Where-Object { $mainTextForProductMode -notmatch [regex]::Escape($_) })
+  if ($missingProductPatchers.Count -eq 0) {
+    Pass-Check "release mounts Product Mode patchers"
+  } else {
+    Fail-Check "release mounts Product Mode patchers" ("missing in src/main.tsx: " + ($missingProductPatchers -join ", "))
+  }
+} catch {
+  Fail-Check "release/product-mode guardrails" ([string]$_)
+}
+
+# Static API wiring sentinel for core reference buttons. This is intentionally
+# source-level: runtime/manual validation is still required, but release
+# preflight should fail if a refactor drops the real Tauri API bridge and
+# leaves only reference UI demo handlers.
+try {
+  $sidebarText = Get-Content "src\reference-ui\components\Sidebar.tsx" -Raw -Encoding UTF8
+  $appText = Get-Content "src\reference-ui\App.tsx" -Raw -Encoding UTF8
+  $actionsText = Get-Content "src\reference-adapter\actions.ts" -Raw -Encoding UTF8
+  $actionPatcherText = Get-Content "src\reference-adapter\ProductActionPatcher.tsx" -Raw -Encoding UTF8
+
+  $requiredNavLabels = @(
+    "首页",
+    "方案库",
+    "游戏扫描",
+    "推荐方案",
+    "通用组网中心",
+    "高级连接工具",
+    "Terraria 向导",
+    "诊断报告",
+    "设置与帮助"
+  )
+  $missingNavLabels = @($requiredNavLabels | Where-Object {
+    $sidebarText -notmatch [regex]::Escape($_)
+  })
+  if ($missingNavLabels.Count -eq 0 -and $appText -match "currentTab === 'advanced_tools'" -and $appText -match "AdvancedToolsView") {
+    Pass-Check "core navigation includes all product pages"
+  } else {
+    $detail = "missing labels: " + ($missingNavLabels -join ", ")
+    if ($appText -notmatch "currentTab === 'advanced_tools'") { $detail += "; missing advanced_tools route" }
+    if ($appText -notmatch "AdvancedToolsView") { $detail += "; missing AdvancedToolsView" }
+    Fail-Check "core navigation includes all product pages" $detail
+  }
+
+  $requiredApiCalls = @(
+    "setupNetwork",
+    "startNetwork",
+    "stopNetwork",
+    "startGameServerSession",
+    "stopServerSession",
+    "sendServerCommand",
+    "scanGames",
+    "analyzeGame",
+    "recommendPlans",
+    "launchProfile",
+    "testConnectivity",
+    "generateDiagnosticReport",
+    "startPortProxy",
+    "startUdpProxy",
+    "startUdpBroadcastBridge"
+  )
+  $missingApiCalls = @($requiredApiCalls | Where-Object { $actionsText -notmatch "\b$([regex]::Escape($_))\b" })
+  if ($missingApiCalls.Count -eq 0) {
+    Pass-Check "core buttons use real backend API sentinel"
+  } else {
+    Fail-Check "core buttons use real backend API sentinel" ("missing in src/reference-adapter/actions.ts: " + ($missingApiCalls -join ", "))
+  }
+
+  if ($actionPatcherText -match "Refresh Node Status.+startReferenceN2n") {
+    Fail-Check "network refresh does not restart n2n" "Refresh Node Status must refresh diagnostics/runtime snapshot, not call startReferenceN2n"
+  } elseif ($actionPatcherText -match "Refresh Node Status.+refreshReferenceRuntime") {
+    Pass-Check "network refresh does not restart n2n"
+  } else {
+    Fail-Check "network refresh does not restart n2n" "Refresh Node Status handler not found"
+  }
+} catch {
+  Fail-Check "core buttons use real backend API sentinel" ([string]$_)
+}
+
 # Reference UI fidelity guardrail.
 # The current visual shell is intentionally locked to the user's reference
-# frontend in C:\Users\ty\Downloads\联机助手 (1)\src. Backend/product wiring must
+# frontend in C:\Users\ty\Downloads\联机助手 (3)\src. Backend/product wiring must
 # happen through src/reference-adapter unless the reference itself is updated.
 $referenceUiCheck = "tools\check_reference_ui_fidelity.ps1"
-$referenceUiSource = "C:\Users\ty\Downloads\联机助手 (1)\src"
+$referenceUiSource = "C:\Users\ty\Downloads\联机助手 (3)\src"
+try {
+  $referenceUiCheckText = Get-Content $referenceUiCheck -Raw -Encoding UTF8
+  if ($referenceUiCheckText -match [regex]::Escape("C:\Users\ty\Downloads\联机助手 (3)\src")) {
+    Pass-Check "final design source pinned to (3)"
+  } else {
+    Fail-Check "final design source pinned to (3)" "$referenceUiCheck must default to C:\Users\ty\Downloads\联机助手 (3)\src"
+  }
+  if ($referenceUiSource -eq "C:\Users\ty\Downloads\联机助手 (3)\src") {
+    Pass-Check "preflight uses final design source (3)"
+  } else {
+    Fail-Check "preflight uses final design source (3)" "current source: $referenceUiSource"
+  }
+} catch {
+  Fail-Check "reference design source guardrail" ([string]$_)
+}
 if (Test-Path $referenceUiCheck) {
   if (Test-Path $referenceUiSource) {
     Invoke-Step "reference UI fidelity" {

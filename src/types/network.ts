@@ -5,7 +5,7 @@ export interface BackendSummary {
   name: string;
   installed: boolean;
   available: boolean;
-  virtual_ip?: string;
+  virtual_ip?: string | null;
   notes: string[];
 }
 
@@ -24,7 +24,7 @@ export interface SetupResult {
 export interface BackendRuntimeStatus {
   backend_id: NetworkBackendKind;
   running: boolean;
-  virtual_ip?: string;
+  virtual_ip?: string | null;
   message: string;
 }
 
@@ -39,7 +39,7 @@ export interface N2nDiagnostics {
   auth_error: boolean;
   ip_mac_conflict: boolean;
   not_responding: boolean;
-  last_error?: string;
+  last_error?: string | null;
   summary: string;
   log_path: string;
   recent_logs: string[];
@@ -55,14 +55,14 @@ export interface ConnectivityTarget {
 export interface PortCheckResult {
   port: number;
   reachable: boolean;
-  latency_ms?: number;
-  error?: string;
+  latency_ms?: number | null;
+  error?: string | null;
 }
 
 export interface ConnectivityReport {
   target_host: string;
   reachable: boolean;
-  latency_ms?: number;
+  latency_ms?: number | null;
   ports: PortCheckResult[];
   notes: string[];
 }

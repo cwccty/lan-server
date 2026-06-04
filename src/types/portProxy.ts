@@ -1,12 +1,12 @@
 ﻿export interface PortProxyConfig {
-  id?: string;
+  id?: string | null;
   protocol: 'tcp' | 'udp' | string;
   listen_host: string;
   listen_port: number;
   target_host: string;
   target_port: number;
-  label?: string;
-  game_id?: string;
+  label?: string | null;
+  game_id?: string | null;
 }
 
 export interface PortProxyStatus {
@@ -19,7 +19,7 @@ export interface PortProxyStatus {
   total_connections: number;
   bytes_in: number;
   bytes_out: number;
-  last_error?: string;
+  last_error?: string | null;
   logs: string[];
 }
 
