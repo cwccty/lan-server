@@ -25,8 +25,8 @@ function statusProgress(stage: ReturnType<typeof resolveProductStatusCenter>['st
   if (stage === 'network_ready' || stage === 'ready_to_invite') return 100;
   if (stage === 'starting') return 70;
   if (stage === 'has_problem') return 35;
-  if (stage === 'configured_not_started' || stage === 'server_missing') return 55;
-  return 20;
+  if (stage === 'server_missing') return 75;
+  return 0;
 }
 
 function statusTone(tone: ReturnType<typeof resolveProductStatusCenter>['tone']) {

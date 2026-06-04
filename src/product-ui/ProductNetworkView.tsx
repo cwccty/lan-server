@@ -346,7 +346,7 @@ export function ProductNetworkView({ onTriggerToast, onNavigateTab }: ProductNet
           </div>
         </section>
 
-        <aside className="space-y-4">
+        <aside className="flex h-full flex-col gap-4">
           <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
             <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-slate-800">
               <Activity className="h-4 w-4 text-amber-600" />
@@ -385,7 +385,7 @@ export function ProductNetworkView({ onTriggerToast, onNavigateTab }: ProductNet
             </div>
           </div>
 
-          <div className="rounded-2xl border border-amber-100 bg-amber-50/60 p-5 shadow-sm">
+          <div className="flex flex-1 flex-col rounded-2xl border border-amber-100 bg-amber-50/60 p-5 shadow-sm">
             <div className="mb-3">
               <h3 className="flex items-center gap-2 text-sm font-bold text-slate-800">
                 <LogIn className="h-4 w-4 text-amber-600" />
@@ -399,7 +399,7 @@ export function ProductNetworkView({ onTriggerToast, onNavigateTab }: ProductNet
               value={invitePaste}
               onChange={(event) => handleInvitePaste(event.target.value)}
               placeholder="粘贴 [联机助手真实邀请包] ..."
-              className="min-h-28 w-full resize-y rounded-xl border border-amber-100 bg-white px-3 py-2 text-xs leading-relaxed text-slate-700 outline-none focus:border-amber-400"
+              className="min-h-44 w-full flex-1 resize-y rounded-xl border border-amber-100 bg-white px-3 py-2 text-xs leading-relaxed text-slate-700 outline-none focus:border-amber-400"
             />
             {detectedInvite ? (
               <div className="mt-3 rounded-xl border border-amber-200 bg-white p-3">
