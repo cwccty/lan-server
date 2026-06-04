@@ -856,3 +856,10 @@ Terraria 向导
 - “手动强制刷新”和“一键更新共享方案”的语义需要重新区分，否则用户会认为两个按钮作用相同。
 - 同步详情应该绑定 AdapterRegistrySyncResult.items，展示每个失败项原因，而不是只靠 Toast。
 - 导入 JSON 后应在正式 UI 中刷新真实方案列表，并高亮刚导入的方案。
+
+## 2026-06-04 12:03:23 推荐启动项 profile 智能选择缺口关闭
+
+- 原缺口：推荐页 launchProfile() 的 profile_id 由参考选择器简化推断，可能启动错 profile。
+- 当前处理：Product Mode 下启动前先调用 ecommendPlans(game_id)，优先使用真实推荐项中的 launch_profile_id。
+- 回退规则：没有任何推荐项提供 launch_profile_id 时，才使用旧的 profile_id 或默认 client。
+- 仍需正式 UI 补齐：推荐卡片应允许用户明确选择某一条推荐方案，而不是只让 Product Mode 自动挑第一条 recommended。

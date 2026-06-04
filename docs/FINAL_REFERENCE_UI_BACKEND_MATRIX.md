@@ -62,7 +62,7 @@
 | 重新测试 | `testConnectivity(target)` | 已真实接入 | 当前读取页面 host/port，失败不应判定为绝对不能联机。 |
 | 复制主 IP | `getN2nLastConfig()` | 已真实接入 | 当前动作读取真实配置并 Toast。 |
 | 一键拷制专属密信包 | `generateDiagnosticReport()` | 已真实接入 | 当前用诊断摘要补偿邀请包真实性。 |
-| 立即启动本地游戏实体 | `launchProfile(game_id, profile_id, config)` | 已真实接入 | 优先使用真实选中游戏；profile 仍是简化映射。 |
+| 立即启动本地游戏实体 | `recommendPlans(game_id)` + `launchProfile(game_id, profile_id, config)` | 已真实接入 | 优先使用真实选中游戏，并优先采用真实推荐结果里的 `launch_profile_id`；没有推荐启动项时才回退到默认 profile。 |
 | 分配好友 IP / 回收席位 | 前端本地状态 | 已记录缺口 | 目前没有专门后端持久化好友席位 API；邀请包需要继续通过前端状态管理。 |
 | 检测好友连接 | `testConnectivity(target)` | 部分已接入 | 旧推荐页已有入口；最终参考 UI 的好友席位按钮仍需更精确绑定好友 IP。 |
 
@@ -112,7 +112,6 @@
 
 1. **真实实例列表替换**：高级工具、游戏扫描、方案库、推荐页目前大量通过 Product Mode 面板补偿，正式产品最好重构为受控 React 数据流。
 2. **好友席位持久化**：最终参考 UI 有好友 IP 分配大厅，但后端没有专门的 friend allocation 存储 API。
-3. **推荐启动项 profile 智能选择**：当前 `launchProfile()` 的 `profile_id` 仍是简化映射，应优先使用 `recommendPlans()` 返回的 `launch_profile_id`。
-4. **指定游戏诊断正式入口**：后端已有 `generateDiagnosticReportForGame(gameId)`，最终参考 UI 还缺绑定选中游戏的诊断按钮。
-5. **设置中心真实 API**：目前没有完整 App Settings 后端命令。
-6. **Palworld adapter**：参考前端有 Palworld 展示项，本地方案库暂未提供 Palworld adapter。
+3. **指定游戏诊断正式入口**：后端已有 `generateDiagnosticReportForGame(gameId)`，最终参考 UI 还缺绑定选中游戏的诊断按钮。
+4. **设置中心真实 API**：目前没有完整 App Settings 后端命令。
+5. **Palworld adapter**：参考前端有 Palworld 展示项，本地方案库暂未提供 Palworld adapter。

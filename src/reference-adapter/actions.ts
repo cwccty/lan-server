@@ -10,6 +10,7 @@
   listUdpBroadcastBridges,
   listUdpProxies,
   readServerSession,
+  recommendPlans,
   saveGameAdapter,
   scanGames,
   sendServerCommand,
@@ -177,7 +178,7 @@ export interface ReferenceGenericServerForm {
 
 export interface ReferenceLaunchProfileForm {
   game_id: string;
-  profile_id: string;
+  profile_id?: string;
   config: LaunchConfig;
 }
 
@@ -296,7 +297,20 @@ export function analyzeReferenceGameByName(displayName?: string) {
 }
 
 export function launchReferenceProfile(form: ReferenceLaunchProfileForm) {
-  return withSnapshot('启动推荐启动项', () => launchProfile(form.game_id, form.profile_id, form.config));
+  return withSnapshot('启动推荐启动项', async () => {
+    const recommendations = await recommendPlans(form.game_id).catch(() => []);
+    const preferred = recommendations.find((item) => item.level === 'recommended' && item.launch_profile_id)
+      ?? recommendations.find((item) => item.launch_profile_id);
+    const profileId = preferred?.launch_profile_id || form.profile_id || 'client';
+    const result = await launchProfile(form.game_id, profileId, form.config);
+    return {
+      ...result,
+      game_id: form.game_id,
+      profile_id: profileId,
+      recommendation_id: preferred?.id,
+      recommendation_title: preferred?.title
+    };
+  });
 }
 
 function methodFromConversion(value: string) {
