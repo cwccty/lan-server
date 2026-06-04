@@ -2,6 +2,7 @@
   analyzeGame,
   exportGameAdapterJson,
   generateDiagnosticReport,
+  generateDiagnosticReportForGame,
   getN2nLastConfig,
   importGameAdapterJson,
   launchProfile,
@@ -42,7 +43,7 @@ import type { UdpBroadcastBridgeConfig } from '../types/udpBroadcastBridge';
 import type { UdpProxyConfig } from '../types/udpProxy';
 import { readReferenceRuntimeSnapshot } from './runtimeStore';
 import type { ReferenceRuntimeSnapshot } from './types';
-import { setReferenceSelectedGame } from './selectedGame';
+import { getReferenceSelectedGame, setReferenceSelectedGame } from './selectedGame';
 
 export interface ReferenceActionResult<T = unknown> {
   ok: boolean;
@@ -119,8 +120,13 @@ export function testReferenceConnectivity(target: ConnectivityTarget) {
   return withSnapshot('测试连接', () => testConnectivity(target));
 }
 
-export function generateReferenceDiagnostics() {
-  return withSnapshot('生成诊断报告', () => generateDiagnosticReport(), true);
+export function generateReferenceDiagnostics(gameId?: string) {
+  const selectedGameId = gameId || getReferenceSelectedGame()?.game_id;
+  return withSnapshot(
+    selectedGameId ? '生成指定游戏诊断报告' : '生成全局诊断报告',
+    () => selectedGameId ? generateDiagnosticReportForGame(selectedGameId) : generateDiagnosticReport(),
+    true
+  );
 }
 
 export function scanReferenceGames() {

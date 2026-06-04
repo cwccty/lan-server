@@ -1,5 +1,6 @@
 ﻿import { useEffect } from 'react';
 import { snapshotForDebug } from './mappers';
+import { getReferenceSelectedGame } from './selectedGame';
 import { useReferenceProductMode } from './useReferenceProductMode';
 import { useReferenceRuntime } from './useReferenceRuntime';
 
@@ -48,6 +49,7 @@ function patchDiagnostics(runtime: ReturnType<typeof useReferenceRuntime>) {
   if (!root.textContent?.includes('网络诊断与链路性能')) return;
 
   const n2n = runtime.snapshot?.n2n;
+  const selectedGame = getReferenceSelectedGame();
   const debug = runtime.snapshot ? snapshotForDebug(runtime.snapshot) : { message: 'no runtime snapshot yet' };
   const json = JSON.stringify(debug, null, 2);
 
@@ -81,7 +83,7 @@ function patchDiagnostics(runtime: ReturnType<typeof useReferenceRuntime>) {
   const cacheLine = Array.from(root.querySelectorAll<HTMLElement>('p')).find((node) =>
     node.textContent?.includes('上次自愈分析缓存') || node.dataset.lanHelperPatched === 'diagnostics-cache-line'
   );
-  if (cacheLine) rememberAndSet(cacheLine, 'diagnostics-cache-line', `真实快照时间: ${runtime.snapshot?.loaded_at || '等待 runtime'} ｜ product mode`);
+  if (cacheLine) rememberAndSet(cacheLine, 'diagnostics-cache-line', `真实快照时间: ${runtime.snapshot?.loaded_at || '等待 runtime'} ｜ 诊断目标: ${selectedGame?.display_name || '全局'} ｜ product mode`);
 
   const evidenceA = Array.from(root.querySelectorAll<HTMLElement>('p')).find((node) =>
     node.textContent?.includes('TAP_ERR_IP_ASSIGN') || node.dataset.lanHelperPatched === 'diagnostics-evidence-a'

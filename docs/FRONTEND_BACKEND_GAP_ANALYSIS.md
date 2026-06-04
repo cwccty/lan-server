@@ -863,3 +863,10 @@ Terraria 向导
 - 当前处理：Product Mode 下启动前先调用 ecommendPlans(game_id)，优先使用真实推荐项中的 launch_profile_id。
 - 回退规则：没有任何推荐项提供 launch_profile_id 时，才使用旧的 profile_id 或默认 client。
 - 仍需正式 UI 补齐：推荐卡片应允许用户明确选择某一条推荐方案，而不是只让 Product Mode 自动挑第一条 recommended。
+
+## 2026-06-04 12:22:26 指定游戏诊断缺口关闭
+
+- 原缺口：后端已有 generateDiagnosticReportForGame(gameId)，但最终参考前端没有绑定当前游戏的诊断入口。
+- 当前处理：Product Mode 使用最近真实选中游戏作为诊断目标；诊断页和推荐页生成诊断时优先调用 generateDiagnosticReportForGame(gameId)。
+- 回退规则：没有真实选中游戏时仍生成全局诊断 generateDiagnosticReport()。
+- 仍需正式前端补齐：提供“诊断目标选择器”，允许用户明确选择“全局诊断 / 当前游戏诊断 / 指定游戏诊断”。

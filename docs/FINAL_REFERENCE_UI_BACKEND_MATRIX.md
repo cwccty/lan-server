@@ -95,9 +95,9 @@
 
 | 前端区域/按钮 | 对应真实 API | 当前状态 | 说明 |
 |---|---|---|---|
-| 手动强制重扫 | `generateDiagnosticReport()` | 已真实接入 | Product Mode 拦截并生成真实诊断。 |
-| 诊断页真实面板 | `generateDiagnosticReport()` / runtime snapshot | Product Mode 面板补偿 | 已保留上次报告思路，避免每次进入清空。 |
-| 指定游戏诊断 | `generateDiagnosticReportForGame(gameId)` | 待正式 UI | 后端已有 API，最终参考前端缺少“选择游戏后诊断”的明确入口。 |
+| 手动强制重扫 | `generateDiagnosticReportForGame(gameId)` / `generateDiagnosticReport()` | 已真实接入 | Product Mode 有最近选中游戏时优先生成指定游戏诊断；没有选中游戏时回退全局诊断。 |
+| 诊断页真实面板 | `generateDiagnosticReport()` / runtime snapshot / selected game | Product Mode 面板补偿 | 已保留上次报告思路，诊断页会显示当前绑定的诊断目标。 |
+| 指定游戏诊断 | `generateDiagnosticReportForGame(gameId)` | 已真实接入 | 通过最近真实选中游戏实现；正式 UI 仍应提供清晰的“诊断目标选择器”。 |
 | 导出文本 / 复制报告 | 前端能力 | 已记录缺口 | 需要正式 UI 绑定真实报告内容。 |
 
 ## 9. 设置 / 帮助
@@ -112,6 +112,6 @@
 
 1. **真实实例列表替换**：高级工具、游戏扫描、方案库、推荐页目前大量通过 Product Mode 面板补偿，正式产品最好重构为受控 React 数据流。
 2. **好友席位持久化**：最终参考 UI 有好友 IP 分配大厅，但后端没有专门的 friend allocation 存储 API。
-3. **指定游戏诊断正式入口**：后端已有 `generateDiagnosticReportForGame(gameId)`，最终参考 UI 还缺绑定选中游戏的诊断按钮。
-4. **设置中心真实 API**：目前没有完整 App Settings 后端命令。
-5. **Palworld adapter**：参考前端有 Palworld 展示项，本地方案库暂未提供 Palworld adapter。
+3. **设置中心真实 API**：目前没有完整 App Settings 后端命令。
+4. **Palworld adapter**：参考前端有 Palworld 展示项，本地方案库暂未提供 Palworld adapter。
+5. **诊断目标选择器**：Product Mode 已能按最近选中游戏生成指定诊断，但正式 UI 仍应让用户显式选择“全局/某个游戏”。 

@@ -1814,3 +1814,9 @@ pm.cmd run release:preflight。
 - 只有真实推荐结果没有提供启动项时，才回退到参考表单传入的 profile_id 或默认 client。
 - 启动结果会附带 game_id、最终 profile_id、ecommendation_id、ecommendation_title，方便 Product Mode Toast/诊断记录判断实际启动来源。
 - docs/FINAL_REFERENCE_UI_BACKEND_MATRIX.md 已把“推荐启动项 profile 智能选择”从剩余缺口移除。
+
+## 2026-06-04 12:22:26 指定游戏诊断接入
+- generateReferenceDiagnostics(gameId?) 现在支持指定游戏诊断：有 gameId 或最近真实选中游戏时调用 generateDiagnosticReportForGame(gameId)，否则回退 generateDiagnosticReport()。
+- Product Mode 下诊断页“手动强制重扫”和推荐页“一键拷制专属密信包”会优先使用最近选中的真实游戏生成诊断。
+- ReferenceProductDiagnosticsPatcher 会在诊断页显示当前诊断目标：具体游戏名或“全局”。
+- docs/FINAL_REFERENCE_UI_BACKEND_MATRIX.md 已把指定游戏诊断标记为已真实接入；剩余是正式 UI 需要提供明确的诊断目标选择器。
