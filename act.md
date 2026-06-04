@@ -2730,3 +2730,9 @@ pm.cmd run release:preflight。
 - Palworld adapter 覆盖专用服务端/IP 直连流程：虚拟局域网 + UDP 8211 + 必要时 UDP 单播代理。
 - 明确不承诺把官方服务器、Steam 好友大厅或平台匹配强制转换为本地 LAN；仅覆盖可通过 IP/端口加入的专用服流程。
 - docs/FINAL_REFERENCE_UI_BACKEND_MATRIX.md 已移除“缺 Palworld adapter”的剩余缺口，并保留未来深度能力：SteamCMD 安装、配置文件编辑、服务端日志解析。
+
+## 2026-06-04 16:07:56 目标完成度审计
+- 新增 docs/GOAL_COMPLETION_AUDIT.md，按原始目标审计最终参考前端 (3) 复刻与前后端对接完成度。
+- 审计结论：当前不能标记总目标完成；一比一复刻已由 fidelity checker 证明通过，主要后端能力已接入，但仍有 Product Mode 面板补偿和正式受控 UI 缺口。
+- 当前最优先剩余项：方案库真实同步详情面板、高级工具真实实例列表受控化、诊断目标选择器、方案库手动刷新语义整理。
+- 明确不调用目标完成：因为“完全完成”仍缺正式受控 UI 证据，不能仅凭 Product Mode 补偿判定全部完成。
