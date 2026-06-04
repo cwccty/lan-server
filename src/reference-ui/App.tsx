@@ -12,6 +12,7 @@ import UniversalNetworkView from './components/UniversalNetworkView';
 import { ProductNetworkView } from '../product-ui/ProductNetworkView';
 import AdvancedToolsView from './components/AdvancedToolsView';
 import TerrariaGuideView from './components/TerrariaGuideView';
+import { ProductTerrariaGuideView } from '../product-ui/ProductTerrariaGuideView';
 import DiagnosticsView from './components/DiagnosticsView';
 import SettingsView from './components/SettingsView';
 import { ProductAdvancedToolsView } from '../product-ui/ProductAdvancedToolsView';
@@ -230,17 +231,21 @@ export default function App() {
             )}
 
             {state.currentTab === 'terraria' && (
-              <TerrariaGuideView
-                onTriggerToast={handleTriggerToast}
-                terrariaWorld={state.terrariaWorld}
-                terrariaPort={state.terrariaPort}
-                terrariaPasswordInput={state.terrariaPasswordInput}
-                terrariaMaxPlayers={state.terrariaMaxPlayers}
-                terrariaRunning={state.terrariaRunning}
-                terrariaLogs={state.terrariaLogs}
-                onUpdateState={updateStateValue}
-                localIp={state.localVirtualIp}
-              />
+              productMode.enabled ? (
+                <ProductTerrariaGuideView onTriggerToast={handleTriggerToast} />
+              ) : (
+                <TerrariaGuideView
+                  onTriggerToast={handleTriggerToast}
+                  terrariaWorld={state.terrariaWorld}
+                  terrariaPort={state.terrariaPort}
+                  terrariaPasswordInput={state.terrariaPasswordInput}
+                  terrariaMaxPlayers={state.terrariaMaxPlayers}
+                  terrariaRunning={state.terrariaRunning}
+                  terrariaLogs={state.terrariaLogs}
+                  onUpdateState={updateStateValue}
+                  localIp={state.localVirtualIp}
+                />
+              )
             )}
 
             {state.currentTab === 'diagnostics' && (

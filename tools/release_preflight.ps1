@@ -168,6 +168,12 @@ try {
   } else {
     Fail-Check "controlled Network page replaces reference Network form" "Product Mode network must render src/product-ui/ProductNetworkView.tsx instead of relying on UniversalNetworkView button interception"
   }
+
+  if ((Test-Path "src\product-ui\ProductTerrariaGuideView.tsx") -and $appTextForControlledHome -match "ProductTerrariaGuideView" -and $appTextForControlledHome -match "currentTab === 'terraria'" -and $appTextForControlledHome -match "productMode\.enabled") {
+    Pass-Check "controlled Terraria page replaces simulated Terraria guide"
+  } else {
+    Fail-Check "controlled Terraria page replaces simulated Terraria guide" "Product Mode terraria must render src/product-ui/ProductTerrariaGuideView.tsx instead of relying on TerrariaGuideView simulated logs and button interception"
+  }
 } catch {
   Fail-Check "release/product-mode guardrails" ([string]$_)
 }

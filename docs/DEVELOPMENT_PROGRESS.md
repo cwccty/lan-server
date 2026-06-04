@@ -2066,3 +2066,34 @@ pm run release:preflight 通过。
 pm run tauri:build 通过，已重新生成 src-tauri/target/release/lan-helper.exe。
 
 下一步推荐：迁移 Terraria 向导 为正式受控 Product 页面，因为它目前仍包含参考页模拟日志、模拟启动状态和 Product Mode 动作拦截；迁移后服务端启动/停止/命令/日志都应直接由 eadServerSession()、startGameServerSession()、sendServerCommand() 驱动。
+
+## 2026-06-04 22:14:24 Terraria 向导 Product 页面受控迁移
+
+目标：继续把 Product Mode patcher 逐页迁移为正式 React 受控页面。
+
+本次完成：
+
+- 新增 src/product-ui/ProductTerrariaGuideView.tsx。
+- Product Mode 下 	erraria 路由改为直接渲染 ProductTerrariaGuideView，参考模式仍保留 TerrariaGuideView 用于视觉对照。
+- 新页面删除参考页模拟启动流，不再通过 setTimeout 伪造日志、12ms 延迟、0% 丢包或启动成功。
+- 新页面直接使用真实后端能力：
+  - startReferenceTerrariaServer() 启动真实 Terraria 服务端会话。
+  - stopReferenceTerrariaServer() 停止真实服务端会话。
+  - eadReferenceTerrariaServer() 读取真实会话状态与日志。
+  - sendReferenceTerrariaCommand() 向后端服务端会话发送控制台命令。
+  - efreshReferenceRuntime() 刷新 runtime 快照。
+- 启动参数与后端保持一致：world_choice / world_path、port、max_players、password、uto_forward。
+- 页面明确提示：交互式 help/save/exit 不作为 MVP 保证，不能伪造命令成功，应以日志和进程状态为准。
+- 	ools/release_preflight.ps1 新增并通过 controlled Terraria page replaces simulated Terraria guide 守卫，防止未来回退到模拟页或按钮拦截。
+
+验证：
+
+- 
+pm run build 通过。
+- cargo check --manifest-path src-tauri/Cargo.toml 通过。
+- 
+pm run release:preflight 通过。
+- 
+pm run tauri:build 通过，已重新生成 src-tauri/target/release/lan-helper.exe。
+
+下一步推荐：迁移 诊断报告 或 游戏扫描。优先建议迁移 诊断报告，因为它需要把全局诊断/指定游戏诊断/复制导出从 ProductDiagnosticsPatcher 变成正式页面状态。
