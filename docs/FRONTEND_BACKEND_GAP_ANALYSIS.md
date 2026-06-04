@@ -819,3 +819,26 @@ Terraria 向导
 1. 推荐页当前通过参考前端选择器推断 `game_id/profile_id`，还不是由真实选中游戏状态贯通而来。
 2. `palworld` 在最终参考前端中存在演示选项，但当前本地 adapter registry 未包含 Palworld，因此真实启动会合理失败；如要支持，需要新增 Palworld adapter。
 3. 方案编辑器已能保存基础 custom adapter，但还没有完整覆盖所有高级字段，例如协议细分、Steam Relay 插件入口、复杂启动参数模板。
+
+## 2026-06-04 10:38:31 前端缺口处理策略与选中游戏缺口关闭
+
+### 如果后端已有功能但最终参考前端没有接口
+
+处理策略固定为三步：
+
+1. **先记录缺口**：写入本文档，说明缺少哪个入口、对应哪个后端 command/API、当前是否可通过 Product Mode 临时操作。
+2. **Product Mode 临时接入**：不破坏 src/reference-ui 一比一视觉源码，通过 src/reference-adapter 插入真实状态面板、Toast、按钮拦截或调试入口；所有结果必须来自 Tauri 后端，不允许伪造成功。
+3. **等待新前端补齐正式入口**：当最终设计增加对应按钮/表单时，直接复用 src/reference-adapter/actions.ts 或 src/api/tauri.ts 的真实 API，逐步减少 DOM patcher。
+
+### 本轮关闭：真实选中游戏状态贯通
+
+- 已新增 src/reference-adapter/selectedGame.ts。
+- 游戏扫描页分析/建方案动作会保存最近选中的真实游戏。
+- 推荐方案页真实推荐、邀请摘要、启动动作优先使用最近选中的真实游戏。
+- 原“推荐页默认取扫描结果第一项”的缺口已关闭。
+
+### 仍存在的前端功能缺口
+
+- Palworld 仍是参考前端演示项，本地 adapter registry 暂无 Palworld adapter；真实启动失败属于合理后端反馈。
+- 方案编辑器目前只能保存基础 adapter 字段，复杂协议、Steam Relay 插件入口、复杂启动参数模板仍需正式 UI。
+- 高级连接工具参考卡片仍不是完全受控真实实例列表，Product Mode 目前通过真实状态面板补偿。

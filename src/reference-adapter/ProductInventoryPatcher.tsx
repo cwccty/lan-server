@@ -4,6 +4,7 @@ import type { GameAdapter, GameSummary } from '../types/game';
 import type { NetworkConfig } from '../types/network';
 import type { Recommendation } from '../types/recommendation';
 import type { ServerSessionStatus } from '../types/serverSession';
+import { getReferenceSelectedGame, subscribeReferenceSelectedGame, type ReferenceSelectedGame } from './selectedGame';
 import { useReferenceProductMode } from './useReferenceProductMode';
 
 const PANEL_ATTR = 'data-lan-helper-product-inventory-panel';
@@ -19,6 +20,7 @@ interface InventoryState {
   recommendations: Recommendation[];
   n2nConfig: NetworkConfig | null;
   server: ServerSessionStatus | null;
+  selectedGame: ReferenceSelectedGame | null;
   error: string;
 }
 
@@ -31,6 +33,7 @@ function emptyState(): InventoryState {
     recommendations: [],
     n2nConfig: null,
     server: null,
+    selectedGame: null,
     error: ''
   };
 }
@@ -163,7 +166,13 @@ function renderSolutions(state: InventoryState) {
 }
 
 function renderRecommendation(state: InventoryState) {
-  const game = state.games[0];
+  const game = state.selectedGame
+    ? state.games.find((item) => item.game_id === state.selectedGame?.game_id) ?? {
+        game_id: state.selectedGame.game_id,
+        display_name: state.selectedGame.display_name,
+        capabilities: []
+      } as GameSummary
+    : state.games[0];
   const config = state.n2nConfig;
   const invite = [
     '[联机助手真实邀请摘要]',
@@ -195,9 +204,12 @@ function renderRecommendation(state: InventoryState) {
     <div class="mb-4 flex items-center justify-between gap-3">
       <div>
         <div class="font-heading text-sm font-bold text-slate-800">真实推荐与邀请摘要</div>
-        <div class="mt-1 text-[11px] text-slate-500">来自 scan_games、recommend_plans、get_n2n_last_config、read_server_session。</div>
+        <div class="mt-1 text-[11px] text-slate-500">来自 scan_games、recommend_plans、get_n2n_last_config、read_server_session。优先使用游戏扫描页刚选中的真实游戏。</div>
       </div>
-      ${badge(game?.display_name ?? '未扫描游戏', game ? 'amber' : 'red')}
+      <div class="flex flex-wrap justify-end gap-1.5">
+        ${badge(game?.display_name ?? '未扫描游戏', game ? 'amber' : 'red')}
+        ${state.selectedGame ? badge('已绑定选中游戏', 'green') : badge('未手动选择', 'slate')}
+      </div>
     </div>
     <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
       <div class="space-y-2">${recommendationRows.length > 0 ? recommendationRows.join('') : '<div class="rounded-xl border border-dashed border-amber-200 bg-white/70 p-3 text-[11px] text-slate-500">暂无真实推荐结果。请先扫描游戏或选择有适配器的游戏。</div>'}</div>
@@ -229,7 +241,8 @@ async function loadInventory(page: PageKind): Promise<InventoryState> {
     collect('读取 n2n 配置', getN2nLastConfig, null),
     collect('读取服务端状态', readServerSession, null)
   ]);
-  const targetGameId = games[0]?.game_id || adapters[0]?.game_id || 'terraria';
+  const selectedGame = getReferenceSelectedGame();
+  const targetGameId = selectedGame?.game_id || games[0]?.game_id || adapters[0]?.game_id || 'terraria';
   const recommendations = page === 'recommendation'
     ? await collect('读取推荐方案', () => recommendPlans(targetGameId), [])
     : [];
@@ -242,6 +255,7 @@ async function loadInventory(page: PageKind): Promise<InventoryState> {
     recommendations,
     n2nConfig,
     server,
+    selectedGame,
     error: disconnected
       ? '当前页面没有连接到 Tauri 后端。请用打包后的 lan-helper.exe 打开，普通浏览器预览只能验证界面，不能读取真实扫描/方案/推荐数据。'
       : errors.slice(0, 3).join('；')
@@ -253,12 +267,22 @@ export function ReferenceProductInventoryPatcher() {
   const [page, setPage] = useState<PageKind | null>(null);
   const [state, setState] = useState<InventoryState>(() => emptyState());
   const [loadedKey, setLoadedKey] = useState('');
+  const [selectedGameKey, setSelectedGameKey] = useState(() => getReferenceSelectedGame()?.game_id ?? '');
 
   useEffect(() => {
     const tick = () => setPage(detectPage());
     tick();
     const timer = window.setInterval(tick, 800);
     return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    return subscribeReferenceSelectedGame((game) => {
+      const nextKey = game?.game_id ?? '';
+      setSelectedGameKey(nextKey);
+      setLoadedKey('');
+      setState((prev) => ({ ...prev, selectedGame: game }));
+    });
   }, []);
 
   useEffect(() => {
@@ -280,7 +304,7 @@ export function ReferenceProductInventoryPatcher() {
     panel.innerHTML = renderPanel(page, state);
     insertHint(root, page);
 
-    const key = `${page}:${productMode.updated_at}`;
+    const key = `${page}:${productMode.updated_at}:${selectedGameKey}`;
     if (loadedKey === key || state.loading) return;
     setLoadedKey(key);
     setState((prev) => ({ ...prev, loading: true, error: '' }));
@@ -293,7 +317,7 @@ export function ReferenceProductInventoryPatcher() {
           error: error instanceof Error ? error.message : String(error || '读取真实后端数据失败')
         })
       );
-  }, [productMode.enabled, productMode.updated_at, page, state, loadedKey]);
+  }, [productMode.enabled, productMode.updated_at, page, state, loadedKey, selectedGameKey]);
 
   return null;
 }

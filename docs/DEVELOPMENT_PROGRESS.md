@@ -1793,3 +1793,10 @@ pm.cmd run release:preflight。
 - 验证通过：
 pm.cmd run build、cargo check --manifest-path src-tauri\Cargo.toml、
 pm.cmd run release:preflight。
+
+## 2026-06-04 10:38:31 Product Mode 真实选中游戏状态贯通
+- 新增 src/reference-adapter/selectedGame.ts，用 localStorage: lan-helper.referenceSelectedGame 保存游戏扫描页最近选中的真实游戏，并通过 lan-helper:reference-selected-game-changed 通知其它页面刷新。
+- 游戏扫描页 Product Mode 下点击“查看分析与推荐方案 / 查看推荐配置方案 / 创建局域网组网草稿 / 创建网络方案”时，会先通过 scanGames() 按卡片标题匹配真实游戏，再保存选中游戏，最后调用 nalyzeGame(game_id)。
+- 推荐方案页 Product Mode 下“真实推荐与邀请摘要”优先使用该选中游戏调用 ecommendPlans(game_id)，不再默认取扫描结果第一项。
+- 推荐页“立即启动本地游戏实体”优先使用该选中游戏的 game_id 调用 launchProfile(game_id, profile_id, config)；如果没有选中游戏，才回退到参考前端选择器。
+- 重要原则：最终参考前端 (3) 的视觉源码继续保持一比一；真实能力通过 Product Mode adapter/patcher 层补齐，不伪造成功。

@@ -1,16 +1,16 @@
 ﻿import {
   analyzeGame,
-generateDiagnosticReport,
+  generateDiagnosticReport,
   getN2nLastConfig,
-    launchProfile,
-listPortProxies,
+  launchProfile,
+  listPortProxies,
   listUdpBroadcastBridges,
   listUdpProxies,
   readServerSession,
+  saveGameAdapter,
   scanGames,
   sendServerCommand,
-    saveGameAdapter,
-setupNetwork,
+  setupNetwork,
   startGenericServerSession,
   startGameServerSession,
   startNetwork,
@@ -38,6 +38,7 @@ import type { UdpBroadcastBridgeConfig } from '../types/udpBroadcastBridge';
 import type { UdpProxyConfig } from '../types/udpProxy';
 import { readReferenceRuntimeSnapshot } from './runtimeStore';
 import type { ReferenceRuntimeSnapshot } from './types';
+import { setReferenceSelectedGame } from './selectedGame';
 
 export interface ReferenceActionResult<T = unknown> {
   ok: boolean;
@@ -264,6 +265,7 @@ export function analyzeReferenceGameByName(displayName?: string) {
     if (!selected) {
       throw new Error(displayName ? `没有在真实扫描结果中找到：${displayName}` : '没有可分析的真实扫描游戏。');
     }
+    setReferenceSelectedGame(selected);
     return analyzeGame(selected.game_id);
   }, true);
 }
@@ -346,4 +348,5 @@ export function saveReferenceAdapterDraft(form: ReferenceAdapterDraftForm) {
     return saveGameAdapter(adapter);
   }, true);
 }
+
 

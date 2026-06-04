@@ -24,6 +24,7 @@ import {
 } from './actions';
 import type { NetworkConfig } from '../types/network';
 import type { LaunchConfig } from '../types/recommendation';
+import { getReferenceSelectedGame } from './selectedGame';
 import { useReferenceProductMode } from './useReferenceProductMode';
 
 const BUSY_ATTR = 'data-lan-helper-product-busy';
@@ -121,13 +122,14 @@ function readRecommendationLaunchForm() {
   const root = findPageRoot('推荐方案');
   const select = root?.querySelector('select') as HTMLSelectElement | null;
   const selected = select?.value || 'terraria';
+  const selectedGame = getReferenceSelectedGame();
   const gameMap: Record<string, string> = {
     terraria: 'terraria',
     minecraft: 'minecraft_java',
     palworld: 'palworld'
   };
-  const gameId = gameMap[selected] || selected;
-  const profileId = selected === 'minecraft' ? 'docs' : 'client';
+  const gameId = selectedGame?.game_id || gameMap[selected] || selected;
+  const profileId = gameId === 'minecraft_java' ? 'docs' : 'client';
   const maxPlayersValue = Array.from(root?.querySelectorAll<HTMLSelectElement>('select') ?? [])
     .find((item) => Array.from(item.options).some((option) => option.value === '8' || option.value === '16'))?.value;
   return {
