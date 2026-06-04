@@ -24,6 +24,7 @@ pub fn run() {
             commands::save_app_settings,
             commands::reset_app_settings,
             commands::open_path,
+            commands::test_edge_path,
             commands::list_network_backends,
             commands::setup_network,
             commands::start_network,

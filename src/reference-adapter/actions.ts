@@ -35,6 +35,7 @@
   selfTestPortProxy,
   selfTestUdpBroadcastBridge,
   selfTestUdpProxy,
+  testEdgePath,
   testConnectivity
 } from '../api/tauri';
 import type { ConnectivityTarget, NetworkConfig } from '../types/network';
@@ -181,6 +182,10 @@ export function saveReferenceAppSettings(settings: AppSettings) {
 
 export function resetReferenceAppSettings() {
   return withSnapshot('重置应用设置', () => resetAppSettings(), true);
+}
+
+export function testReferenceEdgePath(path?: string | null) {
+  return withSnapshot('检测 edge.exe 路径', () => testEdgePath(path), true);
 }
 
 export type ReferenceAdvancedProxyKind = 'tcp' | 'udp' | 'bridge';

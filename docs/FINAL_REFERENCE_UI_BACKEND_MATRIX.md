@@ -108,7 +108,7 @@
 | Product Mode 开关 | `localStorage: lan-helper.referenceProductMode` | 已真实接入 | 用于在一比一参考模式和真实接入模式之间切换。 |
 | 方案库默认地址 | `getAppSettings()` / `saveAppSettings(settings)` | 已真实接入 | 作为 App Settings 的 `adapter_registry_url` 保存。 |
 | 保存本地设置 | `saveAppSettings(settings)` | 已真实接入 | Product Mode 下保存 edge 路径、默认 supernode、方案库地址、Product Mode 状态等。 |
-| 联机自测 | `getAppSettings()` | 已真实接入 | 当前用于读取真实设置并回填动作结果；后续可扩展为 edge 可执行文件版本检测。 |
+| 联机自测 | `testEdgePath(path)` | 已真实接入 | 检查 edge 路径是否存在、是否为文件、文件名是否像 edge/n2n，并尝试 `-h` 读取帮助/版本线索。 |
 | App 级设置读写 | `getAppSettings()` / `saveAppSettings()` / `resetAppSettings()` / `openPath()` | 已真实接入 | 后端写入 `.lan-helper/settings.json`；设置页 Product Mode 面板显示真实配置。 |
 
 ## 当前最重要的剩余缺口
@@ -117,4 +117,4 @@
 2. **Palworld adapter**：参考前端有 Palworld 展示项，本地方案库暂未提供 Palworld adapter。
 3. **诊断目标选择器**：Product Mode 已能按最近选中游戏生成指定诊断，但正式 UI 仍应让用户显式选择“全局/某个游戏”。
 4. **好友席位后端化**：Product Mode 已用 localStorage 持久化好友席位；如果未来要做多人房间/云同步，仍需后端房间 API。
-5. **edge 路径深度检测**：App Settings 已能保存 edge 路径；“联机自测”后续可进一步扩展为读取 edge.exe 版本与可执行权限。
+5. **edge 自动下载**：edge 路径已能深度检测；自动下载/修复 edge.exe 仍属于未来功能。

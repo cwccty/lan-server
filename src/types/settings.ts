@@ -7,3 +7,15 @@ export interface AppSettings {
   tools_dir?: string | null;
   updated_at: string;
 }
+
+export interface EdgePathCheck {
+  ok: boolean;
+  path?: string | null;
+  exists: boolean;
+  is_file: boolean;
+  executable_name_ok: boolean;
+  can_execute: boolean;
+  version_hint?: string | null;
+  message: string;
+  stderr?: string | null;
+}

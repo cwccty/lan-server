@@ -12,7 +12,7 @@ import type {
 } from '../types/network';
 import type { LaunchConfig, LaunchResult, Recommendation } from '../types/recommendation';
 import type { GenericServerLaunchConfig, ServerSessionStatus } from '../types/serverSession';
-import type { AppSettings } from '../types/settings';
+import type { AppSettings, EdgePathCheck } from '../types/settings';
 import type { PortProxyConfig, PortProxySelfTestReport, PortProxyStatus } from '../types/portProxy';
 import type {
   UdpBroadcastBridgeConfig,
@@ -86,6 +86,8 @@ export const saveAppSettings = (settings: AppSettings) =>
   invoke<AppSettings>('save_app_settings', { settings });
 export const resetAppSettings = () => invoke<AppSettings>('reset_app_settings');
 export const openPath = (path: string) => invoke<void>('open_path', { path });
+export const testEdgePath = (path?: string | null) =>
+  invoke<EdgePathCheck>('test_edge_path', { path });
 export const listNetworkBackends = () => invoke<BackendSummary[]>('list_network_backends');
 export const setupNetwork = (backendId: string, config: NetworkConfig) =>
   invoke<SetupResult>('setup_network', { backendId, config });

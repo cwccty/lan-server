@@ -2529,3 +2529,11 @@ pm.cmd run release:preflight。
 - 前端新增 src/types/settings.ts 和 API：getAppSettings()、saveAppSettings()、esetAppSettings()、openPath(path)。
 - Product Mode 设置页“保存本地设置”已接入 saveAppSettings(settings)；“联机自测”当前读取真实 settings，后续可扩展为 edge.exe 版本/权限检测。
 - 新增 ReferenceProductSettingsPatcher，设置页会插入真实应用设置面板，显示 edge 路径、默认 supernode、方案库地址、Product Mode 状态和更新时间。
+
+## 2026-06-04 13:20:26 edge.exe 路径深度检测接入
+- 新增后端模型 EdgePathCheck，用于描述 edge 路径是否存在、是否为文件、文件名是否像 edge/n2n、是否可执行、帮助/版本线索和错误信息。
+- 新增 Tauri command：	est_edge_path(path?: string)；不传路径时会使用 App Settings 中保存的 edge_path。
+- 检测逻辑会尝试执行 edge -h，并读取 stdout/stderr 中的 n2n/edge/usage/welcome 等线索；Windows 下使用隐藏窗口执行，避免弹白框。
+- 前端新增 API：	estEdgePath(path?: string | null)。
+- Product Mode 设置页“联机自测”已从读取 settings 升级为调用 	estEdgePath(当前输入路径)。
+- docs/FINAL_REFERENCE_UI_BACKEND_MATRIX.md 与 docs/FRONTEND_BACKEND_API_MAP.md 已更新，edge 路径深度检测缺口关闭；自动下载/修复 edge 仍作为未来功能。

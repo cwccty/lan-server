@@ -302,6 +302,7 @@ UI 要求：
 | 保存应用设置 | `saveAppSettings(settings)` | 写入统一 settings.json |
 | 重置应用设置 | `resetAppSettings()` | 恢复默认设置 |
 | 打开路径 | `openPath(path)` | 打开日志目录、工具目录或配置目录 |
+| edge 路径检测 | `testEdgePath(path)` | 检测 edge.exe/n2n.exe 是否存在、是否可执行、是否能输出帮助/版本线索 |
 
 已存在设置 API：
 
@@ -310,6 +311,7 @@ getAppSettings(): Promise<AppSettings>
 saveAppSettings(settings: AppSettings): Promise<AppSettings>
 resetAppSettings(): Promise<AppSettings>
 openPath(path: string): Promise<void>
+testEdgePath(path?: string | null): Promise<EdgePathCheck>
 ```
 
 ## 4. 已存在 API 总表
@@ -400,6 +402,7 @@ getAppSettings(): Promise<AppSettings>
 saveAppSettings(settings: AppSettings): Promise<AppSettings>
 resetAppSettings(): Promise<AppSettings>
 openPath(path: string): Promise<void>
+testEdgePath(path?: string | null): Promise<EdgePathCheck>
 ```
 
 ## 5. 关键类型文件

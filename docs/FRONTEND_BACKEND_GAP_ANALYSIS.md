@@ -884,3 +884,10 @@ Terraria 向导
 - 当前处理：新增 App Settings 后端命令并写入 .lan-helper/settings.json；Product Mode 下设置页可保存真实设置并显示真实配置面板。
 - 已有 API：getAppSettings()、saveAppSettings(settings)、esetAppSettings()、openPath(path)。
 - 仍需正式前端补齐：设置页应提供重置按钮、打开日志/工具目录按钮，并把“联机自测”升级为 edge.exe 路径存在性、版本和可执行权限检测。
+
+## 2026-06-04 13:20:26 edge 路径深度检测缺口关闭
+
+- 原缺口：设置页可以保存 edge.exe 路径，但“联机自测”没有真实检查该路径。
+- 当前处理：新增 	estEdgePath(path)，检查路径存在性、文件属性、文件名合理性，并尝试执行 -h 获取帮助/版本线索。
+- Product Mode 设置页“联机自测”已接入该真实检测。
+- 仍需未来功能：自动下载 edge.exe、自动修复路径、自动安装/检查 TAP/Wintun 驱动。

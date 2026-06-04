@@ -10,3 +10,16 @@ pub struct AppSettings {
     pub tools_dir: Option<String>,
     pub updated_at: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EdgePathCheck {
+    pub ok: bool,
+    pub path: Option<String>,
+    pub exists: bool,
+    pub is_file: bool,
+    pub executable_name_ok: bool,
+    pub can_execute: bool,
+    pub version_hint: Option<String>,
+    pub message: String,
+    pub stderr: Option<String>,
+}

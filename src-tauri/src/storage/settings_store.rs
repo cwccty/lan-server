@@ -4,7 +4,8 @@ use std::process::Command;
 
 use chrono::Utc;
 
-use crate::models::settings::AppSettings;
+use crate::core::process_util::hide_console_window;
+use crate::models::settings::{AppSettings, EdgePathCheck};
 
 const SETTINGS_DIR: &str = ".lan-helper";
 const SETTINGS_FILE: &str = "settings.json";
@@ -51,6 +52,111 @@ pub fn open_path(path: String) -> Result<(), String> {
         return Err(format!("path does not exist: {trimmed}"));
     }
     open_existing_path(&target)
+}
+
+pub fn test_edge_path(path: Option<String>) -> Result<EdgePathCheck, String> {
+    let candidate = path
+        .and_then(|value| {
+            let trimmed = value.trim().to_string();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed)
+            }
+        })
+        .or_else(|| get_app_settings().ok().and_then(|settings| settings.edge_path));
+
+    let Some(candidate) = candidate else {
+        return Ok(EdgePathCheck {
+            ok: false,
+            path: None,
+            exists: false,
+            is_file: false,
+            executable_name_ok: false,
+            can_execute: false,
+            version_hint: None,
+            message: "尚未设置 edge.exe 路径。".to_string(),
+            stderr: None,
+        });
+    };
+
+    let target = PathBuf::from(candidate.trim());
+    let exists = target.exists();
+    let is_file = target.is_file();
+    let file_name = target
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    let executable_name_ok = file_name == "edge.exe" || file_name == "n2n.exe" || file_name == "edge";
+
+    if !exists || !is_file {
+        return Ok(EdgePathCheck {
+            ok: false,
+            path: Some(target.to_string_lossy().to_string()),
+            exists,
+            is_file,
+            executable_name_ok,
+            can_execute: false,
+            version_hint: None,
+            message: "edge 路径不存在或不是文件。".to_string(),
+            stderr: None,
+        });
+    }
+
+    let mut command = Command::new(&target);
+    command.arg("-h");
+    let output = hide_console_window(&mut command).output();
+
+    match output {
+        Ok(output) => {
+            let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+            let combined = format!("{stdout}\n{stderr}");
+            let version_hint = combined
+                .lines()
+                .map(str::trim)
+                .find(|line| {
+                    let lower = line.to_ascii_lowercase();
+                    !line.is_empty()
+                        && (lower.contains("n2n")
+                            || lower.contains("edge")
+                            || lower.contains("usage")
+                            || lower.contains("welcome"))
+                })
+                .map(ToString::to_string);
+            let can_execute = output.status.success() || version_hint.is_some() || !combined.trim().is_empty();
+            let ok = exists && is_file && executable_name_ok && can_execute;
+            Ok(EdgePathCheck {
+                ok,
+                path: Some(target.to_string_lossy().to_string()),
+                exists,
+                is_file,
+                executable_name_ok,
+                can_execute,
+                version_hint,
+                message: if ok {
+                    "edge 路径检测通过。".to_string()
+                } else if !executable_name_ok {
+                    "文件可执行，但文件名不像 edge.exe/n2n.exe，请确认是否为 n2n edge。".to_string()
+                } else {
+                    "edge 可执行性检测未通过，请确认文件完整且有执行权限。".to_string()
+                },
+                stderr: if stderr.trim().is_empty() { None } else { Some(stderr) },
+            })
+        }
+        Err(err) => Ok(EdgePathCheck {
+            ok: false,
+            path: Some(target.to_string_lossy().to_string()),
+            exists,
+            is_file,
+            executable_name_ok,
+            can_execute: false,
+            version_hint: None,
+            message: format!("执行 edge -h 失败: {err}"),
+            stderr: None,
+        }),
+    }
 }
 
 pub fn settings_file_path() -> Result<PathBuf, String> {

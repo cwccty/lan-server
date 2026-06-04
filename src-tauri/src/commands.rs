@@ -15,7 +15,7 @@ use crate::models::udp_broadcast_bridge::{
 use crate::models::udp_proxy::{UdpProxyConfig, UdpProxySelfTestReport, UdpProxyStatus};
 use crate::models::recommendation::{LaunchResult, Recommendation};
 use crate::models::server_session::{GenericServerLaunchConfig, ServerSessionStatus};
-use crate::models::settings::AppSettings;
+use crate::models::settings::{AppSettings, EdgePathCheck};
 use crate::network::{manual_lan_backend, n2n_backend, radmin_backend};
 use crate::storage::adapter_store::{self, AdapterRegistrySyncResult};
 use crate::storage::settings_store;
@@ -79,6 +79,11 @@ pub fn reset_app_settings() -> Result<AppSettings, String> {
 #[tauri::command]
 pub fn open_path(path: String) -> Result<(), String> {
     settings_store::open_path(path)
+}
+
+#[tauri::command]
+pub fn test_edge_path(path: Option<String>) -> Result<EdgePathCheck, String> {
+    settings_store::test_edge_path(path)
 }
 
 #[tauri::command]

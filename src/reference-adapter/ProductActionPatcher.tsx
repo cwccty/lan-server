@@ -5,7 +5,6 @@ import {
   generateReferenceDiagnostics,
   importReferenceAdapterJson,
   launchReferenceProfile,
-  readReferenceAppSettings,
   readReferenceN2nLastConfig,
   readReferenceTerrariaServer,
   saveReferenceAppSettings,
@@ -23,6 +22,7 @@ import {
   stopReferenceTerrariaServer,
   syncReferenceAdapterRegistry,
   syncReferenceLocalAdapterRegistry,
+  testReferenceEdgePath,
   testReferenceConnectivity,
   type ReferenceActionResult
 } from './actions';
@@ -362,6 +362,10 @@ function readSettingsForm(): AppSettings {
   };
 }
 
+function readSettingsEdgePath() {
+  return findInputByLabel('edge.exe 物理执行路径')?.value?.trim() || null;
+}
+
 function setBusy(button: HTMLButtonElement, busy: boolean, label?: string) {
   if (!button.dataset.lanHelperOriginalText) {
     button.dataset.lanHelperOriginalText = textOf(button);
@@ -512,7 +516,7 @@ function useAttachProductActions(enabled: boolean) {
         interceptButton(firstButton('停止服务', 'Terraria 联机向导'), 'terraria-stop-server', () => stopReferenceTerrariaServer()),
         interceptButton(firstButton('一键自检', 'Terraria 联机向导'), 'terraria-read-server', () => readReferenceTerrariaServer()),
         interceptButton(firstButton('保存本地设置', '设置与帮助'), 'settings-save-app-settings', () => saveReferenceAppSettings(readSettingsForm())),
-        interceptButton(firstButton('联机自测', '设置与帮助'), 'settings-read-app-settings', () => readReferenceAppSettings()),
+        interceptButton(firstButton('联机自测', '设置与帮助'), 'settings-test-edge-path', () => testReferenceEdgePath(readSettingsEdgePath())),
         interceptButton(firstButton('手动强制重扫', '网络诊断与链路性能'), 'diagnostics-generate', () => generateReferenceDiagnostics(getReferenceSelectedGame()?.game_id)),
         interceptButton(firstButton('手动重扫以刷新缓存', '游戏扫描'), 'games-scan-local', () => scanReferenceGames()),
         interceptButton(firstButton('强同步 Steam 自适应映射', '游戏扫描'), 'games-scan-steam-cache', () => scanReferenceGames()),
