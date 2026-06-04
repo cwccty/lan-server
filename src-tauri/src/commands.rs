@@ -3,6 +3,7 @@ use crate::core::{
     port_proxy, recommendation_engine, server_session, udp_broadcast_bridge, udp_proxy,
 };
 use crate::models::diagnostics::DiagnosticReport;
+use crate::models::friend::{FriendAllocation, FriendAllocationInput, FriendCheckInput};
 use crate::models::game::{GameAdapter, GameAnalysis, GameSummary};
 use crate::models::network::{
     BackendRuntimeStatus, BackendSummary, ConnectivityReport, ConnectivityTarget, N2nDiagnostics,
@@ -18,6 +19,7 @@ use crate::models::server_session::{GenericServerLaunchConfig, ServerSessionStat
 use crate::models::settings::{AppSettings, EdgePathCheck};
 use crate::network::{manual_lan_backend, n2n_backend, radmin_backend};
 use crate::storage::adapter_store::{self, AdapterRegistrySyncResult};
+use crate::storage::friend_store;
 use crate::storage::settings_store;
 use serde_json::Value;
 
@@ -84,6 +86,31 @@ pub fn open_path(path: String) -> Result<(), String> {
 #[tauri::command]
 pub fn test_edge_path(path: Option<String>) -> Result<EdgePathCheck, String> {
     settings_store::test_edge_path(path)
+}
+
+#[tauri::command]
+pub fn list_friend_allocations() -> Result<Vec<FriendAllocation>, String> {
+    friend_store::list_friend_allocations()
+}
+
+#[tauri::command]
+pub fn upsert_friend_allocation(input: FriendAllocationInput) -> Result<FriendAllocation, String> {
+    friend_store::upsert_friend_allocation(input)
+}
+
+#[tauri::command]
+pub fn select_friend_allocation(input: FriendAllocationInput) -> Result<FriendAllocation, String> {
+    friend_store::select_friend_allocation(input)
+}
+
+#[tauri::command]
+pub fn remove_friend_allocation(name: String, ip: Option<String>) -> Result<FriendAllocation, String> {
+    friend_store::remove_friend_allocation(name, ip)
+}
+
+#[tauri::command]
+pub fn update_friend_check(input: FriendCheckInput) -> Result<Option<FriendAllocation>, String> {
+    friend_store::update_friend_check(input)
 }
 
 #[tauri::command]

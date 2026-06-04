@@ -1,4 +1,5 @@
 pub mod diagnostics;
+pub mod friend;
 pub mod game;
 pub mod network;
 pub mod port_proxy;

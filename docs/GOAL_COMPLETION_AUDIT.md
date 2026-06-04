@@ -15,7 +15,7 @@
 1. 参考 UI 一比一复刻已有强证据通过。
 2. 真实后端 API 已覆盖主要能力，并且 Product Mode 已把大量按钮接到真实后端。
 3. 但部分页面仍依赖 **Product Mode DOM patcher / 真实面板补偿**，参考前端本体仍保留演示 state 和演示卡片。
-4. 仍有少量正式前端缺口需要保留记录，例如 Product Mode 仍是 DOM patcher 而非完整受控 React 重构、房间/好友席位后端化、edge 自动下载等。
+4. 仍有少量正式前端缺口需要保留记录，例如 Product Mode 仍是 DOM patcher 而非完整受控 React 重构、云房间/多人同步、edge 自动下载等。
 
 因此当前应继续推进，而不是调用目标完成。
 
@@ -173,22 +173,19 @@ Terraria
 仍需注意：
 
 - 该能力仍位于 Product Mode patcher 层；正式产品如果完全重构前端，应将它迁移为受控 React 页面组件。
-### 缺口 4：好友席位仍是本地持久化，不是后端房间
+### 已关闭：好友席位本地后端化
 
 现状：
 
-- Product Mode 使用 `localStorage: lan-helper.referenceFriendAllocations` 持久化好友席位。
-- 邀请包已经基于真实 n2n 配置、真实选中游戏、好友席位和端口生成。
+- 新增 Tauri 后端好友席位 API：`list_friend_allocations`、`upsert_friend_allocation`、`select_friend_allocation`、`remove_friend_allocation`、`update_friend_check`。
+- 后端写入 `.lan-helper/friend_allocations.json`。
+- Product Mode 好友分配、选择、回收和连接检测摘要已改为后端优先；普通浏览器预览时仍回退 localStorage。
+- 邀请包继续基于真实 n2n 配置、真实选中游戏、后端好友席位和游戏端口生成。
 
-缺口：
+仍需注意：
 
-- 如果未来要做多人房间、云同步、管理员共享配置，需要后端房间 API。
-
-下一步建议：
-
-- 当前本地产品可以接受 localStorage。
-- 若要做多人协作，新增 room/friend allocation 后端模型。
-
+- 这不是云房间系统；不包含用户账号、远程同步、管理员统一分配 IP 或多人在线状态。
+- 如果未来要做多人房间/云同步，需要新增 room API 或接入 Steam Lobby/自建服务端。
 ### 缺口 5：edge 自动下载/修复仍是未来功能
 
 现状：
@@ -230,7 +227,7 @@ Terraria
 | 真实扫描/方案/推荐面板 | `ProductInventoryPatcher` |
 | 推荐启动项错 profile | 启动前优先读取 `recommendPlans().launch_profile_id` |
 | 指定游戏诊断 | 最近选中游戏 + `generateDiagnosticReportForGame()` |
-| 好友邀请包演示值 | 本地持久好友席位 + 真实 n2n 配置 |
+| 好友邀请包演示值 | 后端好友席位 + 真实 n2n 配置 |
 | 设置中心无后端 | App Settings 后端 |
 | edge 路径假自测 | `testEdgePath()` |
 | Palworld 缺 adapter | 新增 Palworld adapter |
@@ -240,10 +237,11 @@ Terraria
 | 方案库手动刷新语义重复 | 手动刷新改为只读取本地 adapter 列表；远程写入只由“一键更新共享方案/恢复默认”触发 |
 | 游戏扫描/推荐目标依赖演示卡片 | Product Mode 真实面板新增真实游戏选择、真实分析、推荐目标切换 |
 | 诊断报告不可直接复制/导出 | Product Mode 诊断页新增真实报告复制和 `.txt` 导出入口 |
+| 好友席位仅前端 localStorage | 新增 Tauri 本地后端 `.lan-helper/friend_allocations.json`，前端后端优先、localStorage 兜底 |
 
 ## 下一步优先级
 
-1. **好友席位后端化评估**：当前 localStorage 能满足本地邀请包；如要多人房间/云同步，需要后端 room API。
-2. **受控 React 重构评估**：当前保持一比一参考 UI，通过 Product Mode patcher 对接；如要“完全产品化”，下一阶段应评估替换 DOM patcher。
+1. **受控 React 重构评估**：当前保持一比一参考 UI，通过 Product Mode patcher 对接；如要“完全产品化”，下一阶段应评估替换 DOM patcher。
+2. **云房间/多人同步评估**：好友席位已本地后端化；如果要跨设备/多人同步，需要 room API。
 3. **多服务端 session / edge 自动下载**：保留为后续更大功能块。
 4. **发布前人工验收回归**：按 `docs/RELEASE_VALIDATION_PLAN.md` 重新跑核心场景并填写日志。

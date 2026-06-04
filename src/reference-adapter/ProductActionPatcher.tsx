@@ -32,10 +32,10 @@ import type { LaunchConfig } from '../types/recommendation';
 import type { AppSettings } from '../types/settings';
 import {
   getReferenceSelectedFriend,
-  removeReferenceFriendAllocation,
-  selectReferenceFriendAllocation,
-  updateReferenceFriendCheck,
-  upsertReferenceFriendAllocation
+  removeReferenceFriendAllocationBackendFirst,
+  selectReferenceFriendAllocationBackendFirst,
+  updateReferenceFriendCheckBackendFirst,
+  upsertReferenceFriendAllocationBackendFirst
 } from './friendAllocations';
 import type { AdapterRegistrySyncResult } from '../api/tauri';
 import { requestReferenceAdapterInventoryRefresh, setReferenceAdapterSyncResult } from './adapterSyncResult';
@@ -269,30 +269,30 @@ function createLocalActionError(action: string, error: unknown): ReferenceAction
   };
 }
 
-function reserveReferenceFriendFromForm(): ReferenceActionResult {
+async function reserveReferenceFriendFromForm(): Promise<ReferenceActionResult> {
   try {
     const form = readFriendAllocationForm();
-    const friend = upsertReferenceFriendAllocation(form.name, form.ip);
+    const friend = await upsertReferenceFriendAllocationBackendFirst(form.name, form.ip);
     return createLocalActionResult('保存好友虚拟 IP 席位', friend, `已保存 ${friend.name} -> ${friend.ip}，并设为当前邀请对象。`);
   } catch (error) {
     return createLocalActionError('保存好友虚拟 IP 席位', error);
   }
 }
 
-function selectReferenceFriendFromButton(button: HTMLButtonElement): ReferenceActionResult {
+async function selectReferenceFriendFromButton(button: HTMLButtonElement): Promise<ReferenceActionResult> {
   try {
     const friendInfo = closestFriendFromButton(button);
-    const friend = selectReferenceFriendAllocation(friendInfo.name, friendInfo.ip);
+    const friend = await selectReferenceFriendAllocationBackendFirst(friendInfo.name, friendInfo.ip);
     return createLocalActionResult('选择好友邀请对象', friend, `当前邀请对象：${friend.name} (${friend.ip})。`);
   } catch (error) {
     return createLocalActionError('选择好友邀请对象', error);
   }
 }
 
-function removeReferenceFriendFromButton(button: HTMLButtonElement): ReferenceActionResult {
+async function removeReferenceFriendFromButton(button: HTMLButtonElement): Promise<ReferenceActionResult> {
   try {
     const friendInfo = closestFriendFromButton(button);
-    const friend = removeReferenceFriendAllocation(friendInfo.name, friendInfo.ip);
+    const friend = await removeReferenceFriendAllocationBackendFirst(friendInfo.name, friendInfo.ip);
     return createLocalActionResult('回收好友虚拟 IP 席位', friend, `已回收 ${friend.name} (${friend.ip})。`);
   } catch (error) {
     return createLocalActionError('回收好友虚拟 IP 席位', error);
@@ -306,7 +306,7 @@ async function testSelectedReferenceFriend() {
   const result = await testReferenceConnectivity({ host: friend.ip, ports: [port], timeout_ms: 1200, mode: 'n2n_game_port' });
   const reachable = Boolean((result.data as any)?.reachable);
   const summary = reachable ? `端口 ${port} 有响应` : `端口 ${port} 未检测到响应，可能好友不是服务端或尚未启动游戏`;
-  updateReferenceFriendCheck(friend.ip, summary);
+  await updateReferenceFriendCheckBackendFirst(friend.ip, summary);
   return {
     ...result,
     action: '检测好友连接',

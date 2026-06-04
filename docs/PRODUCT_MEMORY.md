@@ -2600,3 +2600,13 @@ pm.cmd run release:preflight。
 - 导出文本使用 Blob 下载 `.txt`，内容来自最近一次真实 `lan-helper.referenceDiagnosticRecord`，不生成空报告、不伪造成功。
 - `docs/FINAL_REFERENCE_UI_BACKEND_MATRIX.md` 已把“导出文本 / 复制报告”从缺口改为已真实接入。
 - 下一步推荐：做好友席位后端化评估，明确 localStorage 是否足够 MVP，还是需要 room API。
+
+## 2026-06-04 好友席位本地后端化
+
+- 新增后端模型 `FriendAllocation`、`FriendAllocationInput`、`FriendCheckInput`。
+- 新增 Tauri 本地存储 `src-tauri/src/storage/friend_store.rs`，写入 `.lan-helper/friend_allocations.json`。
+- 新增 Tauri commands：`list_friend_allocations`、`upsert_friend_allocation`、`select_friend_allocation`、`remove_friend_allocation`、`update_friend_check`。
+- 前端新增 `src/types/friend.ts` 与 `src/api/tauri.ts` friend API 封装。
+- `friendAllocations.ts` 改为后端优先、localStorage 兜底；Product Mode 的分配、选择、回收、检测摘要已接后端。
+- MVP 决策：当前版本不做云房间；本地后端持久化足够支撑单机/房主邀请包流程。云房间、账号、多人同步、管理员统一分配 IP 作为未来 room API。
+- 下一步推荐：进行目标完成度审计，确认是否只剩“架构性未来项/受控 React 重构评估”，还是仍有必须补齐的真实功能缺口。

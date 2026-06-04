@@ -5,6 +5,7 @@ import type { NetworkConfig } from '../types/network';
 import type { Recommendation } from '../types/recommendation';
 import type { ServerSessionStatus } from '../types/serverSession';
 import {
+  listReferenceFriendAllocationsBackendFirst,
   listReferenceFriendAllocations,
   subscribeReferenceFriendAllocations,
   type ReferenceFriendAllocation
@@ -409,7 +410,7 @@ async function loadInventory(page: PageKind): Promise<InventoryState> {
     collect('读取服务端状态', readServerSession, null)
   ]);
   const selectedGame = getReferenceSelectedGame();
-  const friends = listReferenceFriendAllocations();
+  const friends = await listReferenceFriendAllocationsBackendFirst();
   const adapterSync = getReferenceAdapterSyncResult();
   const targetGameId = selectedGame?.game_id || games[0]?.game_id || adapters[0]?.game_id || 'terraria';
   const recommendations = page === 'recommendation'

@@ -63,8 +63,8 @@
 | 复制主 IP | `getN2nLastConfig()` | 已真实接入 | 当前动作读取真实配置并 Toast。 |
 | 一键拷制专属密信包 | `generateDiagnosticReportForGame(gameId)` / `generateDiagnosticReport()` | 已真实接入 | 有真实选中游戏时生成指定游戏诊断摘要。 |
 | 立即启动本地游戏实体 | `recommendPlans(game_id)` + `launchProfile(game_id, profile_id, config)` | 已真实接入 | 优先使用真实选中游戏，并优先采用真实推荐结果里的 `launch_profile_id`；没有推荐启动项时才回退到默认 profile。 |
-| 分配好友 IP / 选择邀请包 / 回收席位 | `localStorage: lan-helper.referenceFriendAllocations` | Product Mode 面板补偿 | 不改参考 UI 源码；Product Mode 拦截按钮并持久保存好友席位。正式后端如需多人房间管理，可再新增 API。 |
-| 检测好友连接 | `testConnectivity(target)` + 好友席位存储 | 已真实接入 | “探测”会检测当前选中好友虚拟 IP 的游戏端口，并记录最近检测摘要。 |
+| 分配好友 IP / 选择邀请包 / 回收席位 | `listFriendAllocations()` / `upsertFriendAllocation()` / `selectFriendAllocation()` / `removeFriendAllocation()` | 已真实接入 | Tauri 后端写入 `.lan-helper/friend_allocations.json`；前端保留 localStorage 作为浏览器预览兜底。云房间/多人同步仍是未来 API。 |
+| 检测好友连接 | `testConnectivity(target)` + `updateFriendCheck()` | 已真实接入 | “探测”会检测当前选中好友虚拟 IP 的游戏端口，并把最近检测摘要写入后端好友席位。 |
 | 复制完整邀请凭证包 | `getN2nLastConfig()` + 好友席位 + 选中游戏 | 已真实接入 | Product Mode 会复制真实邀请包，不再只复制参考 UI 演示文本。 |
 
 ## 6. 方案库
@@ -114,7 +114,7 @@
 ## 当前最重要的剩余缺口
 
 1. **真实实例列表替换**：高级工具、游戏扫描、方案库、推荐页均已有 Product Mode 真实面板和关键行级操作；正式产品若要完全摆脱 DOM patcher，仍应重构为受控 React 数据流。
-2. **好友席位后端化**：Product Mode 已用 localStorage 持久化好友席位；如果未来要做多人房间/云同步，仍需后端房间 API。
+2. **云房间/多人同步**：好友席位已本地后端化；如果未来要做多人房间、云同步、管理员统一分配 IP，仍需 room API。
 3. **edge 自动下载**：edge 路径已能深度检测；自动下载/修复 edge.exe 仍属于未来功能。
 4. **Palworld 专用服深度启动**：Palworld adapter 已提供专用服/IP 直连方案；后续仍可做 SteamCMD 安装、配置文件编辑和服务端日志解析。
 

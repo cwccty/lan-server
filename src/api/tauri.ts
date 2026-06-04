@@ -1,5 +1,6 @@
 import { invoke as tauriInvoke } from '@tauri-apps/api/core';
 import type { DiagnosticReport } from '../types/diagnostics';
+import type { FriendAllocation, FriendAllocationInput, FriendCheckInput } from '../types/friend';
 import type { GameAdapter, GameAnalysis, GameSummary } from '../types/game';
 import type {
   BackendRuntimeStatus,
@@ -88,6 +89,16 @@ export const resetAppSettings = () => invoke<AppSettings>('reset_app_settings');
 export const openPath = (path: string) => invoke<void>('open_path', { path });
 export const testEdgePath = (path?: string | null) =>
   invoke<EdgePathCheck>('test_edge_path', { path });
+export const listFriendAllocations = () =>
+  invoke<FriendAllocation[]>('list_friend_allocations');
+export const upsertFriendAllocation = (input: FriendAllocationInput) =>
+  invoke<FriendAllocation>('upsert_friend_allocation', { input });
+export const selectFriendAllocation = (input: FriendAllocationInput) =>
+  invoke<FriendAllocation>('select_friend_allocation', { input });
+export const removeFriendAllocation = (name: string, ip?: string | null) =>
+  invoke<FriendAllocation>('remove_friend_allocation', { name, ip });
+export const updateFriendCheck = (input: FriendCheckInput) =>
+  invoke<FriendAllocation | null>('update_friend_check', { input });
 export const listNetworkBackends = () => invoke<BackendSummary[]>('list_network_backends');
 export const setupNetwork = (backendId: string, config: NetworkConfig) =>
   invoke<SetupResult>('setup_network', { backendId, config });
