@@ -5,8 +5,10 @@ import {
   generateReferenceDiagnostics,
   importReferenceAdapterJson,
   launchReferenceProfile,
+  readReferenceAppSettings,
   readReferenceN2nLastConfig,
   readReferenceTerrariaServer,
+  saveReferenceAppSettings,
   saveReferenceN2nConfig,
   saveReferenceAdapterDraft,
   scanReferenceGames,
@@ -26,6 +28,7 @@ import {
 } from './actions';
 import type { NetworkConfig } from '../types/network';
 import type { LaunchConfig } from '../types/recommendation';
+import type { AppSettings } from '../types/settings';
 import {
   getReferenceSelectedFriend,
   removeReferenceFriendAllocation,
@@ -345,6 +348,20 @@ function readAdapterDraftForm() {
   };
 }
 
+function readSettingsForm(): AppSettings {
+  const edgePath = findInputByLabel('edge.exe 物理执行路径')?.value?.trim();
+  const supernodeDefault = findInputByLabel('辅助 Supernode 公网候选组')?.value?.trim();
+  return {
+    edge_path: edgePath || null,
+    supernode_default: supernodeDefault || null,
+    adapter_registry_url: readSolutionsRegistryUrl(),
+    product_mode: window.localStorage.getItem('lan-helper.referenceProductMode') === '1',
+    log_dir: null,
+    tools_dir: null,
+    updated_at: new Date().toISOString()
+  };
+}
+
 function setBusy(button: HTMLButtonElement, busy: boolean, label?: string) {
   if (!button.dataset.lanHelperOriginalText) {
     button.dataset.lanHelperOriginalText = textOf(button);
@@ -494,6 +511,8 @@ function useAttachProductActions(enabled: boolean) {
         interceptButton(firstButton('启动自建服务', 'Terraria 联机向导'), 'terraria-start-server', () => startReferenceTerrariaServer(readTerrariaConfigFromReferenceForm())),
         interceptButton(firstButton('停止服务', 'Terraria 联机向导'), 'terraria-stop-server', () => stopReferenceTerrariaServer()),
         interceptButton(firstButton('一键自检', 'Terraria 联机向导'), 'terraria-read-server', () => readReferenceTerrariaServer()),
+        interceptButton(firstButton('保存本地设置', '设置与帮助'), 'settings-save-app-settings', () => saveReferenceAppSettings(readSettingsForm())),
+        interceptButton(firstButton('联机自测', '设置与帮助'), 'settings-read-app-settings', () => readReferenceAppSettings()),
         interceptButton(firstButton('手动强制重扫', '网络诊断与链路性能'), 'diagnostics-generate', () => generateReferenceDiagnostics(getReferenceSelectedGame()?.game_id)),
         interceptButton(firstButton('手动重扫以刷新缓存', '游戏扫描'), 'games-scan-local', () => scanReferenceGames()),
         interceptButton(firstButton('强同步 Steam 自适应映射', '游戏扫描'), 'games-scan-steam-cache', () => scanReferenceGames()),

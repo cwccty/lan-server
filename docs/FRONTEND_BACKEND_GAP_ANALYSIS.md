@@ -877,3 +877,10 @@ Terraria 向导
 - 当前处理：Product Mode 新增本地持久好友席位存储，并拦截分配、选择、回收、探测、复制邀请包按钮。
 - 真实邀请包字段来自：getN2nLastConfig()、最近真实选中游戏、Product Mode 好友席位、当前游戏端口、最近好友检测结果。
 - 仍需正式前端补齐：好友席位列表应改为受控真实数据源；如果要多人房间/云同步，需要新增后端房间 API，而不是继续依赖 localStorage。
+
+## 2026-06-04 13:00:06 设置中心真实 API 缺口关闭
+
+- 原缺口：设置页主要是参考 UI state，缺少统一后端设置读写。
+- 当前处理：新增 App Settings 后端命令并写入 .lan-helper/settings.json；Product Mode 下设置页可保存真实设置并显示真实配置面板。
+- 已有 API：getAppSettings()、saveAppSettings(settings)、esetAppSettings()、openPath(path)。
+- 仍需正式前端补齐：设置页应提供重置按钮、打开日志/工具目录按钮，并把“联机自测”升级为 edge.exe 路径存在性、版本和可执行权限检测。

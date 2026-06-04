@@ -290,7 +290,7 @@ UI 要求：
 
 ### 3.11 设置 / 帮助
 
-当前后端没有完整设置读写 API。新前端可以先做配置入口和说明，但涉及真实保存时应复用现有功能页：
+设置中心已有真实 App Settings 后端 API，配置写入 `.lan-helper/settings.json`。新前端应使用它作为统一设置来源，不要只保存在组件 state。
 
 | UI 模块 | API | 用途 |
 |---|---|---|
@@ -298,8 +298,12 @@ UI 要求：
 | n2n 状态 | `getN2nDiagnostics()` | 展示组件/日志路径 |
 | 方案库状态 | `listGameAdapters()` | 显示本地方案数量 |
 | 同步方案库 | `syncAdapterRegistry(registryUrl)` | 设置页可提供快捷入口 |
+| 读取应用设置 | `getAppSettings()` | 读取 edge 路径、默认 supernode、方案库地址等 |
+| 保存应用设置 | `saveAppSettings(settings)` | 写入统一 settings.json |
+| 重置应用设置 | `resetAppSettings()` | 恢复默认设置 |
+| 打开路径 | `openPath(path)` | 打开日志目录、工具目录或配置目录 |
 
-未来可新增后端 API：
+已存在设置 API：
 
 ```ts
 getAppSettings(): Promise<AppSettings>
@@ -387,6 +391,15 @@ stopUdpBroadcastBridge(id: string): Promise<UdpBroadcastBridgeStatus>
 listUdpBroadcastBridges(): Promise<UdpBroadcastBridgeStatus[]>
 getUdpBroadcastBridgeStatus(id: string): Promise<UdpBroadcastBridgeStatus>
 selfTestUdpBroadcastBridge(): Promise<UdpBroadcastBridgeSelfTestReport>
+```
+
+### 应用设置
+
+```ts
+getAppSettings(): Promise<AppSettings>
+saveAppSettings(settings: AppSettings): Promise<AppSettings>
+resetAppSettings(): Promise<AppSettings>
+openPath(path: string): Promise<void>
 ```
 
 ## 5. 关键类型文件

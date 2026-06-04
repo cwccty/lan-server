@@ -1828,3 +1828,11 @@ pm.cmd run release:preflight。
 - 推荐页“复制完整邀请凭证包”会基于最近 n2n 配置、真实选中游戏、好友席位和游戏端口生成真实邀请包，不再只复制参考 UI 演示文本。
 - ProductInventoryPatcher 的推荐页真实面板会展示 Product Mode 持久好友席位、好友预留 IP 和最近检测结果。
 - 剩余：若未来做云房间/多人统一管理，需要新增后端房间 API；当前为本地 Product Mode 持久化。
+
+## 2026-06-04 13:00:06 App Settings 后端与设置页 Product Mode 接入
+- 新增 Rust 模型 AppSettings：src-tauri/src/models/settings.rs。
+- src-tauri/src/storage/settings_store.rs 从占位实现升级为真实读写：默认写入 .lan-helper/settings.json，支持读取、保存、重置、打开已有路径。
+- 新增 Tauri commands：get_app_settings、save_app_settings、eset_app_settings、open_path，并已注册到 lib.rs。
+- 前端新增 src/types/settings.ts 和 API：getAppSettings()、saveAppSettings()、esetAppSettings()、openPath(path)。
+- Product Mode 设置页“保存本地设置”已接入 saveAppSettings(settings)；“联机自测”当前读取真实 settings，后续可扩展为 edge.exe 版本/权限检测。
+- 新增 ReferenceProductSettingsPatcher，设置页会插入真实应用设置面板，显示 edge 路径、默认 supernode、方案库地址、Product Mode 状态和更新时间。

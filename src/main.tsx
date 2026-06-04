@@ -10,6 +10,7 @@ import {
   ReferenceProductHeaderPatcher,
   ReferenceProductHomePatcher,
   ReferenceProductInventoryPatcher,
+  ReferenceProductSettingsPatcher,
   ReferenceProductRuntimeBridgeController,
   ReferenceRuntimeDebugPanel,
 } from './reference-adapter';
@@ -25,6 +26,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
     <ReferenceProductActionResultPatcher />
     <ReferenceProductAdvancedToolsPatcher />
     <ReferenceProductInventoryPatcher />
+    <ReferenceProductSettingsPatcher />
     <ReferenceRuntimeDebugPanel />
   </React.StrictMode>
 );

@@ -3,6 +3,7 @@
   exportGameAdapterJson,
   generateDiagnosticReport,
   generateDiagnosticReportForGame,
+  getAppSettings,
   getN2nLastConfig,
   importGameAdapterJson,
   launchProfile,
@@ -12,7 +13,9 @@
   listUdpProxies,
   readServerSession,
   recommendPlans,
+  resetAppSettings,
   saveGameAdapter,
+  saveAppSettings,
   scanGames,
   sendServerCommand,
   setupNetwork,
@@ -38,6 +41,7 @@ import type { ConnectivityTarget, NetworkConfig } from '../types/network';
 import type { PortProxyConfig } from '../types/portProxy';
 import type { LaunchConfig } from '../types/recommendation';
 import type { GenericServerLaunchConfig } from '../types/serverSession';
+import type { AppSettings } from '../types/settings';
 import type { GameAdapter, GameSummary } from '../types/game';
 import type { UdpBroadcastBridgeConfig } from '../types/udpBroadcastBridge';
 import type { UdpProxyConfig } from '../types/udpProxy';
@@ -165,6 +169,18 @@ export function exportReferenceAdapterJson(gameId?: string) {
 
 export function readReferenceN2nLastConfig() {
   return withSnapshot('读取最近 n2n 配置', () => getN2nLastConfig());
+}
+
+export function readReferenceAppSettings() {
+  return withSnapshot('读取应用设置', () => getAppSettings());
+}
+
+export function saveReferenceAppSettings(settings: AppSettings) {
+  return withSnapshot('保存应用设置', () => saveAppSettings(settings), true);
+}
+
+export function resetReferenceAppSettings() {
+  return withSnapshot('重置应用设置', () => resetAppSettings(), true);
 }
 
 export type ReferenceAdvancedProxyKind = 'tcp' | 'udp' | 'bridge';

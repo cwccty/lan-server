@@ -15,8 +15,10 @@ use crate::models::udp_broadcast_bridge::{
 use crate::models::udp_proxy::{UdpProxyConfig, UdpProxySelfTestReport, UdpProxyStatus};
 use crate::models::recommendation::{LaunchResult, Recommendation};
 use crate::models::server_session::{GenericServerLaunchConfig, ServerSessionStatus};
+use crate::models::settings::AppSettings;
 use crate::network::{manual_lan_backend, n2n_backend, radmin_backend};
 use crate::storage::adapter_store::{self, AdapterRegistrySyncResult};
+use crate::storage::settings_store;
 use serde_json::Value;
 
 #[tauri::command]
@@ -57,6 +59,26 @@ pub fn sync_adapter_registry(registry_url: String) -> Result<AdapterRegistrySync
 #[tauri::command]
 pub fn sync_local_adapter_registry_example() -> Result<AdapterRegistrySyncResult, String> {
     adapter_store::sync_local_adapter_registry_example()
+}
+
+#[tauri::command]
+pub fn get_app_settings() -> Result<AppSettings, String> {
+    settings_store::get_app_settings()
+}
+
+#[tauri::command]
+pub fn save_app_settings(settings: AppSettings) -> Result<AppSettings, String> {
+    settings_store::save_app_settings(settings)
+}
+
+#[tauri::command]
+pub fn reset_app_settings() -> Result<AppSettings, String> {
+    settings_store::reset_app_settings()
+}
+
+#[tauri::command]
+pub fn open_path(path: String) -> Result<(), String> {
+    settings_store::open_path(path)
 }
 
 #[tauri::command]
