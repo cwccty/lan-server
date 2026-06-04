@@ -14,7 +14,8 @@ import {
   Terminal,
   Wifi,
   Eye,
-  EyeOff
+  EyeOff,
+  LogIn
 } from 'lucide-react';
 import {
   readReferenceN2nLastConfig,
@@ -26,25 +27,12 @@ import {
 import { testConnectivity } from '../api/tauri';
 import { useReferenceRuntime } from '../reference-adapter/useReferenceRuntime';
 import type { NetworkConfig } from '../types/network';
+import { invitePacketToNetworkConfig, parseLanInvitePacket, type LanInvitePacket } from './invitePacket';
+import { productStatusDotClasses, productStatusToneClasses, resolveProductStatusCenter } from './statusCenter';
 
 interface ProductNetworkViewProps {
   onTriggerToast: (msg: string) => void;
   onNavigateTab: (tab: any) => void;
-}
-
-function statusLabel(runtime: ReturnType<typeof useReferenceRuntime>) {
-  if (!runtime.loaded) return '读取中';
-  if (runtime.network.ready) return '已连接';
-  if (runtime.network.running) return '运行中';
-  if (runtime.network.hasError) return '需诊断';
-  return '未启动';
-}
-
-function statusTone(runtime: ReturnType<typeof useReferenceRuntime>) {
-  if (runtime.network.ready) return 'border-emerald-100 bg-emerald-50 text-emerald-700';
-  if (runtime.network.running) return 'border-amber-100 bg-amber-50 text-amber-700';
-  if (runtime.network.hasError) return 'border-rose-100 bg-rose-50 text-rose-700';
-  return 'border-slate-200 bg-slate-50 text-slate-600';
 }
 
 function buildConfig(roomName: string, roomKey: string, supernode: string, localIp: string): NetworkConfig {
@@ -67,6 +55,16 @@ export function ProductNetworkView({ onTriggerToast, onNavigateTab }: ProductNet
   const [busy, setBusy] = useState('');
   const [lastConnectivity, setLastConnectivity] = useState('');
   const [showRoomKey, setShowRoomKey] = useState(false);
+  const [invitePaste, setInvitePaste] = useState('');
+  const [detectedInvite, setDetectedInvite] = useState<LanInvitePacket | null>(null);
+  const status = resolveProductStatusCenter({
+    loaded: runtime.loaded,
+    snapshot: runtime.snapshot,
+    network: runtime.network,
+    errors: runtime.errors,
+    n2nConfig: buildConfig(roomName, roomKey, supernode, localIp),
+    busy
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -124,6 +122,26 @@ export function ProductNetworkView({ onTriggerToast, onNavigateTab }: ProductNet
   const stopN2n = () => run('停止 n2n Edge', () => stopReferenceN2n());
   const refreshStatus = () => run('刷新节点状态', () => refreshReferenceRuntime(false));
 
+  const handleInvitePaste = (value: string) => {
+    setInvitePaste(value);
+    const packet = parseLanInvitePacket(value);
+    setDetectedInvite(packet);
+  };
+
+  const enterInvite = () => {
+    if (!detectedInvite) return;
+    const next = invitePacketToNetworkConfig(detectedInvite);
+    if (next.room_name) setRoomName(next.room_name);
+    if (next.secret) setRoomKey(next.secret);
+    if (next.supernode) setSupernode(next.supernode);
+    if (next.local_ip) setLocalIp(next.local_ip);
+    if (detectedInvite.hostVirtualIp) setConnectHost(detectedInvite.hostVirtualIp);
+    if (detectedInvite.gamePort) setGamePort(String(detectedInvite.gamePort));
+    setInvitePaste('');
+    setDetectedInvite(null);
+    onTriggerToast('已填入邀请包。确认后保存并启动 n2n。');
+  };
+
   const testCurrent = () => run('联机端口检测', async () => {
     const host = connectHost.trim() || runtime.network.virtualIp || localIp;
     if (!host) throw new Error('没有可检测的虚拟 IP。请先保存并启动 n2n。');
@@ -145,7 +163,7 @@ export function ProductNetworkView({ onTriggerToast, onNavigateTab }: ProductNet
       `Supernode：${supernode || runtime.network.supernode || '未配置'}`,
       `本机虚拟 IP：${runtime.network.virtualIp || localIp || '未读取到'}`,
       `游戏端口：${gamePort || '未填写'}`,
-      `状态：${statusLabel(runtime)}`,
+      `状态：${status.label}`,
       '提醒：好友需要使用同一房间名、密钥和 Supernode，并连接房主虚拟 IP。'
     ].join('\n');
     try {
@@ -169,9 +187,9 @@ export function ProductNetworkView({ onTriggerToast, onNavigateTab }: ProductNet
             配置虚拟局域网房间，启动或停止 n2n，并查看当前连接状态。
           </p>
         </div>
-        <div className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-bold ${statusTone(runtime)}`}>
-          <span className={`h-2 w-2 rounded-full ${runtime.network.ready ? 'bg-emerald-500' : runtime.network.running ? 'bg-amber-500' : runtime.network.hasError ? 'bg-rose-500' : 'bg-slate-400'}`} />
-          {busy || `真实状态：${statusLabel(runtime)}`}
+        <div className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-bold ${productStatusToneClasses(status.tone)}`}>
+          <span className={`h-2 w-2 rounded-full ${productStatusDotClasses(status.tone)}`} />
+          {`真实状态：${status.label}`}
         </div>
       </div>
 
@@ -186,6 +204,58 @@ export function ProductNetworkView({ onTriggerToast, onNavigateTab }: ProductNet
               <Copy className="h-4 w-4" />
               复制摘要
             </button>
+          </div>
+
+          <div className="mb-5 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-slate-800">{status.label}</p>
+                <p className="mt-1 text-xs leading-relaxed text-slate-500">{status.detail}</p>
+              </div>
+              <button
+                onClick={() => status.needsServer ? onNavigateTab('terraria') : status.needsNetwork ? refreshStatus() : onNavigateTab('protocol')}
+                disabled={Boolean(busy)}
+                className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+              >
+                {status.nextAction}
+              </button>
+            </div>
+          </div>
+
+          <div className="mb-5 rounded-2xl border border-amber-100 bg-amber-50/60 p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <h3 className="flex items-center gap-2 text-sm font-bold text-slate-800">
+                  <LogIn className="h-4 w-4 text-amber-600" />
+                  粘贴好友邀请包
+                </h3>
+                <p className="mt-1 text-xs text-slate-500">收到房主发来的邀请内容后粘贴到这里，软件会自动识别并填入组网参数。</p>
+              </div>
+            </div>
+            <textarea
+              value={invitePaste}
+              onChange={(event) => handleInvitePaste(event.target.value)}
+              placeholder="粘贴 [联机助手真实邀请包] ..."
+              className="min-h-24 w-full resize-y rounded-xl border border-amber-100 bg-white px-3 py-2 text-xs leading-relaxed text-slate-700 outline-none focus:border-amber-400"
+            />
+            {detectedInvite ? (
+              <div className="mt-3 rounded-xl border border-amber-200 bg-white p-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0 text-xs text-slate-600">
+                    <p className="font-bold text-slate-800">检测到其他玩家的邀请，是否进入？</p>
+                    <p className="mt-1 break-words">
+                      {detectedInvite.gameName || '未知游戏'}｜房主 {detectedInvite.hostVirtualIp || '-'}｜你的 IP {detectedInvite.friendVirtualIp || '-'}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => { setInvitePaste(''); setDetectedInvite(null); }} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">取消</button>
+                    <button onClick={enterInvite} className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white hover:bg-slate-800">进入并填入</button>
+                  </div>
+                </div>
+              </div>
+            ) : invitePaste.trim() ? (
+              <p className="mt-2 text-xs text-amber-700">没有识别到联机助手邀请包，请确认内容包含“[联机助手真实邀请包]”。</p>
+            ) : null}
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">

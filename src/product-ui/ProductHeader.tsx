@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Activity, Bell, RefreshCw, UserCircle, Wifi, WifiOff } from 'lucide-react';
 import { refreshReferenceRuntime, startReferenceN2n, stopReferenceN2n } from '../reference-adapter/actions';
 import { useReferenceRuntime } from '../reference-adapter/useReferenceRuntime';
+import { productStatusDotClasses, productStatusToneClasses, resolveProductStatusCenter } from './statusCenter';
 
 interface ProductHeaderProps {
   onOpenDiagnostics: () => void;
@@ -9,31 +10,16 @@ interface ProductHeaderProps {
   onTriggerToast: (msg: string) => void;
 }
 
-function statusLabel(runtime: ReturnType<typeof useReferenceRuntime>) {
-  if (!runtime.loaded) return '真实状态: 读取中';
-  if (runtime.network.ready) return '真实状态: n2n 已连接';
-  if (runtime.network.running) return '真实状态: n2n 运行中';
-  if (runtime.network.hasError) return '真实状态: 需诊断';
-  return '真实状态: 未组网';
-}
-
-function statusClasses(runtime: ReturnType<typeof useReferenceRuntime>) {
-  if (runtime.network.ready) return 'bg-emerald-50 text-emerald-800 border-emerald-100';
-  if (runtime.network.running) return 'bg-amber-50 text-amber-800 border-amber-100';
-  if (runtime.network.hasError) return 'bg-rose-50 text-rose-800 border-rose-100';
-  return 'bg-slate-50 text-slate-600 border-slate-200';
-}
-
-function dotClasses(runtime: ReturnType<typeof useReferenceRuntime>) {
-  if (runtime.network.ready) return 'bg-emerald-500 animate-pulse';
-  if (runtime.network.running) return 'bg-amber-500 animate-pulse';
-  if (runtime.network.hasError) return 'bg-rose-500';
-  return 'bg-slate-400';
-}
-
 export function ProductHeader({ onOpenDiagnostics, onTabChange, onTriggerToast }: ProductHeaderProps) {
   const runtime = useReferenceRuntime();
   const [busy, setBusy] = useState(false);
+  const status = resolveProductStatusCenter({
+    loaded: runtime.loaded,
+    snapshot: runtime.snapshot,
+    network: runtime.network,
+    errors: runtime.errors,
+    busy: busy ? '处理中' : ''
+  });
 
   const runNetworkAction = async () => {
     setBusy(true);
@@ -86,11 +72,11 @@ export function ProductHeader({ onOpenDiagnostics, onTabChange, onTriggerToast }
         <button
           onClick={refreshStatus}
           disabled={busy}
-          className={`flex items-center gap-2 text-xs px-3 py-1 rounded-full border font-mono transition-colors disabled:opacity-60 ${statusClasses(runtime)}`}
-          title={runtime.network.label || '刷新真实后端状态'}
+          className={`flex items-center gap-2 text-xs px-3 py-1 rounded-full border font-mono transition-colors disabled:opacity-60 ${productStatusToneClasses(status.tone)}`}
+          title={status.detail || runtime.network.label || '刷新真实后端状态'}
         >
-          <span className={`w-1.5 h-1.5 rounded-full ${dotClasses(runtime)}`} />
-          <span>{busy ? '处理中...' : statusLabel(runtime)}</span>
+          <span className={`w-1.5 h-1.5 rounded-full ${productStatusDotClasses(status.tone)}`} />
+          <span>{busy ? '处理中...' : `真实状态: ${status.label}`}</span>
         </button>
 
         <button

@@ -35,6 +35,9 @@ import {
 } from '../reference-adapter/friendAllocations';
 import { getReferenceSelectedGame, setReferenceSelectedGame, type ReferenceSelectedGame } from '../reference-adapter/selectedGame';
 import { refreshReferenceRuntime } from '../reference-adapter/actions';
+import { buildLanInvitePacket } from './invitePacket';
+import { productStatusDotClasses, productStatusToneClasses, resolveProductStatusCenter } from './statusCenter';
+import { useReferenceRuntime } from '../reference-adapter/useReferenceRuntime';
 
 interface ProductRecommendationViewProps {
   onTriggerToast: (msg: string) => void;
@@ -49,31 +52,8 @@ function defaultPort(game: GameSummary | null) {
   return game?.connection_plan?.default_join_port ?? 7777;
 }
 
-function buildInvite(input: {
-  game: GameSummary | null;
-  selectedGame: ReferenceSelectedGame | null;
-  n2n: NetworkConfig | null;
-  server: ServerSessionStatus | null;
-  friend: ReferenceFriendAllocation | null;
-  port: number;
-}) {
-  return [
-    '[联机助手真实邀请包]',
-    `游戏：${input.game?.display_name || input.selectedGame?.display_name || '未选择'}`,
-    `游戏 ID：${input.game?.game_id || input.selectedGame?.game_id || '未选择'}`,
-    `房主虚拟 IP：${input.n2n?.local_ip || input.game?.connection_plan?.default_join_host || '未读取'}`,
-    `好友预留 IP：${input.friend ? `${input.friend.ip} (${input.friend.name})` : '未分配'}`,
-    `Supernode：${input.n2n?.supernode || '未读取'}`,
-    `房间名：${input.n2n?.room_name || '未读取'}`,
-    `游戏端口：${input.port}`,
-    `服务端状态：${input.server?.running ? '运行中' : '未运行'}`,
-    `好友检测：${input.friend?.last_check_summary || '未检测'}`,
-    '',
-    '好友操作：使用同一 n2n 房间/密钥加入虚拟网后，在游戏内连接房主虚拟 IP 和端口。'
-  ].join('\n');
-}
-
 export function ProductRecommendationView({ onTriggerToast, onNavigateTab }: ProductRecommendationViewProps) {
+  const runtime = useReferenceRuntime();
   const [games, setGames] = useState<GameSummary[]>([]);
   const [selectedGame, setSelectedGameState] = useState<ReferenceSelectedGame | null>(() => getReferenceSelectedGame());
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
@@ -91,13 +71,27 @@ export function ProductRecommendationView({ onTriggerToast, onNavigateTab }: Pro
     return games[0] ?? null;
   }, [games, selectedGame]);
   const selectedFriend = selectedFriendOf(friends);
-  const invite = buildInvite({
-    game: currentGame,
-    selectedGame,
-    n2n: n2nConfig,
+  const status = resolveProductStatusCenter({
+    loaded: runtime.loaded,
+    snapshot: runtime.snapshot,
+    network: runtime.network,
+    errors: runtime.errors,
+    n2nConfig,
     server,
-    friend: selectedFriend,
-    port: Number(port) || defaultPort(currentGame)
+    requiresServer: Boolean(currentGame?.connection_plan?.requires_dedicated_server || currentGame?.capabilities?.includes('dedicated_server')),
+    hasFriendSlot: Boolean(selectedFriend),
+    busy
+  });
+  const invite = buildLanInvitePacket({
+    gameName: currentGame?.display_name || selectedGame?.display_name || '未选择',
+    gameId: currentGame?.game_id || selectedGame?.game_id || '未选择',
+    n2n: n2nConfig,
+    hostVirtualIp: n2nConfig?.local_ip || runtime.network.virtualIp || currentGame?.connection_plan?.default_join_host || '',
+    friendVirtualIp: selectedFriend?.ip,
+    friendName: selectedFriend?.name,
+    port: Number(port) || defaultPort(currentGame),
+    serverRunning: Boolean(server?.running),
+    friendCheck: selectedFriend?.last_check_summary
   });
 
   const load = async (label = '刷新推荐方案') => {
@@ -237,6 +231,25 @@ export function ProductRecommendationView({ onTriggerToast, onNavigateTab }: Pro
           {busy || '刷新真实推荐'}
         </button>
       </header>
+
+      <section className={`rounded-2xl border p-4 ${productStatusToneClasses(status.tone)}`}>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className={`h-2 w-2 rounded-full ${productStatusDotClasses(status.tone)}`} />
+              <h3 className="text-sm font-bold">{status.label}</h3>
+            </div>
+            <p className="mt-1 text-xs leading-relaxed opacity-90">{status.detail}</p>
+          </div>
+          <button
+            onClick={() => status.needsNetwork ? onNavigateTab('network') : status.needsServer ? onNavigateTab('terraria') : copyInvite()}
+            disabled={Boolean(busy) || (!status.canInvite && !status.needsNetwork && !status.needsServer)}
+            className="shrink-0 rounded-xl bg-white px-4 py-2 text-xs font-bold text-slate-800 shadow-sm hover:bg-slate-50 disabled:opacity-50"
+          >
+            {status.nextAction}
+          </button>
+        </div>
+      </section>
 
       <section className="grid gap-6 lg:grid-cols-[1fr_380px]">
         <div className="space-y-4">

@@ -3091,3 +3091,22 @@ pm run tauri:build 通过。
 pm run build、cargo check、
 pm run release:preflight、
 pm run tauri:build 通过。
+
+## 2026-06-05 00:42:26 - 状态中心、邀请好友最终流程、错误修复建议
+- 新增 src/product-ui/statusCenter.ts：统一输出未配置、已配置未启动、启动中、已连接、服务端未启动、可邀请好友、存在问题等产品状态，不再由各页面各自猜测 n2n 状态。
+- 首页、顶部栏、通用组网中心、推荐方案页开始使用统一状态中心；状态判断基于真实 runtime 快照、n2n last config、当前 edge running/ACK/PONG、server session 和错误字段。
+- 新增 src/product-ui/invitePacket.ts：统一构建和解析 [联机助手真实邀请包]，邀请包新增房间密钥字段，好友粘贴后可还原 roomName、roomKey、supernode、好友虚拟 IP、房主虚拟 IP 和游戏端口。
+- 通用组网中心新增“粘贴好友邀请包”：当粘贴栏检测到软件邀请包时，显示“检测到其他玩家的邀请，是否进入？”，确认后自动填入组网参数，并把检测目标设为房主虚拟 IP。
+- 推荐方案页改用统一邀请包生成器，复制给好友的内容可被组网中心识别，不再是只读摘要。
+- 新增 src/product-ui/errorActions.ts：对诊断问题做前端错误分类，提供去组网中心、启动服务端、检查高级工具、复制 VPS 检查命令、重新诊断等低风险一键动作。
+- 诊断报告页的问题卡片接入“一键修复建议”，优先导航或复制命令，避免伪自动修复。
+- UI 精修：新增统一状态卡、邀请包确认卡、修复建议按钮，长文本继续保持换行/滚动，避免撑破卡片。
+
+验证：
+- 
+pm.cmd run build 通过。
+- cargo check --manifest-path src-tauri\\Cargo.toml 通过。
+- 
+pm.cmd run release:preflight 通过。
+
+下一步推荐：打开 EXE 做人工验收，重点测试“好友粘贴邀请包 -> 提示是否进入 -> 自动填入 -> 保存并启动 n2n”和“诊断问题按钮能跳到正确页面/复制 VPS 命令”。

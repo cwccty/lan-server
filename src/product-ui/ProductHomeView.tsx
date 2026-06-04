@@ -12,6 +12,7 @@ import {
   XCircle
 } from 'lucide-react';
 import { useReferenceRuntime } from '../reference-adapter/useReferenceRuntime';
+import { resolveProductStatusCenter } from './statusCenter';
 
 interface ProductHomeViewProps {
   role: 'host' | 'joiner';
@@ -20,28 +21,18 @@ interface ProductHomeViewProps {
   onTriggerToast: (msg: string) => void;
 }
 
-function statusText(runtime: ReturnType<typeof useReferenceRuntime>) {
-  if (!runtime.loaded) return '读取中';
-  if (runtime.network.ready) return '已连接';
-  if (runtime.network.running) return '运行中';
-  if (runtime.network.hasError) return '需诊断';
-  return '待配置';
-}
-
-function statusProgress(runtime: ReturnType<typeof useReferenceRuntime>) {
-  if (!runtime.loaded) return 16;
-  if (runtime.network.ready) return 100;
-  if (runtime.network.running) return 70;
-  if (runtime.network.hasError) return 35;
-  if (runtime.network.supernode || runtime.network.virtualIp) return 45;
+function statusProgress(stage: ReturnType<typeof resolveProductStatusCenter>['stage']) {
+  if (stage === 'network_ready' || stage === 'ready_to_invite') return 100;
+  if (stage === 'starting') return 70;
+  if (stage === 'has_problem') return 35;
+  if (stage === 'configured_not_started' || stage === 'server_missing') return 55;
   return 20;
 }
 
-function statusTone(runtime: ReturnType<typeof useReferenceRuntime>) {
-  if (!runtime.loaded) return 'text-slate-500';
-  if (runtime.network.ready) return 'text-emerald-700';
-  if (runtime.network.running) return 'text-amber-700';
-  if (runtime.network.hasError) return 'text-rose-700';
+function statusTone(tone: ReturnType<typeof resolveProductStatusCenter>['tone']) {
+  if (tone === 'good') return 'text-emerald-700';
+  if (tone === 'warn') return 'text-amber-700';
+  if (tone === 'danger') return 'text-rose-700';
   return 'text-slate-600';
 }
 
@@ -75,11 +66,17 @@ export function ProductHomeView({
   onTriggerToast
 }: ProductHomeViewProps) {
   const runtime = useReferenceRuntime();
+  const productStatus = resolveProductStatusCenter({
+    loaded: runtime.loaded,
+    snapshot: runtime.snapshot,
+    network: runtime.network,
+    errors: runtime.errors
+  });
   const radius = 40;
   const circumference = 2 * Math.PI * radius;
-  const progress = statusProgress(runtime);
+  const progress = statusProgress(productStatus.stage);
   const strokeDashoffset = circumference - (progress / 100) * circumference;
-  const currentStatus = statusText(runtime);
+  const currentStatus = productStatus.label;
   const inviteSummary = buildInviteSummary(runtime);
   const hasNetworkIdentity = Boolean(runtime.network.virtualIp || runtime.network.supernode);
 
@@ -208,13 +205,13 @@ export function ProductHomeView({
               />
             </svg>
             <div className="absolute flex flex-col items-center justify-center px-2">
-              <span className={`font-heading text-xl font-bold ${statusTone(runtime)}`}>{currentStatus}</span>
+              <span className={`font-heading text-xl font-bold ${statusTone(productStatus.tone)}`}>{currentStatus}</span>
               <span className="font-sans text-[10px] text-slate-400 font-medium">后端状态</span>
             </div>
           </div>
 
           <p className="font-sans text-xs text-slate-500 mt-2 leading-relaxed">
-            {runtime.loaded ? shortError(runtime) || '真实后端状态已读取。' : '正在读取 n2n、服务端和代理状态。'}
+            {productStatus.detail || (runtime.loaded ? shortError(runtime) || '真实后端状态已读取。' : '正在读取 n2n、服务端和代理状态。')}
           </p>
         </div>
       </div>

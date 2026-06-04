@@ -244,7 +244,10 @@ export default function App() {
             )}
             {visitedProductTabs.has('diagnostics') && (
               <section className={productPageClass('diagnostics')}>
-                <ProductDiagnosticsView onTriggerToast={handleTriggerToast} />
+                <ProductDiagnosticsView
+                  onTriggerToast={handleTriggerToast}
+                  onNavigateTab={(tab) => navigateTab(tab)}
+                />
               </section>
             )}
             {visitedProductTabs.has('settings') && (
@@ -377,7 +380,10 @@ export default function App() {
 
             {state.currentTab === 'diagnostics' && (
               productMode.enabled ? (
-                <ProductDiagnosticsView onTriggerToast={handleTriggerToast} />
+                <ProductDiagnosticsView
+                  onTriggerToast={handleTriggerToast}
+                  onNavigateTab={(tab) => navigateTab(tab)}
+                />
               ) : (
                 <DiagnosticsView onTriggerToast={handleTriggerToast} />
               )

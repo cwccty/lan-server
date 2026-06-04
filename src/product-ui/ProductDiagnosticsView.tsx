@@ -23,9 +23,12 @@ import { getReferenceSelectedGame } from '../reference-adapter/selectedGame';
 import { readReferenceRuntimeSnapshot } from '../reference-adapter/runtimeStore';
 import { REFERENCE_RUNTIME_EVENT } from '../reference-adapter/bootstrap';
 import { useReferenceRuntime } from '../reference-adapter/useReferenceRuntime';
+import type { AppTab } from '../reference-ui/types';
+import { classifyDiagnosticIssue, type ProductFixAction } from './errorActions';
 
 interface ProductDiagnosticsViewProps {
   onTriggerToast: (msg: string) => void;
+  onNavigateTab: (tab: AppTab) => void;
 }
 
 type DiagnosticTargetMode = 'global' | 'selected' | 'game';
@@ -188,9 +191,16 @@ function CheckRow({ check }: { check: ReleaseCheck }) {
   );
 }
 
-function IssueCard({ issue }: { issue: DiagnosticIssue }) {
+function IssueCard({
+  issue,
+  onRunFix
+}: {
+  issue: DiagnosticIssue;
+  onRunFix?: (action: ProductFixAction) => void;
+}) {
   const actions = uniqueShortList(issue.next_actions, 2);
   const evidence = uniqueShortList(issue.evidence, 2);
+  const fixActions = classifyDiagnosticIssue(issue);
   return (
     <div className={`min-w-0 rounded-2xl border p-4 ${severityTone(issue.severity)}`}>
       <div className="flex items-start gap-3">
@@ -209,13 +219,27 @@ function IssueCard({ issue }: { issue: DiagnosticIssue }) {
           {evidence.length ? (
             <pre className="mt-3 max-h-24 max-w-full overflow-auto whitespace-pre-wrap break-words rounded-xl bg-white/70 p-2 text-[11px] leading-relaxed">{evidence.join('\n')}</pre>
           ) : null}
+          {onRunFix ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {fixActions.map((action) => (
+                <button
+                  key={action.id}
+                  onClick={() => onRunFix(action)}
+                  className="rounded-lg bg-white/80 px-3 py-1.5 text-[11px] font-bold text-slate-700 ring-1 ring-black/5 hover:bg-white"
+                  title={action.description}
+                >
+                  {action.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
   );
 }
 
-export function ProductDiagnosticsView({ onTriggerToast }: ProductDiagnosticsViewProps) {
+export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: ProductDiagnosticsViewProps) {
   const runtime = useReferenceRuntime();
   const [target, setTarget] = useState(() => readTarget());
   const [record, setRecord] = useState<DiagnosticRecord | null>(() => readRecord());
@@ -341,6 +365,28 @@ export function ProductDiagnosticsView({ onTriggerToast }: ProductDiagnosticsVie
     onTriggerToast(`真实诊断报告已导出：${filename}`);
   };
 
+  const runFixAction = async (action: ProductFixAction) => {
+    if (action.kind === 'navigate' && action.targetTab) {
+      onNavigateTab(action.targetTab);
+      onTriggerToast(action.description);
+      return;
+    }
+    if (action.kind === 'copy' && action.copyText) {
+      try {
+        const clipboard = navigator.clipboard;
+        if (!clipboard || typeof clipboard.writeText !== 'function') throw new Error('剪贴板不可用');
+        await clipboard.writeText(action.copyText);
+        onTriggerToast('已复制修复命令。');
+      } catch (error) {
+        onTriggerToast(`复制失败：${error instanceof Error ? error.message : String(error)}`);
+      }
+      return;
+    }
+    if (action.kind === 'refresh') {
+      await runDiagnostic();
+    }
+  };
+
   return (
     <div className="space-y-6" data-lan-helper-product-controlled="diagnostics">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -446,7 +492,7 @@ export function ProductDiagnosticsView({ onTriggerToast }: ProductDiagnosticsVie
               ) : null}
             </div>
 
-            {issue ? <IssueCard issue={issue} /> : (
+            {issue ? <IssueCard issue={issue} onRunFix={runFixAction} /> : (
               <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
                 点击“生成真实诊断”后，这里会显示后端返回的最可能原因和下一步动作。
               </div>
@@ -476,7 +522,7 @@ export function ProductDiagnosticsView({ onTriggerToast }: ProductDiagnosticsVie
               <h3 className="mb-3 text-sm font-bold text-slate-800">问题列表</h3>
               <div className="space-y-2">
                 {compactIssues.length
-                  ? compactIssues.map((item) => <IssueCard key={item.id} issue={item} />)
+                  ? compactIssues.map((item) => <IssueCard key={item.id} issue={item} onRunFix={runFixAction} />)
                   : <p className="text-sm text-slate-500">暂无问题列表。</p>}
               </div>
             </div>
