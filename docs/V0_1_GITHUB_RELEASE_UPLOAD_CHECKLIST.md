@@ -16,6 +16,7 @@
 | 发布包生成命令 | `npm run release:package` |
 | 发布包校验命令 | `npm run release:package:verify` |
 | Windows ZIP 生成/校验 | `npm run release:zip` / `npm run release:zip:verify` |
+| GitHub Release 更新脚本 | `npm run release:github:update` |
 | 自动发布门禁 | `npm run release:gate` |
 | 发布说明来源 | `docs/GITHUB_RELEASE_DRAFT.md` |
 | 详细说明来源 | `docs/RELEASE_NOTES_DRAFT.md` |
@@ -61,6 +62,7 @@ npm run release:gate
 - [ ] `npm run release:package:verify` 通过，确认 SHA256、manifest、发布正文、人工验证指南和共享方案库一致。
 - [ ] `npm run release:zip` 生成 `release-artifacts\LanHelper-v0.1.0-windows-x64.zip`。
 - [ ] `npm run release:zip:verify` 通过，确认 ZIP 内含 exe、edge.exe、共享方案库和校验文件，且不含运行时日志/配置。
+- [ ] 如需要自动替换 GitHub Release 资产，设置 `GITHUB_TOKEN` 后运行 `npm run release:github:update`。
 - [ ] 可选但推荐：`npm run release:gate` 通过，并把自动门禁摘要追加到 `docs\RELEASE_VALIDATION_LOG.md`。
 - [ ] `real exe startup smoke script is wired` 为 PASS。
 - [ ] `game launch console hiding is wired` 为 PASS。
@@ -107,6 +109,15 @@ npm run release:gate
 9. 若需要单文件调试，再从 `release-artifacts\v0.1.0\` 上传 `lan-helper-v0.1.0.exe` 和 `SHA256SUMS.txt`。
 10. 如需要给测试者详细步骤，附上 `REAL_EXE_MANUAL_VALIDATION_GUIDE.md`。
 11. 发布前再次确认没有“所有游戏一键联机”式过度承诺。
+
+如果使用脚本更新 Release：
+
+~~~powershell
+$env:GITHUB_TOKEN = '<具有 repo release 权限的 token>'
+npm run release:github:update
+~~~
+
+脚本会更新 Release 正文、替换同名 ZIP 资产，并校验远程 SHA256 digest。
 
 ## 5. 发布正文必须保留的边界说明
 

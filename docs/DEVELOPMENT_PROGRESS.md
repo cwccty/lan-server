@@ -3492,3 +3492,11 @@ pm run release:preflight：PASS。
 - 公开文案改为“早期公开测试版 / 游戏方案库 / 建议补测”，避免把“不要给普通用户承诺”“PENDING”“adapter”等内部评审语言直接展示给测试用户。
 
 下一步推荐：运行完整发布门禁 `npm run release:gate`；若全部通过，优先发布 `v0.1.1` 修正版，或在下载数仍为 0 时替换 `v0.1.0` ZIP 资产。
+
+## 2026-06-05 v0.1.0 GitHub Release 更新脚本补齐
+
+- 新增 `tools/update_github_release_v0_1.ps1` 和 `npm run release:github:update`。
+- 脚本不依赖 GitHub CLI，读取 `GITHUB_TOKEN` / `GH_TOKEN` 后通过 GitHub REST API 更新 Release 正文、删除旧 ZIP、上传新 ZIP，并校验远程 digest。
+- `tools/release_preflight.ps1` 已加入 GitHub Release asset updater gate，防止后续忘记发布资产替换流程。
+
+下一步推荐：如果有 GitHub token，运行 `npm run release:github:update` 自动替换资产；否则按上传清单手动替换 Release ZIP。

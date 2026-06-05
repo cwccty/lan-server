@@ -18,7 +18,8 @@
     "release:preflight:full": "powershell -ExecutionPolicy Bypass -File tools/release_preflight.ps1 -FullBuild",
     "tauri:build:raw": "tauri build",
     "release:zip": "powershell -ExecutionPolicy Bypass -File tools/prepare_windows_x64_zip.ps1",
-    "release:zip:verify": "powershell -ExecutionPolicy Bypass -File tools/verify_windows_x64_zip.ps1"
+    "release:zip:verify": "powershell -ExecutionPolicy Bypass -File tools/verify_windows_x64_zip.ps1",
+    "release:github:update": "powershell -ExecutionPolicy Bypass -File tools/update_github_release_v0_1.ps1"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",

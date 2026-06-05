@@ -122,6 +122,7 @@ Write-Host "FullBuild: $FullBuild  RunCargoTests: $RunCargoTests  SkipTauriBuild
   "tools\verify_v0_1_release_package.ps1",
   "tools\prepare_windows_x64_zip.ps1",
   "tools\verify_windows_x64_zip.ps1",
+  "tools\update_github_release_v0_1.ps1",
   "tools\run_v0_1_release_gate.ps1",
   "tools\validate_adapter_registry.ps1",
   "tools\check_reference_runtime_css.ps1",
@@ -380,6 +381,7 @@ try {
   $releasePackageVerifyScriptText = if (Test-Path "tools\verify_v0_1_release_package.ps1") { Get-Content "tools\verify_v0_1_release_package.ps1" -Raw -Encoding UTF8 } else { "" }
   $windowsZipScriptText = if (Test-Path "tools\prepare_windows_x64_zip.ps1") { Get-Content "tools\prepare_windows_x64_zip.ps1" -Raw -Encoding UTF8 } else { "" }
   $windowsZipVerifyScriptText = if (Test-Path "tools\verify_windows_x64_zip.ps1") { Get-Content "tools\verify_windows_x64_zip.ps1" -Raw -Encoding UTF8 } else { "" }
+  $githubReleaseUpdateScriptText = if (Test-Path "tools\update_github_release_v0_1.ps1") { Get-Content "tools\update_github_release_v0_1.ps1" -Raw -Encoding UTF8 } else { "" }
   $releaseGateScriptText = if (Test-Path "tools\run_v0_1_release_gate.ps1") { Get-Content "tools\run_v0_1_release_gate.ps1" -Raw -Encoding UTF8 } else { "" }
 
   if ($releaseReadinessText -match "v0\.1" -and
@@ -531,6 +533,17 @@ try {
     Pass-Check "Windows x64 ZIP package is reproducible"
   } else {
     Fail-Check "Windows x64 ZIP package is reproducible" ("missing: " + ($failedZipChecks -join ", "))
+  }
+
+  if ($packageJsonText -match "release:github:update" -and
+      $githubReleaseUpdateScriptText -match "GITHUB_TOKEN" -and
+      $githubReleaseUpdateScriptText -match "releases/tags" -and
+      $githubReleaseUpdateScriptText -match "releases/assets" -and
+      $githubReleaseUpdateScriptText -match "uploads\.github\.com" -and
+      $githubReleaseUpdateScriptText -match "Remote digest mismatch") {
+    Pass-Check "GitHub release asset updater is wired"
+  } else {
+    Fail-Check "GitHub release asset updater is wired" "release:github:update must use a token-backed GitHub REST flow to update body, replace the ZIP asset, and verify remote digest"
   }
 
   if ($packageJsonText -match "release:gate" -and
