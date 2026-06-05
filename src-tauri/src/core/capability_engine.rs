@@ -18,6 +18,8 @@ pub fn analyze_game(game_id: &str) -> Result<GameAnalysis, String> {
             game_id: game.game_id,
             display_name: game.display_name,
             steam_appid: game.steam_appid,
+            adapter_version: game.adapter_version,
+            description: game.description,
             detected_path: game.detected_path,
             capabilities: game.capabilities,
             multiplayer_conversion: Some(MultiplayerConversionProfile {
@@ -53,6 +55,8 @@ pub fn analyze_game(game_id: &str) -> Result<GameAnalysis, String> {
         game_id: adapter.game_id,
         display_name: adapter.display_name,
         steam_appid: adapter.steam_appid,
+        adapter_version: adapter.adapter_version,
+        description: adapter.description,
         detected_path,
         multiplayer_conversion: adapter
             .multiplayer_conversion

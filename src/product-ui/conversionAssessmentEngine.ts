@@ -183,7 +183,7 @@ export function buildGameConversionAssessment(
         ? '可以远程联机，但不要把它描述成真正的局域网。'
         : row.verdict === 'official_only'
           ? '不建议转换成局域网，应保留官方入口并说明限制。'
-          : '证据不足，先不要给普通用户承诺可联机。',
+          : '当前证据不足，建议先补充联机方式、端口或实测结果，再生成推荐方案。',
     recommendedPlan: row.userFacingResult,
     reason,
     primaryMethods,

@@ -1,9 +1,27 @@
-﻿param(
-  [string]$ReferenceSrc = "C:\Users\ty\Downloads\联机助手 (3)\src",
-  [string]$CurrentSrc = "src\reference-ui"
+param(
+  [string]$ReferenceSrc = $env:LAN_HELPER_REFERENCE_UI_SRC,
+  [string]$CurrentSrc = "src\reference-ui",
+  [switch]$AllowSkip
 )
 
 $ErrorActionPreference = 'Stop'
+
+$repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
+Set-Location $repoRoot
+
+if ([string]::IsNullOrWhiteSpace($ReferenceSrc)) {
+  $repoLocalReference = Join-Path $repoRoot "reference-ui-source\src"
+  if (Test-Path -LiteralPath $repoLocalReference) {
+    $ReferenceSrc = $repoLocalReference
+  }
+}
+
+if ([string]::IsNullOrWhiteSpace($ReferenceSrc) -or -not (Test-Path -LiteralPath $ReferenceSrc)) {
+  Write-Host "Reference UI fidelity check: SKIP" -ForegroundColor Yellow
+  Write-Host "reason=reference source not configured"
+  Write-Host "set LAN_HELPER_REFERENCE_UI_SRC to run strict source comparison"
+  exit 0
+}
 
 $files = @(
   'App.tsx',
@@ -23,18 +41,14 @@ $files = @(
   'types.ts'
 )
 
-# 已开始从 Product Mode patcher 迁移到正式 React 受控页面。
-# App.tsx 需要在 Product Mode 下挂载受控页面，因此不再要求与参考稿逐字一致；
-# 其他 reference-ui 页面仍保持一比一，避免视觉壳漂移。
+# Product Mode is migrating from DOM patchers to controlled React pages.
+# App.tsx mounts controlled pages, so it is excluded from strict source diff.
 $controlledMigrationFiles = @(
   'App.tsx'
 )
 
-if (-not (Test-Path -LiteralPath $ReferenceSrc)) {
-  Write-Error "参考前端目录不存在：$ReferenceSrc"
-}
 if (-not (Test-Path -LiteralPath $CurrentSrc)) {
-  Write-Error "当前 reference-ui 目录不存在：$CurrentSrc"
+  Write-Error "Current reference-ui directory does not exist: $CurrentSrc"
 }
 
 $diffs = @()
@@ -47,17 +61,17 @@ foreach ($file in $files) {
   $currentFile = Join-Path $CurrentSrc $file
 
   if (-not (Test-Path -LiteralPath $referenceFile)) {
-    $diffs += "参考文件缺失：$file"
+    $diffs += "reference file missing: $file"
     continue
   }
   if (-not (Test-Path -LiteralPath $currentFile)) {
-    $diffs += "当前文件缺失：$file"
+    $diffs += "current file missing: $file"
     continue
   }
 
   git diff --no-index --ignore-space-at-eol --ignore-blank-lines --quiet -- $referenceFile $currentFile | Out-Null
   if ($LASTEXITCODE -ne 0) {
-    $diffs += "视觉源码差异：$file"
+    $diffs += "visual source differs: $file"
   }
 }
 

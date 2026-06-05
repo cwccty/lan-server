@@ -708,7 +708,7 @@ Terraria 向导
 
 ## 2026-06-04 最终参考前端(3)对接审计
 
-参考来源：`C:\Users\ty\Downloads\联机助手 (3)\src`。
+参考来源：`<reference-ui-src>`。
 
 ### 已复刻并纳入保真检查
 

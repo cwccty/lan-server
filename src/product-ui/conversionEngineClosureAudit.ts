@@ -25,6 +25,7 @@ export interface ConversionEngineClosureAuditInput {
 
 const REQUIRED_SAMPLE_IDS = [
   'native-lan-ip-direct',
+  'lan-and-local-coop-prioritizes-lan',
   'dedicated-server-host',
   'udp-broadcast-discovery',
   'tcp-udp-port-proxy',
@@ -36,6 +37,7 @@ const REQUIRED_SAMPLE_IDS = [
 
 const LAN_SAMPLE_IDS = [
   'native-lan-ip-direct',
+  'lan-and-local-coop-prioritizes-lan',
   'dedicated-server-host',
   'udp-broadcast-discovery',
   'tcp-udp-port-proxy',
@@ -54,7 +56,7 @@ const STATIC_AUDIT_ITEMS: ConversionEngineClosureAuditItem[] = [
     label: '转换分类完整',
     status: 'wired',
     evidence: 'conversionAssessmentEngine + adapterRecommendationRoute 覆盖原生 LAN、专用服务端、UDP 广播、端口代理、本地同屏、Steam P2P、官方服限定、未知待复核。',
-    manualCheck: '方案库小样本应至少包含 8 类，并且每类 routeKind 与是否生成 LAN 邀请都符合预期。',
+    manualCheck: '方案库小样本应至少包含 8 类基础能力和 LAN+本地同屏混合能力，并且每类 routeKind 与是否生成 LAN 邀请都符合预期。',
   },
   {
     id: 'true-lan-invite-boundary',

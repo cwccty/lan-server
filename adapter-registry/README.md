@@ -18,7 +18,7 @@ adapter-registry/
 在项目根目录执行：
 
 ```powershell
-cd E:\Documents\联机助手
+cd <repo>
 python -m http.server 8088
 ```
 

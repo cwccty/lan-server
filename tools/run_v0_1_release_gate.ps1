@@ -78,6 +78,8 @@ try {
 
   Invoke-GateStep "npm run release:package" { npm run release:package -- -Clean -AppendLog }
   Invoke-GateStep "npm run release:package:verify" { npm run release:package:verify -- -AppendLog }
+  Invoke-GateStep "npm run release:zip" { npm run release:zip -- -Clean }
+  Invoke-GateStep "npm run release:zip:verify" { npm run release:zip:verify }
   Invoke-GateStep "npm run release:preflight" { npm run release:preflight }
 } catch {
   Write-Host "`nRelease gate failed." -ForegroundColor Red
@@ -107,7 +109,7 @@ $lines.Add("### Step results")
 $lines.Add("")
 foreach ($item in $results) {
   $detail = if ([string]::IsNullOrWhiteSpace($item.detail)) { "" } else { " - $($item.detail)" }
-  $lines.Add("- $($item.status) `$($item.name)` ($($item.seconds)s)$detail")
+  $lines.Add("- $($item.status) ``$($item.name)`` ($($item.seconds)s)$detail")
 }
 $lines.Add("")
 $lines.Add("### Manual validation still required")

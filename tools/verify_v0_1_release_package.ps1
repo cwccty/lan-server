@@ -67,6 +67,7 @@ $requiredFiles = @(
   "RELEASE_VALIDATION_LOG.md",
   "REAL_EXE_MANUAL_VALIDATION_GUIDE.md",
   "V0_1_GITHUB_RELEASE_UPLOAD_CHECKLIST.md",
+  "V0_1_RELEASE_CONSISTENCY_AUDIT.md",
   "V0_1_RELEASE_READINESS.md",
   "V0_1_USER_FEEDBACK_TEMPLATE.md",
   "adapter-registry/index.json",
@@ -181,7 +182,7 @@ $releaseBody = Join-Path $packageDir "RELEASE_BODY.md"
 if (Test-Path $releaseBody) {
   $body = Get-Content $releaseBody -Raw -Encoding UTF8
   if ($body -notmatch "0\.1\.0") { Add-Error "RELEASE_BODY.md missing 0.1.0" }
-  if ($body -notmatch "MVP" -or $body -notmatch "PENDING") { Add-Error "RELEASE_BODY.md missing MVP/PENDING boundary" }
+  if ($body -notmatch "n2n" -or $body -notmatch "Terraria") { Add-Error "RELEASE_BODY.md missing core release boundary" }
   if ($body -notmatch "Steam Remote Play" -or $body -notmatch "Sunshine") { Add-Error "RELEASE_BODY.md missing remote-play boundary" }
 }
 
@@ -202,6 +203,26 @@ if (Test-Path $registryIndex) {
     }
   } catch {
     Add-Error "packaged adapter registry index is invalid JSON: $($_.Exception.Message)"
+  }
+}
+
+$runtimeLeaks = Get-ChildItem -Path $packageDir -File -Recurse |
+  Where-Object { $_.Name -in @("edge.log", "edge.stdout.log", "edge.stderr.log", "last_config.json", "n2n.pid") }
+foreach ($leak in $runtimeLeaks) {
+  Add-Error "runtime file leaked into package: $(Get-RelativePathFrom -BasePath $packageDir -TargetPath $leak.FullName)"
+}
+
+$sensitiveTextFiles = Get-ChildItem -Path $packageDir -File -Recurse |
+  Where-Object { $_.Extension -in @(".md", ".txt", ".json", ".ps1") }
+foreach ($file in $sensitiveTextFiles) {
+  $content = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8 -ErrorAction SilentlyContinue
+  foreach ($pattern in @([string]$env:USERPROFILE, [string]$repoRoot)) {
+    if ([string]::IsNullOrWhiteSpace($pattern)) {
+      continue
+    }
+    if ($content -and $content.Contains($pattern)) {
+      Add-Error "sensitive text '$pattern' found in $(Get-RelativePathFrom -BasePath $packageDir -TargetPath $file.FullName)"
+    }
   }
 }
 

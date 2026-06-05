@@ -171,7 +171,7 @@
 
 目标原文：
 
-> `C:\Users\ty\Downloads\联机助手 (3)` 是最终的前端设计，要求一比一复刻，在完成复刻后开始进行前后端对接，并完全完成，其中如果存在前端功能缺失记录下来。
+> `<reference-ui-src-parent>` 是最终的前端设计，要求一比一复刻，在完成复刻后开始进行前后端对接，并完全完成，其中如果存在前端功能缺失记录下来。
 
 ## 结论
 
@@ -207,7 +207,7 @@ visual_diff_count=0
 
 说明：
 
-- `tools/check_reference_ui_fidelity.ps1` 已以 `C:\Users\ty\Downloads\联机助手 (3)\src` 为参考源。
+- `tools/check_reference_ui_fidelity.ps1` 已以 `<reference-ui-src>` 为参考源。
 - 该检查确认 `src/reference-ui` 与最终参考前端核心源码保持一致。
 - Product Mode 对接通过 `src/reference-adapter` 进行，不直接破坏 `src/reference-ui`。
 

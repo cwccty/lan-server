@@ -188,7 +188,7 @@ export function buildDiagnosticConversionAdvice(
     return {
       id: 'needs-adapter-review',
       tone: 'warning',
-      title: '当前游戏方案仍需复核，先不要按普通 LAN 流程排障',
+      title: '当前游戏方案仍需复核，建议先确认联机类型后再排障',
       summary: '缺少可靠 adapter 时，诊断很难判断该修 n2n、广播桥、端口代理还是远程同屏。',
       routeHint: route.summary,
       whyDiagnosticMatters: '先确认游戏原始多人能力，才能避免“按钮很多但方向错误”。',

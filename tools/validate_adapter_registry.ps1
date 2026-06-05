@@ -67,6 +67,20 @@ function Test-Port {
   }
 }
 
+function Test-ArrayField {
+  param(
+    [string]$Name,
+    $Value,
+    [string]$Context
+  )
+  $items = Get-ArrayValues $Value
+  if ($items.Count -eq 0) {
+    Add-Error "$Context missing array field: $Name"
+    return @()
+  }
+  return $items
+}
+
 function Get-Sha256Hex {
   param([string]$Path)
   return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -154,7 +168,12 @@ foreach ($entry in $entries) {
   }
 
   Test-TextField "display_name" $adapter.display_name $adapterContext | Out-Null
+  Test-TextField "adapter_version" $adapter.adapter_version $adapterContext | Out-Null
+  Test-TextField "description" $adapter.description $adapterContext | Out-Null
   Test-TextField "network_type" $adapter.network_type $adapterContext | Out-Null
+  if ($adapter.PSObject.Properties.Name -contains "adapter_source") {
+    Add-Error "$adapterContext must not persist runtime field adapter_source in shared registry JSON"
+  }
 
   $capabilities = Get-ArrayValues $adapter.capabilities
   if ($capabilities.Count -eq 0) {
@@ -190,6 +209,8 @@ foreach ($entry in $entries) {
 
   $conversion = $adapter.multiplayer_conversion
   $plan = $adapter.connection_plan
+  $applicability = $adapter.applicability
+  $evidence = $adapter.evidence
   Test-TextField "multiplayer_conversion.capability" $conversion.capability $adapterContext | Out-Null
   Test-BoolField "multiplayer_conversion.can_convert_to_lan" $conversion.can_convert_to_lan $adapterContext | Out-Null
   Test-TextField "multiplayer_conversion.risk_level" $conversion.risk_level $adapterContext | Out-Null
@@ -220,6 +241,26 @@ foreach ($entry in $entries) {
     Add-Error "$adapterContext connection_plan.troubleshooting is empty"
   }
 
+  if ($null -eq $applicability) {
+    Add-Error "$adapterContext missing applicability"
+  } else {
+    Test-TextField "applicability.verification_status" $applicability.verification_status $adapterContext | Out-Null
+    Test-ArrayField "applicability.tested_versions" $applicability.tested_versions $adapterContext | Out-Null
+    Test-ArrayField "applicability.tested_platforms" $applicability.tested_platforms $adapterContext | Out-Null
+    Test-ArrayField "applicability.supported_os" $applicability.supported_os $adapterContext | Out-Null
+    Test-ArrayField "applicability.network_conditions" $applicability.network_conditions $adapterContext | Out-Null
+    Test-ArrayField "applicability.known_limitations" $applicability.known_limitations $adapterContext | Out-Null
+  }
+
+  if ($null -eq $evidence) {
+    Add-Error "$adapterContext missing evidence"
+  } else {
+    Test-ArrayField "evidence.port_protocols" $evidence.port_protocols $adapterContext | Out-Null
+    Test-ArrayField "evidence.proof_items" $evidence.proof_items $adapterContext | Out-Null
+    Test-ArrayField "evidence.test_steps" $evidence.test_steps $adapterContext | Out-Null
+    Test-TextField "evidence.last_verified_at" $evidence.last_verified_at $adapterContext | Out-Null
+  }
+
   $isLocalCoopRoute =
     ([string]$adapter.network_type -eq "local_coop_remote_play") -or
     ([string]$conversion.capability -eq "local_coop_remote_play") -or
@@ -247,13 +288,17 @@ foreach ($entry in $entries) {
     if ($isLocalCoopRoute) {
       Add-Error "$adapterContext local_coop cannot also be convertible to LAN"
     }
-    if (($methods -notcontains "virtual_lan") -and ($methods -notcontains "port_proxy") -and ($methods -notcontains "udp_broadcast_bridge") -and ($methods -notcontains "dedicated_server_launcher")) {
+    if (($methods -notcontains "virtual_lan") -and ($methods -notcontains "port_proxy") -and ($methods -notcontains "broadcast_bridge") -and ($methods -notcontains "dedicated_server_launcher")) {
       Add-Warning "$adapterContext can_convert_to_lan=true but no LAN-like method is listed"
     }
   }
 
-  if ($plan.requires_udp_broadcast_bridge -eq $true -and $methods -notcontains "udp_broadcast_bridge") {
-    Add-Error "$adapterContext requires UDP broadcast bridge but methods does not include udp_broadcast_bridge"
+  if ($methods -contains "udp_broadcast_bridge") {
+    Add-Error "$adapterContext uses deprecated method udp_broadcast_bridge; use canonical broadcast_bridge"
+  }
+
+  if ($plan.requires_udp_broadcast_bridge -eq $true -and $methods -notcontains "broadcast_bridge") {
+    Add-Error "$adapterContext requires UDP broadcast bridge but methods does not include broadcast_bridge"
   }
 
   $validatedAdapters++

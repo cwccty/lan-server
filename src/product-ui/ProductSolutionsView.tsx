@@ -551,6 +551,8 @@ function buildAdapter(form: typeof emptyEditor): GameAdapter {
     game_id: form.game_id.trim(),
     display_name: form.display_name.trim(),
     steam_appid: form.steam_appid.trim() || null,
+    adapter_version: '1.0.0',
+    description: form.notes.trim() || `${form.display_name.trim() || form.game_id.trim()} 联机方案适配器。`,
     capabilities: defaults.capabilities,
     multiplayer_conversion: {
       capability: defaults.capability,
@@ -1655,7 +1657,7 @@ export function ProductSolutionsView({
     editorPreviewPlan?.requires_dedicated_server ? '游戏服务端/内置开服' : '',
   ].filter((item): item is string => Boolean(item));
   const editorPreviewWarnings = [
-    editorPreviewAdapter.network_type === 'unknown_need_review' ? '当前仍是待人工确认：不要直接给普通用户开房，先补证据。' : '',
+    editorPreviewAdapter.network_type === 'unknown_need_review' ? '当前方案仍需确认：请先补充端口、联机方式或实测证据，再用于开房邀请。' : '',
     editorPreviewAdapter.network_type === 'local_coop_remote_play' ? '本地同屏远程不是 LAN：不会生成虚拟 IP 邀请包，应走 Remote Play / Sunshine。' : '',
     editorPreviewAdapter.network_type === 'steam_p2p_only' || editorPreviewAdapter.network_type === 'steam_relay_plugin' || editorPreviewAdapter.network_type === 'steam_lobby_direct_possible'
       ? 'Steam 大厅/P2P 默认保留原生邀请，不要误导用户使用 n2n 连接虚拟 IP。'
@@ -3572,6 +3574,9 @@ export function ProductSolutionsView({
                       <p className="mt-1 font-mono text-[11px] text-slate-400">
                         {adapter.game_id} ｜ {networkTypeLabel(adapter.network_type)} ｜ {adapterVersionLabel(adapter, syncResult)}
                       </p>
+                      {adapter.description ? (
+                        <p className="mt-2 text-xs leading-relaxed text-slate-600">{adapter.description}</p>
+                      ) : null}
                       <p className="mt-2 text-xs font-medium text-slate-700">{multiplayerSummary(adapter)}</p>
                       <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">{compactPlanSummary(adapter.connection_plan)}</p>
                       <p className="mt-2 text-[11px] leading-relaxed text-slate-500">

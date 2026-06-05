@@ -16,14 +16,20 @@ export interface LanInvitePacket {
   friendCheck?: string;
 }
 
+export interface LanInviteValidationResult {
+  ok: boolean;
+  missing: string[];
+}
+
 function valueOf(line: string, label: string) {
-  const prefix = `${label}：`;
-  return line.startsWith(prefix) ? line.slice(prefix.length).trim() : '';
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = line.match(new RegExp(`^\\s*${escaped}\\s*[：:]\\s*(.*?)\\s*$`));
+  return match ? match[1].trim() : '';
 }
 
 function cleanUnknown(value?: string) {
   const text = (value || '').trim();
-  if (!text || ['未读取', '未配置', '未选择', '未分配', '未读取到'].includes(text)) return '';
+  if (!text || ['未读取', '未配置', '未选择', '未分配', '未读取到', '未知', '无', '-', 'null', 'undefined'].includes(text)) return '';
   return text;
 }
 
@@ -36,7 +42,7 @@ function splitFriend(value: string) {
 }
 
 export function parseLanInvitePacket(text: string): LanInvitePacket | null {
-  if (!text.includes(LAN_INVITE_PACKET_HEADER)) return null;
+  if (!text.includes(LAN_INVITE_PACKET_HEADER) && !text.includes('联机助手真实邀请包')) return null;
   const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   const packet: LanInvitePacket = {};
   for (const line of lines) {
@@ -60,16 +66,36 @@ export function parseLanInvitePacket(text: string): LanInvitePacket | null {
     if (roomKey) packet.roomKey = cleanUnknown(roomKey) || undefined;
     const port = valueOf(line, '游戏端口');
     if (port) {
-      const number = Number(port.replace(/[^0-9]/g, ''));
-      if (Number.isFinite(number) && number > 0) packet.gamePort = number;
+      const match = port.match(/\d{1,5}/);
+      const number = match ? Number(match[0]) : NaN;
+      if (Number.isFinite(number) && number > 0 && number <= 65535) packet.gamePort = number;
     }
     const server = valueOf(line, '服务端状态');
     if (server) packet.serverRunning = server.includes('运行');
     const check = valueOf(line, '好友检测');
     if (check) packet.friendCheck = cleanUnknown(check) || undefined;
   }
-  if (!packet.supernode && !packet.roomName && !packet.hostVirtualIp) return null;
+  // 只要有邀请包头，就返回结构体交给校验层做“缺少字段”分类。
+  // 不要把“识别到邀请但字段缺失”退化成“无法识别”，否则用户无法复制结构化错误给房主。
   return packet;
+}
+
+export function validateLanInvitePacket(packet: LanInvitePacket): LanInviteValidationResult {
+  const missing: string[] = [];
+  if (!cleanUnknown(packet.supernode)) missing.push('Supernode');
+  if (!cleanUnknown(packet.roomName)) missing.push('房间名');
+  if (!cleanUnknown(packet.roomKey)) missing.push('房间密钥');
+  if (!cleanUnknown(packet.friendVirtualIp)) missing.push('好友预留 IP');
+  if (!cleanUnknown(packet.hostVirtualIp)) missing.push('房主虚拟 IP');
+  if (!Number.isFinite(Number(packet.gamePort)) || Number(packet.gamePort) <= 0) missing.push('游戏端口');
+  return {
+    ok: missing.length === 0,
+    missing
+  };
+}
+
+export function formatLanInviteMissingFields(missing: string[]) {
+  return missing.length ? missing.join('、') : '无';
 }
 
 export function buildLanInvitePacket(input: {

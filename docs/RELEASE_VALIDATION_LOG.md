@@ -1,4 +1,4 @@
-﻿# 发布前端到端验证日志
+# 发布前端到端验证日志
 ~~~
 创建时间：2026-06-03 13:07:04 +08:00
 ~~~
@@ -38,7 +38,7 @@
 耗时：0.71s
 ~~~
 ```t~~~text
-updated E:\Documents\联机助手\adapter-registry\index.json
+updated <repo>\adapter-registry\index.json
 games: 3
 - minecraft_java 0852d4e55475ff746e0570b0aebe7b63300b290d00ef3a52e9712d0d8d929ea1
 - stardew_valley 4ed34f221144fdd739bc6832c96a8c9b5def3b71908383280000360858552c19
@@ -81,13 +81,13 @@ computing gzip size...
 耗时：2.28s
 ~~~
 ```t~~~text
-cargo :    Compiling lan-helper v0.1.0 (E:\Documents\联机助手\src-tauri)
+cargo :    Compiling lan-helper v0.1.0 (<repo>\src-tauri)
 At line:30 char:30
 + ... Step 'Rust 后端检查' { cargo check --manifest-path src-tauri\Cargo.toml }
 +                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     + CategoryInfo          : NotSpecified: (   Compiling la...联机助手\src-tauri):String) [], RemoteException
     + FullyQualifiedErrorId : NativeCommandError
- 
+
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.19s
 ```
 ### TCP 端口代理单元测试
@@ -96,13 +96,13 @@ At line:30 char:30
 耗时：10.72s
 ~~~
 ```t~~~text
-cargo :    Compiling lan-helper v0.1.0 (E:\Documents\联机助手\src-tauri)
+cargo :    Compiling lan-helper v0.1.0 (<repo>\src-tauri)
 At line:31 char:33
 + ... 端口代理单元测试' { cargo test --manifest-path src-tauri\Cargo.toml port_prox ...
 +                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     + CategoryInfo          : NotSpecified: (   Compiling la...联机助手\src-tauri):String) [], RemoteException
     + FullyQualifiedErrorId : NativeCommandError
- 
+
     Finished `test` profile [unoptimized + debuginfo] target(s) in 10.21s
      Running unittests src\lib.rs (src-tauri\target\debug\deps\lan_helper_lib-bcca3b97bd874acf.exe)
 
@@ -124,13 +124,13 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 耗时：10.62s
 ~~~
 ```t~~~text
-cargo :    Compiling lan-helper v0.1.0 (E:\Documents\联机助手\src-tauri)
+cargo :    Compiling lan-helper v0.1.0 (<repo>\src-tauri)
 At line:32 char:33
 + ... 端口代理单元测试' { cargo test --manifest-path src-tauri\Cargo.toml udp_proxy ...
 +                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     + CategoryInfo          : NotSpecified: (   Compiling la...联机助手\src-tauri):String) [], RemoteException
     + FullyQualifiedErrorId : NativeCommandError
- 
+
     Finished `test` profile [unoptimized + debuginfo] target(s) in 10.14s
      Running unittests src\lib.rs (src-tauri\target\debug\deps\lan_helper_lib-bcca3b97bd874acf.exe)
 
@@ -152,13 +152,13 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 耗时：12.94s
 ~~~
 ```t~~~text
-cargo :    Compiling lan-helper v0.1.0 (E:\Documents\联机助手\src-tauri)
+cargo :    Compiling lan-helper v0.1.0 (<repo>\src-tauri)
 At line:33 char:32
 + ...  广播桥单元测试' { cargo test --manifest-path src-tauri\Cargo.toml udp_broad ...
 +                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     + CategoryInfo          : NotSpecified: (   Compiling la...联机助手\src-tauri):String) [], RemoteException
     + FullyQualifiedErrorId : NativeCommandError
- 
+
     Finished `test` profile [unoptimized + debuginfo] target(s) in 12.42s
      Running unittests src\lib.rs (src-tauri\target\debug\deps\lan_helper_lib-bcca3b97bd874acf.exe)
 
@@ -190,7 +190,7 @@ At line:1 char:1
 + ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     + CategoryInfo          : NotSpecified: (        Info Lo...hed versions...:String) [], RemoteException
     + FullyQualifiedErrorId : NativeCommandError
- 
+
      Running beforeBuildCommand `npm run build`
 
 > lan-helper@0.1.0 build
@@ -205,9 +205,9 @@ computing gzip size...
 [2mdist/[22m[35massets/index-nsB57BtH.css  [39m[1m[2m  8.69 kB[22m[1m[22m[2m │ gzip:  2.71 kB[22m
 [2mdist/[22m[36massets/index-sttUmNrL.js   [39m[1m[2m325.12 kB[22m[1m[22m[2m │ gzip: 96.86 kB[22m
 [32m✓ built in 878ms[39m
-   Compiling lan-helper v0.1.0 (E:\Documents\联机助手\src-tauri)
+   Compiling lan-helper v0.1.0 (<repo>\src-tauri)
     Finished `release` profile [optimized] target(s) in 38.81s
-       Built application at: E:\Documents\联机助手\src-tauri\target\release\lan-helper.exe
+       Built application at: <repo>\src-tauri\target\release\lan-helper.exe
 ```
 ### release exe 存在性
 ~~~
@@ -217,7 +217,7 @@ computing gzip size...
 ```t~~~text
 
 
-FullName      : E:\Documents\联机助手\src-tauri\target\release\lan-helper.exe
+FullName      : <repo>\src-tauri\target\release\lan-helper.exe
 Length        : 12568064
 LastWriteTime : 2026/6/3 13:10:50
 ```
@@ -311,7 +311,7 @@ npm run release:preflight
 待人工回放的 release exe：
 ~~~
 ```t~~~text
-E:\Documents\联机助手\src-tauri\target\release\lan-helper.exe
+<repo>\src-tauri\target\release\lan-helper.exe
 ```
 ~~~
 本阶段目标不是继续盲目新增功能，而是按发布级流程逐页验证：按钮是否有响应、加载是否有反馈、状态是否来自真实后端、失败是否能明确提示、中文是否正常、页面是否保留合理缓存。
@@ -333,7 +333,7 @@ E:\Documents\联机助手\src-tauri\target\release\lan-helper.exe
 游戏：Terraria
 房主虚拟 IP：10.10.10.2
 n2n community：lan-helper-room-001
-n2n supernode：154.64.231.137:7777
+n2n supernode：203.0.113.10:7777
 分配给你的虚拟 IP：10.10.10.3
 n2n 密钥：lan-helper-secret
 建议游戏端口：7777
@@ -343,7 +343,7 @@ n2n 密钥：lan-helper-secret
 5. 确认下方字段被填入：
    - community = `lan-helper-room-001`
    - 密钥 = `lan-helper-secret`
-   - supernode = `154.64.231.137:7777`
+   - supernode = `203.0.113.10:7777`
    - 本机虚拟 IP = `10.10.10.3`
    - 房主/对方虚拟 IP = `10.10.10.2`
    - 游戏端口 = `7777`
@@ -419,7 +419,7 @@ connection method closure audit is wired: PASS
 ~~~
 ## 2026-06-04 新增人工验证项：参考前端一比一显示
 ~~~
-测试目标：确认当前 release exe 显示的是 `C:\Users\ty\Downloads\联机助手 (1)` 的参考前端，而不是旧项目的近似重做版。
+测试目标：确认当前 release exe 显示的是 `<reference-ui-src-parent>` 的参考前端，而不是旧项目的近似重做版。
 ~~~
 测试步骤：
 ~~~
@@ -575,7 +575,7 @@ v0.1 release readiness docs are wired: PASS
 
 ~~~text
 status: PASS
-exe: E:\Documents\联机助手\src-tauri\target\release\lan-helper.exe
+exe: <repo>\src-tauri\target\release\lan-helper.exe
 pid: 53216
 startup_seconds: 5
 process_alive: True
@@ -610,7 +610,7 @@ npm run release:preflight
 ~~~text
 cargo check: PASS
 npm run tauri:build: PASS
-release exe: E:\Documents\联机助手\src-tauri\target\release\lan-helper.exe
+release exe: <repo>\src-tauri\target\release\lan-helper.exe
 release exe size: 13328384 bytes
 release exe last write: 06/05/2026 11:21:23
 real exe startup smoke: PASS
@@ -713,7 +713,7 @@ real exe validation checklist is wired: PASS
 
 ~~~text
 status: PASS
-exe: E:\Documents\联机助手\src-tauri\target\release\lan-helper.exe
+exe: <repo>\src-tauri\target\release\lan-helper.exe
 pid: 20424
 startup_seconds: 5
 process_alive: True
@@ -744,7 +744,7 @@ npm run release:preflight
 
 ~~~text
 npm run tauri:build: PASS
-release exe: E:\Documents\联机助手\src-tauri\target\release\lan-helper.exe
+release exe: <repo>\src-tauri\target\release\lan-helper.exe
 release exe size: 13332480 bytes
 release exe last write: 06/05/2026 12:06:52
 real exe startup smoke: PASS
@@ -764,7 +764,7 @@ real exe validation checklist is wired: PASS
 
 ~~~text
 status: PASS
-exe: E:\Documents\联机助手\src-tauri\target\release\lan-helper.exe
+exe: <repo>\src-tauri\target\release\lan-helper.exe
 pid: 60948
 startup_seconds: 5
 process_alive: True
@@ -792,7 +792,7 @@ child_processes: msedgewebview2.exe#21676, msedgewebview2.exe#28880, msedgewebvi
 
 ~~~text
 status: PASS
-output: E:\Documents\联机助手\release-artifacts\v0.1.0
+output: <repo>\release-artifacts\v0.1.0
 exe: lan-helper-v0.1.0.exe
 sha256sums: SHA256SUMS.txt
 manifest: release-manifest.json
@@ -834,7 +834,7 @@ Note: this package only stages GitHub Release upload files. It does not replace 
 
 ~~~text
 status: PASS
-output: E:\Documents\联机助手\release-artifacts\v0.1.0
+output: <repo>\release-artifacts\v0.1.0
 exe: lan-helper-v0.1.0.exe
 sha256sums: SHA256SUMS.txt
 manifest: release-manifest.json
@@ -865,7 +865,7 @@ Note: this package only stages GitHub Release upload files. It does not replace 
 
 ~~~text
 status: FAIL
-exe: E:\Documents\联机助手\src-tauri\target\release\lan-helper.exe
+exe: <repo>\src-tauri\target\release\lan-helper.exe
 pid: 15972
 startup_seconds: 5
 process_alive: True
@@ -884,7 +884,7 @@ child_processes: msedgewebview2.exe#50324, msedgewebview2.exe#18864, msedgewebvi
 
 ~~~text
 status: PASS
-exe: E:\Documents\联机助手\src-tauri\target\release\lan-helper.exe
+exe: <repo>\src-tauri\target\release\lan-helper.exe
 pid: 56188
 startup_seconds: 5
 process_alive: True
@@ -902,7 +902,7 @@ child_processes: msedgewebview2.exe#61952, msedgewebview2.exe#30544, msedgewebvi
 
 ~~~text
 status: PASS
-output: E:\Documents\联机助手\release-artifacts\v0.1.0
+output: <repo>\release-artifacts\v0.1.0
 exe: lan-helper-v0.1.0.exe
 sha256sums: SHA256SUMS.txt
 manifest: release-manifest.json
@@ -930,7 +930,7 @@ Note: this package only stages GitHub Release upload files. It does not replace 
 
 ~~~text
 status: PASS
-output: E:\Documents\联机助手\release-artifacts\v0.1.0
+output: <repo>\release-artifacts\v0.1.0
 exe: lan-helper-v0.1.0.exe
 sha256sums: SHA256SUMS.txt
 manifest: release-manifest.json
@@ -943,7 +943,7 @@ Note: this package only stages GitHub Release upload files. It does not replace 
 
 ~~~text
 status: PASS
-exe: E:\Documents\联机助手\src-tauri\target\release\lan-helper.exe
+exe: <repo>\src-tauri\target\release\lan-helper.exe
 pid: 33524
 startup_seconds: 5
 process_alive: True
@@ -961,7 +961,7 @@ child_processes: msedgewebview2.exe#35396, msedgewebview2.exe#596, msedgewebview
 
 ~~~text
 status: PASS
-output: E:\Documents\联机助手\release-artifacts\v0.1.0
+output: <repo>\release-artifacts\v0.1.0
 exe: lan-helper-v0.1.0.exe
 sha256sums: SHA256SUMS.txt
 manifest: release-manifest.json
@@ -990,7 +990,7 @@ Note: this package only stages GitHub Release upload files. It does not replace 
 
 ~~~text
 status: PASS
-output: E:\Documents\联机助手\release-artifacts\v0.1.0
+output: <repo>\release-artifacts\v0.1.0
 exe: lan-helper-v0.1.0.exe
 sha256sums: SHA256SUMS.txt
 manifest: release-manifest.json
@@ -1002,7 +1002,7 @@ Note: this package only stages GitHub Release upload files. It does not replace 
 
 ~~~text
 status: PASS
-output: E:\Documents\联机助手\release-artifacts\v0.1.0
+output: <repo>\release-artifacts\v0.1.0
 exe: lan-helper-v0.1.0.exe
 sha256sums: SHA256SUMS.txt
 manifest: release-manifest.json
@@ -1014,7 +1014,7 @@ Note: this package only stages GitHub Release upload files. It does not replace 
 
 ~~~text
 status: PASS
-package: E:\Documents\联机助手\release-artifacts\v0.1.0
+package: <repo>\release-artifacts\v0.1.0
 payload_files: 15
 sha256sums: PASS
 manifest: PASS
@@ -1038,7 +1038,7 @@ Note: this verifies local release package integrity only. It does not replace re
 
 ~~~text
 status: PASS
-exe: E:\Documents\联机助手\src-tauri\target\release\lan-helper.exe
+exe: <repo>\src-tauri\target\release\lan-helper.exe
 pid: 41896
 startup_seconds: 5
 process_alive: True
@@ -1056,7 +1056,7 @@ child_processes: msedgewebview2.exe#22900, msedgewebview2.exe#11564, msedgewebvi
 
 ~~~text
 status: PASS
-output: E:\Documents\联机助手\release-artifacts\v0.1.0
+output: <repo>\release-artifacts\v0.1.0
 exe: lan-helper-v0.1.0.exe
 sha256sums: SHA256SUMS.txt
 manifest: release-manifest.json
@@ -1068,7 +1068,7 @@ Note: this package only stages GitHub Release upload files. It does not replace 
 
 ~~~text
 status: PASS
-package: E:\Documents\联机助手\release-artifacts\v0.1.0
+package: <repo>\release-artifacts\v0.1.0
 payload_files: 15
 sha256sums: PASS
 manifest: PASS
@@ -1090,14 +1090,14 @@ skip_smoke: False
 
 ### Step results
 
-- PASS $(@{name=npm run build; status=PASS; seconds=26; detail=}.name) (26s)
-- PASS $(@{name=cargo check; status=PASS; seconds=4; detail=}.name) (4s)
-- PASS $(@{name=npm run adapter:validate; status=PASS; seconds=2; detail=}.name) (2s)
-- SKIP $(@{name=npm run tauri:build; status=SKIP; seconds=0; detail=SkipTauriBuild}.name) (0s) - SkipTauriBuild
-- PASS $(@{name=real exe smoke test; status=PASS; seconds=12; detail=}.name) (12s)
-- PASS $(@{name=npm run release:package; status=PASS; seconds=3; detail=}.name) (3s)
-- PASS $(@{name=npm run release:package:verify; status=PASS; seconds=2; detail=}.name) (2s)
-- PASS $(@{name=npm run release:preflight; status=PASS; seconds=7; detail=}.name) (7s)
+- PASS `npm run build` (26s)
+- PASS `cargo check` (4s)
+- PASS `npm run adapter:validate` (2s)
+- SKIP `npm run tauri:build` (0s) - SkipTauriBuild
+- PASS `real exe smoke test` (12s)
+- PASS `npm run release:package` (3s)
+- PASS `npm run release:package:verify` (2s)
+- PASS `npm run release:preflight` (7s)
 
 ### Manual validation still required
 
@@ -1107,3 +1107,256 @@ skip_smoke: False
 - more adapter reviews by real users
 
 Note: this gate verifies automated release readiness only. It does not replace PASS / FAIL / PENDING manual validation in the real EXE diagnostics page.
+
+## 2026-06-05 14:21:40 - v0.1 release gate log formatting fix
+- Fixed 	ools/run_v0_1_release_gate.ps1 so Step results append readable Markdown command names instead of PowerShell interpolation leftovers.
+- Corrected the previous malformed Step results block in this validation log.
+- Validation:
+pm run release:preflight PASS.
+- Boundary: this only fixes automated validation evidence readability; real dual-machine, real joiner, Terraria Join via IP, and more adapter user reviews remain manual PENDING items.
+
+## 2026-06-05 14:23:42 真实 EXE 启动烟测
+
+~~~text
+status: PASS
+exe: <repo>\src-tauri\target\release\lan-helper.exe
+pid: 2980
+startup_seconds: 5
+process_alive: True
+window_ready: True
+main_window_handle: 10226582
+main_window_title: 联机助手
+webview_children: 6
+console_like_children: 0
+console_like_detail: 未发现 cmd/conhost/powershell/edge/n2n 启动期子进程
+child_processes: msedgewebview2.exe#19764, msedgewebview2.exe#31176, msedgewebview2.exe#54712, msedgewebview2.exe#49096, msedgewebview2.exe#61648, msedgewebview2.exe#38892
+~~~
+
+说明：本烟测只验证真实 release EXE 能启动、能创建窗口/WebView、启动期没有额外白色命令框类子进程。它不能替代 n2n ACK/PONG、邀请包、Terraria 或真实双机人工验证。
+## 2026-06-05 14:23:56 v0.1.0 local release package
+
+~~~text
+status: PASS
+output: <repo>\release-artifacts\v0.1.0
+exe: lan-helper-v0.1.0.exe
+sha256sums: SHA256SUMS.txt
+manifest: release-manifest.json
+payload_files: 15
+~~~
+
+Note: this package only stages GitHub Release upload files. It does not replace real dual-machine, real joiner, Terraria, or more adapter manual validation.
+## 2026-06-05 14:23:58 v0.1.0 release package verification
+
+~~~text
+status: PASS
+package: <repo>\release-artifacts\v0.1.0
+payload_files: 15
+sha256sums: PASS
+manifest: PASS
+manual_guide: PASS
+adapter_registry: PASS
+~~~
+
+Note: this verifies local release package integrity only. It does not replace real dual-machine, real joiner, Terraria, or more adapter manual validation.
+## 2026-06-05 14:24:04 v0.1 automated release gate
+
+~~~text
+status: PASS
+passed: 7
+failed: 0
+skipped: 1
+skip_tauri_build: True
+skip_smoke: False
+~~~
+
+### Step results
+
+- PASS `npm run build` (22s)
+- PASS `cargo check` (4s)
+- PASS `npm run adapter:validate` (2s)
+- SKIP `npm run tauri:build` (0s) - SkipTauriBuild
+- PASS `real exe smoke test` (13s)
+- PASS `npm run release:package` (2s)
+- PASS `npm run release:package:verify` (2s)
+- PASS `npm run release:preflight` (6s)
+
+### Manual validation still required
+
+- real dual-machine n2n connectivity
+- real joiner connects to host virtual IP and game port
+- Terraria dual-machine Join via IP
+- more adapter reviews by real users
+
+Note: this gate verifies automated release readiness only. It does not replace PASS / FAIL / PENDING manual validation in the real EXE diagnostics page.
+
+## 2026-06-05 14:28:46 真实 EXE 启动烟测
+
+~~~text
+status: PASS
+exe: <repo>\src-tauri\target\release\lan-helper.exe
+pid: 51996
+startup_seconds: 5
+process_alive: True
+window_ready: True
+main_window_handle: 7606518
+main_window_title: 联机助手
+webview_children: 6
+console_like_children: 0
+console_like_detail: 未发现 cmd/conhost/powershell/edge/n2n 启动期子进程
+child_processes: msedgewebview2.exe#51664, msedgewebview2.exe#4948, msedgewebview2.exe#58480, msedgewebview2.exe#27180, msedgewebview2.exe#60992, msedgewebview2.exe#40188
+~~~
+
+说明：本烟测只验证真实 release EXE 能启动、能创建窗口/WebView、启动期没有额外白色命令框类子进程。它不能替代 n2n ACK/PONG、邀请包、Terraria 或真实双机人工验证。
+## 2026-06-05 14:29:01 v0.1.0 local release package
+
+~~~text
+status: PASS
+output: <repo>\release-artifacts\v0.1.0
+exe: lan-helper-v0.1.0.exe
+sha256sums: SHA256SUMS.txt
+manifest: release-manifest.json
+payload_files: 15
+~~~
+
+Note: this package only stages GitHub Release upload files. It does not replace real dual-machine, real joiner, Terraria, or more adapter manual validation.
+## 2026-06-05 14:29:03 v0.1.0 release package verification
+
+~~~text
+status: PASS
+package: <repo>\release-artifacts\v0.1.0
+payload_files: 15
+sha256sums: PASS
+manifest: PASS
+manual_guide: PASS
+adapter_registry: PASS
+~~~
+
+Note: this verifies local release package integrity only. It does not replace real dual-machine, real joiner, Terraria, or more adapter manual validation.
+## 2026-06-05 14:29:09 v0.1 automated release gate
+
+~~~text
+status: PASS
+passed: 8
+failed: 0
+skipped: 0
+skip_tauri_build: False
+skip_smoke: False
+~~~
+
+### Step results
+
+- PASS `npm run build` (21s)
+- PASS `cargo check` (6s)
+- PASS `npm run adapter:validate` (2s)
+- PASS `npm run tauri:build` (107s)
+- PASS `real exe smoke test` (13s)
+- PASS `npm run release:package` (3s)
+- PASS `npm run release:package:verify` (2s)
+- PASS `npm run release:preflight` (6s)
+
+### Manual validation still required
+
+- real dual-machine n2n connectivity
+- real joiner connects to host virtual IP and game port
+- Terraria dual-machine Join via IP
+- more adapter reviews by real users
+
+Note: this gate verifies automated release readiness only. It does not replace PASS / FAIL / PENDING manual validation in the real EXE diagnostics page.
+
+## 2026-06-05 15:11:04 - 邀请包/房主开房 gate 与高级工具预填验证
+
+结论：PASS（自动化/源码级验证，不代表真实双机 PASS）。
+
+已验证命令：
+
+-
+pm run build：PASS。
+- cargo check --manifest-path src-tauri\Cargo.toml：PASS。
+-
+pm run release:preflight：PASS。
+
+本轮新增守卫：
+
+- 好友端保存并启动 n2n 前必须先校验邀请包完整性。
+- joinFromInvitePacket 保存配置和启动 n2n 前必须先校验邀请包完整性。
+- 房主端未 ready 时不得渲染完整 LAN 邀请包预览。
+- 推荐页高级工具入口必须保留点击的 TCP/UDP/bridge 类型。
+
+人工边界：真实双机 n2n 互通、真实好友加入、真实游戏内连接仍需按发布验证计划单独记录 PASS/FAIL/PENDING。
+
+## 2026-06-05 15:31:01 - 共享适配器库增强验证
+
+结论：PASS（源码/数据/自动校验级验证，不代表所有 adapter 都已社区实测）。
+
+已验证命令：
+
+-
+pm run adapter:validate：PASS。
+-
+pm run build：PASS。
+- cargo check --manifest-path src-tauri\Cargo.toml：PASS。
+-
+pm run release:preflight：PASS。
+
+新增发布边界：
+
+- registry adapter 必须有版本、说明、适用条件、验证证据。
+- registry adapter 不得持久化 dapter_source。
+- 提交包 sha256 必须基于 canonical JSON。
+- roadcast_bridge 是 multiplayer_conversion.methods 中的 canonical 广播桥方法名。
+
+人工边界：每个 adapter 的 erification_status 仅表示当前证据等级；真实好友加入、真实游戏内加入、社区实测仍需单独记录。
+
+## 2026-06-05 15:37:54 - 转换引擎混合能力边界验证
+
+结论：PASS（自动化/源码级验证）。
+
+已验证命令：
+
+-
+pm run build：PASS。
+- cargo check --manifest-path src-tauri\Cargo.toml：PASS。
+-
+pm run release:preflight：PASS。
+
+新增边界：LAN + 本地同屏混合能力游戏优先走 LAN/n2n；纯本地同屏游戏才走远程同屏。Cuphead/茶杯头仍不得生成 LAN 邀请包。
+
+## 2026-06-05 16:01:12 - 诊断修复中心手动命令覆盖验证
+
+结论：PASS（源码/自动化守卫级验证）。
+
+已验证命令：
+
+- npm run build：PASS。
+- cargo check --manifest-path src-tauri\Cargo.toml：PASS。
+- npm run release:preflight：PASS。
+- git diff --check：PASS。
+
+新增守卫：
+
+- n2n 未启动必须有 copy-n2n-manual-start。
+- IP/密钥冲突必须有 copy-ip-conflict-check。
+- 游戏端口/代理必须有 copy-game-port-proxy-check。
+- 版本不匹配必须有 copy-version-manual-check。
+- 诊断修复中心审计必须包含逐问题 action coverage 矩阵。
+
+人工边界：该验证不代表真实 supernode、真实双机互通、真实游戏端口或真实好友加入已通过。
+
+## 2026-06-05 20:27:30 v0.1.0 release consistency cleanup
+
+~~~text
+status: PASS
+clean_tauri_build: PASS
+release_preflight: PASS
+release_package_verify: PASS
+windows_zip_verify: PASS
+release_exe_sha256: 286d636f43e1f26a52a8ff4019c05afc09d62153d1a3273a5d9f87ead477b04d
+windows_zip_sha256: 91617585501427da6bb2502e18ad28e0bc1038270c04db00364e7a4b04331a75
+runtime_files_excluded: edge.log, edge.stdout.log, edge.stderr.log, last_config.json, n2n.pid
+sensitive_path_scan: PASS
+~~~
+
+Notes:
+- Public wording was changed to early public test build / game solution library / suggested follow-up validation.
+- Current GitHub v0.1.0 asset still has the older ZIP digest until the Release asset is replaced manually.
+- Download count was 0 when checked through GitHub API, so replacing the v0.1.0 asset is still acceptable; publishing v0.1.1 is safer if any user has downloaded it later.

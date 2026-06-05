@@ -61,6 +61,27 @@ export function buildAdapterRecommendationRoute(game: GameSummary | null): Adapt
   const methods = game?.multiplayer_conversion?.methods ?? [];
   const methodLabels = methods.map(conversionMethodLabel);
   const typeLabel = networkTypeLabel(type);
+  const hasLanOrServerRoute = Boolean(
+    type === 'lan_ip_direct'
+    || type === 'dedicated_server'
+    || type === 'tcp_port_proxy_needed'
+    || type === 'udp_broadcast_needed'
+    || plan?.requires_virtual_lan
+    || plan?.requires_dedicated_server
+    || plan?.requires_tcp_port_proxy
+    || plan?.requires_udp_broadcast_bridge
+    || capability === 'native_lan_ip'
+    || capability === 'hidden_dedicated_server'
+    || capability === 'lan_discovery_broadcast'
+    || capability === 'tcp_udp_proxy_possible'
+    || hasCapability(game, 'lan')
+    || hasCapability(game, 'ip_join')
+    || hasCapability(game, 'dedicated_server')
+    || hasMethod(game, 'virtual_lan')
+    || hasMethod(game, 'dedicated_server_launcher')
+    || hasMethod(game, 'broadcast_bridge')
+    || hasMethod(game, 'port_proxy')
+  );
 
   if (!game || type === 'unknown_need_review' || category?.id === 'needs_review') {
     return {
@@ -123,10 +144,12 @@ export function buildAdapterRecommendationRoute(game: GameSummary | null): Adapt
   if (
     type === 'local_coop_remote_play'
     || capability === 'local_coop_remote_play'
-    || hasCapability(game, 'local_coop')
-    || hasCapability(game, 'remote_play_together')
-    || hasMethod(game, 'steam_remote_play')
-    || hasMethod(game, 'sunshine_moonlight')
+    || (!hasLanOrServerRoute && (
+      hasCapability(game, 'local_coop')
+      || hasCapability(game, 'remote_play_together')
+      || hasMethod(game, 'steam_remote_play')
+      || hasMethod(game, 'sunshine_moonlight')
+    ))
   ) {
     return {
       kind: 'remote_coop',

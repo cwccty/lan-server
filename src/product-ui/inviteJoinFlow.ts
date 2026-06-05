@@ -5,7 +5,12 @@ import {
 } from '../reference-adapter/actions';
 import type { ReferenceRuntimeSnapshot } from '../reference-adapter/types';
 import type { NetworkConfig } from '../types/network';
-import { invitePacketToNetworkConfig, type LanInvitePacket } from './invitePacket';
+import {
+  formatLanInviteMissingFields,
+  invitePacketToNetworkConfig,
+  validateLanInvitePacket,
+  type LanInvitePacket
+} from './invitePacket';
 
 export type InviteJoinPhase = 'idle' | 'filled' | 'joining' | 'joined' | 'pending' | 'failed';
 
@@ -64,7 +69,7 @@ export function classifyJoinFailure(error: unknown, runtimeLabel = ''): InviteJo
       nextAction: '打开诊断报告，复制结果给房主或管理员。',
     };
   }
-  if (message.includes('room') || message.includes('secret') || message.includes('配置缺少') || message.includes('未填写')) {
+  if (message.includes('missing_fields') || message.includes('邀请包缺少') || message.includes('配置缺少') || message.includes('未填写')) {
     return {
       kind: 'config_missing',
       title: '邀请参数不完整',
@@ -72,12 +77,31 @@ export function classifyJoinFailure(error: unknown, runtimeLabel = ''): InviteJo
       nextAction: '重新向房主要邀请包，或手动补齐参数后再启动。',
     };
   }
-  if (message.includes('auth') || message.includes('认证') || message.includes('key') || message.includes('密钥')) {
+  if (
+    message.includes('auth') ||
+    message.includes('认证') ||
+    message.includes('key') ||
+    message.includes('密钥') ||
+    message.includes('password') ||
+    message.includes('mismatch') ||
+    message.includes('denied') ||
+    message.includes('unauthorized') ||
+    message.includes('wrong secret') ||
+    message.includes('invalid secret')
+  ) {
     return {
       kind: 'auth',
       title: '房间认证失败',
       detail: '房间密钥或房间名可能不一致。请让房主重新复制邀请包，再粘贴加入。',
       nextAction: '核对房间名和密钥；必要时让房主重开房间。',
+    };
+  }
+  if (message.includes('room') || message.includes('secret')) {
+    return {
+      kind: 'config_missing',
+      title: '邀请参数不完整',
+      detail: '邀请包缺少房间名、密钥或 Supernode。请让房主重新生成完整邀请包。',
+      nextAction: '重新向房主要邀请包，或手动补齐参数后再启动。',
     };
   }
   if (message.includes('already in use') || message.includes('conflict') || message.includes('冲突') || message.includes('占用')) {
@@ -125,6 +149,7 @@ export function validateInviteNetworkConfig(config: NetworkConfig) {
   if (!config.supernode?.trim()) missing.push('Supernode');
   if (!config.room_name?.trim()) missing.push('房间名');
   if (!config.secret?.trim()) missing.push('房间密钥');
+  if (!config.local_ip?.trim()) missing.push('我的虚拟 IP');
   return missing;
 }
 
@@ -141,7 +166,40 @@ export function joinSuccessDetail(packet: LanInvitePacket, context: InviteJoinCo
   return `请在游戏内连接房主虚拟 IP：${host}，端口：${port}。`;
 }
 
+function sameInviteValue(expected?: string, actual?: string | null) {
+  const expectedText = (expected || '').trim().toLowerCase();
+  if (!expectedText) return true;
+  return (actual || '').trim().toLowerCase() === expectedText;
+}
+
+function snapshotMatchesInvite(snapshot: ReferenceRuntimeSnapshot | undefined, config: NetworkConfig) {
+  if (!snapshot) return false;
+  const n2n = snapshot.n2n;
+  const lastConfig = snapshot.n2n_last_config;
+  const supernode = n2n?.supernode || lastConfig?.supernode || '';
+  const localIp = n2n?.virtual_ip || lastConfig?.local_ip || '';
+  return (
+    sameInviteValue(config.supernode, supernode)
+    && sameInviteValue(config.local_ip, localIp)
+    && sameInviteValue(config.room_name, lastConfig?.room_name || config.room_name)
+    && sameInviteValue(config.secret, lastConfig?.secret || config.secret)
+  );
+}
+
 export async function joinFromInvitePacket(packet: LanInvitePacket, context: InviteJoinContext = {}): Promise<InviteJoinResult> {
+  const packetValidation = validateLanInvitePacket(packet);
+  if (!packetValidation.ok) {
+    const reason = classifyJoinFailure(`邀请包缺少：${formatLanInviteMissingFields(packetValidation.missing)}`);
+    return {
+      phase: 'failed',
+      title: reason.title,
+      detail: `${reason.detail} 缺少：${formatLanInviteMissingFields(packetValidation.missing)}。`,
+      packet,
+      error: `missing_fields=${packetValidation.missing.join(',')}`,
+      reason,
+    };
+  }
+
   const config = invitePacketToNetworkConfig(packet);
   const missing = validateInviteNetworkConfig(config);
   if (missing.length) {
@@ -167,11 +225,12 @@ export async function joinFromInvitePacket(packet: LanInvitePacket, context: Inv
       await wait(1500);
       const refreshed = await refreshReferenceRuntime(false);
       latest = refreshed.snapshot || latest;
-      if (latest?.n2n?.ok_link) break;
+      if (latest?.n2n?.ok_link && snapshotMatchesInvite(latest, config)) break;
     }
 
     const n2n = latest?.n2n;
-    if (n2n?.ok_link) {
+    const matchesInvite = snapshotMatchesInvite(latest, config);
+    if (n2n?.ok_link && matchesInvite) {
       return {
         phase: 'joined',
         title: '已加入好友房间',
@@ -180,12 +239,29 @@ export async function joinFromInvitePacket(packet: LanInvitePacket, context: Inv
         latest,
       };
     }
+    if (n2n?.ok_link && !matchesInvite) {
+      const error = 'n2n 当前连接状态与本次邀请参数不一致，可能读到了旧 edge 状态或配置尚未生效。';
+      const reason = classifyJoinFailure(error, n2n.summary);
+      return {
+        phase: 'failed',
+        title: '当前连接与邀请不一致',
+        detail: '联机助手没有把旧连接状态当作加入成功。请先停止 n2n，再用这份邀请包重新保存并启动。',
+        packet,
+        error,
+        reason,
+        latest,
+      };
+    }
     if (n2n?.running) {
+      const error = 'edge 已运行，但暂未收到 ACK/PONG 确认。';
+      const reason = classifyJoinFailure(error, n2n.summary);
       return {
         phase: 'pending',
         title: 'n2n 已启动，等待确认',
         detail: 'edge 已运行，但暂未看到 ACK/PONG。等待 10 到 20 秒后刷新，若仍未连接请生成诊断报告。',
         packet,
+        error,
+        reason,
         latest,
       };
     }
@@ -217,7 +293,7 @@ export async function joinFromInvitePacket(packet: LanInvitePacket, context: Inv
 export function buildInviteJoinErrorText(result: InviteJoinResult, context: InviteJoinContext = {}) {
   const packet = result.packet;
   return [
-    '[联机助手加入失败信息]',
+    '[联机助手加入状态信息]',
     `结果：${result.title}`,
     `分类：${result.reason?.kind || 'unknown'}`,
     `说明：${result.detail}`,

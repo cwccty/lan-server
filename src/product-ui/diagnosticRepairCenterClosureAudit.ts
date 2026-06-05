@@ -58,6 +58,25 @@ const REQUIRED_BACKEND_OPERATIONS: DiagnosticBackendFixOperation[] = [
   'test_local_game_port',
 ];
 
+interface RequiredIssueActionCoverage {
+  issueType: DiagnosticIssueType;
+  copyActionIds: string[];
+  executableActionIds: string[];
+}
+
+const REQUIRED_ISSUE_ACTION_COVERAGE: RequiredIssueActionCoverage[] = [
+  { issueType: 'n2n_missing', copyActionIds: ['copy-edge-check'], executableActionIds: ['detect-edge-path', 'goto-network'] },
+  { issueType: 'n2n_not_running', copyActionIds: ['copy-n2n-manual-start'], executableActionIds: ['start-n2n-last-config', 'goto-network'] },
+  { issueType: 'supernode', copyActionIds: ['copy-supernode-check'], executableActionIds: ['restart-n2n-registration', 'goto-network'] },
+  { issueType: 'n2n_auth_or_ip_conflict', copyActionIds: ['copy-ip-conflict-check'], executableActionIds: ['restart-after-conflict-release', 'goto-ip-fix'] },
+  { issueType: 'n2n_virtual_ip', copyActionIds: ['copy-virtual-ip-check'], executableActionIds: ['restart-n2n-for-virtual-ip', 'goto-network'] },
+  { issueType: 'game_port_or_proxy', copyActionIds: ['copy-game-port-proxy-check'], executableActionIds: ['test-local-game-port', 'goto-advanced'] },
+  { issueType: 'server_runtime', copyActionIds: ['copy-server-check'], executableActionIds: ['test-server-port', 'goto-terraria'] },
+  { issueType: 'firewall_or_permission', copyActionIds: ['copy-firewall-hint'], executableActionIds: ['refresh-runtime-after-permission', 'goto-network'] },
+  { issueType: 'version_mismatch', copyActionIds: ['copy-version-manual-check'], executableActionIds: ['refresh-runtime-after-version-check', 'goto-solutions-version'] },
+  { issueType: 'adapter_missing', copyActionIds: ['copy-adapter-missing-hint'], executableActionIds: ['goto-solutions', 'goto-games'] },
+];
+
 const STATIC_AUDIT_ITEMS: DiagnosticRepairCenterClosureAuditItem[] = [
   {
     id: 'issue-classification-complete',
@@ -176,6 +195,30 @@ function hasCopyAction(input: DiagnosticRepairCenterClosureAuditInput) {
   return input.fixGroups.some((group) => group.actions.some((action) => action.kind === 'copy'));
 }
 
+function findFixGroup(input: DiagnosticRepairCenterClosureAuditInput, issueType: DiagnosticIssueType) {
+  return input.fixGroups.find((group) => group.id === issueType);
+}
+
+function hasAnyActionId(group: ProductDiagnosticFixGroup | undefined, actionIds: string[]) {
+  if (!group) return false;
+  const ids = new Set(group.actions.map((action) => action.id));
+  return actionIds.some((id) => ids.has(id));
+}
+
+function missingManualActionCoverage(input: DiagnosticRepairCenterClosureAuditInput) {
+  return REQUIRED_ISSUE_ACTION_COVERAGE
+    .filter((coverage) => findFixGroup(input, coverage.issueType))
+    .filter((coverage) => !hasAnyActionId(findFixGroup(input, coverage.issueType), coverage.copyActionIds))
+    .map((coverage) => coverage.issueType);
+}
+
+function missingExecutableActionCoverage(input: DiagnosticRepairCenterClosureAuditInput) {
+  return REQUIRED_ISSUE_ACTION_COVERAGE
+    .filter((coverage) => findFixGroup(input, coverage.issueType))
+    .filter((coverage) => !hasAnyActionId(findFixGroup(input, coverage.issueType), coverage.executableActionIds))
+    .map((coverage) => coverage.issueType);
+}
+
 function markObserved(item: DiagnosticRepairCenterClosureAuditItem, input: DiagnosticRepairCenterClosureAuditInput): DiagnosticRepairCenterClosureAuditItem {
   const allTypes = hasAll(input.supportedIssueTypes, REQUIRED_ISSUE_TYPES);
   const allBackendOps = hasAll(input.backendOperations, REQUIRED_BACKEND_OPERATIONS);
@@ -183,7 +226,11 @@ function markObserved(item: DiagnosticRepairCenterClosureAuditItem, input: Diagn
 
   if (item.id === 'issue-classification-complete' && allTypes) return { ...item, status: 'observed' };
   if (item.id === 'backend-one-click-fixes' && allBackendOps) return { ...item, status: hasBackendAction(input) ? 'observed' : 'wired' };
-  if (item.id === 'manual-copy-commands' && allTypes) return { ...item, status: hasCopyAction(input) ? 'observed' : 'wired' };
+  if (item.id === 'manual-copy-commands' && allTypes) {
+    const hasManualCoverage = missingManualActionCoverage(input).length === 0;
+    const hasExecutableCoverage = missingExecutableActionCoverage(input).length === 0;
+    return { ...item, status: hasCopyAction(input) && hasManualCoverage && hasExecutableCoverage ? 'observed' : 'wired' };
+  }
   if (item.id === 'grouped-fix-center-ui' && input.hasReport) return { ...item, status: 'observed' };
   if (item.id === 'auto-retest-after-fix' && input.hasFixRetestResult) return { ...item, status: 'observed' };
   if (item.id === 'fix-history-recap' && input.fixHistoryCount > 0) return { ...item, status: 'observed' };
@@ -205,6 +252,8 @@ export function buildDiagnosticRepairCenterClosureAudit(input: DiagnosticRepairC
   const missingBackendOperations = REQUIRED_BACKEND_OPERATIONS.filter((operation) => !input.backendOperations.includes(operation));
   const backendActionCount = input.fixGroups.reduce((total, group) => total + group.actions.filter((action) => action.kind === 'backend').length, 0);
   const copyActionCount = input.fixGroups.reduce((total, group) => total + group.actions.filter((action) => action.kind === 'copy').length, 0);
+  const missingManualActionIssueTypes = missingManualActionCoverage(input);
+  const missingExecutableActionIssueTypes = missingExecutableActionCoverage(input);
 
   return {
     items,
@@ -212,11 +261,13 @@ export function buildDiagnosticRepairCenterClosureAudit(input: DiagnosticRepairC
     observedCount,
     missingIssueTypes,
     missingBackendOperations,
+    missingManualActionIssueTypes,
+    missingExecutableActionIssueTypes,
     backendActionCount,
     copyActionCount,
     summary: `已固化 ${items.length} 项诊断修复中心闭环能力；当前报告问题 ${input.issueCount} 个，修复组 ${input.fixGroups.length} 类，一键后端动作 ${backendActionCount} 个，复制/手动说明 ${copyActionCount} 个。`,
-    nextRisk: missingIssueTypes.length || missingBackendOperations.length
-      ? '先补齐问题类型或后端修复操作守卫。'
+    nextRisk: missingIssueTypes.length || missingBackendOperations.length || missingManualActionIssueTypes.length || missingExecutableActionIssueTypes.length
+      ? '先补齐问题类型、后端修复操作、手动命令或可执行动作守卫。'
       : !input.hasReport
         ? '先生成真实诊断报告，再验证修复中心是否按问题分类给出动作。'
         : input.fixGroups.length > 0 && !input.hasFixRetestResult
@@ -250,6 +301,8 @@ export function formatDiagnosticRepairCenterClosureAuditReport(input: Diagnostic
     `- 当前忙碌状态：${input.busy || '空闲'}`,
     `- 缺失问题类型：${audit.missingIssueTypes.join('、') || '无'}`,
     `- 缺失后端操作：${audit.missingBackendOperations.join('、') || '无'}`,
+    `- 缺失手动命令覆盖：${audit.missingManualActionIssueTypes.join('、') || '无'}`,
+    `- 缺失可执行动作覆盖：${audit.missingExecutableActionIssueTypes.join('、') || '无'}`,
     `- 下一风险：${audit.nextRisk}`,
     '',
     '当前修复组：',

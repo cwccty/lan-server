@@ -17,14 +17,18 @@ function readStoredValue() {
     }).__TAURI_INTERNALS__);
 
     // 发布 EXE 不能因为旧 WebView localStorage 曾保存过 "0" 而退回参考展示模式。
-    // Tauri/EXE 环境始终启用真实产品接入；只有普通浏览器预览允许关闭，
-    // 用于继续检查最终参考 UI 的视觉保真。
+    // Tauri/EXE 环境始终启用真实产品接入。
     if (isTauriRuntime) return true;
 
     const stored = window.localStorage.getItem(STORAGE_KEY);
     if (stored === '1') return true;
     if (stored === '0') return false;
-    return false;
+
+    // 普通浏览器预览也默认进入真实产品界面，这样用户打开 dev/preview 时看到的
+    // 是已经接入后端动作的中文产品壳，而不是旧的 Stitch/参考展示壳。
+    // 如需回看参考 UI，可在控制台设置：
+    // localStorage.setItem('lan-helper.referenceProductMode', '0')
+    return true;
   } catch {
     return false;
   }

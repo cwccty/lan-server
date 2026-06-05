@@ -2,7 +2,7 @@
 
 创建日期：2026-06-04
 
-目标：当前阶段先保证界面完全按照 `C:\Users\ty\Downloads\联机助手 (1)` 一比一复原；后端连接必须在不破坏参考 UI 的前提下逐步接入。
+目标：当前阶段先保证界面完全按照 `<reference-ui-src-parent>` 一比一复原；后端连接必须在不破坏参考 UI 的前提下逐步接入。
 
 ## 1. 当前结论
 
@@ -12,7 +12,7 @@
 src/main.tsx -> src/reference-ui/App
 ```
 
-`src/reference-ui` 是用户提供的参考前端源码副本。当前已通过源码复核：除 `src/reference-ui/main.tsx` 的构建兼容导入差异外，参考 UI 主要文件与 `C:\Users\ty\Downloads\联机助手 (1)\src` 视觉等价。
+`src/reference-ui` 是用户提供的参考前端源码副本。当前已通过源码复核：除 `src/reference-ui/main.tsx` 的构建兼容导入差异外，参考 UI 主要文件与 `<reference-ui-src>` 视觉等价。
 
 `src/reference-ui/main.tsx` 差异：
 
@@ -57,8 +57,8 @@ import App from './App'
 每次接入后端前后，都应运行以下复核命令。目标是确认参考 UI 没有被误改。
 
 ```powershell
-$ref='C:\Users\ty\Downloads\联机助手 (1)\src'
-$cur='E:\Documents\联机助手\src\reference-ui'
+$ref='<reference-ui-src>'
+$cur='<repo>\src\reference-ui'
 $files=@(
   'App.tsx',
   'components\Header.tsx',

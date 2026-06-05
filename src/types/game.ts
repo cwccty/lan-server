@@ -120,6 +120,8 @@ export interface GameSummary {
   game_id: string;
   display_name: string;
   steam_appid?: string | null;
+  adapter_version?: string | null;
+  description?: string | null;
   detected_path?: string | null;
   capabilities: GameCapability[];
   multiplayer_conversion?: MultiplayerConversionProfile | null;
@@ -141,6 +143,8 @@ export interface GameAdapter {
   game_id: string;
   display_name: string;
   steam_appid?: string | null;
+  adapter_version?: string | null;
+  description?: string | null;
   capabilities: GameCapability[];
   multiplayer_conversion?: MultiplayerConversionProfile | null;
   network_type?: GameNetworkType;

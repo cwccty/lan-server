@@ -178,7 +178,7 @@ export function ProductSettingsView({ onTriggerToast }: ProductSettingsViewProps
                   value={settings.supernode_default ?? ''}
                   onChange={(event) => update({ supernode_default: event.target.value })}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 font-mono text-xs text-slate-700 outline-none focus:border-amber-400"
-                  placeholder="例如：154.64.231.137:7777"
+                  placeholder="例如：203.0.113.10:7777"
                 />
               </label>
 

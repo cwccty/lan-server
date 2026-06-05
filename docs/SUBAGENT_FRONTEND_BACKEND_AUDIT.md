@@ -11,19 +11,19 @@
 ### Worker A：前端入口与页面状态对接审计
 
 `	ext
-你是 Worker A，负责“前端入口与页面状态对接审计”。项目路径：E:\Documents\联机助手。目标：检查当前 EXE/源码前端是否完整体现最终设计稿和所有核心功能入口，尤其是 Sidebar、App 路由、页面按钮、Product Mode 默认状态。你不是唯一 worker，不要回退或覆盖其他人的修改。请优先只读审计，不要大范围改代码；如发现明确小修可改，但写集限定在 src/reference-ui、src/reference-adapter 的前端入口/导航相关文件。输出：1) 缺失/不一致清单；2) 每项对应文件和建议修法；3) 如有改动，列出改动文件；4) 验证命令。重点关注：高级连接工具是否在当前源码、dist、release exe 对应构建中存在；Product Mode 默认是否会让发布 EXE 显示真实状态；不要把参考演示值当完成。
+你是 Worker A，负责“前端入口与页面状态对接审计”。项目路径：<repo>。目标：检查当前 EXE/源码前端是否完整体现最终设计稿和所有核心功能入口，尤其是 Sidebar、App 路由、页面按钮、Product Mode 默认状态。你不是唯一 worker，不要回退或覆盖其他人的修改。请优先只读审计，不要大范围改代码；如发现明确小修可改，但写集限定在 src/reference-ui、src/reference-adapter 的前端入口/导航相关文件。输出：1) 缺失/不一致清单；2) 每项对应文件和建议修法；3) 如有改动，列出改动文件；4) 验证命令。重点关注：高级连接工具是否在当前源码、dist、release exe 对应构建中存在；Product Mode 默认是否会让发布 EXE 显示真实状态；不要把参考演示值当完成。
 `
 
 ### Worker B：后端 Tauri commands 与前端 API 类型对接审计
 
 `	ext
-你是 Worker B，负责“后端 Tauri commands 与前端 API 类型对接审计”。项目路径：E:\Documents\联机助手。目标：核对 src/api/tauri.ts 暴露的前端 API、src-tauri/src commands 注册、Rust command 实现、TypeScript 类型之间是否一致。你不是唯一 worker，不要回退其他人修改。请优先只读；如发现明确命名/参数不一致的小修可改，写集限定在 src/api/tauri.ts、src/types、src-tauri/src 与命令注册相关文件。输出：1) 命令缺失/参数不一致/类型不一致清单；2) 哪些前端按钮仍没有真实 API；3) 建议修复顺序；4) 如有改动列文件；5) 验证命令。
+你是 Worker B，负责“后端 Tauri commands 与前端 API 类型对接审计”。项目路径：<repo>。目标：核对 src/api/tauri.ts 暴露的前端 API、src-tauri/src commands 注册、Rust command 实现、TypeScript 类型之间是否一致。你不是唯一 worker，不要回退其他人修改。请优先只读；如发现明确命名/参数不一致的小修可改，写集限定在 src/api/tauri.ts、src/types、src-tauri/src 与命令注册相关文件。输出：1) 命令缺失/参数不一致/类型不一致清单；2) 哪些前端按钮仍没有真实 API；3) 建议修复顺序；4) 如有改动列文件；5) 验证命令。
 `
 
 ### Worker C：发布验证、预检规则与前后端矩阵审计
 
 `	ext
-你是 Worker C，负责“发布验证、预检规则与前后端矩阵审计”。项目路径：E:\Documents\联机助手。目标：检查 docs/FINAL_REFERENCE_UI_BACKEND_MATRIX.md、docs/GOAL_COMPLETION_AUDIT.md、tools/release_preflight.ps1 是否覆盖当前用户关心的问题：设计稿入口缺失、EXE 默认进入参考模式、核心按钮是否真实对接、假数据是否仍可在发布版出现。你不是唯一 worker，不要回退其他人修改。请优先只读；如发现明确预检遗漏可小范围新增脚本规则，写集限定 docs、tools。输出：1) 当前文档/预检覆盖不足清单；2) 应新增的 gate；3) 如有改动列文件；4) 验证命令。
+你是 Worker C，负责“发布验证、预检规则与前后端矩阵审计”。项目路径：<repo>。目标：检查 docs/FINAL_REFERENCE_UI_BACKEND_MATRIX.md、docs/GOAL_COMPLETION_AUDIT.md、tools/release_preflight.ps1 是否覆盖当前用户关心的问题：设计稿入口缺失、EXE 默认进入参考模式、核心按钮是否真实对接、假数据是否仍可在发布版出现。你不是唯一 worker，不要回退其他人修改。请优先只读；如发现明确预检遗漏可小范围新增脚本规则，写集限定 docs、tools。输出：1) 当前文档/预检覆盖不足清单；2) 应新增的 gate；3) 如有改动列文件；4) 验证命令。
 `
 
 ## Worker 结果审核

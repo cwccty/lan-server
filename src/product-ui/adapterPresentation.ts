@@ -13,8 +13,10 @@ import type { AdapterRegistrySyncResult } from '../api/tauri';
 export type AdapterDisplayTarget = Pick<
   GameAdapter | GameSummary,
   | 'adapter_source'
+  | 'adapter_version'
   | 'capabilities'
   | 'connection_plan'
+  | 'description'
   | 'display_name'
   | 'game_id'
   | 'multiplayer_conversion'
@@ -212,6 +214,10 @@ export function registryVersionLabel(syncResult?: AdapterRegistrySyncResult | nu
 }
 
 export function adapterVersionLabel(item: AdapterDisplayTarget, syncResult?: AdapterRegistrySyncResult | null) {
+  if (item.adapter_version) {
+    const source = item.adapter_source === 'registry' ? registryVersionLabel(syncResult) : sourceLabel(item.adapter_source);
+    return `Adapter v${item.adapter_version} · ${source}`;
+  }
   if (item.adapter_source === 'registry') return registryVersionLabel(syncResult);
   if (item.adapter_source === 'steam_scan') return 'Steam 缓存映射';
   return 'Adapter Schema v1';

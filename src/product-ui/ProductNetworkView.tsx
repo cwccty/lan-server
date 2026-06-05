@@ -27,7 +27,13 @@ import {
 import { testConnectivity } from '../api/tauri';
 import { useReferenceRuntime } from '../reference-adapter/useReferenceRuntime';
 import type { ConnectivityReport, NetworkConfig } from '../types/network';
-import { invitePacketToNetworkConfig, parseLanInvitePacket, type LanInvitePacket } from './invitePacket';
+import {
+  formatLanInviteMissingFields,
+  invitePacketToNetworkConfig,
+  parseLanInvitePacket,
+  validateLanInvitePacket,
+  type LanInvitePacket
+} from './invitePacket';
 import {
   buildInviteJoinErrorText,
   classifyJoinFailure,
@@ -322,16 +328,26 @@ export function ProductNetworkView({ onTriggerToast, onNavigateTab }: ProductNet
 
   const handleInvitePaste = (value: string) => {
     setInvitePaste(value);
+    if (!value.trim()) {
+      setDetectedInvite(null);
+      setInviteJoinResult(null);
+      clearPendingInviteRetest();
+      clearInviteDiagnosticContext();
+      return;
+    }
     const packet = parseLanInvitePacket(value);
     setDetectedInvite(packet);
     if (packet) {
+      const validation = validateLanInvitePacket(packet);
       setInviteJoinResult({
         phase: 'idle',
         title: '已识别好友邀请',
-        detail: '可以仅填入参数自行检查，也可以直接保存并启动 n2n。',
+        detail: validation.ok
+          ? '可以仅填入参数自行检查，也可以直接保存并启动 n2n。'
+          : `邀请包还缺少：${formatLanInviteMissingFields(validation.missing)}。建议让房主重新生成完整邀请包。`,
         packet
       });
-    } else if (value.trim()) {
+    } else {
       setInviteJoinResult(null);
       clearPendingInviteRetest();
     }
@@ -351,13 +367,16 @@ export function ProductNetworkView({ onTriggerToast, onNavigateTab }: ProductNet
   const enterInvite = () => {
     if (!detectedInvite) return;
     applyInvitePacket(detectedInvite);
+    const validation = validateLanInvitePacket(detectedInvite);
     setInviteJoinResult({
-      phase: 'filled',
-      title: '邀请参数已填入',
-      detail: '请确认房间名、密钥、Supernode 和你的虚拟 IP。确认无误后可以保存并启动 n2n。',
+      phase: validation.ok ? 'filled' : 'failed',
+      title: validation.ok ? '邀请参数已填入' : '邀请参数不完整',
+      detail: validation.ok
+        ? '请确认房间名、密钥、Supernode 和你的虚拟 IP。确认无误后可以保存并启动 n2n。'
+        : `已尽量填入可识别参数，但邀请包缺少：${formatLanInviteMissingFields(validation.missing)}。请让房主重新生成完整邀请包。`,
       packet: detectedInvite
     });
-    onTriggerToast('已填入邀请包。确认后可保存并启动 n2n。');
+    onTriggerToast(validation.ok ? '已填入邀请包。确认后可保存并启动 n2n。' : '邀请包不完整，已填入可识别参数。');
   };
 
   const startFromInvite = async () => {
@@ -367,6 +386,23 @@ export function ProductNetworkView({ onTriggerToast, onNavigateTab }: ProductNet
       return;
     }
     applyInvitePacket(packet);
+    const validation = validateLanInvitePacket(packet);
+    if (!validation.ok) {
+      const missingText = formatLanInviteMissingFields(validation.missing);
+      const reason = classifyJoinFailure(`missing_fields=${validation.missing.join(',')}`);
+      const failedResult: InviteJoinResult = {
+        phase: 'failed',
+        title: '邀请参数不完整',
+        detail: `已填入可识别参数，但邀请包缺少：${missingText}。请把错误复制给房主，让房主重新生成完整邀请包。`,
+        packet,
+        error: `missing_fields=${validation.missing.join(',')}`,
+        reason
+      };
+      setInviteJoinResult(failedResult);
+      persistInviteJoinDiagnosticContext(failedResult);
+      onTriggerToast(`邀请包不完整：${missingText}。未启动 n2n。`);
+      return;
+    }
     setBusy('保存并启动邀请');
     setInviteJoinResult({
       phase: 'joining',

@@ -138,6 +138,10 @@ pub struct GameSummary {
     pub game_id: String,
     pub display_name: String,
     pub steam_appid: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub adapter_version: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
     pub detected_path: Option<String>,
     pub capabilities: Vec<GameCapability>,
     pub multiplayer_conversion: Option<MultiplayerConversionProfile>,
@@ -158,6 +162,10 @@ pub struct GameAnalysis {
     pub game_id: String,
     pub display_name: String,
     pub steam_appid: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub adapter_version: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
     pub detected_path: Option<String>,
     pub capabilities: Vec<GameCapability>,
     pub multiplayer_conversion: Option<MultiplayerConversionProfile>,
@@ -182,6 +190,10 @@ pub struct GameAdapter {
     pub game_id: String,
     pub display_name: String,
     pub steam_appid: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub adapter_version: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
     pub capabilities: Vec<GameCapability>,
     pub multiplayer_conversion: Option<MultiplayerConversionProfile>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

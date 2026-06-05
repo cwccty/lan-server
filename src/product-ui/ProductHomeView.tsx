@@ -17,12 +17,19 @@ import {
 } from 'lucide-react';
 import { refreshReferenceRuntime, saveReferenceN2nConfig } from '../reference-adapter/actions';
 import { useReferenceRuntime } from '../reference-adapter/useReferenceRuntime';
-import { invitePacketToNetworkConfig, parseLanInvitePacket, type LanInvitePacket } from './invitePacket';
+import {
+  formatLanInviteMissingFields,
+  invitePacketToNetworkConfig,
+  parseLanInvitePacket,
+  validateLanInvitePacket,
+  type LanInvitePacket
+} from './invitePacket';
 import {
   buildInviteJoinErrorText,
   classifyJoinFailure,
   inviteResultTone,
   joinFromInvitePacket,
+  validateInviteNetworkConfig,
   type InviteJoinResult,
 } from './inviteJoinFlow';
 import { resolveProductStatusCenter } from './statusCenter';
@@ -96,6 +103,11 @@ export function ProductHomeView({
   const [homeInvite, setHomeInvite] = useState<LanInvitePacket | null>(null);
   const [homeInviteResult, setHomeInviteResult] = useState<InviteJoinResult | null>(null);
   const [homeInviteBusy, setHomeInviteBusy] = useState(false);
+  const homeInviteValidation = homeInvite ? validateLanInvitePacket(homeInvite) : null;
+  const homeInviteMissingText = homeInviteValidation && !homeInviteValidation.ok
+    ? formatLanInviteMissingFields(homeInviteValidation.missing)
+    : '';
+  const homeInviteActionDisabled = homeInviteBusy || !homeInviteValidation?.ok;
 
   const copyInviteSummary = async () => {
     try {
@@ -110,9 +122,28 @@ export function ProductHomeView({
 
   const handleHomeInviteText = (value: string) => {
     setHomeInviteText(value);
+    if (!value.trim()) {
+      setHomeInvite(null);
+      setHomeInviteResult(null);
+      return;
+    }
+
     const packet = parseLanInvitePacket(value);
     setHomeInvite(packet);
     if (packet) {
+      const validation = validateLanInvitePacket(packet);
+      if (!validation.ok) {
+        const reason = classifyJoinFailure(`邀请包缺少：${formatLanInviteMissingFields(validation.missing)}`);
+        setHomeInviteResult({
+          phase: 'failed',
+          title: '检测到邀请包，但参数不完整',
+          detail: `${reason.detail} 缺少：${formatLanInviteMissingFields(validation.missing)}。`,
+          packet,
+          error: `missing_fields=${validation.missing.join(',')}`,
+          reason
+        });
+        return;
+      }
       setHomeInviteResult({
         phase: 'idle',
         title: '检测到邀请包',
@@ -120,6 +151,7 @@ export function ProductHomeView({
         packet
       });
     } else if (value.trim()) {
+      setHomeInvite(null);
       setHomeInviteResult(null);
     }
   };
@@ -132,6 +164,10 @@ export function ProductHomeView({
     setHomeInviteBusy(true);
     try {
       const config = invitePacketToNetworkConfig(homeInvite);
+      const missing = validateInviteNetworkConfig(config);
+      if (missing.length) {
+        throw new Error(`邀请包缺少：${formatLanInviteMissingFields(missing)}`);
+      }
       const saved = await saveReferenceN2nConfig(config);
       if (!saved.ok) throw new Error(saved.message);
       await refreshReferenceRuntime(false);
@@ -184,6 +220,17 @@ export function ProductHomeView({
       if (result.phase === 'joined') onTriggerToast('已加入好友房间。请在游戏内连接房主虚拟 IP 和端口。');
       else if (result.phase === 'pending') onTriggerToast('n2n 已启动，正在等待 Supernode 确认。');
       else if (result.phase === 'failed') onTriggerToast(`加入失败：${result.title}`);
+    } catch (error) {
+      const reason = classifyJoinFailure(error, runtime.network.label);
+      setHomeInviteResult({
+        phase: 'failed',
+        title: reason.title,
+        detail: reason.detail,
+        packet: homeInvite,
+        error: error instanceof Error ? error.message : String(error),
+        reason
+      });
+      onTriggerToast(`加入失败：${reason.title}`);
     } finally {
       setHomeInviteBusy(false);
     }
@@ -203,7 +250,7 @@ export function ProductHomeView({
         runtimeLabel: runtime.network.label,
         runtimeErrors: runtime.errors
       }));
-      onTriggerToast('已复制加入失败信息，可发给房主。');
+      onTriggerToast('已复制加入状态信息，可发给房主。');
     } catch (error) {
       onTriggerToast(`复制失败：${error instanceof Error ? error.message : String(error)}`);
     }
@@ -373,17 +420,22 @@ export function ProductHomeView({
                     房主：<span className="font-mono">{homeInvite.hostVirtualIp || '-'}</span> · 端口：<span className="font-mono">{homeInvite.gamePort || 7777}</span><br />
                     我的预留 IP：<span className="font-mono">{homeInvite.friendVirtualIp || '-'}</span>
                   </p>
+                  {!homeInviteValidation?.ok ? (
+                    <div className="mt-2 rounded-lg border border-rose-100 bg-rose-50 px-2.5 py-2 text-[11px] leading-relaxed text-rose-700">
+                      参数不完整：缺少 {homeInviteMissingText}。请让房主重新复制邀请包，或到组网中心手动补齐后再启动。
+                    </div>
+                  ) : null}
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <button
                       onClick={fillInviteParameters}
-                      disabled={homeInviteBusy}
+                      disabled={homeInviteActionDisabled}
                       className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
                     >
                       仅填入参数
                     </button>
                     <button
                       onClick={startHomeInvite}
-                      disabled={homeInviteBusy}
+                      disabled={homeInviteActionDisabled}
                       className="inline-flex items-center justify-center gap-1 rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-60"
                     >
                       {homeInviteBusy ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : null}
@@ -403,6 +455,14 @@ export function ProductHomeView({
 
               {homeInviteResult ? (
                 <div className={`rounded-xl border p-3 text-xs ${inviteResultTone(homeInviteResult.phase)}`}>
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-bold uppercase tracking-[0.18em] opacity-80">加入结果</span>
+                    {homeInviteResult.reason ? (
+                      <span className="rounded-full bg-white/70 px-2 py-0.5 font-mono text-[10px] ring-1 ring-current/10">
+                        {homeInviteResult.reason.kind}
+                      </span>
+                    ) : null}
+                  </div>
                   <div className="flex items-start gap-2">
                     {homeInviteResult.phase === 'joined' ? (
                       <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
@@ -426,10 +486,26 @@ export function ProductHomeView({
                         复制错误给房主
                       </button>
                     </div>
+                  ) : homeInviteResult.phase === 'pending' ? (
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <button onClick={() => onNavigateTab('diagnostics')} className="rounded-lg bg-white/80 px-3 py-2 text-xs font-bold text-amber-700 ring-1 ring-amber-100 hover:bg-white">
+                        等待中诊断
+                      </button>
+                      <button onClick={copyHomeInviteError} className="rounded-lg bg-white/80 px-3 py-2 text-xs font-bold text-amber-700 ring-1 ring-amber-100 hover:bg-white">
+                        复制状态给房主
+                      </button>
+                    </div>
                   ) : homeInviteResult.phase === 'joined' ? (
-                    <button onClick={() => onNavigateTab('network')} className="mt-3 w-full rounded-lg bg-white/80 px-3 py-2 text-xs font-bold text-emerald-700 ring-1 ring-emerald-100 hover:bg-white">
-                      查看 n2n 状态
-                    </button>
+                    <div className="mt-3 space-y-2">
+                      <div className="rounded-lg bg-white/70 px-3 py-2 text-[11px] leading-relaxed text-emerald-800 ring-1 ring-emerald-100">
+                        下一步：打开游戏的局域网/IP 直连入口，连接房主虚拟 IP
+                        <span className="font-mono"> {homeInvite?.hostVirtualIp || '未读取'} </span>
+                        和端口 <span className="font-mono">{homeInvite?.gamePort || 7777}</span>。
+                      </div>
+                      <button onClick={() => onNavigateTab('network')} className="w-full rounded-lg bg-white/80 px-3 py-2 text-xs font-bold text-emerald-700 ring-1 ring-emerald-100 hover:bg-white">
+                        查看 n2n 状态
+                      </button>
+                    </div>
                   ) : null}
                 </div>
               ) : null}

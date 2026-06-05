@@ -70,6 +70,10 @@ $filesToCopy = @(
     Target = "V0_1_RELEASE_READINESS.md"
   },
   @{
+    Source = "docs\V0_1_RELEASE_CONSISTENCY_AUDIT.md"
+    Target = "V0_1_RELEASE_CONSISTENCY_AUDIT.md"
+  },
+  @{
     Source = "docs\REAL_EXE_MANUAL_VALIDATION_GUIDE.md"
     Target = "REAL_EXE_MANUAL_VALIDATION_GUIDE.md"
   },

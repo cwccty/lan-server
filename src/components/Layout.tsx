@@ -81,7 +81,7 @@ export function Layout({
         <div className="sidebar-insight ios-sidebar-insight">
           <div>
             <p className="sidebar-update-row"><span>↻ 版本更新</span><strong>V2.4.1</strong></p>
-            <p className="sidebar-user-row"><span>♙</span><strong>cwccty@gmail.com</strong><small>高级订阅会员</small></p>
+            <p className="sidebar-user-row"><span>♙</span><strong>本地玩家</strong><small>高级订阅会员</small></p>
           </div>
         </div>
       </aside>
@@ -112,4 +112,3 @@ export function Layout({
     </div>
   );
 }
-

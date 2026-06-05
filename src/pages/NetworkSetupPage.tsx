@@ -787,7 +787,7 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
       title: 'supernode',
       value: supernodeOk ? 'ACK / PONG' : supernodeProblem ? '存在问题' : supernodeValue ? (n2nRunning ? '等待 ACK' : '已填写') : '未配置',
       kind: supernodeOk ? 'good' : supernodeProblem ? 'bad' : supernodeValue ? 'warn' : 'bad',
-      evidence: n2nDiagnostics?.summary || supernodeValue || '请填写 VPS_IP:端口，例如 154.64.231.137:7777',
+      evidence: n2nDiagnostics?.summary || supernodeValue || '请填写 VPS_IP:端口，例如 203.0.113.10:7777',
       detail: n2nDiagnostics ? 'ACK=' + n2nDiagnostics.ack + ' PONG=' + n2nDiagnostics.pong + ' 认证错误=' + n2nDiagnostics.auth_error + ' IP/MAC冲突=' + n2nDiagnostics.ip_mac_conflict : '这里只表示配置存在，不伪装成 supernode 已响应。'
     },
     {
@@ -1342,7 +1342,7 @@ export function NetworkSetupPage({ onNext, preset }: { onNext: () => void; prese
               <li>这是后续预留能力，当前版本暂不可直接使用。</li>
               <li>只走官方 Steamworks / Steam Networking 能力或用户自有 AppID。</li>
               <li>不做破解服务器、绕过正版验证、绕过反作弊、模拟官方账号服务。</li>
-              <li>后续会在确认可用后再开放给普通用户。</li>
+              <li>后续会在完成实测验证后再开放为正式入口。</li>
             </ul>
           </section>
         </div>

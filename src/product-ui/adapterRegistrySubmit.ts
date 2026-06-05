@@ -35,9 +35,25 @@ export async function sha256Hex(content: string) {
   return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
+type RegistryAdapterJson = GameAdapter & {
+  adapter_version?: string | null;
+  description?: string | null;
+  adapter_source?: string | null;
+};
+
+function canonicalizeRegistryAdapter(parsed: RegistryAdapterJson): RegistryAdapterJson {
+  const adapter: RegistryAdapterJson = {
+    ...parsed,
+    adapter_version: parsed.adapter_version?.trim() || '1.0.0',
+    description: parsed.description?.trim() || parsed.connection_plan?.summary || `${parsed.display_name} 联机方案适配器。`,
+  };
+  delete adapter.adapter_source;
+  return adapter;
+}
+
 function normalizeAdapterJson(adapterJson: string) {
-  const parsed = JSON.parse(adapterJson) as GameAdapter;
-  return `${JSON.stringify(parsed, null, 2)}\n`;
+  const parsed = JSON.parse(adapterJson) as RegistryAdapterJson;
+  return `${JSON.stringify(canonicalizeRegistryAdapter(parsed), null, 2)}\n`;
 }
 
 export async function buildAdapterRegistrySubmitPackage(

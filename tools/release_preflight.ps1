@@ -77,6 +77,7 @@ Write-Host "FullBuild: $FullBuild  RunCargoTests: $RunCargoTests  SkipTauriBuild
   "docs\RELEASE_VALIDATION_PLAN.md",
   "docs\RELEASE_VALIDATION_LOG.md",
   "docs\V0_1_RELEASE_READINESS.md",
+  "docs\V0_1_RELEASE_CONSISTENCY_AUDIT.md",
   "docs\GITHUB_RELEASE_DRAFT.md",
   "docs\RELEASE_NOTES_DRAFT.md",
   "docs\REAL_EXE_MANUAL_VALIDATION_GUIDE.md",
@@ -87,6 +88,7 @@ Write-Host "FullBuild: $FullBuild  RunCargoTests: $RunCargoTests  SkipTauriBuild
   "docs\DEVELOPMENT_PROGRESS.md",
   "docs\FINAL_REFERENCE_UI_BACKEND_MATRIX.md",
   "docs\GOAL_COMPLETION_AUDIT.md",
+  "docs\SUBAGENT_REVIEW_PLAN.md",
   "src\reference-runtime.css",
   "src-tauri\src\core\process_util.rs",
   "src-tauri\src\storage\settings_store.rs",
@@ -105,6 +107,7 @@ Write-Host "FullBuild: $FullBuild  RunCargoTests: $RunCargoTests  SkipTauriBuild
   "src\product-ui\diagnosticRepairCenterClosureAudit.ts",
   "src\product-ui\advancedToolIntent.ts",
   "src\product-ui\inviteDiagnosticContext.ts",
+  "src\product-ui\inviteJoinFlow.ts",
   "src\product-ui\inviteJoinSuccess.ts",
   "src\product-ui\inviteJoinClosureAudit.ts",
   "src\product-ui\hostRoomClosureAudit.ts",
@@ -114,8 +117,11 @@ Write-Host "FullBuild: $FullBuild  RunCargoTests: $RunCargoTests  SkipTauriBuild
   "src\product-ui\connectionMethodClosureAudit.ts",
   "adapter-registry\index.json",
   "tools\real_exe_smoke_test.ps1",
+  "tools\build_tauri_release_clean.ps1",
   "tools\prepare_v0_1_release_package.ps1",
   "tools\verify_v0_1_release_package.ps1",
+  "tools\prepare_windows_x64_zip.ps1",
+  "tools\verify_windows_x64_zip.ps1",
   "tools\run_v0_1_release_gate.ps1",
   "tools\validate_adapter_registry.ps1",
   "tools\check_reference_runtime_css.ps1",
@@ -143,6 +149,13 @@ if ($publishText) {
   Fail-Check "no UI over-claim: publish-ready text" (Format-MatchLocations $publishText)
 } else {
   Pass-Check "no UI over-claim: publish-ready text"
+}
+
+$personalEmailMatches = Select-String -Path "src\**\*.*","docs\*.md","README.md","PRODUCT.md","PROJECT.md","act.md" -Pattern "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}" -ErrorAction SilentlyContinue
+if ($personalEmailMatches) {
+  Fail-Check "no hard-coded personal email in public files" (Format-MatchLocations $personalEmailMatches)
+} else {
+  Pass-Check "no hard-coded personal email in public files"
 }
 
 # Release/product-mode guardrails.
@@ -306,6 +319,7 @@ try {
   $realExeManualValidationGuideProductText = if (Test-Path "src\product-ui\realExeManualValidationGuide.ts") { Get-Content "src\product-ui\realExeManualValidationGuide.ts" -Raw -Encoding UTF8 } else { "" }
   $homeProductText = Get-Content "src\product-ui\ProductHomeView.tsx" -Raw -Encoding UTF8
   $packageJsonText = if (Test-Path "package.json") { Get-Content "package.json" -Raw -Encoding UTF8 } else { "" }
+  $cargoText = if (Test-Path "src-tauri\Cargo.toml") { Get-Content "src-tauri\Cargo.toml" -Raw -Encoding UTF8 } else { "" }
   $busyOverlayText = if (Test-Path "src\product-ui\ProductBusyOverlay.tsx") { Get-Content "src\product-ui\ProductBusyOverlay.tsx" -Raw -Encoding UTF8 } else { "" }
   $headerProductText = Get-Content "src\product-ui\ProductHeader.tsx" -Raw -Encoding UTF8
   $networkProductText = Get-Content "src\product-ui\ProductNetworkView.tsx" -Raw -Encoding UTF8
@@ -326,6 +340,7 @@ try {
   $gameLauncherText = if (Test-Path "src-tauri\src\core\game_launcher.rs") { Get-Content "src-tauri\src\core\game_launcher.rs" -Raw -Encoding UTF8 } else { "" }
   $invitePacketText = if (Test-Path "src\product-ui\invitePacket.ts") { Get-Content "src\product-ui\invitePacket.ts" -Raw -Encoding UTF8 } else { "" }
   $inviteDiagnosticContextText = if (Test-Path "src\product-ui\inviteDiagnosticContext.ts") { Get-Content "src\product-ui\inviteDiagnosticContext.ts" -Raw -Encoding UTF8 } else { "" }
+  $inviteJoinFlowText = if (Test-Path "src\product-ui\inviteJoinFlow.ts") { Get-Content "src\product-ui\inviteJoinFlow.ts" -Raw -Encoding UTF8 } else { "" }
   $inviteJoinSuccessText = if (Test-Path "src\product-ui\inviteJoinSuccess.ts") { Get-Content "src\product-ui\inviteJoinSuccess.ts" -Raw -Encoding UTF8 } else { "" }
   $inviteJoinClosureAuditText = if (Test-Path "src\product-ui\inviteJoinClosureAudit.ts") { Get-Content "src\product-ui\inviteJoinClosureAudit.ts" -Raw -Encoding UTF8 } else { "" }
   $hostRoomClosureAuditText = if (Test-Path "src\product-ui\hostRoomClosureAudit.ts") { Get-Content "src\product-ui\hostRoomClosureAudit.ts" -Raw -Encoding UTF8 } else { "" }
@@ -360,8 +375,11 @@ try {
   $goalCompletionAuditText = if (Test-Path "docs\GOAL_COMPLETION_AUDIT.md") { Get-Content "docs\GOAL_COMPLETION_AUDIT.md" -Raw -Encoding UTF8 } else { "" }
   $nextBigDirectionsText = if (Test-Path "docs\NEXT_BIG_DIRECTIONS.md") { Get-Content "docs\NEXT_BIG_DIRECTIONS.md" -Raw -Encoding UTF8 } else { "" }
   $realExeSmokeScriptText = if (Test-Path "tools\real_exe_smoke_test.ps1") { Get-Content "tools\real_exe_smoke_test.ps1" -Raw -Encoding UTF8 } else { "" }
+  $cleanBuildScriptText = if (Test-Path "tools\build_tauri_release_clean.ps1") { Get-Content "tools\build_tauri_release_clean.ps1" -Raw -Encoding UTF8 } else { "" }
   $releasePackageScriptText = if (Test-Path "tools\prepare_v0_1_release_package.ps1") { Get-Content "tools\prepare_v0_1_release_package.ps1" -Raw -Encoding UTF8 } else { "" }
   $releasePackageVerifyScriptText = if (Test-Path "tools\verify_v0_1_release_package.ps1") { Get-Content "tools\verify_v0_1_release_package.ps1" -Raw -Encoding UTF8 } else { "" }
+  $windowsZipScriptText = if (Test-Path "tools\prepare_windows_x64_zip.ps1") { Get-Content "tools\prepare_windows_x64_zip.ps1" -Raw -Encoding UTF8 } else { "" }
+  $windowsZipVerifyScriptText = if (Test-Path "tools\verify_windows_x64_zip.ps1") { Get-Content "tools\verify_windows_x64_zip.ps1" -Raw -Encoding UTF8 } else { "" }
   $releaseGateScriptText = if (Test-Path "tools\run_v0_1_release_gate.ps1") { Get-Content "tools\run_v0_1_release_gate.ps1" -Raw -Encoding UTF8 } else { "" }
 
   if ($releaseReadinessText -match "v0\.1" -and
@@ -377,7 +395,7 @@ try {
       $releaseValidationLogText -match "2026-06-05 v0\.1 发布准备自动化复测" -and
       $releaseValidationLogText -match "状态：PENDING" -and
       $releaseValidationLogText -match "自动化发布预检已通过；v0\.1 仍需要真实 EXE 人工验证记录后再发布" -and
-      $githubReleaseDraftText -match "0\.1\.0 MVP 测试版" -and
+      $githubReleaseDraftText -match "0\.1\.0 早期公开测试版" -and
       $githubReleaseDraftText -match "不是" -and
       $githubReleaseDraftText -match "所有游戏一键联机" -and
       $githubReleaseDraftText -match "房主" -and
@@ -390,7 +408,7 @@ try {
       $nextBigDirectionsText -match "真实 EXE 人工验证") {
     Pass-Check "v0.1 release readiness docs are wired"
   } else {
-    Fail-Check "v0.1 release readiness docs are wired" "Release readiness docs must cover v0.1, lan-helper.exe, GitHub Release, host/friend flows, known limitations, no all-games-one-click overclaim, PENDING human validation, and the next direction order"
+    Fail-Check "v0.1 release readiness docs are wired" "Release readiness docs must cover v0.1, lan-helper.exe, GitHub Release, host/friend flows, known limitations, no all-games-one-click overclaim, suggested follow-up validation, and the next direction order"
   }
 
   if ($releaseUploadChecklistText -match "v0\.1\.0" -and
@@ -399,11 +417,13 @@ try {
       $releaseUploadChecklistText -match "real_exe_smoke_test\.ps1" -and
       $releaseUploadChecklistText -match "release:preflight" -and
       $releaseUploadChecklistText -match "release:package" -and
+      $releaseUploadChecklistText -match "release:zip" -and
       $releaseUploadChecklistText -match "release-artifacts\\v0\.1\.0" -and
+      $releaseUploadChecklistText -match "LanHelper-v0\.1\.0-windows-x64\.zip" -and
       $releaseUploadChecklistText -match "SHA256SUMS\.txt" -and
       $releaseUploadChecklistText -match "release-manifest\.json" -and
       $releaseUploadChecklistText -match "REAL_EXE_MANUAL_VALIDATION_GUIDE\.md" -and
-      $releaseUploadChecklistText -match "PENDING" -and
+      $releaseUploadChecklistText -match "建议补测" -and
       $releaseUploadChecklistText -match "所有游戏一键联机" -and
       $releaseUploadChecklistText -match "V0_1_USER_FEEDBACK_TEMPLATE\.md" -and
       $userFeedbackTemplateText -match "游戏名称" -and
@@ -416,7 +436,7 @@ try {
       $githubReleaseDraftText -match "V0_1_USER_FEEDBACK_TEMPLATE") {
     Pass-Check "v0.1 github release upload checklist is wired"
   } else {
-    Fail-Check "v0.1 github release upload checklist is wired" "GitHub Release upload checklist and feedback template must cover tag/title, lan-helper.exe, tauri build, smoke test, preflight, PENDING boundaries, no all-games-one-click overclaim, and actionable tester feedback fields"
+    Fail-Check "v0.1 github release upload checklist is wired" "GitHub Release upload checklist and feedback template must cover tag/title, lan-helper.exe, tauri build, smoke test, preflight, suggested follow-up validation boundaries, no all-games-one-click overclaim, and actionable tester feedback fields"
   }
 
   if ($realExeManualGuideText -match "真实 EXE 人工验证指南" -and
@@ -447,6 +467,19 @@ try {
     Fail-Check "manual validation guide open path resolution is wired" "open_path must resolve relative manual-guide paths from cwd and current_exe parent chain so docs/REAL_EXE_MANUAL_VALIDATION_GUIDE.md works from src-tauri/target/release and REAL_EXE_MANUAL_VALIDATION_GUIDE.md works from release-artifacts"
   }
 
+  if ($packageJsonText -match "tauri:build:raw" -and
+      $packageJsonText -match "build_tauri_release_clean\.ps1" -and
+      $cleanBuildScriptText -match "--remap-path-prefix" -and
+      $cleanBuildScriptText -match "RUSTFLAGS" -and
+      $cleanBuildScriptText -match "sensitive local path" -and
+      $cargoText -match "\[profile\.release\]" -and
+      $cargoText -match "debug\s*=\s*0" -and
+      $cargoText -match 'strip\s*=\s*"symbols"') {
+    Pass-Check "clean release build strips local paths"
+  } else {
+    Fail-Check "clean release build strips local paths" "tauri:build must use tools/build_tauri_release_clean.ps1, Cargo release profile must strip symbols/debug info, and the build script must scan the EXE for local paths"
+  }
+
   if ($packageJsonText -match "release:package" -and
       $packageJsonText -match "prepare_v0_1_release_package\.ps1" -and
       $releasePackageScriptText -match 'lan-helper-\$tag\.exe' -and
@@ -454,6 +487,7 @@ try {
       $releasePackageScriptText -match "release-manifest\.json" -and
       $releasePackageScriptText -match "RELEASE_BODY\.md" -and
       $releasePackageScriptText -match "REAL_EXE_MANUAL_VALIDATION_GUIDE\.md" -and
+      $releasePackageScriptText -match "V0_1_RELEASE_CONSISTENCY_AUDIT\.md" -and
       $releasePackageScriptText -match "V0_1_USER_FEEDBACK_TEMPLATE\.md" -and
       $releasePackageScriptText -match "adapter-registry" -and
       $releasePackageScriptText -match "AppendLog" -and
@@ -469,12 +503,34 @@ try {
       $releasePackageVerifyScriptText -match "release-manifest\.json" -and
       $releasePackageVerifyScriptText -match 'lan-helper-\$tag\.exe' -and
       $releasePackageVerifyScriptText -match "REAL_EXE_MANUAL_VALIDATION_GUIDE\.md" -and
+      $releasePackageVerifyScriptText -match "V0_1_RELEASE_CONSISTENCY_AUDIT\.md" -and
       $releasePackageVerifyScriptText -match "adapter-registry/index\.json" -and
       $releasePackageVerifyScriptText -match "manifest file count mismatch" -and
+      $releasePackageVerifyScriptText -match "runtime file leaked" -and
+      $releasePackageVerifyScriptText -match "sensitive text" -and
       $releasePackageVerifyScriptText -match "does not replace real dual-machine") {
     Pass-Check "v0.1 release package verifier is wired"
   } else {
     Fail-Check "v0.1 release package verifier is wired" "release:package:verify must validate release-artifacts/v0.1.0 files, SHA256SUMS, manifest, manual guide, release body boundaries, and adapter registry without claiming to replace manual validation"
+  }
+
+  $zipChecks = [ordered]@{
+    "package.json release:zip" = ($packageJsonText -match "release:zip")
+    "package.json prepare zip script" = ($packageJsonText -match "prepare_windows_x64_zip\.ps1")
+    "package.json verify zip script" = ($packageJsonText -match "verify_windows_x64_zip\.ps1")
+    "zip package name" = ($windowsZipScriptText -match 'LanHelper-v\$Version-windows-x64')
+    "zip includes edge" = ($windowsZipScriptText -match "edge\.exe")
+    "zip writes readme" = ($windowsZipScriptText -match "README_")
+    "zip excludes last_config" = ($windowsZipScriptText -match "last_config\.json")
+    "zip compresses archive" = ($windowsZipScriptText -match "Compress-Archive")
+    "zip verifier rejects runtime files" = ($windowsZipVerifyScriptText -match "runtime file leaked")
+    "zip verifier checks sha" = ($windowsZipVerifyScriptText -match "SHA mismatch")
+  }
+  $failedZipChecks = @($zipChecks.GetEnumerator() | Where-Object { -not $_.Value } | ForEach-Object { $_.Key })
+  if ($failedZipChecks.Count -eq 0) {
+    Pass-Check "Windows x64 ZIP package is reproducible"
+  } else {
+    Fail-Check "Windows x64 ZIP package is reproducible" ("missing: " + ($failedZipChecks -join ", "))
   }
 
   if ($packageJsonText -match "release:gate" -and
@@ -486,7 +542,10 @@ try {
       $releaseGateScriptText -match "real_exe_smoke_test\.ps1" -and
       $releaseGateScriptText -match "npm run release:package" -and
       $releaseGateScriptText -match "npm run release:package:verify" -and
+      $releaseGateScriptText -match "npm run release:zip" -and
+      $releaseGateScriptText -match "npm run release:zip:verify" -and
       $releaseGateScriptText -match "npm run release:preflight" -and
+      $releaseGateScriptText.Contains('``$($item.name)``') -and
       $releaseGateScriptText -match "real dual-machine n2n connectivity" -and
       $releaseGateScriptText -match "does not replace PASS / FAIL / PENDING manual validation") {
     Pass-Check "v0.1 automated release gate is wired"
@@ -647,14 +706,20 @@ try {
   if ($invitePacketText -match "\[联机助手真实邀请包\]" -and
       $invitePacketText -match "parseLanInvitePacket" -and
       $invitePacketText -match "buildLanInvitePacket" -and
+      $invitePacketText -match "validateLanInvitePacket" -and
+      $invitePacketText -match "formatLanInviteMissingFields" -and
+      $invitePacketText -match "房主虚拟 IP" -and
+      $invitePacketText -match "好友预留 IP" -and
+      $invitePacketText -match "游戏端口" -and
       $invitePacketText -match "房间密钥" -and
       $networkProductText -match "检测到其他玩家的邀请，是否进入" -and
       $networkProductText -match "parseLanInvitePacket" -and
+      $networkProductText -match "validateLanInvitePacket" -and
       $networkProductText -match "invitePacketToNetworkConfig" -and
       $recommendationProductText -match "buildLanInvitePacket") {
     Pass-Check "invite packet paste flow is wired"
   } else {
-    Fail-Check "invite packet paste flow is wired" "Network page must detect pasted invite packets and Recommendation page must build the shared packet format including room key"
+    Fail-Check "invite packet paste flow is wired" "Network page must detect pasted invite packets and Recommendation page must build and validate the shared packet format including room key, host IP, friend IP, supernode, and game port"
   }
 
   if ($networkProductText -match "仅填入参数" -and
@@ -665,10 +730,38 @@ try {
       $networkProductText -match "inviteJoinResult" -and
       $networkProductText -match "已加入好友房间" -and
       $networkProductText -match "复制错误给房主" -and
+      $networkProductText -match "邀请包不完整" -and
+      $networkProductText -match "clearInviteDiagnosticContext" -and
       $networkProductText -match "classifyJoinFailure") {
     Pass-Check "invite one-click join flow is wired"
   } else {
     Fail-Check "invite one-click join flow is wired" "Network page must support fill-only, save-and-start n2n, join result cards, failure classification, and copy-error-to-host"
+  }
+
+  $startFromInviteIndex = $networkProductText.IndexOf("const startFromInvite")
+  $startFromInviteValidationIndex = if ($startFromInviteIndex -ge 0) { $networkProductText.IndexOf("validateLanInvitePacket(packet)", $startFromInviteIndex) } else { -1 }
+  $startFromInviteBusyIndex = if ($startFromInviteIndex -ge 0) { $networkProductText.IndexOf("setBusy('保存并启动邀请')", $startFromInviteIndex) } else { -1 }
+  if ($startFromInviteIndex -ge 0 -and
+      $startFromInviteValidationIndex -gt $startFromInviteIndex -and
+      $startFromInviteBusyIndex -gt $startFromInviteValidationIndex -and
+      $networkProductText -match "missing_fields=" -and
+      $networkProductText -match "未启动 n2n") {
+    Pass-Check "invite UI validates before starting n2n"
+  } else {
+    Fail-Check "invite UI validates before starting n2n" "Network page start-from-invite must validate packet completeness before showing joining/busy state or starting n2n"
+  }
+
+  $joinFlowValidationIndex = $inviteJoinFlowText.IndexOf("validateLanInvitePacket(packet)")
+  $joinFlowSaveIndex = $inviteJoinFlowText.IndexOf("await saveReferenceN2nConfig(config)")
+  $joinFlowStartIndex = $inviteJoinFlowText.IndexOf("await startReferenceN2n(config)")
+  if ($joinFlowValidationIndex -ge 0 -and
+      $joinFlowSaveIndex -gt $joinFlowValidationIndex -and
+      $joinFlowStartIndex -gt $joinFlowValidationIndex -and
+      $inviteJoinFlowText -match "missing_fields" -and
+      $inviteJoinFlowText -match "formatLanInviteMissingFields") {
+    Pass-Check "invite backend validates before save/start"
+  } else {
+    Fail-Check "invite backend validates before save/start" "joinFromInvitePacket must validate invite packet completeness before saving config or starting n2n"
   }
 
   if ($inviteDiagnosticContextText -match "INVITE_DIAGNOSTIC_CONTEXT_KEY" -and
@@ -743,11 +836,24 @@ try {
       $recommendationProductText -match "testHostGamePort" -and
       $recommendationProductText -match "ensureFriendSlot" -and
       $recommendationProductText -match "copyHostInvite" -and
+      $recommendationProductText -match "lanInviteReady" -and
+      $recommendationProductText -match "lanInviteBlockers" -and
+      $recommendationProductText -match "暂不建议复制半成品邀请包" -and
       $recommendationProductText -match "startReferenceN2n" -and
       $recommendationProductText -match "startGameServerSession") {
     Pass-Check "host room wizard flow is wired"
   } else {
     Fail-Check "host room wizard flow is wired" "Recommendation page must expose a host wizard with game selection, n2n start, server/game launch, port test, friend allocation, and invite copy"
+  }
+
+  if ($recommendationProductText -match "const lanInvitePreview" -and
+      $recommendationProductText -match "邀请包暂未生成完整正文" -and
+      $recommendationProductText -match "避免好友复制半成品" -and
+      $recommendationProductText -match "lanInviteReady\s*\?\s*lanInvite" -and
+      $recommendationProductText -match "\{invitePreview\}") {
+    Pass-Check "host invite preview hides incomplete packet"
+  } else {
+    Fail-Check "host invite preview hides incomplete packet" "Recommendation page must not render the full LAN invite packet preview until n2n, host port, and friend IP gates are ready"
   }
 
   if ($hostRoomClosureAuditText -match "HostRoomClosureAuditItem" -and
@@ -821,10 +927,14 @@ try {
       $advancedProductText -match "多联机方式入口" -and
       $advancedProductText -match "connectionMethodCatalog" -and
       $recommendationProductText -match "methodsForAdapterRoute" -and
-      $recommendationProductText -match "buildConnectionMethodGuide") {
+      $recommendationProductText -match "buildConnectionMethodGuide" -and
+      $recommendationProductText -match "preferredKind" -and
+      $recommendationProductText -match "method\.advancedToolKind" -and
+      $recommendationProductText -match "kind: toolKind" -and
+      $recommendationProductText -match "udp_port_proxy_required") {
     Pass-Check "multi connection method entries are exposed"
   } else {
-    Fail-Check "multi connection method entries are exposed" "Advanced Tools and Recommendation must expose n2n, WireGuard, ZeroTier/Tailscale, proxy/bridge, Steam Remote Play, Sunshine/Moonlight, and Steam Relay entries"
+    Fail-Check "multi connection method entries are exposed" "Advanced Tools and Recommendation must expose n2n, WireGuard, ZeroTier/Tailscale, proxy/bridge, Steam Remote Play, Sunshine/Moonlight, Steam Relay entries, and preserve clicked TCP/UDP/bridge tool type in advanced-tool prefill"
   }
 
   if ($capabilityMatrixText -match "ConnectionCapabilityDecisionRow" -and
@@ -1073,6 +1183,8 @@ try {
       $conversionAssessmentSamplesText -match "buildConversionAssessmentValidationReport" -and
       $conversionAssessmentSamplesText -match "cuphead-local-coop" -and
       $conversionAssessmentSamplesText -match "native-lan-ip-direct" -and
+      $conversionAssessmentSamplesText -match "lan-and-local-coop-prioritizes-lan" -and
+      $adapterRouteText -match "hasLanOrServerRoute" -and
       $conversionAssessmentSamplesText -match "dedicated-server-host" -and
       $conversionAssessmentSamplesText -match "udp-broadcast-discovery" -and
       $conversionAssessmentSamplesText -match "tcp-udp-port-proxy" -and
@@ -1236,6 +1348,22 @@ try {
     Fail-Check "diagnostic one-click backend fixes are wired" "Diagnostics must offer backend-backed repair actions for edge detection, n2n start/restart, local port checks, and firewall command copy"
   }
 
+  $manualCommandCoverageMarkerPresent =
+    $diagnosticRepairCenterClosureAuditText -match "manualCommandCoverage" -or
+    $diagnosticRepairCenterClosureAuditText -match "MANUAL_COMMAND_COVERAGE" -or
+    $diagnosticRepairCenterClosureAuditText -match "manual-command-coverage" -or
+    $diagnosticRepairCenterClosureAuditText -match "REQUIRED_ISSUE_ACTION_COVERAGE" -or
+    $diagnosticRepairCenterClosureAuditText -match "missingManualActionCoverage"
+  if ($errorActionsText -match "copy-n2n-manual-start" -and
+      $errorActionsText -match "copy-ip-conflict-check" -and
+      $errorActionsText -match "copy-game-port-proxy-check" -and
+      $errorActionsText -match "copy-version-manual-check" -and
+      $manualCommandCoverageMarkerPresent) {
+    Pass-Check "diagnostic manual command coverage is guarded"
+  } else {
+    Fail-Check "diagnostic manual command coverage is guarded" "Diagnostic repair center must expose copyable manual commands for n2n start, IP/auth conflict, game port/proxy, and version mismatch, and audit them with a manualCommandCoverage matrix"
+  }
+
   if ($diagnosticsProductText -match "DiagnosticFixRetestResult" -and
       $diagnosticsProductText -match "buildFixRetestResult" -and
       $diagnosticsProductText -match "autoRetestAfterFix" -and
@@ -1284,7 +1412,7 @@ try {
       $diagnosticRepairCenterClosureAuditText -match "copyable-diagnostic-report" -and
       $diagnosticRepairCenterClosureAuditText -match "formatDiagnosticRepairCenterClosureAuditReport" -and
       $errorActionsText -match "version_mismatch" -and
-      $errorActionsText -match "复制版本检查说明" -and
+      $errorActionsText -match "复制版本手动核对清单" -and
       $diagnosticsProductText -match "DIAGNOSTIC_REPAIR_SUPPORTED_ISSUE_TYPES" -and
       $diagnosticsProductText -match "DIAGNOSTIC_REPAIR_BACKEND_OPERATIONS" -and
       $diagnosticsProductText -match "buildDiagnosticRepairCenterClosureAudit" -and
@@ -1310,6 +1438,9 @@ try {
 
   if ($adapterSubmitText -match "buildAdapterRegistrySubmitPackage" -and
       $adapterSubmitText -match "sha256Hex" -and
+      $adapterSubmitText -match "canonicalizeRegistryAdapter" -and
+      $adapterSubmitText -match "delete adapter\.adapter_source" -and
+      $adapterSubmitText -match "adapter_version" -and
       $adapterSubmitText -match "indexEntryJson" -and
       $adapterSubmitText -match "GitHub Pages" -and
       $adapterSubmitText -match "VPS" -and
@@ -1319,7 +1450,7 @@ try {
       $solutionsProductText -match "提交前审核清单") {
     Pass-Check "adapter registry submit package is wired"
   } else {
-    Fail-Check "adapter registry submit package is wired" "Solutions page must generate adapter JSON, sha256, index.json snippet, and GitHub/VPS submit guide"
+    Fail-Check "adapter registry submit package is wired" "Solutions page must generate canonical adapter JSON without runtime adapter_source, sha256, index.json snippet, and GitHub/VPS submit guide"
   }
 
   if ($adapterAuditText -match "auditAdapterForPublish" -and
@@ -1574,33 +1705,26 @@ try {
 }
 
 # Reference UI fidelity guardrail.
-# The current visual shell is intentionally locked to the user's reference
-# frontend in C:\Users\ty\Downloads\联机助手 (3)\src. Backend/product wiring must
-# happen through src/reference-adapter unless the reference itself is updated.
+# The current visual shell can be compared with a local reference source
+# through LAN_HELPER_REFERENCE_UI_SRC. Public scripts must not hard-code a
+# developer-specific absolute path.
 $referenceUiCheck = "tools\check_reference_ui_fidelity.ps1"
-$referenceUiSource = "C:\Users\ty\Downloads\联机助手 (3)\src"
 try {
   $referenceUiCheckText = Get-Content $referenceUiCheck -Raw -Encoding UTF8
-  if ($referenceUiCheckText -match [regex]::Escape("C:\Users\ty\Downloads\联机助手 (3)\src")) {
-    Pass-Check "final design source pinned to (3)"
+  $currentUserProfile = [string]$env:USERPROFILE
+  $containsPersonalReferencePath = -not [string]::IsNullOrWhiteSpace($currentUserProfile) -and $referenceUiCheckText.Contains($currentUserProfile)
+  if ($referenceUiCheckText -match "LAN_HELPER_REFERENCE_UI_SRC" -and
+      -not $containsPersonalReferencePath) {
+    Pass-Check "reference UI source is configurable"
   } else {
-    Fail-Check "final design source pinned to (3)" "$referenceUiCheck must default to C:\Users\ty\Downloads\联机助手 (3)\src"
-  }
-  if ($referenceUiSource -eq "C:\Users\ty\Downloads\联机助手 (3)\src") {
-    Pass-Check "preflight uses final design source (3)"
-  } else {
-    Fail-Check "preflight uses final design source (3)" "current source: $referenceUiSource"
+    Fail-Check "reference UI source is configurable" "$referenceUiCheck must use LAN_HELPER_REFERENCE_UI_SRC or a repo-local source, not a personal absolute path"
   }
 } catch {
   Fail-Check "reference design source guardrail" ([string]$_)
 }
 if (Test-Path $referenceUiCheck) {
-  if (Test-Path $referenceUiSource) {
-    Invoke-Step "reference UI fidelity" {
-      powershell -ExecutionPolicy Bypass -File $referenceUiCheck
-    }
-  } else {
-    Pass-Check "reference UI fidelity" "reference source not found; skipped"
+  Invoke-Step "reference UI fidelity" {
+    powershell -ExecutionPolicy Bypass -File $referenceUiCheck
   }
 } else {
   Fail-Check "reference UI fidelity" "missing: $referenceUiCheck"
@@ -1658,6 +1782,32 @@ try {
   }
   if (-not ($results | Where-Object { $_.Name -eq "adapter registry entry fields" -and $_.Status -eq "FAIL" })) {
     Pass-Check "adapter registry entry fields"
+  }
+  $metadataFailures = New-Object System.Collections.Generic.List[string]
+  foreach ($file in $gameFiles) {
+    $adapter = Get-Content $file.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
+    if (-not $adapter.adapter_version) { $metadataFailures.Add("$($file.Name): missing adapter_version") | Out-Null }
+    if (-not $adapter.description) { $metadataFailures.Add("$($file.Name): missing description") | Out-Null }
+    if ($adapter.PSObject.Properties.Name -contains "adapter_source") { $metadataFailures.Add("$($file.Name): must not persist adapter_source") | Out-Null }
+    if ($null -eq $adapter.applicability) { $metadataFailures.Add("$($file.Name): missing applicability") | Out-Null }
+    else {
+      foreach ($field in @("verification_status","tested_versions","tested_platforms","supported_os","network_conditions","known_limitations")) {
+        $value = $adapter.applicability.$field
+        if ($null -eq $value -or @($value).Count -eq 0) { $metadataFailures.Add("$($file.Name): missing applicability.$field") | Out-Null }
+      }
+    }
+    if ($null -eq $adapter.evidence) { $metadataFailures.Add("$($file.Name): missing evidence") | Out-Null }
+    else {
+      foreach ($field in @("port_protocols","proof_items","test_steps","last_verified_at")) {
+        $value = $adapter.evidence.$field
+        if ($null -eq $value -or @($value).Count -eq 0 -or [string]::IsNullOrWhiteSpace([string]($value -join ""))) { $metadataFailures.Add("$($file.Name): missing evidence.$field") | Out-Null }
+      }
+    }
+  }
+  if ($metadataFailures.Count -eq 0) {
+    Pass-Check "adapter registry enhanced metadata"
+  } else {
+    Fail-Check "adapter registry enhanced metadata" ($metadataFailures -join "; ")
   }
 } catch {
   Fail-Check "adapter registry parse" ([string]$_)

@@ -1,4 +1,4 @@
-﻿- `tools/check_reference_ui_fidelity.ps1` 默认参考路径改为 `(3)`，并把 `components/AdvancedToolsView.tsx` 纳入视觉源码保真检查。
+- `tools/check_reference_ui_fidelity.ps1` 默认参考路径改为 `(3)`，并把 `components/AdvancedToolsView.tsx` 纳入视觉源码保真检查。
 
 - `tools/check_reference_ui_fidelity.ps1` 默认参考路径改为 `(3)`，并把 `components/AdvancedToolsView.tsx` 纳入视觉源码保真检查。
 
@@ -2471,7 +2471,7 @@ pm.cmd run release:preflight。
 - 新增 ReferenceProductInventoryPatcher，只在 Product Mode 生效，不修改最终参考前端 (3) 的源码结构。
 - 游戏扫描页新增真实后端扫描结果面板：读取 scanGames() 与 listGameAdapters()，展示真实游戏、方案匹配、能力标签、默认端口/摘要，并标注参考卡片仅为演示。
 - 方案库页新增真实本地共享方案面板：读取 listGameAdapters()，展示真实 adapter 的来源、端口、方案摘要。
-- 推荐方案页新增真实推荐与邀请摘要面板：读取 scanGames()、ecommendPlans(gameId)、getN2nLastConfig()、eadServerSession()，生成真实推荐列表和邀请摘要。
+- 推荐方案页新增真实推荐与邀请摘要面板：读取 scanGames()、recommendPlans(gameId)、getN2nLastConfig()、readServerSession()，生成真实推荐列表和邀请摘要。
 - 普通浏览器预览没有 Tauri 后端时，面板会明确提示“未连接 Tauri 后端”，不再把失败静默显示成真实扫描为空。
 - 验证通过：
 pm.cmd run build、cargo check --manifest-path src-tauri\Cargo.toml、
@@ -2482,7 +2482,7 @@ pm.cmd run release:preflight。
 - 推荐页当前会从参考前端的目标选择器读取游戏：	erraria -> terraria，minecraft -> minecraft_java，palworld -> palworld；如果本地没有对应 adapter，后端会返回真实失败原因，不伪造启动成功。
 - 游戏扫描页新增真实分析动作：查看分析与推荐方案、查看推荐配置方案、创建局域网组网草稿、创建网络方案 -> scanGames() 后按卡片标题匹配并调用 nalyzeGame(game_id)。
 - 方案库编辑器新增真实保存动作：一键发布登记至共享适配器库 -> 根据编辑器字段生成 GameAdapter，调用 saveGameAdapter(adapter) 保存为 custom 方案。
-- 浏览器 Product Mode 验证：推荐页 ecommendation-launch-profile、方案库 solutions-save-adapter-draft、游戏扫描 games-analyze-selected/games-create-network-scheme 均已挂上 data-lan-helper-action-hooked。
+- 浏览器 Product Mode 验证：推荐页 recommendation-launch-profile、方案库 solutions-save-adapter-draft、游戏扫描 games-analyze-selected/games-create-network-scheme 均已挂上 data-lan-helper-action-hooked。
 - 验证通过：
 pm.cmd run build、cargo check --manifest-path src-tauri\Cargo.toml、
 pm.cmd run release:preflight。
@@ -2490,7 +2490,7 @@ pm.cmd run release:preflight。
 ## 2026-06-04 10:38:31 Product Mode 真实选中游戏状态贯通
 - 新增 src/reference-adapter/selectedGame.ts，用 localStorage: lan-helper.referenceSelectedGame 保存游戏扫描页最近选中的真实游戏，并通过 lan-helper:reference-selected-game-changed 通知其它页面刷新。
 - 游戏扫描页 Product Mode 下点击“查看分析与推荐方案 / 查看推荐配置方案 / 创建局域网组网草稿 / 创建网络方案”时，会先通过 scanGames() 按卡片标题匹配真实游戏，再保存选中游戏，最后调用 nalyzeGame(game_id)。
-- 推荐方案页 Product Mode 下“真实推荐与邀请摘要”优先使用该选中游戏调用 ecommendPlans(game_id)，不再默认取扫描结果第一项。
+- 推荐方案页 Product Mode 下“真实推荐与邀请摘要”优先使用该选中游戏调用 recommendPlans(game_id)，不再默认取扫描结果第一项。
 - 推荐页“立即启动本地游戏实体”优先使用该选中游戏的 game_id 调用 launchProfile(game_id, profile_id, config)；如果没有选中游戏，才回退到参考前端选择器。
 - 重要原则：最终参考前端 (3) 的视觉源码继续保持一比一；真实能力通过 Product Mode adapter/patcher 层补齐，不伪造成功。
 
@@ -2503,9 +2503,9 @@ pm.cmd run release:preflight。
 
 ## 2026-06-04 12:03:23 推荐启动项 profile 智能选择
 - Product Mode 推荐页“立即启动本地游戏实体”继续优先使用最近真实选中游戏 game_id。
-- launchReferenceProfile() 现在会先调用真实 ecommendPlans(game_id)，优先选择 level 为 ecommended 且带 launch_profile_id 的推荐项；如果没有 recommended，则选择第一个带 launch_profile_id 的推荐项。
+- launchReferenceProfile() 现在会先调用真实 recommendPlans(game_id)，优先选择 level 为 recommended 且带 launch_profile_id 的推荐项；如果没有 recommended，则选择第一个带 launch_profile_id 的推荐项。
 - 只有真实推荐结果没有提供启动项时，才回退到参考表单传入的 profile_id 或默认 client。
-- 启动结果会附带 game_id、最终 profile_id、ecommendation_id、ecommendation_title，方便 Product Mode Toast/诊断记录判断实际启动来源。
+- 启动结果会附带 game_id、最终 profile_id、recommendation_id、recommendation_title，方便 Product Mode Toast/诊断记录判断实际启动来源。
 - docs/FINAL_REFERENCE_UI_BACKEND_MATRIX.md 已把“推荐启动项 profile 智能选择”从剩余缺口移除。
 
 ## 2026-06-04 12:22:26 指定游戏诊断接入
@@ -2525,8 +2525,8 @@ pm.cmd run release:preflight。
 ## 2026-06-04 13:00:06 App Settings 后端与设置页 Product Mode 接入
 - 新增 Rust 模型 AppSettings：src-tauri/src/models/settings.rs。
 - src-tauri/src/storage/settings_store.rs 从占位实现升级为真实读写：默认写入 .lan-helper/settings.json，支持读取、保存、重置、打开已有路径。
-- 新增 Tauri commands：get_app_settings、save_app_settings、eset_app_settings、open_path，并已注册到 lib.rs。
-- 前端新增 src/types/settings.ts 和 API：getAppSettings()、saveAppSettings()、esetAppSettings()、openPath(path)。
+- 新增 Tauri commands：get_app_settings、save_app_settings、reset_app_settings、open_path，并已注册到 lib.rs。
+- 前端新增 src/types/settings.ts 和 API：getAppSettings()、saveAppSettings()、resetAppSettings()、openPath(path)。
 - Product Mode 设置页“保存本地设置”已接入 saveAppSettings(settings)；“联机自测”当前读取真实 settings，后续可扩展为 edge.exe 版本/权限检测。
 - 新增 ReferenceProductSettingsPatcher，设置页会插入真实应用设置面板，显示 edge 路径、默认 supernode、方案库地址、Product Mode 状态和更新时间。
 
@@ -2621,10 +2621,10 @@ pm.cmd run release:preflight。
 - src/reference-adapter/productMode.ts：当运行在 Tauri/EXE 环境且用户未显式设置 Product Mode 时，默认启用真实产品模式；普通浏览器预览仍保持参考模式，保证一比一视觉保真检查不受影响。
 - src/reference-adapter/ProductHomePatcher.tsx：Product Mode 下替换首页关键演示值：75%、24ms、
 2n.edge.me:7777、检测通过/无需配置防火墙、北京联通服务器节点 等，改为真实 runtime 或待配置/需诊断状态。
-- 重新执行 
+- 重新执行
 pm run build、cargo check --manifest-path src-tauri/Cargo.toml、
 pm run release:preflight，均通过。
-- 重新执行 
+- 重新执行
 pm run tauri:build，生成新版 src-tauri/target/release/lan-helper.exe。
 
 产品判断：此前说“主要前后端已对应”只适用于 Product Mode 开启后的真实接入层；发布 EXE 默认进入参考模式是不合格的产品行为，已修复。下一步仍需继续把 Product Mode patcher 逐步迁移为正式受控 React 页面。
@@ -2633,12 +2633,12 @@ pm run tauri:build，生成新版 src-tauri/target/release/lan-helper.exe。
 
 - 新增 docs/SUBAGENT_FRONTEND_BACKEND_AUDIT.md，记录三 worker 提示词、审计结论、无效 worker 处理和主 Agent 审核结果。
 - 修复 Refresh Node Status 误调用 startReferenceN2n 的问题，改为只刷新真实 runtime snapshot。
-- 补齐 TypeScript 与 Rust/serde 对接中的 
+- 补齐 TypeScript 与 Rust/serde 对接中的
 ull 契约，避免真实后端返回 null 时构建失败。
 - 补强 tools/release_preflight.ps1：核心导航入口、Product Mode 默认、Product patcher 挂载、核心 API wiring、刷新不启动 n2n、最终设计稿 (3) 均纳入 gate。
-- 已通过 
+- 已通过
 pm run build、cargo check --manifest-path src-tauri/Cargo.toml、tools/release_preflight.ps1。
-- 下一步：执行 
+- 下一步：执行
 pm run tauri:build 生成新版 EXE，并考虑标注/移除旧入口 src/App.tsx 与 src/components/Layout.tsx。
 
 ## 2026-06-04 20:41:57 发布 EXE 强制真实 Product Mode
@@ -2686,9 +2686,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\release_preflight.ps1
 - 当前源码 src/reference-ui/components/Sidebar.tsx 已包含 dvanced_tools / 高级连接工具。
 - 当前源码 src/reference-ui/App.tsx 已包含 AdvancedToolsView 路由。
 - 当前 dist/assets/*.js 已包含 高级连接工具 与 dvanced_tools。
-- 
+-
 pm run release:preflight 新增/通过 core navigation includes all product pages，用于防止核心导航缺页。
-- 已重新执行 
+- 已重新执行
 pm run tauri:build，生成新版 src-tauri/target/release/lan-helper.exe。
 
 判断：用户截图对应的是旧 EXE 或旧构建实例；以后产品验收必须以重新打包后的 src-tauri/target/release/lan-helper.exe 为准。若用户打开的仍无 高级连接工具，优先排查是否打开了其他目录下的旧安装包/旧快捷方式，而不是只看源码。
@@ -2715,7 +2715,7 @@ pm run tauri:build，生成新版 src-tauri/target/release/lan-helper.exe。
   - startReferenceGenericServer() 启动通用 exe/bat/cmd/jar 服务端。
   - sendServerCommand() 发送服务端控制台命令。
   - stopServerSession() 停止通用服务端。
-  - efreshReferenceRuntime() 刷新真实实例列表。
+  - refreshReferenceRuntime() 刷新真实实例列表。
 - tools/release_preflight.ps1 新增并通过 controlled Advanced Tools page replaces Advanced Tools patcher 守卫，防止未来又把该页退回 DOM patcher。
 
 验证：
@@ -2723,7 +2723,7 @@ pm run tauri:build，生成新版 src-tauri/target/release/lan-helper.exe。
 - npm run build 通过。
 - cargo check --manifest-path src-tauri/Cargo.toml 通过。
 - npm run release:preflight 通过。
-- 
+-
 pm run tauri:build 通过，已重新生成 src-tauri/target/release/lan-helper.exe。
 
 下一步推荐：继续迁移 通用组网中心 为正式受控 Product 页面，因为它是 n2n 配置、启动、停止、刷新状态的核心路径，且当前仍主要依赖参考页表单 + action patcher。
@@ -2735,14 +2735,14 @@ pm run tauri:build 通过，已重新生成 src-tauri/target/release/lan-helper.
 本次完成：
 
 - 新增 src/product-ui/ProductNetworkView.tsx。
-- Product Mode 下 
+- Product Mode 下
 etwork 路由改为直接渲染 ProductNetworkView，参考模式仍保留 UniversalNetworkView 用于视觉对照。
 - 新页面直接使用真实后端能力：
-  - eadReferenceN2nLastConfig() 首次进入读取最近 n2n 配置并回填表单。
+  - readReferenceN2nLastConfig() 首次进入读取最近 n2n 配置并回填表单。
   - saveReferenceN2nConfig() 保存 room/key/supernode/local_ip。
   - startReferenceN2n() 保存并启动真实 n2n edge。
   - stopReferenceN2n() 停止真实 n2n edge。
-  - efreshReferenceRuntime() 刷新节点状态，明确不重复启动 n2n。
+  - refreshReferenceRuntime() 刷新节点状态，明确不重复启动 n2n。
   - 	estConnectivity() 对目标虚拟 IP 与游戏端口做连通性检测。
 - tools/release_preflight.ps1 新增并通过 controlled Network page replaces reference Network form 守卫，防止未来又依赖 UniversalNetworkView 按钮文字拦截。
 
@@ -2751,10 +2751,10 @@ etwork 路由改为直接渲染 ProductNetworkView，参考模式仍保留 Unive
 - npm run build 通过。
 - cargo check --manifest-path src-tauri/Cargo.toml 通过。
 - npm run release:preflight 通过。
-- 
+-
 pm run tauri:build 通过，已重新生成 src-tauri/target/release/lan-helper.exe。
 
-下一步推荐：迁移 Terraria 向导 为正式受控 Product 页面，因为它目前仍包含参考页模拟日志、模拟启动状态和 Product Mode 动作拦截；迁移后服务端启动/停止/命令/日志都应直接由 eadServerSession()、startGameServerSession()、sendServerCommand() 驱动。
+下一步推荐：迁移 Terraria 向导 为正式受控 Product 页面，因为它目前仍包含参考页模拟日志、模拟启动状态和 Product Mode 动作拦截；迁移后服务端启动/停止/命令/日志都应直接由 readServerSession()、startGameServerSession()、sendServerCommand() 驱动。
 
 ## 2026-06-04 22:14:24 Terraria 向导 Product 页面受控迁移
 
@@ -2768,9 +2768,9 @@ pm run tauri:build 通过，已重新生成 src-tauri/target/release/lan-helper.
 - 新页面直接使用真实后端能力：
   - startReferenceTerrariaServer() 启动真实 Terraria 服务端会话。
   - stopReferenceTerrariaServer() 停止真实服务端会话。
-  - eadReferenceTerrariaServer() 读取真实会话状态与日志。
+  - readReferenceTerrariaServer() 读取真实会话状态与日志。
   - sendReferenceTerrariaCommand() 向后端服务端会话发送控制台命令。
-  - efreshReferenceRuntime() 刷新 runtime 快照。
+  - refreshReferenceRuntime() 刷新 runtime 快照。
 - 启动参数与后端保持一致：world_choice / world_path、port、max_players、password、uto_forward。
 - 页面明确提示：交互式 help/save/exit 不作为 MVP 保证，不能伪造命令成功，应以日志和进程状态为准。
 - tools/release_preflight.ps1 新增并通过 controlled Terraria page replaces simulated Terraria guide 守卫，防止未来回退到模拟页或按钮拦截。
@@ -2780,7 +2780,7 @@ pm run tauri:build 通过，已重新生成 src-tauri/target/release/lan-helper.
 - npm run build 通过。
 - cargo check --manifest-path src-tauri/Cargo.toml 通过。
 - npm run release:preflight 通过。
-- 
+-
 pm run tauri:build 通过，已重新生成 src-tauri/target/release/lan-helper.exe。
 
 下一步推荐：迁移 诊断报告 或 游戏扫描。优先建议迁移 诊断报告，因为它需要把全局诊断/指定游戏诊断/复制导出从 ProductDiagnosticsPatcher 变成正式页面状态。
@@ -2798,7 +2798,7 @@ pm run tauri:build 通过，已重新生成 src-tauri/target/release/lan-helper.
   - generateDiagnosticReport() 生成全局诊断。
   - generateDiagnosticReportForGame(gameId) 生成指定游戏诊断。
   - scanGames() 与 listGameAdapters() 生成诊断目标列表。
-  - eadReferenceRuntimeSnapshot({ includeDiagnostics: true }) 刷新真实 runtime 快照。
+  - readReferenceRuntimeSnapshot({ includeDiagnostics: true }) 刷新真实 runtime 快照。
 - 新页面自身管理诊断目标、最近报告、复制报告、导出文本，不再通过 DOM 插入面板或替换参考页 JSON。
 - 最近报告继续写入 localStorage: lan-helper.referenceDiagnosticRecord，诊断目标继续写入 localStorage: lan-helper.referenceDiagnosticTarget，保证页面重开后可保留最近结果。
 - tools/release_preflight.ps1 新增并通过 controlled Diagnostics page replaces Diagnostics patcher 守卫，防止未来回退到 ProductDiagnosticsPatcher。
@@ -2808,10 +2808,10 @@ pm run tauri:build 通过，已重新生成 src-tauri/target/release/lan-helper.
 - npm run build 通过。
 - cargo check --manifest-path src-tauri/Cargo.toml 通过。
 - npm run release:preflight 通过。
-- 
+-
 pm run tauri:build 通过，已重新生成 src-tauri/target/release/lan-helper.exe。
 
-下一步推荐：迁移 游戏扫描。该页目前仍依赖 ProductInventoryPatcher 提供真实扫描结果、真实分析和推荐目标选择；迁移后应由正式页面直接调用 scanGames()、nalyzeGame()、ecommendPlans() 并设置 selectedGame。
+下一步推荐：迁移 游戏扫描。该页目前仍依赖 ProductInventoryPatcher 提供真实扫描结果、真实分析和推荐目标选择；迁移后应由正式页面直接调用 scanGames()、nalyzeGame()、recommendPlans() 并设置 selectedGame。
 
 ## 2026-06-04 22:26:35 游戏扫描 Product 页面受控迁移
 
@@ -2825,9 +2825,9 @@ pm run tauri:build 通过，已重新生成 src-tauri/target/release/lan-helper.
 - 新页面直接使用真实后端能力：
   - scanGames() 执行真实本地游戏扫描。
   - nalyzeGame(gameId) 执行真实联机能力分析。
-  - ecommendPlans(gameId) 读取真实推荐预览。
+  - recommendPlans(gameId) 读取真实推荐预览。
   - setReferenceSelectedGame(game) 设置真实推荐目标，供推荐方案/诊断等页面复用。
-  - efreshReferenceRuntime(false) 扫描后刷新真实 runtime 快照。
+  - refreshReferenceRuntime(false) 扫描后刷新真实 runtime 快照。
 - 页面支持搜索、筛选、设为推荐目标、真实分析、跳转推荐方案。
 - tools/release_preflight.ps1 新增并通过 controlled Game Scan page replaces reference scan demo 守卫，防止未来回退到模拟扫描页或依赖 ProductInventoryPatcher 补真实游戏列表。
 
@@ -2836,10 +2836,10 @@ pm run tauri:build 通过，已重新生成 src-tauri/target/release/lan-helper.
 - npm run build 通过。
 - cargo check --manifest-path src-tauri/Cargo.toml 通过。
 - npm run release:preflight 通过。
-- 
+-
 pm run tauri:build 通过，已重新生成 src-tauri/target/release/lan-helper.exe。
 
-下一步推荐：迁移 推荐方案。该页目前仍依赖 ProductInventoryPatcher 提供真实推荐摘要、好友席位、邀请包和推荐目标切换；迁移后应由正式页面直接调用 ecommendPlans()、launchProfile()、getN2nLastConfig()、好友席位后端 API 和 	estConnectivity()。
+下一步推荐：迁移 推荐方案。该页目前仍依赖 ProductInventoryPatcher 提供真实推荐摘要、好友席位、邀请包和推荐目标切换；迁移后应由正式页面直接调用 recommendPlans()、launchProfile()、getN2nLastConfig()、好友席位后端 API 和 	estConnectivity()。
 
 ## 2026-06-04 22:41:55 - EXE 侧边栏必须使用 ProductSidebar
 - Product Mode/EXE 不再依赖参考稿 Sidebar 来承载正式导航差异。
@@ -2851,7 +2851,7 @@ pm run tauri:build 通过，已重新生成 src-tauri/target/release/lan-helper.
 - 目标“把 Product Mode patcher 逐页迁移为正式 React 受控页面”已达到一个关键里程碑：发布入口 src/main.tsx 只保留 runtime bridge/debug，不再挂页面按钮拦截或结果改写 patcher。
 - 方案库和设置页以前是最后两个依赖 patcher 的页面，现在已分别由 ProductSolutionsView 和 ProductSettingsView 承接真实后端逻辑。
 - 产品规则：以后新增/修改页面应优先在 src/product-ui 做正式受控组件，禁止再用 DOM 查询/按钮文本拦截作为发布实现。
-- 预检规则已经固化这一点：elease does not mount page DOM patchers 和 ll Product pages declare controlled markers 必须通过。
+- 预检规则已经固化这一点：release does not mount page DOM patchers 和 ll Product pages declare controlled markers 必须通过。
 
 ## 2026-06-04 23:29:54 - 用户截图验收反馈的产品规则
 - n2n 状态必须以当前运行进程为准，不能用历史 ACK/PONG 日志或 edge.exe 是否存在来显示“已连接”。
@@ -2881,10 +2881,10 @@ pm run tauri:build 通过，已重新生成 src-tauri/target/release/lan-helper.
 - UI 精修：新增统一状态卡、邀请包确认卡、修复建议按钮，长文本继续保持换行/滚动，避免撑破卡片。
 
 验证：
-- 
+-
 pm.cmd run build 通过。
 - cargo check --manifest-path src-tauri\Cargo.toml 通过。
-- 
+-
 pm.cmd run release:preflight 通过。
 
 下一步推荐：打开 EXE 做人工验收，重点测试“好友粘贴邀请包 -> 提示是否进入 -> 自动填入 -> 保存并启动 n2n”和“诊断问题按钮能跳到正确页面/复制 VPS 命令”。
@@ -2897,26 +2897,26 @@ pm.cmd run release:preflight 通过。
 - 目的：防止未来把这三项能力退回成纯 UI 文案或被误删。
 
 验证：
-- 
+-
 pm.cmd run build 通过。
 - cargo check --manifest-path src-tauri\Cargo.toml 通过。
-- 
+-
 pm.cmd run release:preflight 通过，新增三项守卫均 PASS。
 
 下一步推荐：实际打开 EXE 做粘贴邀请包和诊断修复按钮人工验收；若通过，可进入下一大块“发布前体验闭环：首屏引导、邀请包导入后的保存并启动、失败态恢复”。
 
 ## 2026-06-05 01:00:04 - 通用组网中心布局精修
 - 根据用户截图优化通用组网中心：顶部状态提示改为“状态 / 说明 / 操作按钮”横向分区，避免中文被挤压成多行混乱。
-- 状态卡按钮不再直接显示长句 
+- 状态卡按钮不再直接显示长句
 extAction；改为短按钮：启动 n2n、刷新状态、去启动服务端、生成邀请包。
 - 状态卡动作修正：已配置未启动时点击会执行真实 startN2n()，不是只刷新状态。
 - “粘贴好友邀请包”从左侧主配置表单移动到右侧栏的端口检测下方，利用右下空白区域，主配置区域更紧凑。
 - 邀请包识别逻辑保持不变：仍使用 parseLanInvitePacket，检测到后提示“检测到其他玩家的邀请，是否进入？”。
 
 验证：
-- 
+-
 pm.cmd run build 通过。
-- 
+-
 pm.cmd run release:preflight 通过，邀请包粘贴流程守卫仍 PASS。
 
 下一步推荐：打开 EXE 查看通用组网中心，确认状态卡不再挤压、粘贴框已在右侧端口检测下面；若视觉通过，再测试粘贴邀请包的自动填入。
@@ -2928,9 +2928,9 @@ pm.cmd run release:preflight 通过，邀请包粘贴流程守卫仍 PASS。
 - 保持邀请包粘贴区域在右侧栏，不改变邀请包识别/填入逻辑。
 
 验证：
-- 
+-
 pm.cmd run build 通过。
-- 
+-
 pm.cmd run release:preflight 通过。
 
 下一步推荐：打开 EXE 检查首页状态圈是否不再遮挡文字，通用组网中心左侧是否更饱满；如果视觉通过，再继续做“邀请包粘贴后的保存并启动一键流程”。
@@ -2944,9 +2944,9 @@ etwork_ready 等仍按真实状态显示进度。
 - 目的：让“粘贴好友邀请包”卡片更大，并与左侧主配置卡片底部更接近/对齐。
 
 验证：
-- 
+-
 pm.cmd run build 通过。
-- 
+-
 pm.cmd run release:preflight 通过。
 
 下一步推荐：打开 EXE 确认默认状态圆环是否为空、右侧邀请包粘贴框是否足够大并与左侧内容底部对齐；如果通过，再做“粘贴后保存并启动 n2n”的一键加入体验。
@@ -2962,10 +2962,10 @@ pm.cmd run release:preflight 通过。
 - tools/release_preflight.ps1 新增 invite one-click join flow is wired 守卫，确保一键加入闭环不会退回成仅粘贴 UI。
 
 验证：
-- 
+-
 pm.cmd run build 通过。
 - cargo check --manifest-path src-tauri\Cargo.toml 通过。
-- 
+-
 pm.cmd run release:preflight 通过，新增一键加入守卫 PASS。
 
 下一步推荐：继续做第 2 大块“房主开房向导闭环”，把房主侧也从手动跳页升级为步骤条：选择游戏 -> 启动组网 -> 启动服务端/游戏 -> 分配好友 IP -> 生成邀请包。
@@ -2982,10 +2982,10 @@ pm.cmd run release:preflight 通过，新增一键加入守卫 PASS。
 - tools/release_preflight.ps1 新增 host room wizard flow is wired 守卫，防止房主向导退回成静态说明。
 
 验证：
-- 
+-
 pm.cmd run build 通过。
 - cargo check --manifest-path src-tauri\Cargo.toml 通过。
-- 
+-
 pm.cmd run release:preflight 通过，新增房主向导守卫 PASS。
 
 下一步推荐：继续第 3 大块“游戏适配器与共享方案库增强”，先做适配器能力分类与转换方法字段的前端展示/筛选，让游戏可以自动匹配联机方案。
@@ -4023,3 +4023,122 @@ pm.cmd run release:preflight 通过，新增房主向导守卫 PASS。
 - 已把后续主线重新收敛为 7 个方向：v0.1 发布验证、适配器共享库、多联机方式统一入口、非局域网游戏转换方案引擎、诊断修复中心、前端产品化、发布后反馈闭环。
 - 明确 Cuphead/本地同屏类游戏不能被 n2n 变成真正 LAN；可行方向是远程同屏/串流 + 输入转发。
 - 下一步推荐：先做真实 EXE 人工验证和 v0.1 小范围发布，不继续无限加功能。
+
+## 2026-06-05 14:21:40 - v0.1 自动发布门禁日志格式修复
+- 修复 	ools/run_v0_1_release_gate.ps1 的 Step results Markdown 输出：步骤名现在会正确显示为 `
+pm run build `，不再写成 $(@{name=...}.name) 这类 PowerShell 插值残留。
+- 	ools/release_preflight.ps1 新增守卫，要求 release gate 使用正确的步骤名输出格式，防止后续回退。
+- 已修正 docs/RELEASE_VALIDATION_LOG.md 中旧的一次错误 Step results 记录，保证发布验证证据可读。
+- 已运行格式模拟检查，输出 - PASS
+pm run build (1s) 正确。
+- 已运行
+pm run release:preflight，所有守卫 PASS；6 条主线相关守卫仍保持通过。
+
+下一步推荐：继续做真实 EXE 人工验证；自动门禁只能证明构建和源码守卫通过，不能替代真实双机/真实游戏内加入验证。
+
+## 2026-06-05 14:24:43 - 修复后 v0.1 自动发布门禁复跑
+- 已运行 	ools\run_v0_1_release_gate.ps1 -SkipTauriBuild -AppendLog。
+- 结果：PASS，passed=7，failed=0，skipped=1；跳过项为
+pm run tauri:build，因为本轮目标是验证日志格式修复后的门禁链路。
+- 最新 docs/RELEASE_VALIDATION_LOG.md Step results 已正确显示为 `
+pm run build ` 等命令名。
+- 已确认错误 PowerShell 插值残留 $(@{name=...}.name) 数量为 0。
+- 发布包重新生成并通过 release:package:verify，SHA256SUMS.txt、manifest、人工指南和 adapter registry 均通过校验。
+- 边界仍保持：该自动门禁不能替代真实双机 n2n、真实好友连接房主虚拟 IP/端口、Terraria 双机 Join via IP、更多 adapter 用户审核。
+
+下一步推荐：在 GitHub Desktop 提交前，先确认不勾选 release-artifacts/ 中的本地产物；然后 commit + push 源码和文档。发布 EXE 时再从 release-artifacts\v0.1.0\ 上传 Release 附件。
+
+## 2026-06-05 14:29:51 - v0.1 完整自动发布门禁复跑通过
+- 已运行
+pm run release:gate，本轮没有跳过 	auri:build。
+- 结果：PASS，passed=8，failed=0，skipped=0。
+- 覆盖步骤：
+pm run build、cargo check、
+pm run adapter:validate、
+pm run tauri:build、真实 EXE 启动烟测、release:package、release:package:verify、release:preflight。
+- 真实 EXE 烟测通过：窗口标题为“联机助手”，WebView 子进程 6 个，启动期 console-like 子进程 0 个。
+- docs/RELEASE_VALIDATION_LOG.md 最新自动门禁 Step results 已正确显示 Markdown 命令名；错误插值残留数量为 0。
+- 最新 release EXE：src-tauri\target\release\lan-helper.exe，大小 13337088 bytes，更新时间 2026-06-05 14:28:44。
+- 仍保留人工边界：真实双机 n2n、真实好友连接房主虚拟 IP/端口、Terraria 双机 Join via IP、更多 adapter 用户审核仍需人工验证，不能标记长期目标 complete。
+
+下一步推荐：把当前 6 个文件改动 commit + push；之后打开真实 EXE，在诊断页按人工验证指南逐项标记 PASS / FAIL / PENDING。
+
+## 2026-06-05 14:40:14 - 启用 subagent 并行审核机制
+- 已按 6 条长期主线创建 5 个并行 subagent 审计任务：邀请/房主闭环、适配器共享库、多联机方式、非 LAN 转换引擎、诊断修复中心与发布边界。
+- 主线程作为总审核/集成负责人：subagent 先审计不改文件，主线程负责采纳、实现、验证和记录。
+- 新增 docs/SUBAGENT_REVIEW_PLAN.md，记录 subagent 分工、重点文件、审核标准和下一步流程。
+- 	ools/release_preflight.ps1 已把该文档加入 required file，防止后续丢失 subagent 审核机制。
+
+下一步推荐：等待 subagent 返回审计结果，汇总共同缺口后选择 1 个最能提升 v0.1 真实发布可用度的小改动实现。
+
+## 2026-06-05 14:58:20 - 协作记忆：subagent 审核加速
+
+- 之后遇到长期目标推进时，优先沿用 docs/SUBAGENT_REVIEW_PLAN.md 的 A/B/C/D/E 分工。
+- subagent 结论必须由主线程基于源码、构建、预检、真实运行证据复核后才可采纳。
+- 禁止把自动化检查通过宣传为真实双机/真实好友加入已完成。
+- 本地同屏游戏（例如 Cuphead/茶杯头）不能误导为 n2n LAN，应推荐 Steam Remote Play 或 Sunshine + Moonlight 等远程同屏方案。
+
+## 2026-06-05 15:02:21 - Subagent 审计后的优先级记忆
+
+当前长期目标推进优先级：
+
+1. 优先修邀请包/房主开房闭环中的真实发布风险：未 ready 时不能显示完整邀请包正文，避免用户手动复制半成品。
+2. 然后修多联机方式入口一致性：TCP/UDP/广播桥点击后必须进入对应预填。
+3. 再补共享适配器库与转换引擎：adapter 元数据、roadcast_bridge 命名一致、混合能力样例。
+4. 最后升级诊断修复矩阵：每类问题都有原因、一键动作/检测、手动命令、复制报告。
+
+## 2026-06-05 15:11:04 - 产品记忆：邀请包与高级工具真实闭环
+
+- 房主端 LAN 邀请包必须满足全部 gate 后才显示完整正文：n2n 状态可邀请、邀请包字段完整、房主游戏端口已确认监听、已有好友 IP。
+- 未 ready 时只能显示缺项说明，不显示 [联机助手真实邀请包] 正文，防止用户手动复制半成品。
+- 好友端“保存并启动 n2n”必须先校验邀请包；缺字段时不启动 n2n，直接显示失败结果并可复制错误/进入诊断。
+- 推荐页点击高级工具入口必须保留用户选择的类型：TCP 代理→tcp，UDP 代理→udp，UDP 广播桥→bridge。
+
+## 2026-06-05 15:31:01 - 产品记忆：共享 adapter 元数据规范
+
+- 共享库 dapter-registry/games/*.json 必须包含：dapter_version、description、pplicability、evidence。
+- 共享库 JSON 禁止持久化运行时字段 dapter_source；客户端加载后按来源动态注入。
+- adapter 提交包必须 canonicalize 后再计算 sha256，避免提交包和本地发布结果不一致。
+- UDP 广播桥的 conversion method canonical 值为 roadcast_bridge；udp_broadcast_bridge 只作为 route/network_type 语义，不应写进 multiplayer_conversion.methods。
+- 结构化证据不能被当作真实双机 PASS；registry 示例中的 unverified/self_tested 状态必须继续与真实好友验证区分。
+
+## 2026-06-05 15:37:54 - 产品记忆：混合能力游戏优先级
+
+- 只有纯本地同屏/远程同屏路线才走 Steam Remote Play / Sunshine + Moonlight。
+- 如果一个游戏同时有 local_coop 和 LAN/IP/专用服/端口代理/广播桥证据，应优先推荐 LAN/n2n 路线，而不是只因为有本地同屏能力就降级到远程同屏。
+- lan-and-local-coop-prioritizes-lan 是回归样例，不能删除。
+
+## 2026-06-05 16:01:12 - 产品记忆：诊断修复中心必须有手动命令矩阵
+
+- 诊断页不能只显示“失败/重试”，每类关键问题都要提供：原因说明、可执行动作、手动命令或检查清单、可复制给好友/管理员的文本。
+- 检测/刷新类动作必须叫“一键检测”或“一键刷新”；只有会启动、重启或明确改变状态的动作才叫“一键启动/重启/修复”。
+- 关键 copy action 不得删除：copy-n2n-manual-start、copy-ip-conflict-check、copy-game-port-proxy-check、copy-version-manual-check。
+- REQUIRED_ISSUE_ACTION_COVERAGE 是诊断修复中心的回归矩阵；后续增加问题类型时，也要补 copy action 和 executable action。
+
+## 2026-06-05 前端/Stitch 落地记忆
+
+- 当前不能在 Codex 内直接调用 Stitch 代替用户生成页面；项目以后以前端源码和 docs/STITCH_PREMIUM_FRONTEND_PROMPT.md 作为设计落地源。
+- 已调整 src/reference-adapter/productMode.ts：普通浏览器 dev/preview 默认也进入真实中文产品界面，避免用户看到旧参考 UI；如需回看参考 UI，可手动设置 localStorage.setItem(\'lan-helper.referenceProductMode\', \'0\')。
+- 目的：打开项目时直接看到可继续接后端动作的产品化前端，而不是仅作为视觉参考的 Stitch 壳。
+
+## 2026-06-05 邀请包一键加入闭环补强
+
+- `src/product-ui/ProductHomeView.tsx`：粘贴邀请包后立即校验必填字段；结果卡明确显示“加入结果”和失败分类；成功后明确提示在游戏内连接房主虚拟 IP 与端口；失败仍可进入诊断并复制错误给房主。
+- `src/product-ui/inviteJoinFlow.ts`：n2n 邀请参数校验新增“我的虚拟 IP”，避免保存/启动时缺少加入者本机 edge 地址而内部状态混乱。
+- 产品原则：邀请包不是只改显示，必须在保存和启动前做参数完整性校验，失败要分类并可复制给房主。
+
+## 2026-06-05 邀请包闭环审计后修复
+
+- `src/product-ui/invitePacket.ts`：邀请包解析支持中文/英文冒号；只要有邀请包头就进入结构化校验，避免“字段缺失”误显示为“未识别”；游戏端口只取首个合法端口，避免把说明里的多个数字拼成错误端口。
+- `src/product-ui/ProductHomeView.tsx`：清空输入会清空旧结果；参数不完整时禁用“仅填入参数/保存并启动 n2n”；pending 状态也能进入诊断并复制状态给房主；启动异常有兜底失败分类。
+- `src/product-ui/inviteJoinFlow.ts`：加入成功前校验当前 runtime 快照必须匹配本次邀请包的 supernode、本机虚拟 IP、房间名和密钥，避免旧 edge 状态误判成功。
+
+## 2026-06-05 v0.1.0 发布一致性与公开内容清理
+
+- 当前阶段确认：项目处于 `0.1.0 早期公开测试版`，可以小范围公开体验，但不能宣传“所有游戏一键联机”或“所有非 LAN 游戏都能转换”。
+- 新增 `docs/V0_1_RELEASE_CONSISTENCY_AUDIT.md`，记录 GitHub Release、源码/tag/ZIP 不一致、运行时文件泄露风险、EXE 本地路径风险和版本策略。
+- `npm run tauri:build` 改为走 `tools/build_tauri_release_clean.ps1`，通过 `RUSTFLAGS --remap-path-prefix`、release profile strip/debug=0 和 EXE 字符串扫描降低本地路径进入发布包的风险。
+- 新增 `npm run release:zip` / `npm run release:zip:verify`，用于生成并校验 `LanHelper-v0.1.0-windows-x64.zip`，只复制白名单文件，排除 `edge.log`、`last_config.json`、`n2n.pid` 等运行时文件。
+- 公开文案改为“早期公开测试版 / 游戏方案库 / 建议补测”，避免把“不要给普通用户承诺”“PENDING”“adapter”等内部评审语言直接展示给测试用户。
+
+下一步推荐：运行完整发布门禁 `npm run release:gate`；若全部通过，优先发布 `v0.1.1` 修正版，或在下载数仍为 0 时替换 `v0.1.0` ZIP 资产。

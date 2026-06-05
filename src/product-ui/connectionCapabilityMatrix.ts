@@ -209,11 +209,11 @@ export const connectionCapabilityMatrix: ConnectionCapabilityDecisionRow[] = [
       networkType: 'unknown_need_review',
       canConvertToLan: false,
       defaultNotes: [
-        '当前证据不足，不能直接给普通用户推荐开房方案。',
+        '当前证据不足，暂不生成开房邀请；请先补充测试步骤或方案证据。',
         '请先收集多人菜单、端口、日志或实际加入步骤，再重新套用更明确的游戏类型。',
       ],
     },
-    operatorDecision: '不能直接推荐给普通用户；先进入方案库创建/复核 adapter。',
+    operatorDecision: '暂不生成推荐方案；请先进入方案库创建或复核游戏方案。',
     riskNote: '低可信方案直接开房会制造“看起来有按钮但实际不可用”的产品问题。',
   },
 ];

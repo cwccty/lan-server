@@ -105,7 +105,7 @@ export function buildGameScanRecommendationExplanation(game: GameSummary): GameS
     qualityLabel: quality.label,
     qualityScore: quality.score,
     qualityBadgeClass: quality.badgeClass,
-    headline: shouldReviewFirst ? '先复核再推荐给普通用户' : base.headline,
+    headline: shouldReviewFirst ? '先复核方案再使用' : base.headline,
     reason: shouldReviewFirst
       ? `${base.reason} 但当前可信度不足，建议先补全 adapter 字段或同步共享库。`
       : base.reason,

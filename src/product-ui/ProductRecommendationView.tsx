@@ -39,7 +39,12 @@ import {
 } from '../reference-adapter/friendAllocations';
 import { getReferenceSelectedGame, setReferenceSelectedGame, type ReferenceSelectedGame } from '../reference-adapter/selectedGame';
 import { refreshReferenceRuntime, startReferenceN2n } from '../reference-adapter/actions';
-import { buildLanInvitePacket } from './invitePacket';
+import {
+  buildLanInvitePacket,
+  formatLanInviteMissingFields,
+  validateLanInvitePacket,
+  type LanInvitePacket
+} from './invitePacket';
 import { productStatusDotClasses, productStatusToneClasses, resolveProductStatusCenter } from './statusCenter';
 import { useReferenceRuntime } from '../reference-adapter/useReferenceRuntime';
 import {
@@ -202,17 +207,57 @@ export function ProductRecommendationView({ onTriggerToast, onNavigateTab }: Pro
     hasFriendSlot: !routeUsesLanInvite || Boolean(selectedFriend),
     busy
   });
-  const lanInvite = buildLanInvitePacket({
+  const lanInvitePacket: LanInvitePacket = {
     gameName: currentGame?.display_name || selectedGame?.display_name || '未选择',
     gameId: currentGame?.game_id || selectedGame?.game_id || '未选择',
-    n2n: n2nConfig,
-    hostVirtualIp: n2nConfig?.local_ip || runtime.network.virtualIp || currentGame?.connection_plan?.default_join_host || '',
+    hostVirtualIp: n2nConfig?.local_ip || runtime.network.virtualIp || '',
     friendVirtualIp: selectedFriend?.ip,
     friendName: selectedFriend?.name,
-    port: Number(port) || defaultPort(currentGame),
+    supernode: n2nConfig?.supernode,
+    roomName: n2nConfig?.room_name,
+    roomKey: n2nConfig?.secret,
+    gamePort: Number(port) || defaultPort(currentGame),
     serverRunning: Boolean(server?.running),
     friendCheck: selectedFriend?.last_check_summary
+  };
+  const lanInviteValidation = validateLanInvitePacket(lanInvitePacket);
+  const hostPortReady = hostPortCheck.includes('已监听');
+  const lanInviteReady = routeUsesLanInvite && status.canInvite && lanInviteValidation.ok && hostPortReady;
+  const lanInviteBlockers = routeUsesLanInvite
+    ? Array.from(new Set([
+        !status.canInvite ? (status.nextAction || status.detail || '先完成组网、服务端和好友 IP 分配。') : '',
+        !lanInviteValidation.ok ? `邀请包缺少：${formatLanInviteMissingFields(lanInviteValidation.missing)}。` : '',
+        !hostPortReady ? `先检测本机 ${Number(port) || defaultPort(currentGame)} 端口，确认游戏或服务端正在监听。` : '',
+      ].filter(Boolean)))
+    : [];
+  const lanInviteBlockerText = lanInviteBlockers.join(' ');
+  const lanInvite = buildLanInvitePacket({
+    gameName: lanInvitePacket.gameName,
+    gameId: lanInvitePacket.gameId,
+    n2n: n2nConfig,
+    hostVirtualIp: lanInvitePacket.hostVirtualIp,
+    friendVirtualIp: lanInvitePacket.friendVirtualIp,
+    friendName: lanInvitePacket.friendName,
+    port: lanInvitePacket.gamePort || defaultPort(currentGame),
+    serverRunning: lanInvitePacket.serverRunning,
+    friendCheck: lanInvitePacket.friendCheck
   });
+  const lanInvitePreview = lanInviteReady
+    ? lanInvite
+    : [
+        '邀请包暂未生成完整正文',
+        '',
+        '为了避免好友复制半成品后加入失败，当前不会展示正式邀请包正文。',
+        '请先补齐下面缺项；全部完成后，这里才会显示可复制的完整邀请包。',
+        '',
+        '待完成：',
+        ...(lanInviteBlockers.length ? lanInviteBlockers.map((item) => `- ${item}`) : ['- 完成组网、端口检测和好友 IP 分配。']),
+        '',
+        `当前游戏：${lanInvitePacket.gameName}`,
+        `房主虚拟 IP：${lanInvitePacket.hostVirtualIp || '未读取'}`,
+        `好友预留 IP：${lanInvitePacket.friendVirtualIp || '未分配'}`,
+        `游戏端口：${lanInvitePacket.gamePort || '未填写'}`,
+      ].join('\n');
   const remoteCoopInvite = buildRemoteCoopFriendGuide({
     game: currentGame,
     mode: remoteCoopMode,
@@ -221,6 +266,7 @@ export function ProductRecommendationView({ onTriggerToast, onNavigateTab }: Pro
   });
   const nonLanInvite = buildNonLanRouteInvite(adapterRoute, currentGame);
   const invite = remoteCoop ? remoteCoopInvite : routeUsesLanInvite ? lanInvite : nonLanInvite;
+  const invitePreview = remoteCoop ? remoteCoopInvite : routeUsesLanInvite ? lanInvitePreview : nonLanInvite;
   const remoteCoopSteps = useMemo(() => buildRemoteCoopSteps(remoteCoopMode), [remoteCoopMode]);
   const remoteCoopLatencyTips = useMemo(() => buildRemoteCoopLatencyTips(remoteCoopPreset), [remoteCoopPreset]);
   const remoteCoopReady = checklistProgress(remoteCoopChecklist);
@@ -492,9 +538,16 @@ export function ProductRecommendationView({ onTriggerToast, onNavigateTab }: Pro
     return context;
   };
 
-  const openAdvancedToolsForHost = (reason: HostDiagnosticContextSource = 'host_advanced_tools_needed') => {
+  type AdvancedToolKind = NonNullable<ConnectionMethodEntry['advancedToolKind']>;
+
+  const openAdvancedToolsForHost = (
+    reason: HostDiagnosticContextSource = 'host_advanced_tools_needed',
+    preferredKind?: AdvancedToolKind
+  ) => {
     const targetPort = currentGamePort();
-    const useBridge = adapterRoute.requiresUdpBroadcastBridge;
+    const toolKind = preferredKind || (adapterRoute.requiresUdpBroadcastBridge ? 'bridge' : 'tcp');
+    const useBridge = toolKind === 'bridge';
+    const useUdpProxy = toolKind === 'udp';
     const targetHost = selectedFriend?.ip
       || (currentGame?.connection_plan?.default_join_host && currentGame.connection_plan.default_join_host !== 'host virtual ip'
         ? currentGame.connection_plan.default_join_host
@@ -502,7 +555,7 @@ export function ProductRecommendationView({ onTriggerToast, onNavigateTab }: Pro
     writeAdvancedToolIntent({
       source: 'recommendation',
       reason: useBridge ? 'udp_broadcast_bridge' : 'port_proxy',
-      kind: useBridge ? 'bridge' : 'tcp',
+      kind: toolKind,
       game_id: currentGame?.game_id,
       display_name: currentGame?.display_name,
       listen_port: targetPort,
@@ -519,18 +572,18 @@ export function ProductRecommendationView({ onTriggerToast, onNavigateTab }: Pro
     });
     writeHostFailureContext({
       source: reason,
-      reasonKind: useBridge ? 'udp_broadcast_bridge_required' : 'tcp_port_proxy_required',
+      reasonKind: useBridge ? 'udp_broadcast_bridge_required' : useUdpProxy ? 'udp_port_proxy_required' : 'tcp_port_proxy_required',
       nextActionKind: 'advanced_tools',
-      title: useBridge ? '当前开房路线需要 UDP 广播桥' : '当前开房路线需要端口代理',
-      detail: `${adapterRoute.title} 不能只靠普通 n2n 按钮完成，已准备高级工具预填参数。`,
+      title: useBridge ? '当前开房路线需要 UDP 广播桥' : useUdpProxy ? '当前开房路线需要 UDP 代理' : '当前开房路线需要 TCP 端口代理',
+      detail: `${adapterRoute.title} 不能只靠普通 n2n 按钮完成，已准备${useBridge ? 'UDP 广播桥' : useUdpProxy ? 'UDP 代理' : 'TCP 端口代理'}预填参数。`,
     });
     onNavigateTab('advanced_tools');
-    onTriggerToast('已带着当前游戏、端口和好友虚拟 IP 进入高级工具。');
+    onTriggerToast(`已带着当前游戏、端口和好友虚拟 IP 进入${useBridge ? 'UDP 广播桥' : useUdpProxy ? 'UDP 代理' : 'TCP 端口代理'}。`);
   };
 
   const openConnectionMethod = (method: ConnectionMethodEntry) => {
     if (method.advancedToolKind) {
-      openAdvancedToolsForHost('host_advanced_tools_needed');
+      openAdvancedToolsForHost('host_advanced_tools_needed', method.advancedToolKind);
       return;
     }
     if (method.id === 'n2n') {
@@ -725,6 +778,21 @@ export function ProductRecommendationView({ onTriggerToast, onNavigateTab }: Pro
       await ensureFriendSlot();
       return;
     }
+    if (!status.canInvite) {
+      onTriggerToast(status.nextAction || '请先完成组网、服务端和好友 IP 分配。');
+      return;
+    }
+    if (!lanInviteValidation.ok) {
+      onTriggerToast(`邀请包不完整：${formatLanInviteMissingFields(lanInviteValidation.missing)}。请先补齐后再复制。`);
+      return;
+    }
+    if (!hostPortReady) {
+      const reachable = await testHostGamePort();
+      if (!reachable) {
+        onTriggerToast('本机游戏端口还未监听，暂不复制半成品邀请包。');
+        return;
+      }
+    }
     await copyInvite();
   };
 
@@ -839,7 +907,7 @@ export function ProductRecommendationView({ onTriggerToast, onNavigateTab }: Pro
       : '该 adapter 需要端口代理；进入高级连接工具把游戏监听端口暴露给虚拟网。',
     state: runtime.network.ready ? 'active' : 'pending',
     actionLabel: '打开高级工具',
-    action: () => openAdvancedToolsForHost('host_advanced_tools_needed'),
+    action: () => openAdvancedToolsForHost('host_advanced_tools_needed', adapterRoute.requiresUdpBroadcastBridge ? 'bridge' : 'tcp'),
     disabled: Boolean(busy)
   } : null;
 
@@ -882,13 +950,13 @@ export function ProductRecommendationView({ onTriggerToast, onNavigateTab }: Pro
     {
       id: 'invite',
       title: '生成邀请包',
-      detail: selectedFriend && n2nConfig?.supernode
-        ? `邀请包已按“${adapterRoute.title}”路线生成。`
-        : '完成组网和好友 IP 分配后即可复制邀请包。',
-      state: selectedFriend && n2nConfig?.supernode ? 'done' : 'pending',
+      detail: lanInviteReady
+        ? `完整邀请包已按“${adapterRoute.title}”路线生成，可复制给好友。`
+        : (lanInviteBlockerText || '完成组网、端口检测和好友 IP 分配后即可复制邀请包。'),
+      state: lanInviteReady ? 'done' : status.canInvite ? 'active' : 'pending',
       actionLabel: '复制邀请包',
       action: copyHostInvite,
-      disabled: Boolean(busy) || !n2nConfig?.supernode
+      disabled: Boolean(busy)
     }
   ];
 
@@ -989,7 +1057,7 @@ export function ProductRecommendationView({ onTriggerToast, onNavigateTab }: Pro
             <p className="mt-1 text-xs leading-relaxed opacity-90">{displayedStatus.detail}</p>
           </div>
           <button
-            onClick={() => routeNeedsReview ? openSolutionsWithConversionAssessment() : displayedStatus.needsNetwork ? onNavigateTab('network') : displayedStatus.needsServer ? onNavigateTab('terraria') : copyInvite()}
+            onClick={() => routeNeedsReview ? openSolutionsWithConversionAssessment() : displayedStatus.needsNetwork ? onNavigateTab('network') : displayedStatus.needsServer ? onNavigateTab('terraria') : routeUsesLanInvite ? copyHostInvite() : copyInvite()}
             disabled={Boolean(busy) || (!routeNeedsReview && !displayedStatus.canInvite && !displayedStatus.needsNetwork && !displayedStatus.needsServer)}
             className="shrink-0 rounded-xl bg-white px-4 py-2 text-xs font-bold text-slate-800 shadow-sm hover:bg-slate-50 disabled:opacity-50"
           >
@@ -1102,7 +1170,7 @@ export function ProductRecommendationView({ onTriggerToast, onNavigateTab }: Pro
               </p>
               {shouldReviewQuality ? (
                 <p className="mt-2 rounded-xl border border-rose-100 bg-white/75 p-3 text-[11px] leading-relaxed text-rose-700">
-                  当前 adapter 可信度偏低，建议先去方案库补全或同步共享库，再让普通用户照做。
+                  当前游戏方案可信度偏低，建议先去方案库补全或同步共享库，再用于开房邀请。
                 </p>
               ) : null}
             </div>
@@ -1333,7 +1401,7 @@ export function ProductRecommendationView({ onTriggerToast, onNavigateTab }: Pro
           <div className="rounded-xl bg-slate-50 p-3 text-xs leading-relaxed text-slate-600">
             <span className="font-bold text-slate-800">{routeUsesLanInvite ? '邀请包：' : '是否强转 LAN：'}</span>
             {routeUsesLanInvite
-              ? (selectedFriend ? `已绑定 ${selectedFriend.name}，可复制给好友。` : '尚未分配好友 IP。')
+              ? (lanInviteReady ? `已绑定 ${selectedFriend?.name || '好友'}，端口已确认，可复制给好友。` : (lanInviteBlockerText || '尚未分配好友 IP。'))
               : (adapterRoute.canCreateLanInvite ? '可以生成 LAN 邀请包。' : '不生成 LAN 邀请包，复制路线说明。')}
           </div>
         </div>
@@ -1534,11 +1602,16 @@ export function ProductRecommendationView({ onTriggerToast, onNavigateTab }: Pro
               {!routeUsesLanInvite ? <MonitorPlay className="h-4 w-4 text-amber-600" /> : <Server className="h-4 w-4 text-amber-600" />}
               {!routeUsesLanInvite ? '联机路线说明' : '邀请包与检测'}
             </h3>
-            <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-xl bg-slate-950 p-3 text-[11px] leading-relaxed text-amber-100">{invite}</pre>
+            {routeUsesLanInvite && !lanInviteReady ? (
+              <p className="mb-3 rounded-xl border border-amber-100 bg-amber-50 p-3 text-xs leading-relaxed text-amber-700">
+                暂不建议复制半成品邀请包：{lanInviteBlockerText || '请先完成组网、端口检测和好友 IP 分配。'}
+              </p>
+            ) : null}
+            <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-xl bg-slate-950 p-3 text-[11px] leading-relaxed text-amber-100">{invitePreview}</pre>
             {lastCheck ? <p className="mt-3 rounded-xl bg-slate-50 p-3 text-xs text-slate-600">{lastCheck}</p> : null}
             <div className="mt-3 grid grid-cols-2 gap-2">
               <button onClick={testFriend} disabled={Boolean(busy) || !selectedFriend || !routeUsesLanInvite} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><Send className="h-4 w-4" />{routeUsesLanInvite ? '检测好友连接' : '无需端口检测'}</button>
-              <button onClick={copyHostInvite} disabled={Boolean(busy)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-50"><ClipboardCopy className="h-4 w-4" />{routeUsesLanInvite ? (selectedFriend ? '复制完整邀请凭证包' : '先分配好友 IP') : adapterRoute.inviteLabel}</button>
+              <button onClick={copyHostInvite} disabled={Boolean(busy)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-50"><ClipboardCopy className="h-4 w-4" />{routeUsesLanInvite ? (lanInviteReady ? '复制完整邀请凭证包' : selectedFriend ? '补齐后复制邀请包' : '先分配好友 IP') : adapterRoute.inviteLabel}</button>
             </div>
           </div>
         </aside>

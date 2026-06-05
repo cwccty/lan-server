@@ -1,4 +1,4 @@
-import {
+﻿import {
   Activity,
   Globe,
   Home,
@@ -149,7 +149,7 @@ export function ProductSidebar({ currentTab, onChangeTab, onShowVersion }: Produ
         <div className="flex w-full items-center gap-3 rounded-lg bg-slate-100/50 px-4 py-2 text-sm text-slate-500">
           <User className="h-4 w-4 text-slate-400" />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-semibold leading-tight text-slate-700">cwccty@gmail.com</p>
+            <p className="truncate text-xs font-semibold leading-tight text-slate-700">本地玩家</p>
             <p className="text-[10px] text-slate-400">高级订阅会员</p>
           </div>
         </div>

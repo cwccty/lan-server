@@ -105,6 +105,33 @@ export const conversionAssessmentValidationSamples: ConversionAssessmentValidati
     },
   },
   {
+    id: 'lan-and-local-coop-prioritizes-lan',
+    title: '混合能力 / LAN + 本地同屏',
+    purpose: '验证同时支持 LAN/IP 与本地同屏的游戏优先走 n2n LAN 路线，而不是仅因为 local_coop 标记误选远程同屏。',
+    game: {
+      game_id: 'sample_lan_and_local_coop',
+      display_name: 'Sample LAN + Local Co-op Game',
+      capabilities: ['lan', 'ip_join', 'local_coop'],
+      network_type: 'lan_ip_direct',
+      adapter_source: 'registry',
+      multiplayer_conversion: {
+        capability: 'native_lan_ip',
+        methods: ['virtual_lan', 'manual_guide'],
+        can_convert_to_lan: true,
+        risk_level: 'low',
+        notes: ['该游戏同时有本地合作和 LAN/IP，联机助手应优先使用可验证的 LAN/IP 路线。'],
+        required_components: ['n2n edge', '游戏内 LAN/IP 加入入口'],
+      },
+      connection_plan: basePlan('虽然支持本地同屏，但也支持 IP 直连；组网后连接房主虚拟 IP。', 27015),
+    },
+    expected: {
+      routeKind: 'virtual_lan',
+      canBecomeLan: true,
+      canCreateLanInvite: true,
+      conclusionIncludes: '可以按当前方案转换成局域网',
+    },
+  },
+  {
     id: 'udp-broadcast-discovery',
     title: '局域网大厅发现 / UDP 广播',
     purpose: '验证 LAN 大厅发现类游戏会提示 n2n + UDP 广播桥，而不是只给 n2n。',
@@ -269,7 +296,7 @@ export const conversionAssessmentValidationSamples: ConversionAssessmentValidati
         methods: ['manual_guide'],
         can_convert_to_lan: false,
         risk_level: 'medium',
-        notes: ['缺少多人菜单、端口、日志或实测步骤，不能直接推荐给普通用户。'],
+        notes: ['缺少多人菜单、端口、日志或实测步骤，暂不生成推荐方案。'],
         required_components: ['方案库复核', '管理员确认'],
       },
       connection_plan: {

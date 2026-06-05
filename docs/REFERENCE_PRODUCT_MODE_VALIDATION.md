@@ -4,7 +4,7 @@
 
 本文用于验证当前阶段的两个目标：
 
-1. 默认界面仍然完全按照 `C:\Users\ty\Downloads\联机助手 (1)` 一比一复原；
+1. 默认界面仍然完全按照 `<reference-ui-src-parent>` 一比一复原；
 2. 开启 product mode 后，真实后端 runtime 状态可以通过 adapter patcher 注入 Header、首页和诊断页。
 
 ## 1. 前置命令验证

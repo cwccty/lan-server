@@ -178,11 +178,11 @@ function getBaseActions(type: DiagnosticIssueType): ProductFixAction[] {
         targetTab: 'network'
       },
       {
-        id: 'copy-n2n-hint',
-        label: '复制给好友确认',
-        description: '复制需要双方一致的房间参数检查项。',
+        id: 'copy-n2n-manual-start',
+        label: '复制手动启动命令',
+        description: '复制 PowerShell 手动检查和启动 n2n edge 的命令，便于用户或管理员在终端复现启动问题。',
         kind: 'copy',
-        copyText: '请确认双方填写同一个 Supernode、房间名、房间密钥；双方虚拟 IP 不能相同。启动后等待 10-20 秒，看到 ACK/PONG 再进游戏。'
+        copyText: '请确认双方填写同一个 Supernode、房间名、房间密钥；双方虚拟 IP 不能相同。启动后等待 10-20 秒，看到 ACK/PONG 再进游戏。\n\n# PowerShell：按实际路径和参数替换后执行\nGet-Process edge -ErrorAction SilentlyContinue\nGet-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -like "10.*" -or $_.InterfaceAlias -match "cfw|tap|n2n|edge" } | Format-Table InterfaceAlias,IPAddress\n.\\edge.exe -d edge0 -a 10.0.0.2 -c <room-name> -k <room-key> -l <supernode-host>:<port>'
       }
     ];
   }
@@ -217,7 +217,7 @@ function getBaseActions(type: DiagnosticIssueType): ProductFixAction[] {
     return [
       {
         id: 'restart-after-conflict-release',
-        label: '等待后重启注册',
+        label: '一键重启注册',
         description: '先停止再重新启动 n2n，用于刚改过房间参数或等待 Supernode 释放旧注册后的复测。',
         kind: 'backend',
         operation: 'restart_n2n_last_config'
@@ -230,11 +230,11 @@ function getBaseActions(type: DiagnosticIssueType): ProductFixAction[] {
         targetTab: 'network'
       },
       {
-        id: 'copy-ip-conflict-hint',
-        label: '复制冲突说明',
-        description: '复制给房主/好友，用于确认房间密钥和虚拟 IP 分配。',
+        id: 'copy-ip-conflict-check',
+        label: '复制 IP/密钥冲突检查',
+        description: '复制给房主/好友，用于核对房间密钥、虚拟 IP 分配和本机 10.x 地址占用情况。',
         kind: 'copy',
-        copyText: 'n2n 注册被拒绝：请确认房间名和房间密钥完全一致；每个玩家使用不同虚拟 IP；如果刚退出过，等待 supernode 释放旧注册后再启动。'
+        copyText: 'n2n 注册被拒绝：请确认房间名和房间密钥完全一致；每个玩家使用不同虚拟 IP；如果刚退出过，等待 supernode 释放旧注册后再启动。\n\n# PowerShell：本机检查虚拟 IP / MAC 是否重复或被旧网卡占用\nGet-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -like "10.*" } | Format-Table InterfaceAlias,IPAddress,PrefixLength\nGet-NetAdapter | Where-Object { $_.InterfaceDescription -match "tap|n2n|edge|wintun|cfw" -or $_.Name -match "tap|n2n|edge|cfw" } | Format-Table Name,Status,MacAddress,InterfaceDescription\n# 和好友核对：每个人的虚拟 IP 必须唯一，房间名/密钥必须逐字一致。'
       }
     ];
   }
@@ -282,11 +282,11 @@ function getBaseActions(type: DiagnosticIssueType): ProductFixAction[] {
         targetTab: 'advanced_tools'
       },
       {
-        id: 'goto-network-port',
-        label: '回组网中心测端口',
-        description: '用组网中心的端口检测确认本机或好友虚拟 IP 的游戏端口。',
-        kind: 'navigate',
-        targetTab: 'network'
+        id: 'copy-game-port-proxy-check',
+        label: '复制端口/代理检查命令',
+        description: '复制本机监听、连通性和代理自测排查命令，便于确认游戏端口或 TCP/UDP 代理问题。',
+        kind: 'copy',
+        copyText: '请先确认游戏服务端已经启动，并把 7777 替换成当前游戏端口。\n\n# PowerShell：本机端口监听与 TCP 连通性\nGet-NetTCPConnection -LocalPort 7777 -State Listen -ErrorAction SilentlyContinue\nTest-NetConnection 127.0.0.1 -Port 7777\nTest-NetConnection <friend-virtual-ip> -Port 7777\n\n# 如果使用 UDP/广播桥，请回到高级工具执行 UDP 代理或 UDP 广播桥自测，并把自测结果复制给房主/管理员。'
       }
     ];
   }
@@ -332,6 +332,13 @@ function getBaseActions(type: DiagnosticIssueType): ProductFixAction[] {
         description: '从游戏扫描页重新选择游戏并查看推荐方案。',
         kind: 'navigate',
         targetTab: 'games'
+      },
+      {
+        id: 'copy-adapter-missing-hint',
+        label: '复制方案缺失说明',
+        description: '复制给管理员或方案维护者，说明当前游戏缺少可用 adapter，需要补齐方案。',
+        kind: 'copy',
+        copyText: '当前游戏没有可用联机方案 adapter：请确认游戏名称、版本、平台、启动路径和联机方式；如是新游戏或新版本，请在方案库创建/同步 adapter，并补充 tested_versions、端口、启动方式和已知限制。'
       }
     ];
   }
@@ -340,7 +347,7 @@ function getBaseActions(type: DiagnosticIssueType): ProductFixAction[] {
     return [
       {
         id: 'refresh-runtime-after-permission',
-        label: '刷新运行状态',
+        label: '一键刷新运行状态',
         description: '重新读取后端 runtime、n2n、服务端和端口状态，确认是否只是状态缓存未刷新。',
         kind: 'backend',
         operation: 'refresh_runtime'
@@ -366,7 +373,7 @@ function getBaseActions(type: DiagnosticIssueType): ProductFixAction[] {
     return [
       {
         id: 'refresh-runtime-after-version-check',
-        label: '刷新运行状态',
+        label: '一键刷新运行状态',
         description: '重新读取后端 runtime 和 adapter 状态，确认版本风险是否仍存在。',
         kind: 'backend',
         operation: 'refresh_runtime'
@@ -379,11 +386,11 @@ function getBaseActions(type: DiagnosticIssueType): ProductFixAction[] {
         targetTab: 'solutions'
       },
       {
-        id: 'copy-version-check',
-        label: '复制版本检查说明',
-        description: '复制给好友/管理员，用于核对 n2n、游戏、服务端和 adapter 测试版本。',
+        id: 'copy-version-manual-check',
+        label: '复制版本手动核对清单',
+        description: '复制给好友/管理员，用于手动核对 n2n、游戏、服务端和 adapter 测试版本。',
         kind: 'copy',
-        copyText: '请双方核对：1) 游戏版本/平台是否一致；2) 服务端版本是否匹配客户端；3) n2n edge/supernode 版本是否兼容；4) 当前 adapter 的 tested_versions / tested_platforms 是否覆盖本次环境；5) 如刚更新游戏，请重新扫描并同步共享方案库。'
+        copyText: '请双方核对：1) 游戏版本/平台是否一致；2) 服务端版本是否匹配客户端；3) n2n edge/supernode 版本是否兼容；4) 当前 adapter 的 tested_versions / tested_platforms 是否覆盖本次环境；5) 如刚更新游戏，请重新扫描并同步共享方案库。\n\n# 可复制给管理员的手动核对项\n- 游戏客户端版本 / 平台 / Mod 列表：<填写>\n- 服务端版本 / 启动参数：<填写>\n- 联机助手版本：<填写>\n- n2n edge/supernode 版本：<填写>\n- 当前 adapter 名称与 tested_versions/tested_platforms：<填写>'
       }
     ];
   }
