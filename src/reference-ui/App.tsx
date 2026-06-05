@@ -57,7 +57,7 @@ export default function App() {
     
     edgePath: 'C:/Program Files/N2N/edge.exe',
     supernode_default: 'backup.supernode.me:7778',
-    solutions_url: 'https://api.lianjizhushou.com/solutions/shared/v2'
+    solutions_url: 'https://cwccty.github.io/lan-server/adapter-registry/index.json'
   });
 
   // UI States

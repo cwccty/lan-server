@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Activity,
   AlertCircle,
@@ -20,6 +20,9 @@ import {
   stopReferenceTerrariaServer
 } from '../reference-adapter/actions';
 import { useReferenceRuntime } from '../reference-adapter/useReferenceRuntime';
+import { readProductPageCache, writeProductPageCache } from './productPageCache';
+
+import { ProductBusyOverlay } from './ProductBusyOverlay';
 
 interface ProductTerrariaGuideViewProps {
   onTriggerToast: (msg: string) => void;
@@ -41,16 +44,29 @@ function lastLines(lines: string[] = [], count = 18) {
   return lines.slice(-count);
 }
 
+const TERRARIA_FORM_CACHE_KEY = 'lan-helper.product.terraria.form.cache.v1';
+
+interface TerrariaFormCache {
+  worldMode: 'choice' | 'path';
+  worldChoice: string;
+  worldPath: string;
+  port: string;
+  password: string;
+  maxPlayers: string;
+  autoForward: boolean;
+}
+
 export function ProductTerrariaGuideView({ onTriggerToast }: ProductTerrariaGuideViewProps) {
   const runtime = useReferenceRuntime();
   const terraria = runtime.terraria;
-  const [worldMode, setWorldMode] = useState<'choice' | 'path'>('choice');
-  const [worldChoice, setWorldChoice] = useState('1');
-  const [worldPath, setWorldPath] = useState('');
-  const [port, setPort] = useState('7777');
-  const [password, setPassword] = useState('');
-  const [maxPlayers, setMaxPlayers] = useState('8');
-  const [autoForward, setAutoForward] = useState(false);
+  const initialFormCache = useMemo(() => readProductPageCache<TerrariaFormCache>(TERRARIA_FORM_CACHE_KEY), []);
+  const [worldMode, setWorldMode] = useState<'choice' | 'path'>(() => initialFormCache?.data.worldMode || 'choice');
+  const [worldChoice, setWorldChoice] = useState(() => initialFormCache?.data.worldChoice || '1');
+  const [worldPath, setWorldPath] = useState(() => initialFormCache?.data.worldPath || '');
+  const [port, setPort] = useState(() => initialFormCache?.data.port || '7777');
+  const [password, setPassword] = useState(() => initialFormCache?.data.password || '');
+  const [maxPlayers, setMaxPlayers] = useState(() => initialFormCache?.data.maxPlayers || '8');
+  const [autoForward, setAutoForward] = useState(() => initialFormCache?.data.autoForward ?? false);
   const [command, setCommand] = useState('');
   const [busy, setBusy] = useState('');
 
@@ -59,6 +75,18 @@ export function ProductTerrariaGuideView({ onTriggerToast }: ProductTerrariaGuid
       .then(() => refreshReferenceRuntime(false))
       .catch(() => refreshReferenceRuntime(false).catch(() => undefined));
   }, []);
+
+  useEffect(() => {
+    writeProductPageCache<TerrariaFormCache>(TERRARIA_FORM_CACHE_KEY, {
+      worldMode,
+      worldChoice,
+      worldPath,
+      port,
+      password,
+      maxPlayers,
+      autoForward,
+    });
+  }, [autoForward, maxPlayers, password, port, worldChoice, worldMode, worldPath]);
 
   const run = async (label: string, task: () => Promise<unknown>) => {
     setBusy(label);
@@ -116,11 +144,12 @@ export function ProductTerrariaGuideView({ onTriggerToast }: ProductTerrariaGuid
 
   return (
     <div className="space-y-6" data-lan-helper-product-controlled="terraria">
+      <ProductBusyOverlay visible={Boolean(busy)} label={busy || '正在处理'} detail="正在启动、停止、刷新 Terraria 服务端或发送控制台命令；请等待会话状态返回。" />
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h2 className="font-heading text-2xl font-bold text-slate-800">Terraria 向导</h2>
           <p className="mt-1 max-w-3xl text-sm text-slate-500">
-            在程序内启动和管理 Terraria 服务端，并把运行状态同步到诊断报告。
+            Terraria 专用示例：启动服务端、查看日志，并复制好友加入说明。
           </p>
         </div>
         <div className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-bold ${statusTone(terraria)}`}>
@@ -135,7 +164,7 @@ export function ProductTerrariaGuideView({ onTriggerToast }: ProductTerrariaGuid
             <div className="mb-5 flex items-center justify-between">
               <div>
                 <h3 className="text-base font-bold text-slate-800">服务端启动参数</h3>
-                <p className="mt-1 text-xs text-slate-500">参数会传给真实 TerrariaServer.exe。</p>
+                <p className="mt-1 text-xs text-slate-500">填好后直接启动服务端；再次进入会保留上次填写内容。</p>
               </div>
               <button onClick={copyInvite} className="inline-flex items-center gap-1 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">
                 <Copy className="h-4 w-4" />

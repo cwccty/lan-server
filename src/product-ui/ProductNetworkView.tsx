@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   AlertCircle,
@@ -26,9 +26,30 @@ import {
 } from '../reference-adapter/actions';
 import { testConnectivity } from '../api/tauri';
 import { useReferenceRuntime } from '../reference-adapter/useReferenceRuntime';
-import type { NetworkConfig } from '../types/network';
+import type { ConnectivityReport, NetworkConfig } from '../types/network';
 import { invitePacketToNetworkConfig, parseLanInvitePacket, type LanInvitePacket } from './invitePacket';
+import {
+  buildInviteJoinErrorText,
+  classifyJoinFailure,
+  inviteResultTone,
+  joinFromInvitePacket,
+  type InviteJoinResult,
+} from './inviteJoinFlow';
+import { buildInviteDiagnosticContext, clearInviteDiagnosticContext, writeInviteDiagnosticContext } from './inviteDiagnosticContext';
+import {
+  appendInviteJoinSuccessRecord,
+  applyPortCheckToJoinSuccessRecord,
+  buildInviteJoinSuccessRecord,
+  formatInviteJoinSuccessInstruction,
+  readInviteJoinSuccessHistory,
+  updateInviteJoinSuccessRecord,
+  type InviteJoinSuccessRecord,
+} from './inviteJoinSuccess';
+import { buildInviteJoinClosureAudit, formatInviteJoinClosureAuditReport } from './inviteJoinClosureAudit';
 import { productStatusDotClasses, productStatusToneClasses, resolveProductStatusCenter } from './statusCenter';
+import { readProductPageCache, writeProductPageCache } from './productPageCache';
+
+import { ProductBusyOverlay } from './ProductBusyOverlay';
 
 interface ProductNetworkViewProps {
   onTriggerToast: (msg: string) => void;
@@ -44,79 +65,42 @@ function buildConfig(roomName: string, roomKey: string, supernode: string, local
   };
 }
 
-type InviteJoinPhase = 'idle' | 'filled' | 'joining' | 'joined' | 'pending' | 'failed';
+const INVITE_PENDING_AUTO_RETEST_DELAY_MS = 15000;
+const NETWORK_FORM_CACHE_KEY = 'lan-helper.product.network.form.cache.v1';
 
-interface InviteJoinResult {
-  phase: InviteJoinPhase;
-  title: string;
-  detail: string;
-  packet?: LanInvitePacket;
-  error?: string;
-}
-
-function wait(ms: number) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
-}
-
-function classifyJoinFailure(error: unknown, runtimeLabel = '') {
-  const message = `${error instanceof Error ? error.message : String(error || '')} ${runtimeLabel}`.toLowerCase();
-  if (message.includes('auth') || message.includes('认证') || message.includes('key') || message.includes('密钥')) {
-    return {
-      title: '房间认证失败',
-      detail: '房间密钥或房间名可能不一致。请让房主重新复制邀请包，再粘贴加入。'
-    };
-  }
-  if (message.includes('already in use') || message.includes('conflict') || message.includes('冲突') || message.includes('占用')) {
-    return {
-      title: '虚拟 IP 可能冲突',
-      detail: '邀请包里的好友虚拟 IP 可能已被占用。请让房主重新分配一个好友 IP。'
-    };
-  }
-  if (message.includes('supernode') || message.includes('not responding') || message.includes('无响应')) {
-    return {
-      title: 'Supernode 暂无响应',
-      detail: '中继节点可能未启动、端口未放行或网络不可达。请房主检查 VPS 上的 supernode。'
-    };
-  }
-  if (message.includes('edge') || message.includes('not found') || message.includes('找不到')) {
-    return {
-      title: 'n2n edge 不可用',
-      detail: '没有找到可用的 edge.exe，或 edge 路径配置不正确。请到设置与帮助检查 edge。'
-    };
-  }
-  if (message.includes('permission') || message.includes('权限') || message.includes('administrator') || message.includes('管理员')) {
-    return {
-      title: '权限不足',
-      detail: '启动虚拟网卡或 edge 可能需要更高权限。请尝试以管理员身份运行联机助手。'
-    };
-  }
-  return {
-    title: '加入失败',
-    detail: 'n2n 未能稳定启动或未读取到有效连接状态。请生成诊断报告查看详细原因。'
-  };
-}
-
-function inviteResultTone(phase: InviteJoinPhase) {
-  if (phase === 'joined') return 'border-emerald-100 bg-emerald-50 text-emerald-700';
-  if (phase === 'failed') return 'border-rose-100 bg-rose-50 text-rose-700';
-  if (phase === 'joining' || phase === 'pending') return 'border-amber-100 bg-amber-50 text-amber-700';
-  return 'border-slate-100 bg-slate-50 text-slate-600';
+interface NetworkFormCache {
+  roomName: string;
+  roomKey: string;
+  supernode: string;
+  localIp: string;
+  gamePort: string;
+  connectHost: string;
 }
 
 export function ProductNetworkView({ onTriggerToast, onNavigateTab }: ProductNetworkViewProps) {
   const runtime = useReferenceRuntime();
-  const [roomName, setRoomName] = useState('Terraria_Night_Squad');
-  const [roomKey, setRoomKey] = useState('');
-  const [supernode, setSupernode] = useState('');
-  const [localIp, setLocalIp] = useState('');
-  const [gamePort, setGamePort] = useState('7777');
-  const [connectHost, setConnectHost] = useState('');
+  const invitePendingRetestTimer = useRef<number | null>(null);
+  const initialFormCache = useMemo(() => readProductPageCache<NetworkFormCache>(NETWORK_FORM_CACHE_KEY), []);
+  const [roomName, setRoomName] = useState(() => initialFormCache?.data.roomName || 'Terraria_Night_Squad');
+  const [roomKey, setRoomKey] = useState(() => initialFormCache?.data.roomKey || '');
+  const [supernode, setSupernode] = useState(() => initialFormCache?.data.supernode || '');
+  const [localIp, setLocalIp] = useState(() => initialFormCache?.data.localIp || '');
+  const [gamePort, setGamePort] = useState(() => initialFormCache?.data.gamePort || '7777');
+  const [connectHost, setConnectHost] = useState(() => initialFormCache?.data.connectHost || '');
   const [busy, setBusy] = useState('');
   const [lastConnectivity, setLastConnectivity] = useState('');
   const [showRoomKey, setShowRoomKey] = useState(false);
   const [invitePaste, setInvitePaste] = useState('');
   const [detectedInvite, setDetectedInvite] = useState<LanInvitePacket | null>(null);
   const [inviteJoinResult, setInviteJoinResult] = useState<InviteJoinResult | null>(null);
+  const [invitePendingAutoRetest, setInvitePendingAutoRetest] = useState('');
+  const [inviteJoinSuccessHistory, setInviteJoinSuccessHistory] = useState<InviteJoinSuccessRecord[]>(() => readInviteJoinSuccessHistory());
+  const [latestInviteJoinSuccess, setLatestInviteJoinSuccess] = useState<InviteJoinSuccessRecord | null>(() => readInviteJoinSuccessHistory()[0] ?? null);
+  const inviteClosureAudit = useMemo(() => buildInviteJoinClosureAudit({
+    detectedInvite,
+    inviteJoinResult,
+    successHistory: inviteJoinSuccessHistory,
+  }), [detectedInvite, inviteJoinResult, inviteJoinSuccessHistory]);
   const status = resolveProductStatusCenter({
     loaded: runtime.loaded,
     snapshot: runtime.snapshot,
@@ -129,7 +113,8 @@ export function ProductNetworkView({ onTriggerToast, onNavigateTab }: ProductNet
   useEffect(() => {
     let cancelled = false;
     async function hydrate() {
-      setBusy('读取最近配置');
+      const showBusy = !initialFormCache;
+      if (showBusy) setBusy('读取最近配置');
       try {
         const result = await readReferenceN2nLastConfig();
         if (cancelled) return;
@@ -147,13 +132,31 @@ export function ProductNetworkView({ onTriggerToast, onNavigateTab }: ProductNet
       } catch {
         await refreshReferenceRuntime(false).catch(() => undefined);
       } finally {
-        if (!cancelled) setBusy('');
+        if (!cancelled && showBusy) setBusy('');
       }
     }
     hydrate();
     return () => {
       cancelled = true;
     };
+  }, [initialFormCache]);
+
+  useEffect(() => {
+    writeProductPageCache<NetworkFormCache>(NETWORK_FORM_CACHE_KEY, {
+      roomName,
+      roomKey,
+      supernode,
+      localIp,
+      gamePort,
+      connectHost,
+    });
+  }, [connectHost, gamePort, localIp, roomKey, roomName, supernode]);
+
+  useEffect(() => () => {
+    if (invitePendingRetestTimer.current) {
+      window.clearTimeout(invitePendingRetestTimer.current);
+      invitePendingRetestTimer.current = null;
+    }
   }, []);
 
   useEffect(() => {
@@ -181,6 +184,116 @@ export function ProductNetworkView({ onTriggerToast, onNavigateTab }: ProductNet
   const startN2n = () => run('启动 n2n Edge', () => startReferenceN2n(config()));
   const stopN2n = () => run('停止 n2n Edge', () => stopReferenceN2n());
   const refreshStatus = () => run('刷新节点状态', () => refreshReferenceRuntime(false));
+
+  const currentInviteJoinContext = () => ({
+    connectHost,
+    localIp,
+    supernode,
+    roomName,
+    gamePort,
+    runtimeLabel: runtime.network.label || status.label,
+    runtimeErrors: runtime.errors,
+  });
+
+  const persistInviteJoinDiagnosticContext = (result: InviteJoinResult) => {
+    writeInviteDiagnosticContext(buildInviteDiagnosticContext(result, currentInviteJoinContext()));
+  };
+
+  const persistInviteJoinSuccess = (result: InviteJoinResult) => {
+    const record = buildInviteJoinSuccessRecord(result, currentInviteJoinContext());
+    const next = appendInviteJoinSuccessRecord(record);
+    setLatestInviteJoinSuccess(record);
+    setInviteJoinSuccessHistory(next);
+    return record;
+  };
+
+  const clearPendingInviteRetest = () => {
+    if (invitePendingRetestTimer.current) {
+      window.clearTimeout(invitePendingRetestTimer.current);
+      invitePendingRetestTimer.current = null;
+    }
+    setInvitePendingAutoRetest('');
+  };
+
+  const scheduleInvitePendingAutoRetest = (packet: LanInvitePacket, pendingResult: InviteJoinResult) => {
+    persistInviteJoinDiagnosticContext(pendingResult);
+    clearPendingInviteRetest();
+    setInvitePendingAutoRetest('将在 15 秒后自动复测 ACK/PONG。');
+    invitePendingRetestTimer.current = window.setTimeout(async () => {
+      invitePendingRetestTimer.current = null;
+      setInvitePendingAutoRetest('正在自动复测 ACK/PONG...');
+      try {
+        const refreshed = await refreshReferenceRuntime(false);
+        const latest = refreshed.snapshot;
+        const n2n = latest?.n2n;
+        if (n2n?.ok_link) {
+          const joinedResult: InviteJoinResult = {
+            phase: 'joined',
+            title: '已加入好友房间',
+            detail: `自动复测已看到 ACK/PONG。请在游戏内连接房主虚拟 IP：${packet.hostVirtualIp || connectHost || '未读取'}，端口：${packet.gamePort || gamePort || 7777}。`,
+            packet,
+            latest,
+          };
+          setInviteJoinResult(joinedResult);
+          clearInviteDiagnosticContext();
+          persistInviteJoinSuccess(joinedResult);
+          onTriggerToast('自动复测通过：已加入好友房间。');
+          return;
+        }
+        if (n2n?.running) {
+          const stillPending: InviteJoinResult = {
+            phase: 'pending',
+            title: '仍在等待 ACK/PONG',
+            detail: '自动复测后 edge 仍在运行，但还没有看到 Supernode ACK/PONG。建议带等待信息进入诊断。',
+            packet,
+            error: n2n?.summary || latest?.errors?.[0] || 'auto_retest_pending_ack',
+            latest,
+          };
+          setInviteJoinResult(stillPending);
+          writeInviteDiagnosticContext(buildInviteDiagnosticContext(stillPending, {
+            ...currentInviteJoinContext(),
+            runtimeLabel: n2n?.summary || runtime.network.label || status.label,
+            runtimeErrors: latest?.errors ?? runtime.errors,
+          }));
+          onTriggerToast('自动复测后仍未确认 ACK/PONG，请打开诊断。');
+          return;
+        }
+        const error = n2n?.last_error || latest?.errors?.[0] || n2n?.summary || '自动复测后 edge 未保持运行';
+        const reason = classifyJoinFailure(error, n2n?.summary);
+        const failedResult: InviteJoinResult = {
+          phase: 'failed',
+          title: reason.title,
+          detail: reason.detail,
+          packet,
+          error,
+          reason,
+          latest,
+        };
+        setInviteJoinResult(failedResult);
+        writeInviteDiagnosticContext(buildInviteDiagnosticContext(failedResult, {
+          ...currentInviteJoinContext(),
+          runtimeLabel: n2n?.summary || runtime.network.label || status.label,
+          runtimeErrors: latest?.errors ?? runtime.errors,
+        }));
+        onTriggerToast(`自动复测失败：${reason.title}，已准备诊断上下文。`);
+      } catch (error) {
+        const reason = classifyJoinFailure(error, runtime.network.label);
+        const failedResult: InviteJoinResult = {
+          phase: 'failed',
+          title: reason.title,
+          detail: reason.detail,
+          packet,
+          error: error instanceof Error ? error.message : String(error),
+          reason,
+        };
+        setInviteJoinResult(failedResult);
+        persistInviteJoinDiagnosticContext(failedResult);
+        onTriggerToast(`自动复测失败：${reason.title}`);
+      } finally {
+        setInvitePendingAutoRetest('');
+      }
+    }, INVITE_PENDING_AUTO_RETEST_DELAY_MS);
+  };
 
   const runStatusAction = () => {
     if (status.needsServer) {
@@ -220,6 +333,7 @@ export function ProductNetworkView({ onTriggerToast, onNavigateTab }: ProductNet
       });
     } else if (value.trim()) {
       setInviteJoinResult(null);
+      clearPendingInviteRetest();
     }
   };
 
@@ -252,7 +366,7 @@ export function ProductNetworkView({ onTriggerToast, onNavigateTab }: ProductNet
       onTriggerToast('没有检测到可加入的邀请包。');
       return;
     }
-    const next = applyInvitePacket(packet);
+    applyInvitePacket(packet);
     setBusy('保存并启动邀请');
     setInviteJoinResult({
       phase: 'joining',
@@ -261,57 +375,42 @@ export function ProductNetworkView({ onTriggerToast, onNavigateTab }: ProductNet
       packet
     });
     try {
-      const saved = await saveReferenceN2nConfig(next);
-      if (!saved.ok) throw new Error(saved.message);
-      const started = await startReferenceN2n(next);
-      if (!started.ok) throw new Error(started.message);
-
-      let latest = started.snapshot;
-      for (let attempt = 0; attempt < 4; attempt += 1) {
-        await wait(1500);
-        const refreshed = await refreshReferenceRuntime(false);
-        latest = refreshed.snapshot || latest;
-        if (latest?.n2n?.ok_link) break;
-      }
-
-      const n2n = latest?.n2n;
-      if (n2n?.ok_link) {
-        setInviteJoinResult({
-          phase: 'joined',
-          title: '已加入好友房间',
-          detail: `请在游戏内连接房主虚拟 IP：${packet.hostVirtualIp || connectHost || '未读取'}，端口：${packet.gamePort || Number(gamePort) || 7777}。`,
-          packet
-        });
+      const result = await joinFromInvitePacket(packet, {
+        connectHost,
+        localIp,
+        supernode,
+        roomName,
+        gamePort,
+        runtimeLabel: runtime.network.label,
+        runtimeErrors: runtime.errors
+      });
+      setInviteJoinResult(result);
+      if (result.phase === 'joined') {
+        persistInviteJoinSuccess(result);
+        clearInviteDiagnosticContext();
         onTriggerToast('已加入好友房间。请进入游戏连接房主虚拟 IP。');
-      } else if (n2n?.running) {
-        setInviteJoinResult({
-          phase: 'pending',
-          title: 'n2n 已启动，等待确认',
-          detail: 'edge 已运行，但暂未看到 ACK/PONG。等待 10 到 20 秒后刷新，若仍未连接请生成诊断报告。',
-          packet
-        });
-        onTriggerToast('n2n 已启动，正在等待 Supernode 确认。');
-      } else {
-        const reason = classifyJoinFailure(n2n?.last_error || latest?.errors?.[0] || 'edge 未保持运行', n2n?.summary);
-        setInviteJoinResult({
-          phase: 'failed',
-          title: reason.title,
-          detail: reason.detail,
-          packet,
-          error: n2n?.last_error || latest?.errors?.[0] || n2n?.summary || 'edge 未保持运行'
-        });
-        onTriggerToast(`加入失败：${reason.title}`);
+      }
+      else if (result.phase === 'pending') {
+        scheduleInvitePendingAutoRetest(packet, result);
+        onTriggerToast('n2n 已启动，正在等待 Supernode 确认；将自动复测一次。');
+      }
+      else if (result.phase === 'failed') {
+        persistInviteJoinDiagnosticContext(result);
+        onTriggerToast(`加入失败：${result.title}，已准备诊断上下文。`);
       }
     } catch (error) {
       const reason = classifyJoinFailure(error, runtime.network.label);
-      setInviteJoinResult({
+      const failedResult: InviteJoinResult = {
         phase: 'failed',
         title: reason.title,
         detail: reason.detail,
         packet,
-        error: error instanceof Error ? error.message : String(error)
-      });
-      onTriggerToast(`加入失败：${reason.title}`);
+        error: error instanceof Error ? error.message : String(error),
+        reason
+      };
+      setInviteJoinResult(failedResult);
+      persistInviteJoinDiagnosticContext(failedResult);
+      onTriggerToast(`加入失败：${reason.title}，已准备诊断上下文。`);
     } finally {
       setBusy('');
     }
@@ -330,6 +429,32 @@ export function ProductNetworkView({ onTriggerToast, onNavigateTab }: ProductNet
     setLastConnectivity(`${report.target_host}:${port} ${report.reachable ? '可连接' : '不可连接'}${report.notes.length ? `｜${report.notes.join('；')}` : ''}`);
     return report;
   });
+
+  const testInviteHostGamePort = async (record = latestInviteJoinSuccess) => {
+    if (!record) {
+      onTriggerToast('暂无加入成功记录，无法检测房主游戏端口。');
+      return;
+    }
+    setBusy('检测房主游戏端口');
+    try {
+      const report = await testConnectivity({
+        host: record.hostVirtualIp,
+        ports: [record.gamePort],
+        timeout_ms: 1500,
+        mode: 'n2n_game_port'
+      });
+      const nextRecord = applyPortCheckToJoinSuccessRecord(record, report as ConnectivityReport);
+      const next = updateInviteJoinSuccessRecord(nextRecord);
+      setLatestInviteJoinSuccess(nextRecord);
+      setInviteJoinSuccessHistory(next);
+      setLastConnectivity(nextRecord.portCheckSummary || '');
+      onTriggerToast(nextRecord.portReachable ? '房主游戏端口可连接。' : '房主游戏端口暂不可连接，请确认服务端/游戏已开房。');
+    } catch (error) {
+      onTriggerToast(`检测房主游戏端口失败：${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setBusy('');
+    }
+  };
 
   const copySummary = async () => {
     const text = [
@@ -353,21 +478,15 @@ export function ProductNetworkView({ onTriggerToast, onNavigateTab }: ProductNet
 
   const copyInviteJoinError = async () => {
     if (!inviteJoinResult) return;
-    const packet = inviteJoinResult.packet;
-    const text = [
-      '[联机助手加入失败信息]',
-      `结果：${inviteJoinResult.title}`,
-      `说明：${inviteJoinResult.detail}`,
-      inviteJoinResult.error ? `错误：${inviteJoinResult.error}` : '',
-      `游戏：${packet?.gameName || '未知'}`,
-      `房主虚拟 IP：${packet?.hostVirtualIp || connectHost || '未读取'}`,
-      `我的预留 IP：${packet?.friendVirtualIp || localIp || '未读取'}`,
-      `Supernode：${packet?.supernode || supernode || '未读取'}`,
-      `房间名：${packet?.roomName || roomName || '未读取'}`,
-      `游戏端口：${packet?.gamePort || gamePort || '未读取'}`,
-      `当前 n2n 状态：${runtime.network.label || status.label}`,
-      runtime.errors.length ? `runtime 错误：${runtime.errors.join('；')}` : ''
-    ].filter(Boolean).join('\n');
+    const text = buildInviteJoinErrorText(inviteJoinResult, {
+      connectHost,
+      localIp,
+      supernode,
+      roomName,
+      gamePort,
+      runtimeLabel: runtime.network.label || status.label,
+      runtimeErrors: runtime.errors
+    });
     try {
       const clipboard = navigator.clipboard;
       if (!clipboard || typeof clipboard.writeText !== 'function') throw new Error('剪贴板不可用');
@@ -378,10 +497,49 @@ export function ProductNetworkView({ onTriggerToast, onNavigateTab }: ProductNet
     }
   };
 
+  const copyInviteGameConnectInstruction = async (record = latestInviteJoinSuccess) => {
+    if (!record) {
+      onTriggerToast('暂无加入成功记录，无法复制游戏内连接说明。');
+      return;
+    }
+    try {
+      const clipboard = navigator.clipboard;
+      if (!clipboard || typeof clipboard.writeText !== 'function') throw new Error('剪贴板不可用');
+      await clipboard.writeText(formatInviteJoinSuccessInstruction(record));
+      onTriggerToast('游戏内连接说明已复制。');
+    } catch (error) {
+      onTriggerToast(`复制失败：${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  const copyInviteClosureAudit = async () => {
+    try {
+      const clipboard = navigator.clipboard;
+      if (!clipboard || typeof clipboard.writeText !== 'function') throw new Error('剪贴板不可用');
+      await clipboard.writeText(formatInviteJoinClosureAuditReport({
+        detectedInvite,
+        inviteJoinResult,
+        successHistory: inviteJoinSuccessHistory,
+      }));
+      onTriggerToast('邀请加入闭环自检已复制。');
+    } catch (error) {
+      onTriggerToast(`复制失败：${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  const openInviteJoinDiagnostics = () => {
+    if (inviteJoinResult?.phase === 'failed' || inviteJoinResult?.phase === 'pending') {
+      persistInviteJoinDiagnosticContext(inviteJoinResult);
+      onTriggerToast(inviteJoinResult.phase === 'pending' ? '已把邀请等待 ACK/PONG 信息带入诊断页。' : '已把邀请加入失败信息带入诊断页。');
+    }
+    onNavigateTab('diagnostics');
+  };
+
   const logs = runtime.snapshot?.n2n?.recent_logs?.slice(-10) ?? [];
 
   return (
     <div className="space-y-6" data-lan-helper-product-controlled="network">
+      <ProductBusyOverlay visible={Boolean(busy)} label={busy || '正在处理'} detail="正在读取配置、启动/停止 n2n 或检测端口；完成前请不要重复点击组网按钮。" />
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h2 className="font-heading text-2xl font-bold text-slate-800">通用组网中心</h2>
@@ -484,7 +642,7 @@ export function ProductNetworkView({ onTriggerToast, onNavigateTab }: ProductNet
               <div>
                 <h3 className="text-sm font-bold text-slate-800">连接准备清单</h3>
                 <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                  先保存参数，再启动 n2n。看到 ACK/PONG 后，房主复制邀请包，好友粘贴邀请包加入同一虚拟局域网。
+                  房主保存并启动 n2n；好友粘贴邀请包后，一键加入同一个虚拟局域网。
                 </p>
               </div>
               <span className={`w-fit rounded-full border px-3 py-1 text-[11px] font-bold ${productStatusToneClasses(status.tone)}`}>
@@ -569,7 +727,7 @@ export function ProductNetworkView({ onTriggerToast, onNavigateTab }: ProductNet
                 粘贴好友邀请包
               </h3>
               <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                加入好友房间时，把房主发来的邀请内容粘贴到这里。
+                把房主发来的邀请包粘贴到这里，不需要手动理解房间名和密钥。
               </p>
             </div>
             <textarea
@@ -589,7 +747,7 @@ export function ProductNetworkView({ onTriggerToast, onNavigateTab }: ProductNet
                     </p>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
-                    <button onClick={() => { setInvitePaste(''); setDetectedInvite(null); setInviteJoinResult(null); }} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">取消</button>
+                    <button onClick={() => { setInvitePaste(''); setDetectedInvite(null); setInviteJoinResult(null); clearPendingInviteRetest(); clearInviteDiagnosticContext(); }} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">取消</button>
                     <button onClick={enterInvite} disabled={Boolean(busy)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60">仅填入参数</button>
                     <button onClick={startFromInvite} disabled={Boolean(busy)} className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-60">
                       {busy === '保存并启动邀请' ? '加入中...' : '保存并启动 n2n'}
@@ -616,27 +774,113 @@ export function ProductNetworkView({ onTriggerToast, onNavigateTab }: ProductNet
                     ) : null}
                   </div>
                 </div>
-                {inviteJoinResult.phase === 'failed' ? (
+                {inviteJoinResult.phase === 'joined' ? (
+                  <div className="mt-3 rounded-lg bg-white/70 p-3" data-invite-joined-game-confirmation="latest">
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">n2n 已确认</span>
+                      <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-slate-600">下一步确认游戏端口</span>
+                    </div>
+                    <p className="text-[11px] leading-relaxed text-emerald-800">
+                      这只证明你已进入同一个虚拟局域网。若游戏仍进不去，请先检测房主游戏端口是否可达。
+                    </p>
+                    {latestInviteJoinSuccess?.portCheckSummary ? (
+                      <p className={`mt-2 rounded-lg p-2 text-[11px] font-semibold ${
+                        latestInviteJoinSuccess.portReachable ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+                      }`}>
+                        {latestInviteJoinSuccess.portCheckSummary}
+                        {latestInviteJoinSuccess.portCheckNotes.length ? `｜${latestInviteJoinSuccess.portCheckNotes.join('；')}` : ''}
+                      </p>
+                    ) : null}
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <button onClick={() => testInviteHostGamePort()} disabled={Boolean(busy)} className="rounded-lg bg-white/85 px-3 py-2 text-xs font-bold text-emerald-700 ring-1 ring-emerald-100 hover:bg-white disabled:opacity-60">
+                        检测房主游戏端口
+                      </button>
+                      <button onClick={() => copyInviteGameConnectInstruction()} className="rounded-lg bg-white/85 px-3 py-2 text-xs font-bold text-emerald-700 ring-1 ring-emerald-100 hover:bg-white">
+                        复制游戏内连接说明
+                      </button>
+                    </div>
+                  </div>
+                ) : inviteJoinResult.phase === 'failed' ? (
                   <div className="mt-3 grid grid-cols-2 gap-2">
-                    <button onClick={() => onNavigateTab('diagnostics')} className="rounded-lg bg-white/80 px-3 py-2 text-xs font-bold text-rose-700 ring-1 ring-rose-100 hover:bg-white">
-                      生成诊断报告
+                    <button onClick={openInviteJoinDiagnostics} className="rounded-lg bg-white/80 px-3 py-2 text-xs font-bold text-rose-700 ring-1 ring-rose-100 hover:bg-white">
+                      带失败信息诊断
                     </button>
                     <button onClick={copyInviteJoinError} className="rounded-lg bg-white/80 px-3 py-2 text-xs font-bold text-rose-700 ring-1 ring-rose-100 hover:bg-white">
                       复制错误给房主
                     </button>
                   </div>
                 ) : inviteJoinResult.phase === 'pending' ? (
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    <button onClick={refreshStatus} disabled={Boolean(busy)} className="rounded-lg bg-white/80 px-3 py-2 text-xs font-bold text-amber-700 ring-1 ring-amber-100 hover:bg-white disabled:opacity-60">
-                      刷新状态
-                    </button>
-                    <button onClick={() => onNavigateTab('diagnostics')} className="rounded-lg bg-white/80 px-3 py-2 text-xs font-bold text-amber-700 ring-1 ring-amber-100 hover:bg-white">
-                      打开诊断
-                    </button>
-                  </div>
+                  <>
+                    {invitePendingAutoRetest ? (
+                      <p className="mt-3 rounded-lg bg-white/70 p-2 text-[11px] font-semibold text-amber-700" data-invite-pending-auto-retest="status">
+                        自动复测：{invitePendingAutoRetest}
+                      </p>
+                    ) : null}
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <button onClick={refreshStatus} disabled={Boolean(busy)} className="rounded-lg bg-white/80 px-3 py-2 text-xs font-bold text-amber-700 ring-1 ring-amber-100 hover:bg-white disabled:opacity-60">
+                        手动刷新状态
+                      </button>
+                      <button onClick={openInviteJoinDiagnostics} className="rounded-lg bg-white/80 px-3 py-2 text-xs font-bold text-amber-700 ring-1 ring-amber-100 hover:bg-white">
+                        带等待信息诊断
+                      </button>
+                    </div>
+                  </>
                 ) : null}
               </div>
             ) : null}
+            {inviteJoinSuccessHistory.length ? (
+              <div className="mt-3 rounded-xl border border-emerald-100 bg-white/80 p-3" data-invite-join-success-history="recent">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="text-xs font-bold text-slate-800">最近加入成功记录</p>
+                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                    {inviteJoinSuccessHistory.length} 条
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {inviteJoinSuccessHistory.slice(0, 3).map((record) => (
+                    <div key={record.id} className="rounded-lg bg-slate-50 p-2 text-[11px] leading-relaxed text-slate-600">
+                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                        <span className="font-bold text-slate-800">{record.gameName}</span>
+                        <span className="font-mono">{record.hostVirtualIp}:{record.gamePort}</span>
+                      </div>
+                      <p className="mt-1">
+                        {record.portCheckSummary || '尚未检测游戏端口'}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            <div className="mt-3 rounded-xl border border-slate-100 bg-white/85 p-3" data-invite-join-closure-audit="checklist">
+              <div className="mb-2 flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-xs font-bold text-slate-800">邀请加入闭环自检</p>
+                  <p className="mt-1 text-[11px] leading-relaxed text-slate-500">{inviteClosureAudit.summary}</p>
+                </div>
+                <button onClick={copyInviteClosureAudit} className="shrink-0 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-50">
+                  复制自检
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-[11px]">
+                <div className="rounded-lg bg-slate-50 p-2 text-slate-600">
+                  <p className="font-bold text-slate-800">能力项</p>
+                  <p className="mt-1 font-mono">{inviteClosureAudit.wiredCount} 项</p>
+                </div>
+                <div className="rounded-lg bg-slate-50 p-2 text-slate-600">
+                  <p className="font-bold text-slate-800">本次观察</p>
+                  <p className="mt-1 font-mono">{inviteClosureAudit.observedCount} 项</p>
+                </div>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {inviteClosureAudit.items.slice(0, 6).map((item) => (
+                  <span key={item.id} className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                    item.status === 'observed' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {item.label}
+                  </span>
+                ))}
+              </div>
+            </div>
           </div>
         </aside>
       </div>

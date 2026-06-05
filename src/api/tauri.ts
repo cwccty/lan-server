@@ -47,7 +47,103 @@ const invoke = async <T>(command: string, args?: Record<string, unknown>) => {
 export const scanGames = () => invoke<GameSummary[]>('scan_games');
 export const analyzeGame = (gameId: string) => invoke<GameAnalysis>('analyze_game', { gameId });
 export const listGameAdapters = () => invoke<GameAdapter[]>('list_game_adapters');
+export interface AdapterVariantInfo {
+  game_id: string;
+  display_name: string;
+  source: string;
+  path: string;
+  priority: number;
+  fingerprint: string;
+  short_fingerprint: string;
+  network_type?: string | null;
+  default_ports: number[];
+  modified_at?: string | null;
+  is_active: boolean;
+}
+
+export interface AdapterConflictReport {
+  game_id: string;
+  display_name: string;
+  active_source: string;
+  active_path: string;
+  active_fingerprint: string;
+  has_conflict: boolean;
+  variants: AdapterVariantInfo[];
+  summary: string;
+  recommendation: string;
+}
+
+export interface AdapterBackupEntry {
+  id: string;
+  game_id: string;
+  display_name: string;
+  source: string;
+  reason: string;
+  original_path: string;
+  backup_path: string;
+  metadata_path: string;
+  created_at: string;
+  fingerprint: string;
+  short_fingerprint: string;
+  size_bytes: number;
+}
+
+export interface AdapterRegistrySyncPreview {
+  ok: boolean;
+  registry_url: string;
+  registry_version?: number | null;
+  registry_updated_at?: string | null;
+  total: number;
+  will_create: number;
+  will_update: number;
+  unchanged: number;
+  custom_protected: number;
+  would_affect_active: number;
+  possible_conflicts: number;
+  skipped: number;
+  items: AdapterRegistryPreviewItem[];
+  messages: string[];
+}
+
+export interface AdapterRegistryPreviewItem {
+  game_id: string;
+  display_name?: string | null;
+  adapter_url: string;
+  status: string;
+  reason: string;
+  expected_sha256?: string | null;
+  actual_sha256?: string | null;
+  local_sources: string[];
+  active_source?: string | null;
+  has_custom: boolean;
+  has_registry: boolean;
+  would_write_registry: boolean;
+  would_affect_active: boolean;
+  conflict_with_custom: boolean;
+  saved_path?: string | null;
+  diff_fields: AdapterChangeDiffField[];
+}
+
+export interface AdapterChangeDiffField {
+  field: string;
+  label: string;
+  before: string;
+  after: string;
+  changed: boolean;
+  affects_recommendation: boolean;
+}
+
+export const previewAdapterRegistrySync = (registryUrl: string) =>
+  invoke<AdapterRegistrySyncPreview>('preview_adapter_registry_sync', { registryUrl });
+export const listAdapterConflicts = () => invoke<AdapterConflictReport[]>('list_adapter_conflicts');
+export const listAdapterBackups = () => invoke<AdapterBackupEntry[]>('list_adapter_backups');
+export const restoreAdapterBackup = (backupId: string) =>
+  invoke<GameAdapter>('restore_adapter_backup', { backupId });
 export const saveGameAdapter = (adapter: GameAdapter) => invoke<GameAdapter>('save_game_adapter', { adapter });
+export const promoteRegistryAdapterToCustom = (gameId: string) =>
+  invoke<GameAdapter>('promote_registry_adapter_to_custom', { gameId });
+export const pinActiveAdapterAsCustom = (gameId: string) =>
+  invoke<GameAdapter>('pin_active_adapter_as_custom', { gameId });
 export const importGameAdapterJson = (content: string) =>
   invoke<GameAdapter>('import_game_adapter_json', { content });
 export const exportGameAdapterJson = (gameId: string) =>
@@ -55,6 +151,8 @@ export const exportGameAdapterJson = (gameId: string) =>
 export interface AdapterRegistrySyncResult {
   ok: boolean;
   registry_url: string;
+  registry_version?: number | null;
+  registry_updated_at?: string | null;
   total: number;
   created: number;
   updated: number;
@@ -78,10 +176,37 @@ export interface AdapterRegistrySyncItem {
   actual_sha256?: string | null;
   saved_path?: string | null;
 }
+
+export interface AdapterRegistryLocalPublishEntry {
+  game_id: string;
+  display_name: string;
+  adapter_path: string;
+  adapter_url: string;
+  sha256: string;
+  status: string;
+}
+
+export interface AdapterRegistryLocalPublishResult {
+  ok: boolean;
+  registry_dir: string;
+  games_dir: string;
+  index_path: string;
+  total: number;
+  written: number;
+  created: number;
+  updated: number;
+  unchanged: number;
+  verified: boolean;
+  index_game_count: number;
+  entries: AdapterRegistryLocalPublishEntry[];
+  messages: string[];
+}
 export const syncAdapterRegistry = (registryUrl: string) =>
   invoke<AdapterRegistrySyncResult>('sync_adapter_registry', { registryUrl });
 export const syncLocalAdapterRegistryExample = () =>
   invoke<AdapterRegistrySyncResult>('sync_local_adapter_registry_example');
+export const publishAdaptersToLocalRegistry = (gameIds: string[]) =>
+  invoke<AdapterRegistryLocalPublishResult>('publish_adapters_to_local_registry', { gameIds });
 export const getAppSettings = () => invoke<AppSettings>('get_app_settings');
 export const saveAppSettings = (settings: AppSettings) =>
   invoke<AppSettings>('save_app_settings', { settings });

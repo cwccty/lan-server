@@ -1,17 +1,30 @@
+import { useState } from 'react';
 import {
   Activity,
+  AlertCircle,
   CheckCircle2,
   ChevronRight,
   Copy,
   Globe,
   Laptop,
+  LogIn,
   Network,
+  RefreshCw,
   Search,
   Settings,
   Users,
   XCircle
 } from 'lucide-react';
+import { refreshReferenceRuntime, saveReferenceN2nConfig } from '../reference-adapter/actions';
 import { useReferenceRuntime } from '../reference-adapter/useReferenceRuntime';
+import { invitePacketToNetworkConfig, parseLanInvitePacket, type LanInvitePacket } from './invitePacket';
+import {
+  buildInviteJoinErrorText,
+  classifyJoinFailure,
+  inviteResultTone,
+  joinFromInvitePacket,
+  type InviteJoinResult,
+} from './inviteJoinFlow';
 import { resolveProductStatusCenter } from './statusCenter';
 
 interface ProductHomeViewProps {
@@ -79,6 +92,10 @@ export function ProductHomeView({
   const currentStatus = productStatus.label;
   const inviteSummary = buildInviteSummary(runtime);
   const hasNetworkIdentity = Boolean(runtime.network.virtualIp || runtime.network.supernode);
+  const [homeInviteText, setHomeInviteText] = useState('');
+  const [homeInvite, setHomeInvite] = useState<LanInvitePacket | null>(null);
+  const [homeInviteResult, setHomeInviteResult] = useState<InviteJoinResult | null>(null);
+  const [homeInviteBusy, setHomeInviteBusy] = useState(false);
 
   const copyInviteSummary = async () => {
     try {
@@ -86,6 +103,107 @@ export function ProductHomeView({
       if (!clipboard || typeof clipboard.writeText !== 'function') throw new Error('剪贴板不可用');
       await clipboard.writeText(inviteSummary);
       onTriggerToast('已复制真实联机摘要。更完整的好友邀请包请到“推荐方案”生成。');
+    } catch (error) {
+      onTriggerToast(`复制失败：${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  const handleHomeInviteText = (value: string) => {
+    setHomeInviteText(value);
+    const packet = parseLanInvitePacket(value);
+    setHomeInvite(packet);
+    if (packet) {
+      setHomeInviteResult({
+        phase: 'idle',
+        title: '检测到邀请包',
+        detail: '可以仅填入参数，也可以直接保存并启动 n2n。',
+        packet
+      });
+    } else if (value.trim()) {
+      setHomeInviteResult(null);
+    }
+  };
+
+  const fillInviteParameters = async () => {
+    if (!homeInvite) {
+      onTriggerToast('没有检测到可用邀请包。');
+      return;
+    }
+    setHomeInviteBusy(true);
+    try {
+      const config = invitePacketToNetworkConfig(homeInvite);
+      const saved = await saveReferenceN2nConfig(config);
+      if (!saved.ok) throw new Error(saved.message);
+      await refreshReferenceRuntime(false);
+      setHomeInviteResult({
+        phase: 'filled',
+        title: '邀请参数已保存',
+        detail: '已把房间名、密钥、Supernode 和你的虚拟 IP 写入本地 n2n 参数，但尚未启动 edge。',
+        packet: homeInvite
+      });
+      onTriggerToast('已保存邀请参数；如需确认可打开通用组网中心。');
+    } catch (error) {
+      const reason = classifyJoinFailure(error, runtime.network.label);
+      setHomeInviteResult({
+        phase: 'failed',
+        title: reason.title,
+        detail: reason.detail,
+        packet: homeInvite,
+        error: error instanceof Error ? error.message : String(error),
+        reason
+      });
+      onTriggerToast(`保存邀请参数失败：${reason.title}`);
+    } finally {
+      setHomeInviteBusy(false);
+    }
+  };
+
+  const startHomeInvite = async () => {
+    if (!homeInvite) {
+      onTriggerToast('没有检测到可用邀请包。');
+      return;
+    }
+    setHomeInviteBusy(true);
+    setHomeInviteResult({
+      phase: 'joining',
+      title: '正在加入好友房间',
+      detail: '正在保存邀请参数并启动 n2n，请等待 ACK/PONG 状态刷新。',
+      packet: homeInvite
+    });
+    try {
+      const result = await joinFromInvitePacket(homeInvite, {
+        connectHost: homeInvite.hostVirtualIp,
+        localIp: homeInvite.friendVirtualIp,
+        supernode: homeInvite.supernode,
+        roomName: homeInvite.roomName,
+        gamePort: homeInvite.gamePort,
+        runtimeLabel: runtime.network.label,
+        runtimeErrors: runtime.errors
+      });
+      setHomeInviteResult(result);
+      if (result.phase === 'joined') onTriggerToast('已加入好友房间。请在游戏内连接房主虚拟 IP 和端口。');
+      else if (result.phase === 'pending') onTriggerToast('n2n 已启动，正在等待 Supernode 确认。');
+      else if (result.phase === 'failed') onTriggerToast(`加入失败：${result.title}`);
+    } finally {
+      setHomeInviteBusy(false);
+    }
+  };
+
+  const copyHomeInviteError = async () => {
+    if (!homeInviteResult) return;
+    try {
+      const clipboard = navigator.clipboard;
+      if (!clipboard || typeof clipboard.writeText !== 'function') throw new Error('剪贴板不可用');
+      await clipboard.writeText(buildInviteJoinErrorText(homeInviteResult, {
+        connectHost: homeInvite?.hostVirtualIp,
+        localIp: homeInvite?.friendVirtualIp,
+        supernode: homeInvite?.supernode,
+        roomName: homeInvite?.roomName,
+        gamePort: homeInvite?.gamePort,
+        runtimeLabel: runtime.network.label,
+        runtimeErrors: runtime.errors
+      }));
+      onTriggerToast('已复制加入失败信息，可发给房主。');
     } catch (error) {
       onTriggerToast(`复制失败：${error instanceof Error ? error.message : String(error)}`);
     }
@@ -215,6 +333,152 @@ export function ProductHomeView({
           </p>
         </div>
       </div>
+
+      {role === 'joiner' ? (
+        <section className="rounded-2xl border border-amber-100 bg-amber-50/70 p-5 shadow-sm">
+          <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500 text-amber-950">
+                <LogIn className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-800">好友邀请包一键加入</h3>
+                <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                  粘贴房主发来的邀请包。检测成功后可以仅保存参数，或直接保存并启动 n2n。
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => onNavigateTab('network')}
+              className="w-fit rounded-xl border border-amber-200 bg-white/80 px-3 py-2 text-xs font-bold text-amber-800 hover:bg-white"
+            >
+              打开详细组网中心
+            </button>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
+            <textarea
+              value={homeInviteText}
+              onChange={(event) => handleHomeInviteText(event.target.value)}
+              placeholder="粘贴 [联机助手真实邀请包] ..."
+              className="min-h-36 w-full resize-y rounded-xl border border-amber-100 bg-white px-3 py-2 text-xs leading-relaxed text-slate-700 outline-none focus:border-amber-400"
+            />
+
+            <div className="space-y-3">
+              {homeInvite ? (
+                <div className="rounded-xl border border-amber-200 bg-white p-3 text-xs text-slate-600">
+                  <p className="font-bold text-slate-800">已检测到邀请</p>
+                  <p className="mt-1 leading-relaxed">
+                    {homeInvite.gameName || '未知游戏'}<br />
+                    房主：<span className="font-mono">{homeInvite.hostVirtualIp || '-'}</span> · 端口：<span className="font-mono">{homeInvite.gamePort || 7777}</span><br />
+                    我的预留 IP：<span className="font-mono">{homeInvite.friendVirtualIp || '-'}</span>
+                  </p>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <button
+                      onClick={fillInviteParameters}
+                      disabled={homeInviteBusy}
+                      className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                    >
+                      仅填入参数
+                    </button>
+                    <button
+                      onClick={startHomeInvite}
+                      disabled={homeInviteBusy}
+                      className="inline-flex items-center justify-center gap-1 rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-60"
+                    >
+                      {homeInviteBusy ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : null}
+                      {homeInviteBusy ? '处理中...' : '保存并启动 n2n'}
+                    </button>
+                  </div>
+                </div>
+              ) : homeInviteText.trim() ? (
+                <div className="rounded-xl border border-amber-200 bg-white/80 p-3 text-xs leading-relaxed text-amber-700">
+                  暂未识别到邀请包。请确认内容包含“[联机助手真实邀请包]”。
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-amber-200 bg-white/60 p-3 text-xs leading-relaxed text-slate-500">
+                  等待粘贴邀请包。你不需要手动理解房间名、密钥或 Supernode。
+                </div>
+              )}
+
+              {homeInviteResult ? (
+                <div className={`rounded-xl border p-3 text-xs ${inviteResultTone(homeInviteResult.phase)}`}>
+                  <div className="flex items-start gap-2">
+                    {homeInviteResult.phase === 'joined' ? (
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                    ) : homeInviteResult.phase === 'failed' ? (
+                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                    ) : (
+                      <RefreshCw className={`mt-0.5 h-4 w-4 shrink-0 ${homeInviteResult.phase === 'joining' ? 'animate-spin' : ''}`} />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold">{homeInviteResult.title}</p>
+                      <p className="mt-1 leading-relaxed">{homeInviteResult.detail}</p>
+                      {homeInviteResult.reason ? <p className="mt-1 text-[11px]">下一步：{homeInviteResult.reason.nextAction}</p> : null}
+                    </div>
+                  </div>
+                  {homeInviteResult.phase === 'failed' ? (
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <button onClick={() => onNavigateTab('diagnostics')} className="rounded-lg bg-white/80 px-3 py-2 text-xs font-bold text-rose-700 ring-1 ring-rose-100 hover:bg-white">
+                        进入诊断
+                      </button>
+                      <button onClick={copyHomeInviteError} className="rounded-lg bg-white/80 px-3 py-2 text-xs font-bold text-rose-700 ring-1 ring-rose-100 hover:bg-white">
+                        复制错误给房主
+                      </button>
+                    </div>
+                  ) : homeInviteResult.phase === 'joined' ? (
+                    <button onClick={() => onNavigateTab('network')} className="mt-3 w-full rounded-lg bg-white/80 px-3 py-2 text-xs font-bold text-emerald-700 ring-1 ring-emerald-100 hover:bg-white">
+                      查看 n2n 状态
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {role === 'host' ? (
+        <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-slate-800">房主开房向导</h3>
+              <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">
+                按“选游戏 → 启动组网 → 启动服务端/游戏 → 分配好友 IP → 复制邀请包”的顺序走，缺什么会在推荐方案页直接提示。
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => onNavigateTab('protocol')}
+                className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800"
+              >
+                打开开房向导
+              </button>
+              <button
+                onClick={() => onNavigateTab('network')}
+                className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
+              >
+                先配置组网
+              </button>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-2 md:grid-cols-5">
+            {[
+              ['1', '选择游戏', '从扫描结果套用 adapter 方案'],
+              ['2', '启动组网', runtime.network.ready ? 'n2n 已连接' : '等待 ACK/PONG'],
+              ['3', '启动游戏实体', '服务端或房主游戏进程'],
+              ['4', '好友 IP', '为好友预留虚拟地址'],
+              ['5', '邀请包', '复制给好友一键加入'],
+            ].map(([step, title, detail]) => (
+              <div key={step} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                <div className="mb-2 flex h-6 w-6 items-center justify-center rounded-full bg-white text-[11px] font-bold text-slate-700 shadow-sm">{step}</div>
+                <p className="text-xs font-bold text-slate-800">{title}</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-slate-500">{detail}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm col-span-1 lg:col-span-2 relative">

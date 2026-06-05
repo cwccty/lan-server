@@ -16,6 +16,8 @@ const capabilityOptions: Array<[MultiplayerCapability, string]> = [
   ['hidden_dedicated_server', '隐藏/独立服务端'],
   ['lan_discovery_broadcast', '局域网广播发现'],
   ['tcp_udp_proxy_possible', '可尝试端口代理'],
+  ['local_coop_remote_play', '本地同屏远程联机'],
+  ['steam_p2p_lobby', 'Steam 大厅/P2P'],
   ['community_mod', '社区 Mod 联机'],
   ['official_only', '仅官方/平台联机'],
   ['unsupported', '暂不支持转换'],
@@ -29,6 +31,11 @@ const methodOptions: Array<[ConversionMethod, string]> = [
   ['port_proxy', '端口代理'],
   ['mod_installer', 'Mod 安装器'],
   ['steam_relay_plugin', 'Steam Relay 插件'],
+  ['steam_remote_play', 'Steam Remote Play'],
+  ['sunshine_moonlight', 'Sunshine + Moonlight'],
+  ['wireguard_guide', 'WireGuard 引导'],
+  ['zerotier_guide', 'ZeroTier 引导'],
+  ['tailscale_guide', 'Tailscale 引导'],
   ['manual_guide', '手动说明'],
   ['not_supported', '不支持']
 ];
@@ -40,6 +47,8 @@ const networkTypeOptions: Array<[GameNetworkType, string]> = [
   ['udp_broadcast_needed', '需要 UDP 广播桥'],
   ['steam_lobby_direct_possible', 'Steam Lobby 发现但可直连'],
   ['steam_relay_plugin', 'Steam Relay 插件'],
+  ['steam_p2p_only', '仅 Steam 大厅/P2P'],
+  ['local_coop_remote_play', '本地同屏远程联机'],
   ['mod_required', '需要 Mod'],
   ['official_only', '仅官方/平台联机'],
   ['not_supported', '暂不支持'],
@@ -53,7 +62,7 @@ const sourceLabels: Record<string, string> = {
   steam_scan: 'Steam 扫描'
 };
 
-const DEFAULT_ADAPTER_REGISTRY_URL = 'https://raw.githubusercontent.com/cwccty/lan-server/master/adapter-registry/index.json';
+const DEFAULT_ADAPTER_REGISTRY_URL = 'https://cwccty.github.io/lan-server/adapter-registry/index.json';
 const LEGACY_LOCAL_REGISTRY_URL = 'http://127.0.0.1:8088/adapter-registry/index.json';
 const REGISTRY_URL_STORAGE_KEY = 'lan-helper-adapter-registry-url';
 const REGISTRY_LAST_SYNC_STORAGE_KEY = 'lan-helper-adapter-registry-last-sync';
@@ -158,13 +167,15 @@ const templates: Record<string, Pick<GameAdapter, 'capabilities' | 'default_port
   }
 };
 
-const networkTypeTemplateIds: Record<GameNetworkType, keyof typeof templates | 'tcp_port_proxy_needed' | 'udp_broadcast_needed' | 'steam_relay_plugin' | 'mod_required' | 'not_supported' | 'unknown_need_review' | 'steam_lobby_direct_possible'> = {
+const networkTypeTemplateIds: Record<GameNetworkType, keyof typeof templates | 'tcp_port_proxy_needed' | 'udp_broadcast_needed' | 'steam_relay_plugin' | 'steam_p2p_only' | 'local_coop_remote_play' | 'mod_required' | 'not_supported' | 'unknown_need_review' | 'steam_lobby_direct_possible'> = {
   lan_ip_direct: 'native_lan_ip',
   dedicated_server: 'dedicated_server',
   tcp_port_proxy_needed: 'tcp_port_proxy_needed',
   udp_broadcast_needed: 'udp_broadcast_needed',
   steam_lobby_direct_possible: 'steam_lobby_direct_possible',
   steam_relay_plugin: 'steam_relay_plugin',
+  steam_p2p_only: 'steam_p2p_only',
+  local_coop_remote_play: 'local_coop_remote_play',
   mod_required: 'mod_required',
   official_only: 'official_only',
   not_supported: 'not_supported',
@@ -289,6 +300,64 @@ function templateForNetworkType(type: GameNetworkType): Pick<GameAdapter, 'capab
         requires_dedicated_server: false,
         invite_template: ['当前不承诺本地联机转换。'],
         troubleshooting: ['需要官方 Steamworks/Networking SDK 或用户自有 AppID。']
+      }
+    };
+  }
+  if (type === 'steam_p2p_only') {
+    return {
+      capabilities: ['steam_lobby', 'steam_p2p'],
+      default_ports: [],
+      launch_profiles: docs,
+      multiplayer_conversion: {
+        capability: 'steam_p2p_lobby',
+        methods: ['steam_relay_plugin', 'manual_guide'],
+        can_convert_to_lan: false,
+        risk_level: 'medium',
+        notes: ['该游戏主要依赖 Steam Lobby/P2P。', '优先使用官方 Steam 邀请；插件路线需要人工确认。'],
+        required_components: ['Steam 好友邀请/大厅', '可选 Steam Relay 插件']
+      },
+      network_type: 'steam_p2p_only',
+      connection_plan: {
+        summary: '保留 Steam 大厅/P2P 原流程，不承诺转换为 LAN。',
+        host_role: '房主使用游戏内 Steam 大厅或好友邀请创建房间。',
+        join_role: '加入者通过 Steam 邀请或官方大厅加入。',
+        default_join_host: undefined,
+        default_join_port: undefined,
+        requires_virtual_lan: false,
+        requires_tcp_port_proxy: false,
+        requires_udp_broadcast_bridge: false,
+        requires_dedicated_server: false,
+        invite_template: ['优先使用 Steam 好友邀请或游戏官方大厅。'],
+        troubleshooting: ['确认 Steam 在线状态和游戏版本一致。', '涉及反作弊或官方账号时保持官方流程。']
+      }
+    };
+  }
+  if (type === 'local_coop_remote_play') {
+    return {
+      capabilities: ['local_coop', 'remote_play_together'],
+      default_ports: [],
+      launch_profiles: docs,
+      multiplayer_conversion: {
+        capability: 'local_coop_remote_play',
+        methods: ['steam_remote_play', 'sunshine_moonlight', 'manual_guide'],
+        can_convert_to_lan: false,
+        risk_level: 'low',
+        notes: ['该游戏主要是本地同屏/本地合作。', '推荐 Steam Remote Play Together 或 Sunshine + Moonlight，不强行转换为 LAN。'],
+        required_components: ['Steam Remote Play Together', 'Sunshine + Moonlight', '房主侧输入权限配置']
+      },
+      network_type: 'local_coop_remote_play',
+      connection_plan: {
+        summary: '房主启动本地同屏游戏，通过 Steam Remote Play Together 或 Sunshine + Moonlight 邀请好友。',
+        host_role: '房主启动游戏并进入本地同屏模式，然后发起远程同屏邀请。',
+        join_role: '加入者接受 Steam Remote Play 邀请，或使用 Moonlight 连接房主 Sunshine。',
+        default_join_host: 'Steam Remote Play / Moonlight 会话',
+        default_join_port: undefined,
+        requires_virtual_lan: false,
+        requires_tcp_port_proxy: false,
+        requires_udp_broadcast_bridge: false,
+        requires_dedicated_server: false,
+        invite_template: ['房主启动本地同屏模式。', '通过 Steam Remote Play 或 Sunshine + Moonlight 邀请好友。', '确认好友输入权限。'],
+        troubleshooting: ['检查远程同屏输入授权。', '串流延迟高时降低分辨率/码率。', '不要用 n2n 端口检测判断同屏游戏。']
       }
     };
   }

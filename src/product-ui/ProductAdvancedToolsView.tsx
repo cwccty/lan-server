@@ -3,6 +3,8 @@ import {
   Activity,
   AlertCircle,
   CheckCircle2,
+  ClipboardCopy,
+  Compass,
   Play,
   RefreshCw,
   Server,
@@ -26,12 +28,54 @@ import {
   stopUdpProxy
 } from '../api/tauri';
 import type { ReferenceAdvancedProxyKind } from '../reference-adapter/actions';
+import {
+  buildConnectionMethodGuide,
+  connectionMethodCatalog,
+  type ConnectionMethodEntry,
+} from './connectionMethodCatalog';
+import {
+  buildConnectionCapabilityMatrixGuide,
+  connectionCapabilityMatrix,
+  type ConnectionCapabilityDecisionRow,
+} from './connectionCapabilityMatrix';
+import {
+  clearAdvancedToolIntent,
+  readAdvancedToolIntent,
+  type AdvancedToolIntent,
+} from './advancedToolIntent';
+import {
+  buildConnectionMethodClosureAudit,
+  formatConnectionMethodClosureAuditReport,
+} from './connectionMethodClosureAudit';
+
+import { ProductBusyOverlay } from './ProductBusyOverlay';
 
 interface ProductAdvancedToolsViewProps {
   onTriggerToast: (msg: string) => void;
 }
 
 type ToolKind = ReferenceAdvancedProxyKind;
+
+interface AdvancedToolRiskCheck {
+  id: string;
+  level: 'ok' | 'warn' | 'danger';
+  label: string;
+  detail: string;
+}
+
+interface AdvancedToolSelfTestRecap {
+  id: string;
+  kind: ToolKind;
+  label: string;
+  ok: boolean;
+  summary: string;
+  params: string;
+  notes: string[];
+  generatedAt: string;
+}
+
+const DIAGNOSTIC_FIX_HISTORY_KEY = 'lan-helper.referenceDiagnosticFixHistory';
+const DIAGNOSTIC_FIX_HISTORY_UPDATED_EVENT = 'lan-helper:diagnostic-fix-history-updated';
 
 function formatBytes(bytes: number) {
   if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
@@ -42,6 +86,126 @@ function formatBytes(bytes: number) {
 
 function lastLines(lines: string[] = [], count = 4) {
   return lines.slice(-count);
+}
+
+function methodStatusTone(status: ConnectionMethodEntry['status']) {
+  if (status === '已接入') return 'border-emerald-100 bg-emerald-50 text-emerald-700';
+  if (status === '引导') return 'border-amber-100 bg-amber-50 text-amber-700';
+  return 'border-slate-100 bg-slate-50 text-slate-600';
+}
+
+function riskTone(level: AdvancedToolRiskCheck['level']) {
+  if (level === 'ok') return 'border-emerald-100 bg-emerald-50 text-emerald-700';
+  if (level === 'danger') return 'border-rose-100 bg-rose-50 text-rose-700';
+  return 'border-amber-100 bg-amber-50 text-amber-700';
+}
+
+function buildAdvancedToolRiskChecks(input: {
+  kind: ToolKind;
+  listenPort: string;
+  targetHost: string;
+  targetPort: string;
+  intent?: AdvancedToolIntent | null;
+}): AdvancedToolRiskCheck[] {
+  const listen = Number(input.listenPort);
+  const target = Number(input.targetPort);
+  const host = input.targetHost.trim();
+  const checks: AdvancedToolRiskCheck[] = [];
+
+  checks.push(Number.isFinite(listen) && listen > 0 && listen <= 65535
+    ? { id: 'listen-port-ok', level: 'ok', label: '监听端口有效', detail: `本地监听端口 ${Math.round(listen)} 可用于创建链路。` }
+    : { id: 'listen-port-invalid', level: 'danger', label: '监听端口无效', detail: '监听端口必须是 1-65535 的数字，否则无法启动代理/广播桥。' });
+
+  checks.push(Number.isFinite(target) && target > 0 && target <= 65535
+    ? { id: 'target-port-ok', level: 'ok', label: '目标端口有效', detail: `目标端口 ${Math.round(target)} 已填写。` }
+    : { id: 'target-port-invalid', level: input.kind === 'bridge' ? 'warn' : 'danger', label: '目标端口需确认', detail: '端口代理需要明确目标端口；广播桥未填时通常沿用监听端口。' });
+
+  if (!host) {
+    checks.push({ id: 'target-host-missing', level: 'danger', label: '目标地址缺失', detail: '必须填写好友/房主虚拟 IP 或广播转发目标。' });
+  } else if (host === '127.0.0.1' || host.toLowerCase() === 'localhost') {
+    checks.push({ id: 'target-host-localhost', level: 'warn', label: '目标是本机地址', detail: '诊断预填通常应指向好友/房主虚拟 IP；localhost 只适合本机自测。' });
+  } else if (!/^(\d{1,3}\.){3}\d{1,3}(:\d+)?$/.test(host) && !host.includes(':')) {
+    checks.push({ id: 'target-host-format', level: 'warn', label: '目标格式需人工确认', detail: '目标不是常见 IPv4/host:port 格式，请确认广播桥或代理能解析该地址。' });
+  } else {
+    checks.push({ id: 'target-host-ok', level: 'ok', label: '目标地址已填写', detail: `目标地址：${host}` });
+  }
+
+  if (input.kind === 'bridge') {
+    checks.push({
+      id: 'bridge-intent',
+      level: input.intent?.reason === 'udp_broadcast_bridge' ? 'ok' : 'warn',
+      label: '广播桥用途',
+      detail: input.intent?.reason === 'udp_broadcast_bridge'
+        ? '来自诊断的 UDP 广播发现路线，启动后会自动自测广播桥。'
+        : '广播桥只解决 LAN 大厅发现，不等于游戏端口已经可连接。',
+    });
+  } else {
+    checks.push({
+      id: 'proxy-intent',
+      level: input.intent?.reason === 'port_proxy' ? 'ok' : 'warn',
+      label: '端口代理用途',
+      detail: input.intent?.reason === 'port_proxy'
+        ? '来自诊断的端口代理路线，启动后会自动自测代理。'
+        : '请确认该游戏确实需要端口代理；如果只是普通 LAN/IP 直连，优先检查 n2n。',
+    });
+  }
+
+  if (listen > 0 && listen < 1024) {
+    checks.push({ id: 'privileged-port', level: 'warn', label: '低位端口可能需要权限', detail: '低于 1024 的端口可能被系统或权限策略限制。' });
+  }
+
+  return checks;
+}
+
+function summarizeSelfTestData(data: unknown) {
+  if (!data || typeof data !== 'object') return { ok: true, notes: [] as string[], detail: '自测已完成。' };
+  const record = data as Partial<{
+    ok: boolean;
+    listen: string;
+    target: string;
+    forward_targets: string[];
+    sent: string;
+    received: string;
+    notes: string[];
+  }>;
+  const target = record.target || record.forward_targets?.join(', ') || '-';
+  return {
+    ok: record.ok !== false,
+    notes: record.notes ?? [],
+    detail: `listen=${record.listen || '-'} target=${target} sent=${record.sent || '-'} received=${record.received || '-'}`,
+  };
+}
+
+function appendDiagnosticFixHistoryFromAdvancedTool(recap: AdvancedToolSelfTestRecap, targetLabel: string, gameId?: string) {
+  try {
+    const raw = window.localStorage.getItem(DIAGNOSTIC_FIX_HISTORY_KEY);
+    const previous = raw ? JSON.parse(raw) : [];
+    const history = Array.isArray(previous) ? previous : [];
+    const entry = {
+      id: recap.id,
+      targetLabel,
+      targetGameId: gameId,
+      actionLabel: recap.label,
+      actionMessage: recap.summary,
+      beforeIssueCount: 0,
+      afterIssueCount: recap.ok ? 0 : 1,
+      beforeRequiredPassed: 0,
+      afterRequiredPassed: recap.ok ? 1 : 0,
+      requiredTotal: 1,
+      resolvedIssueIds: recap.ok ? ['advanced_tool_self_test'] : [],
+      newIssueIds: recap.ok ? [] : ['advanced_tool_self_test_failed'],
+      remainingIssueIds: recap.ok ? [] : ['advanced_tool_self_test_failed'],
+      beforeIssueIds: [],
+      afterIssueIds: recap.ok ? [] : ['advanced_tool_self_test_failed'],
+      reportSummary: recap.summary,
+      summary: `${recap.ok ? '高级工具自测通过' : '高级工具自测失败'}：${recap.params}`,
+      generatedAt: recap.generatedAt,
+    };
+    window.localStorage.setItem(DIAGNOSTIC_FIX_HISTORY_KEY, JSON.stringify([entry, ...history].slice(0, 12)));
+    window.dispatchEvent(new CustomEvent(DIAGNOSTIC_FIX_HISTORY_UPDATED_EVENT));
+  } catch {
+    // 诊断历史只是辅助记录，写入失败不应阻止高级工具运行。
+  }
 }
 
 export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedToolsViewProps) {
@@ -55,10 +219,35 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
   const [serverPort, setServerPort] = useState('7777');
   const [serverCommand, setServerCommand] = useState('');
   const [busy, setBusy] = useState('');
+  const [selectedDecisionId, setSelectedDecisionId] = useState(connectionCapabilityMatrix[0]?.id ?? '');
+  const [advancedToolIntent, setAdvancedToolIntent] = useState<AdvancedToolIntent | null>(() => readAdvancedToolIntent());
+  const [advancedToolIntentApplied, setAdvancedToolIntentApplied] = useState(false);
+  const [advancedToolSelfTestRecap, setAdvancedToolSelfTestRecap] = useState<AdvancedToolSelfTestRecap | null>(null);
 
   useEffect(() => {
     refreshReferenceRuntime(false).catch(() => undefined);
   }, []);
+
+  const applyAdvancedToolIntent = (intent: AdvancedToolIntent) => {
+    setKind(intent.kind);
+    if (intent.listen_port) setListenPort(String(intent.listen_port));
+    if (intent.target_port) setTargetPort(String(intent.target_port));
+    if (intent.target_host) setTargetHost(intent.target_host);
+    const decisionId = intent.reason === 'udp_broadcast_bridge'
+      ? 'lan-discovery-broadcast'
+      : intent.reason === 'port_proxy'
+        ? 'port-proxy-needed'
+        : selectedDecisionId;
+    setSelectedDecisionId(decisionId);
+  };
+
+  useEffect(() => {
+    if (!advancedToolIntent || advancedToolIntentApplied) return;
+    applyAdvancedToolIntent(advancedToolIntent);
+    setAdvancedToolIntentApplied(true);
+    onTriggerToast('已根据诊断建议预填高级工具参数，请核对目标虚拟 IP 后再启动。');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [advancedToolIntent, advancedToolIntentApplied]);
 
   const proxyRows = useMemo(() => {
     const snapshot = runtime.snapshot;
@@ -98,6 +287,30 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
 
   const runningCount = proxyRows.filter((row) => row.running).length + (runtime.snapshot?.server_session?.running ? 1 : 0);
   const totalCount = proxyRows.length + (runtime.snapshot?.server_session ? 1 : 0);
+  const selectedDecision = connectionCapabilityMatrix.find((row) => row.id === selectedDecisionId) ?? connectionCapabilityMatrix[0];
+  const riskChecks = useMemo(() => buildAdvancedToolRiskChecks({
+    kind,
+    listenPort,
+    targetHost,
+    targetPort,
+    intent: advancedToolIntent,
+  }), [advancedToolIntent, kind, listenPort, targetHost, targetPort]);
+  const blockingRiskCount = riskChecks.filter((item) => item.level === 'danger').length;
+  const connectionMethodClosureAuditInput = useMemo(() => ({
+    methods: connectionMethodCatalog,
+    decisionRows: connectionCapabilityMatrix,
+    selectedDecision,
+    selectedToolKind: kind,
+    advancedToolIntent,
+    proxyInstanceCount: totalCount,
+    runningInstanceCount: runningCount,
+    blockingRiskCount,
+    runtimeLoaded: runtime.loaded,
+  }), [advancedToolIntent, blockingRiskCount, kind, runningCount, selectedDecision, totalCount, runtime.loaded]);
+  const connectionMethodClosureAudit = useMemo(
+    () => buildConnectionMethodClosureAudit(connectionMethodClosureAuditInput),
+    [connectionMethodClosureAuditInput],
+  );
 
   const run = async (label: string, task: () => Promise<unknown>) => {
     setBusy(label);
@@ -112,12 +325,62 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
     }
   };
 
-  const startProxy = () => run('启动高级连接链路', () => startReferenceAdvancedProxy({
+  const currentProxyForm = () => ({
     type: kind,
     listen_port: Number(listenPort) || 7777,
     target_host: targetHost || '10.0.8.2',
     target_port: Number(targetPort) || Number(listenPort) || 7777
-  }));
+  });
+
+  const runAdvancedToolSelfTest = async (label = '高级工具自测', reason = '手动自测') => {
+    const result = await selfTestReferenceAdvancedProxy(kind);
+    const data = summarizeSelfTestData(result.data);
+    const ok = result.ok && data.ok;
+    const params = `${kind.toUpperCase()} ${listenPort} → ${targetHost}:${targetPort}`;
+    const recap: AdvancedToolSelfTestRecap = {
+      id: `${Date.now()}-${kind}-self-test`,
+      kind,
+      label,
+      ok,
+      params,
+      notes: data.notes,
+      summary: `${reason}：${ok ? '通过' : '失败'}｜${result.message}｜${data.detail}`,
+      generatedAt: new Date().toISOString(),
+    };
+    setAdvancedToolSelfTestRecap(recap);
+    if (advancedToolIntent) {
+      appendDiagnosticFixHistoryFromAdvancedTool(
+        recap,
+        advancedToolIntent.display_name ? `${advancedToolIntent.display_name} (${advancedToolIntent.game_id || 'unknown'})` : '高级工具诊断预填',
+        advancedToolIntent.game_id,
+      );
+    }
+    if (!result.ok) throw new Error(result.message);
+    return recap;
+  };
+
+  const startProxy = async () => {
+    if (blockingRiskCount > 0) {
+      onTriggerToast('高级工具参数仍有阻断风险，请先修正红色风险项。');
+      return;
+    }
+    setBusy('启动高级连接链路');
+    try {
+      const startResult = await startReferenceAdvancedProxy(currentProxyForm());
+      if (!startResult.ok) throw new Error(startResult.message);
+      await refreshReferenceRuntime(false);
+      onTriggerToast('启动高级连接链路完成。');
+      if (advancedToolIntent) {
+        setBusy('启动后自动自测');
+        const recap = await runAdvancedToolSelfTest('启动后自动自测', '诊断预填启动后自动自测');
+        onTriggerToast(recap.ok ? '高级工具已启动并通过自动自测。' : '高级工具已启动，但自动自测未通过。');
+      }
+    } catch (error) {
+      onTriggerToast(`启动高级连接链路失败：${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setBusy('');
+    }
+  };
 
   const stopProxy = (row: { kind: ToolKind; id: string }) => run('停止高级连接实例', async () => {
     if (row.kind === 'tcp') return stopPortProxy(row.id);
@@ -125,7 +388,40 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
     return stopUdpBroadcastBridge(row.id);
   });
 
-  const selfTest = (targetKind: ToolKind) => run('高级连接自测', () => selfTestReferenceAdvancedProxy(targetKind));
+  const selfTest = (targetKind: ToolKind) => {
+    const previousKind = kind;
+    if (targetKind !== kind) setKind(targetKind);
+    setBusy('高级连接自测');
+    Promise.resolve()
+      .then(() => selfTestReferenceAdvancedProxy(targetKind))
+      .then((result) => {
+        const data = summarizeSelfTestData(result.data);
+        const ok = result.ok && data.ok;
+        const params = `${targetKind.toUpperCase()} ${listenPort} → ${targetHost}:${targetPort}`;
+        const recap: AdvancedToolSelfTestRecap = {
+          id: `${Date.now()}-${targetKind}-self-test`,
+          kind: targetKind,
+          label: '手动高级工具自测',
+          ok,
+          params,
+          notes: data.notes,
+          summary: `手动自测：${ok ? '通过' : '失败'}｜${result.message}｜${data.detail}`,
+          generatedAt: new Date().toISOString(),
+        };
+        setAdvancedToolSelfTestRecap(recap);
+        if (advancedToolIntent) {
+          appendDiagnosticFixHistoryFromAdvancedTool(recap, advancedToolIntent.display_name || '高级工具诊断预填', advancedToolIntent.game_id);
+        }
+        if (!result.ok) throw new Error(result.message);
+        return refreshReferenceRuntime(false);
+      })
+      .then(() => onTriggerToast('高级连接自测完成。'))
+      .catch((error) => {
+        if (targetKind !== previousKind) setKind(previousKind);
+        onTriggerToast(`高级连接自测失败：${error instanceof Error ? error.message : String(error)}`);
+      })
+      .finally(() => setBusy(''));
+  };
 
   const startServer = () => run('启动通用服务端', () => startReferenceGenericServer({
     game_name: serverName || '通用游戏服务端',
@@ -136,10 +432,112 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
   const sendCommand = () => run('发送服务端指令', () => sendServerCommand(serverCommand));
   const stopServer = () => run('停止通用服务端', () => stopServerSession());
 
+  const selectMethod = (method: ConnectionMethodEntry) => {
+    if (method.advancedToolKind) {
+      setKind(method.advancedToolKind);
+      onTriggerToast(`已切换到${method.title}配置。`);
+      return;
+    }
+    onTriggerToast(`${method.title}当前是${method.status}入口，请先复制说明按外部工具配置。`);
+  };
+
+  const copyMethodGuide = async (method: ConnectionMethodEntry) => {
+    try {
+      const clipboard = navigator.clipboard;
+      if (!clipboard || typeof clipboard.writeText !== 'function') throw new Error('剪贴板不可用');
+      await clipboard.writeText(buildConnectionMethodGuide(method));
+      onTriggerToast(`已复制${method.title}说明。`);
+    } catch (error) {
+      onTriggerToast(`复制失败：${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  const methodsForDecisionRow = (row: ConnectionCapabilityDecisionRow) =>
+    row.recommendedMethodIds
+      .map((id) => connectionMethodCatalog.find((method) => method.id === id))
+      .filter((method): method is ConnectionMethodEntry => Boolean(method));
+
+  const copyDecisionMatrix = async () => {
+    try {
+      const clipboard = navigator.clipboard;
+      if (!clipboard || typeof clipboard.writeText !== 'function') throw new Error('剪贴板不可用');
+      await clipboard.writeText(buildConnectionCapabilityMatrixGuide());
+      onTriggerToast('已复制联机方式能力矩阵。');
+    } catch (error) {
+      onTriggerToast(`复制失败：${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  const copyDecisionRow = async (row: ConnectionCapabilityDecisionRow) => {
+    try {
+      const clipboard = navigator.clipboard;
+      if (!clipboard || typeof clipboard.writeText !== 'function') throw new Error('剪贴板不可用');
+      await clipboard.writeText(buildConnectionCapabilityMatrixGuide([row]));
+      onTriggerToast(`已复制 ${row.gameType} 决策说明。`);
+    } catch (error) {
+      onTriggerToast(`复制失败：${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  const copyConnectionMethodClosureAudit = async () => {
+    try {
+      const clipboard = navigator.clipboard;
+      if (!clipboard || typeof clipboard.writeText !== 'function') throw new Error('剪贴板不可用');
+      await clipboard.writeText(formatConnectionMethodClosureAuditReport(connectionMethodClosureAuditInput));
+      onTriggerToast('已复制联机方式自检。');
+    } catch (error) {
+      onTriggerToast(`复制失败：${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  const copyAdvancedToolSelfTestRecap = async () => {
+    if (!advancedToolSelfTestRecap) {
+      onTriggerToast('暂无高级工具自测复盘。');
+      return;
+    }
+    try {
+      const clipboard = navigator.clipboard;
+      if (!clipboard || typeof clipboard.writeText !== 'function') throw new Error('剪贴板不可用');
+      await clipboard.writeText([
+        '[联机助手高级工具自测复盘]',
+        `时间：${new Date(advancedToolSelfTestRecap.generatedAt).toLocaleString()}`,
+        `工具：${advancedToolSelfTestRecap.kind}`,
+        `参数：${advancedToolSelfTestRecap.params}`,
+        `结果：${advancedToolSelfTestRecap.ok ? '通过' : '失败'}`,
+        `摘要：${advancedToolSelfTestRecap.summary}`,
+        `备注：${advancedToolSelfTestRecap.notes.join('；') || '无'}`,
+        advancedToolIntent?.display_name ? `来源游戏：${advancedToolIntent.display_name} (${advancedToolIntent.game_id || '-'})` : '',
+        advancedToolIntent?.note ? `诊断建议：${advancedToolIntent.note}` : '',
+      ].filter(Boolean).join('\n'));
+      onTriggerToast('高级工具自测复盘已复制。');
+    } catch (error) {
+      onTriggerToast(`复制失败：${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  const applyDecisionRow = (row: ConnectionCapabilityDecisionRow) => {
+    setSelectedDecisionId(row.id);
+    const firstTool = methodsForDecisionRow(row).find((method) => method.advancedToolKind);
+    if (firstTool?.advancedToolKind) {
+      setKind(firstTool.advancedToolKind);
+      onTriggerToast(`已按“${row.gameType}”切换到${firstTool.title}配置。`);
+      return;
+    }
+    onTriggerToast(`已选中“${row.gameType}”：${row.userFacingResult}`);
+  };
+
+  const dismissAdvancedToolIntent = () => {
+    clearAdvancedToolIntent();
+    setAdvancedToolIntent(null);
+    setAdvancedToolIntentApplied(false);
+    onTriggerToast('已关闭高级工具预填建议。');
+  };
+
   const server = runtime.snapshot?.server_session ?? null;
 
   return (
     <div className="space-y-6" data-lan-helper-product-controlled="advanced_tools">
+      <ProductBusyOverlay visible={Boolean(busy)} label={busy || '正在处理'} detail="正在启动/停止高级连接工具、服务端或执行自测；请等待真实运行实例刷新。" />
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h2 className="font-heading text-2xl font-bold text-slate-800">高级连接工具</h2>
@@ -156,6 +554,251 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
           刷新真实状态
         </button>
       </div>
+
+      <section className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-5 shadow-sm" data-connection-method-closure-audit="checklist">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-white/80 px-3 py-1 text-[11px] font-bold text-emerald-700">多联机方式最终审计</span>
+              <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] font-bold text-white">
+                {connectionMethodClosureAudit.observedCount} / {connectionMethodClosureAudit.wiredCount} 已观察
+              </span>
+              <span className="rounded-full bg-white/80 px-3 py-1 text-[11px] font-bold text-slate-600">
+                当前工具：{kind === 'bridge' ? 'UDP 广播桥' : kind === 'udp' ? 'UDP 代理' : 'TCP 代理'}
+              </span>
+            </div>
+            <h3 className="text-sm font-bold text-slate-800">联机方式目录、游戏类型矩阵、高级工具和诊断预填已纳入同一闭环。</h3>
+            <p className="mt-1 max-w-4xl text-xs leading-relaxed text-slate-600">
+              {connectionMethodClosureAudit.summary}
+              当前运行实例 {runningCount}/{totalCount}，阻断风险 {blockingRiskCount} 项。
+              下一风险：{connectionMethodClosureAudit.nextRisk}
+            </p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+              <div className="rounded-xl bg-white/75 px-3 py-2">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">方式状态</p>
+                <p className="mt-1 text-xs font-bold text-slate-700">
+                  已接入 {connectionMethodClosureAudit.connectedCount}｜引导 {connectionMethodClosureAudit.guideCount}｜预留 {connectionMethodClosureAudit.reservedCount}
+                </p>
+              </div>
+              <div className="rounded-xl bg-white/75 px-3 py-2">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">缺失方式</p>
+                <p className="mt-1 text-xs font-bold text-slate-700">{connectionMethodClosureAudit.missingMethods.join('、') || '无'}</p>
+              </div>
+              <div className="rounded-xl bg-white/75 px-3 py-2">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">缺失决策</p>
+                <p className="mt-1 text-xs font-bold text-slate-700">{connectionMethodClosureAudit.missingDecisions.join('、') || '无'}</p>
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={copyConnectionMethodClosureAudit}
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-slate-800"
+          >
+            <ClipboardCopy className="h-4 w-4" />
+            复制联机方式自检
+          </button>
+        </div>
+      </section>
+
+      {advancedToolIntent ? (
+        <section className="rounded-2xl border border-amber-100 bg-amber-50/80 p-5 shadow-sm" data-advanced-tool-intent="diagnostic-prefill">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-white/80 px-3 py-1 text-[11px] font-bold text-amber-700">诊断建议已预填</span>
+                <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] font-bold text-white">
+                  {advancedToolIntent.kind === 'bridge' ? 'UDP 广播桥' : advancedToolIntent.kind === 'udp' ? 'UDP 代理' : 'TCP 代理'}
+                </span>
+                {advancedToolIntent.display_name ? (
+                  <span className="rounded-full bg-white/80 px-3 py-1 text-[11px] font-bold text-slate-600">{advancedToolIntent.display_name}</span>
+                ) : null}
+              </div>
+              <h3 className="text-sm font-bold text-slate-800">
+                {advancedToolIntent.reason === 'udp_broadcast_bridge' ? '该诊断路线需要广播桥补齐 LAN 大厅发现' : '该诊断路线需要端口代理补齐游戏端口可达性'}
+              </h3>
+              <p className="mt-1 max-w-4xl text-xs leading-relaxed text-slate-600">
+                已填入监听端口 {advancedToolIntent.listen_port || listenPort}、目标 {advancedToolIntent.target_host || targetHost}:{advancedToolIntent.target_port || targetPort}。
+                这里是真实高级工具参数，请先核对目标虚拟 IP 是否是好友/房主需要转发的地址，再点击“挂载并上线”。
+              </p>
+              {advancedToolIntent.note ? (
+                <p className="mt-2 rounded-xl bg-white/70 px-3 py-2 text-[11px] leading-relaxed text-amber-800">{advancedToolIntent.note}</p>
+              ) : null}
+              {advancedToolIntent.evidence?.length ? (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {advancedToolIntent.evidence.slice(0, 4).map((item) => (
+                    <span key={item} className="rounded-lg bg-white/70 px-2 py-1 text-[10px] font-bold text-slate-600">{item}</span>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <button onClick={() => applyAdvancedToolIntent(advancedToolIntent)} className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800">
+                重新套用参数
+              </button>
+              <button onClick={dismissAdvancedToolIntent} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">
+                关闭建议
+              </button>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h3 className="flex items-center gap-2 text-base font-bold text-slate-800">
+              <Compass className="h-5 w-5 text-amber-600" />
+              多联机方式入口
+            </h3>
+            <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">
+              当前主线是 n2n；TCP/UDP/广播桥已接入高级工具。WireGuard、ZeroTier/Tailscale、Steam Remote Play、Sunshine + Moonlight、Steam Relay 先作为引导/预留入口，方便按游戏类型选择正确方案。
+            </p>
+          </div>
+          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+            {connectionMethodCatalog.filter((method) => method.status === '已接入').length} 个已接入
+          </span>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          {connectionMethodCatalog.map((method) => (
+            <article key={method.id} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${methodStatusTone(method.status)}`}>
+                  {method.status}
+                </span>
+                <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-slate-500">
+                  {method.shortLabel}
+                </span>
+              </div>
+              <h4 className="text-sm font-bold text-slate-800">{method.title}</h4>
+              <p className="mt-2 line-clamp-3 min-h-12 text-[11px] leading-relaxed text-slate-500">{method.whenToUse}</p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => selectMethod(method)}
+                  className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-50"
+                >
+                  {method.advancedToolKind ? '选择工具' : '查看入口'}
+                </button>
+                <button
+                  onClick={() => copyMethodGuide(method)}
+                  className="inline-flex items-center justify-center gap-1 rounded-lg bg-slate-900 px-2 py-1.5 text-[11px] font-bold text-white hover:bg-slate-800"
+                >
+                  <ClipboardCopy className="h-3 w-3" />
+                  复制说明
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm" data-connection-capability-matrix="decision-table">
+        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h3 className="flex items-center gap-2 text-base font-bold text-slate-800">
+              <Compass className="h-5 w-5 text-amber-600" />
+              联机方式能力矩阵 / 游戏类型决策表
+            </h3>
+            <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">
+              这是非局域网游戏转换方案引擎的入口：先判断游戏原本多人能力，再决定是 n2n、服务端、广播桥、端口代理、远程同屏、Steam/P2P，还是不建议转换。
+            </p>
+          </div>
+          <button
+            onClick={copyDecisionMatrix}
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
+          >
+            <ClipboardCopy className="h-4 w-4" />
+            复制决策表
+          </button>
+        </div>
+
+        <div className="grid gap-3 xl:grid-cols-[1.15fr_0.85fr]">
+          <div className="grid gap-2 md:grid-cols-2">
+            {connectionCapabilityMatrix.map((row) => {
+              const selected = selectedDecision?.id === row.id;
+              const methods = methodsForDecisionRow(row);
+              return (
+                <article
+                  key={row.id}
+                  className={`rounded-2xl border p-3 transition ${
+                    selected ? 'border-amber-200 bg-amber-50/70' : 'border-slate-100 bg-slate-50/70 hover:border-slate-200'
+                  }`}
+                >
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-slate-600">{row.verdictLabel}</span>
+                    <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-bold text-white">{row.routeKind}</span>
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-800">{row.gameType}</h4>
+                  <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-slate-500">{row.capability}</p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {methods.length ? methods.map((method) => (
+                      <span key={method.id} className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                        {method.shortLabel}
+                      </span>
+                    )) : (
+                      <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-rose-600">不推荐工具</span>
+                    )}
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => applyDecisionRow(row)}
+                      className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-50"
+                    >
+                      选择类型
+                    </button>
+                    <button
+                      onClick={() => copyDecisionRow(row)}
+                      className="rounded-lg bg-slate-900 px-2 py-1.5 text-[11px] font-bold text-white hover:bg-slate-800"
+                    >
+                      复制说明
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+
+          {selectedDecision ? (
+            <aside className="rounded-2xl border border-amber-100 bg-amber-50/60 p-4">
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold text-amber-700">当前决策</span>
+                <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] font-bold text-white">{selectedDecision.verdictLabel}</span>
+              </div>
+              <h4 className="text-base font-bold text-slate-800">{selectedDecision.gameType}</h4>
+              <p className="mt-2 text-xs leading-relaxed text-slate-600">{selectedDecision.userFacingResult}</p>
+              <p className="mt-2 rounded-xl bg-white/70 p-3 text-[11px] leading-relaxed text-slate-600">
+                <b className="text-slate-800">管理员决策：</b>{selectedDecision.operatorDecision}
+              </p>
+              <div className="mt-3 grid gap-3">
+                <div className="rounded-xl bg-white/75 p-3">
+                  <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">adapter 信号</p>
+                  <ul className="space-y-1 text-[11px] leading-relaxed text-slate-600">
+                    {selectedDecision.adapterSignals.map((item) => <li key={item}>• {item}</li>)}
+                  </ul>
+                </div>
+                <div className="rounded-xl bg-white/75 p-3">
+                  <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">需要收集的证据</p>
+                  <ul className="space-y-1 text-[11px] leading-relaxed text-slate-600">
+                    {selectedDecision.evidenceToCollect.map((item) => <li key={item}>• {item}</li>)}
+                  </ul>
+                </div>
+                <div className="rounded-xl bg-white/75 p-3">
+                  <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">关键 adapter 字段</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedDecision.adapterFields.map((field) => (
+                      <span key={field} className="rounded-full bg-slate-100 px-2 py-1 font-mono text-[10px] font-bold text-slate-600">
+                        {field}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <p className="rounded-xl border border-amber-100 bg-white/75 p-3 text-[11px] leading-relaxed text-amber-800">
+                  <b>风险：</b>{selectedDecision.riskNote}
+                </p>
+              </div>
+            </aside>
+          ) : null}
+        </div>
+      </section>
 
       <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
         <section className="space-y-4">
@@ -198,6 +841,23 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
                 对端端口
                 <input value={targetPort} onChange={(event) => setTargetPort(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 outline-none focus:border-amber-400" />
               </label>
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3" data-advanced-tool-risk-check="preflight">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="text-xs font-bold text-slate-800">启动前参数风险检查</p>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                    blockingRiskCount ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
+                  }`}>
+                    {blockingRiskCount ? `${blockingRiskCount} 项阻断` : '可启动'}
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {riskChecks.map((check) => (
+                    <div key={check.id} className={`rounded-xl border px-3 py-2 text-[11px] leading-relaxed ${riskTone(check.level)}`}>
+                      <b>{check.label}：</b>{check.detail}
+                    </div>
+                  ))}
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <button onClick={startProxy} disabled={Boolean(busy)} className="rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-60">
                   挂载并上线
@@ -206,6 +866,28 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
                   一键自测
                 </button>
               </div>
+              {advancedToolSelfTestRecap ? (
+                <div className={`rounded-2xl border p-3 text-xs leading-relaxed ${
+                  advancedToolSelfTestRecap.ok ? 'border-emerald-100 bg-emerald-50 text-emerald-700' : 'border-rose-100 bg-rose-50 text-rose-700'
+                }`} data-advanced-tool-self-test-recap="latest">
+                  <div className="mb-2 flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-bold">{advancedToolSelfTestRecap.label}</p>
+                      <p className="mt-1 font-mono">{advancedToolSelfTestRecap.params}</p>
+                    </div>
+                    <span className="rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-bold">
+                      {advancedToolSelfTestRecap.ok ? '通过' : '失败'}
+                    </span>
+                  </div>
+                  <p>{advancedToolSelfTestRecap.summary}</p>
+                  {advancedToolSelfTestRecap.notes.length ? (
+                    <p className="mt-1">备注：{advancedToolSelfTestRecap.notes.join('；')}</p>
+                  ) : null}
+                  <button onClick={copyAdvancedToolSelfTestRecap} className="mt-2 rounded-lg bg-white/85 px-3 py-1.5 text-[11px] font-bold text-slate-700 ring-1 ring-black/5 hover:bg-white">
+                    复制自测复盘
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
 

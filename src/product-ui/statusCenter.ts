@@ -179,15 +179,18 @@ export function resolveProductStatusCenter(input: ProductStatusCenterInput): Pro
     };
   }
 
+  const friendSlotMissing = input.hasFriendSlot === false;
   return {
     stage: 'network_ready',
     label: '已连接',
-    detail: 'n2n 已收到 ACK/PONG，虚拟局域网基础链路可用。',
+    detail: friendSlotMissing
+      ? 'n2n 已收到 ACK/PONG，但还没有给好友分配虚拟 IP。'
+      : 'n2n 已收到 ACK/PONG，虚拟局域网基础链路可用。',
     tone: 'good',
-    canInvite: true,
+    canInvite: !friendSlotMissing,
     needsNetwork: false,
     needsServer: false,
-    nextAction: input.hasFriendSlot ? '复制邀请包。' : '先分配好友虚拟 IP，再复制邀请包。',
+    nextAction: friendSlotMissing ? '先分配好友虚拟 IP，再复制邀请包。' : '复制邀请包。',
     evidence
   };
 }

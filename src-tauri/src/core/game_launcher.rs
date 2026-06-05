@@ -7,6 +7,7 @@ use std::process::{Command, Stdio};
 use serde_json::Value;
 
 use crate::core::game_detector;
+use crate::core::process_util::hide_console_window;
 use crate::models::game::LaunchProfile;
 use crate::models::recommendation::LaunchResult;
 use crate::storage::adapter_store;
@@ -99,7 +100,7 @@ pub fn launch_profile(
         command.stdin(Stdio::piped());
     }
 
-    match command.spawn() {
+    match hide_console_window(&mut command).spawn() {
         Ok(mut child) => {
             if !stdin_lines.is_empty() {
                 if let Some(mut stdin) = child.stdin.take() {

@@ -34,6 +34,8 @@ pub fn analyze_game(game_id: &str) -> Result<GameAnalysis, String> {
             }),
             network_type: game.network_type,
             connection_plan: game.connection_plan,
+            applicability: game.applicability,
+            evidence: game.evidence,
             adapter_source: game.adapter_source.or_else(|| Some("steam_scan".to_string())),
             confidence: "low".to_string(),
             notes: vec![
@@ -58,6 +60,8 @@ pub fn analyze_game(game_id: &str) -> Result<GameAnalysis, String> {
             .or_else(|| Some(infer_multiplayer_conversion(&adapter.capabilities))),
         network_type: adapter.network_type,
         connection_plan: adapter.connection_plan,
+        applicability: adapter.applicability,
+        evidence: adapter.evidence,
         adapter_source: adapter.adapter_source,
         capabilities: adapter.capabilities,
         confidence: "medium".to_string(),
@@ -74,12 +78,39 @@ fn infer_multiplayer_conversion(capabilities: &[GameCapability]) -> MultiplayerC
     let has_dedicated_server = capabilities
         .iter()
         .any(|cap| matches!(cap, GameCapability::DedicatedServer));
+    let has_local_coop = capabilities
+        .iter()
+        .any(|cap| matches!(cap, GameCapability::LocalCoop | GameCapability::RemotePlayTogether));
+    let has_steam_lobby = capabilities.iter().any(|cap| {
+        matches!(cap, GameCapability::SteamLobby | GameCapability::SteamP2p)
+    });
     let has_official_only = capabilities.iter().any(|cap| {
         matches!(
             cap,
             GameCapability::OfficialServer | GameCapability::SteamLobby | GameCapability::SteamP2p
         )
     });
+
+    if has_local_coop {
+        return MultiplayerConversionProfile {
+            capability: MultiplayerCapability::LocalCoopRemotePlay,
+            methods: vec![
+                ConversionMethod::SteamRemotePlay,
+                ConversionMethod::SunshineMoonlight,
+                ConversionMethod::ManualGuide,
+            ],
+            can_convert_to_lan: false,
+            risk_level: "low".to_string(),
+            notes: vec![
+                "该游戏主要是本地同屏/本地合作，不应该强行包装成 LAN。".to_string(),
+                "推荐使用 Steam Remote Play Together 或 Sunshine + Moonlight 进行远程同屏。".to_string(),
+            ],
+            required_components: vec![
+                "Steam Remote Play Together 或 Sunshine + Moonlight".to_string(),
+                "房主侧手柄/键鼠输入配置".to_string(),
+            ],
+        };
+    }
 
     if has_dedicated_server {
         return MultiplayerConversionProfile {
@@ -109,6 +140,23 @@ fn infer_multiplayer_conversion(capabilities: &[GameCapability]) -> MultiplayerC
                 "联机助手主要负责组网、邀请信息和连通性诊断。".to_string(),
             ],
             required_components: vec!["虚拟局域网".to_string(), "游戏内 LAN/IP 加入".to_string()],
+        };
+    }
+
+    if has_steam_lobby {
+        return MultiplayerConversionProfile {
+            capability: MultiplayerCapability::SteamP2pLobby,
+            methods: vec![
+                ConversionMethod::SteamRelayPlugin,
+                ConversionMethod::ManualGuide,
+            ],
+            can_convert_to_lan: false,
+            risk_level: "medium".to_string(),
+            notes: vec![
+                "该游戏主要依赖 Steam Lobby/P2P。".to_string(),
+                "优先保留平台大厅；未来可研究 Steam Relay 或插件方案。".to_string(),
+            ],
+            required_components: vec!["Steam 大厅/好友邀请".to_string(), "可选 Steam Relay 插件".to_string()],
         };
     }
 

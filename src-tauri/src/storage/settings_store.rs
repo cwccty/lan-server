@@ -47,11 +47,53 @@ pub fn open_path(path: String) -> Result<(), String> {
     if trimmed.is_empty() {
         return Err("path is required".to_string());
     }
-    let target = PathBuf::from(trimmed);
-    if !target.exists() {
-        return Err(format!("path does not exist: {trimmed}"));
-    }
+    let target = resolve_existing_open_path(trimmed)?;
     open_existing_path(&target)
+}
+
+fn resolve_existing_open_path(raw_path: &str) -> Result<PathBuf, String> {
+    let requested = PathBuf::from(raw_path);
+    if requested.is_absolute() {
+        return if requested.exists() {
+            Ok(requested)
+        } else {
+            Err(format!("path does not exist: {raw_path}"))
+        };
+    }
+
+    let mut candidates = Vec::<PathBuf>::new();
+    candidates.push(requested.clone());
+
+    if let Ok(cwd) = std::env::current_dir() {
+        candidates.push(cwd.join(&requested));
+    }
+
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            let mut cursor = Some(exe_dir);
+            while let Some(dir) = cursor {
+                candidates.push(dir.join(&requested));
+                cursor = dir.parent();
+            }
+        }
+    }
+
+    let mut tried = Vec::<String>::new();
+    for candidate in candidates {
+        let display = candidate.to_string_lossy().to_string();
+        if tried.iter().any(|item| item.eq_ignore_ascii_case(&display)) {
+            continue;
+        }
+        if candidate.exists() {
+            return Ok(candidate);
+        }
+        tried.push(display);
+    }
+
+    Err(format!(
+        "path does not exist: {raw_path}; tried: {}",
+        tried.join(" | ")
+    ))
 }
 
 pub fn test_edge_path(path: Option<String>) -> Result<EdgePathCheck, String> {
@@ -173,7 +215,7 @@ fn default_settings() -> AppSettings {
     AppSettings {
         edge_path: None,
         supernode_default: Some("127.0.0.1:7777".to_string()),
-        adapter_registry_url: Some("http://127.0.0.1:5173/adapter-registry/index.json".to_string()),
+        adapter_registry_url: Some("https://cwccty.github.io/lan-server/adapter-registry/index.json".to_string()),
         product_mode: false,
         log_dir: settings_dir_path()
             .ok()

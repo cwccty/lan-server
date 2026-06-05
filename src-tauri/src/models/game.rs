@@ -8,6 +8,8 @@ pub enum GameCapability {
     DedicatedServer,
     SteamLobby,
     SteamP2p,
+    LocalCoop,
+    RemotePlayTogether,
     OfficialServer,
     Unknown,
 }
@@ -19,6 +21,8 @@ pub enum MultiplayerCapability {
     HiddenDedicatedServer,
     LanDiscoveryBroadcast,
     TcpUdpProxyPossible,
+    LocalCoopRemotePlay,
+    SteamP2pLobby,
     CommunityMod,
     OfficialOnly,
     Unsupported,
@@ -34,6 +38,11 @@ pub enum ConversionMethod {
     PortProxy,
     ModInstaller,
     SteamRelayPlugin,
+    SteamRemotePlay,
+    SunshineMoonlight,
+    WireguardGuide,
+    ZerotierGuide,
+    TailscaleGuide,
     ManualGuide,
     NotSupported,
 }
@@ -47,6 +56,8 @@ pub enum GameNetworkType {
     UdpBroadcastNeeded,
     SteamLobbyDirectPossible,
     SteamRelayPlugin,
+    LocalCoopRemotePlay,
+    SteamP2pOnly,
     ModRequired,
     OfficialOnly,
     NotSupported,
@@ -76,6 +87,25 @@ pub struct MultiplayerConversionProfile {
     pub risk_level: String,
     pub notes: Vec<String>,
     pub required_components: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdapterApplicabilityProfile {
+    pub verification_status: String,
+    pub tested_versions: Vec<String>,
+    pub tested_platforms: Vec<String>,
+    pub supported_os: Vec<String>,
+    pub network_conditions: Vec<String>,
+    pub known_limitations: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdapterEvidenceProfile {
+    pub port_protocols: Vec<String>,
+    pub proof_items: Vec<String>,
+    pub test_steps: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_verified_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -116,6 +146,10 @@ pub struct GameSummary {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub connection_plan: Option<GameConnectionPlan>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub applicability: Option<AdapterApplicabilityProfile>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub evidence: Option<AdapterEvidenceProfile>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub adapter_source: Option<String>,
 }
 
@@ -131,6 +165,10 @@ pub struct GameAnalysis {
     pub network_type: Option<GameNetworkType>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub connection_plan: Option<GameConnectionPlan>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub applicability: Option<AdapterApplicabilityProfile>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub evidence: Option<AdapterEvidenceProfile>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub adapter_source: Option<String>,
     pub confidence: String,
@@ -150,6 +188,10 @@ pub struct GameAdapter {
     pub network_type: Option<GameNetworkType>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub connection_plan: Option<GameConnectionPlan>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub applicability: Option<AdapterApplicabilityProfile>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub evidence: Option<AdapterEvidenceProfile>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub adapter_source: Option<String>,
     pub executables: Vec<String>,

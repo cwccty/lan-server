@@ -18,6 +18,8 @@ import { getAppSettings, openPath, resetAppSettings, saveAppSettings, testEdgePa
 import type { AppSettings, EdgePathCheck } from '../types/settings';
 import { setReferenceProductMode } from '../reference-adapter/productMode';
 
+import { ProductBusyOverlay } from './ProductBusyOverlay';
+
 interface ProductSettingsViewProps {
   onTriggerToast: (msg: string) => void;
 }
@@ -123,6 +125,7 @@ export function ProductSettingsView({ onTriggerToast }: ProductSettingsViewProps
 
   return (
     <div className="space-y-6 font-sans text-xs" data-lan-helper-product-controlled="settings">
+      <ProductBusyOverlay visible={Boolean(busy)} label={busy || '正在处理'} detail="正在读取、保存、恢复设置或检测 edge.exe；请等待设置状态刷新。" />
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h2 className="font-heading text-2xl font-bold text-slate-800">设置与帮助</h2>

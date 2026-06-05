@@ -101,6 +101,8 @@
 
 - 所有游戏都能一键联机；
 - 所有不能本地联机的游戏都能转换成本地联机；
+- 本地同屏游戏能真正变成 LAN/IP 直连游戏；
+- Cuphead / 茶杯头这类本地同屏游戏应优先使用 Steam Remote Play 或 Sunshine + Moonlight，不应当成 n2n 局域网游戏处理；
 - 绕过正版验证、反作弊、官方账号系统或平台限制；
 - Steam Relay / Steamworks 方案已经可用；
 - 未审核 adapter 一定正确；
@@ -142,3 +144,14 @@ Terraria 向导不是每个游戏都要复制一套的模式。
 - 持续沉淀共享 adapter；
 - 评估发布验证页；
 - 预留 Steam Relay / Steamworks 类方案入口。
+
+## v0.1 上传与反馈
+
+发布前请对照 `docs/V0_1_GITHUB_RELEASE_UPLOAD_CHECKLIST.md` 检查：
+
+- `npm run tauri:build` 已重新生成 `lan-helper.exe`；
+- `tools\real_exe_smoke_test.ps1` 启动烟测通过；
+- `npm run release:preflight` 通过；
+- 未完成的真实双机项目仍写为建议补测 / PENDING。
+
+如果你参与测试，请按 `docs/V0_1_USER_FEEDBACK_TEMPLATE.md` 反馈游戏名、版本、房主/加入者虚拟 IP、n2n ACK/PONG、游戏端口、诊断报告和截图。

@@ -4,6 +4,8 @@ export type GameCapability =
   | 'dedicated_server'
   | 'steam_lobby'
   | 'steam_p2p'
+  | 'local_coop'
+  | 'remote_play_together'
   | 'official_server'
   | 'unknown';
 
@@ -12,6 +14,8 @@ export type MultiplayerCapability =
   | 'hidden_dedicated_server'
   | 'lan_discovery_broadcast'
   | 'tcp_udp_proxy_possible'
+  | 'local_coop_remote_play'
+  | 'steam_p2p_lobby'
   | 'community_mod'
   | 'official_only'
   | 'unsupported'
@@ -24,6 +28,11 @@ export type ConversionMethod =
   | 'port_proxy'
   | 'mod_installer'
   | 'steam_relay_plugin'
+  | 'steam_remote_play'
+  | 'sunshine_moonlight'
+  | 'wireguard_guide'
+  | 'zerotier_guide'
+  | 'tailscale_guide'
   | 'manual_guide'
   | 'not_supported';
 
@@ -34,6 +43,8 @@ export type GameNetworkType =
   | 'udp_broadcast_needed'
   | 'steam_lobby_direct_possible'
   | 'steam_relay_plugin'
+  | 'local_coop_remote_play'
+  | 'steam_p2p_only'
   | 'mod_required'
   | 'official_only'
   | 'not_supported'
@@ -60,6 +71,28 @@ export interface MultiplayerConversionProfile {
   risk_level: 'low' | 'medium' | 'high';
   notes: string[];
   required_components: string[];
+}
+
+export type AdapterVerificationStatus =
+  | 'unverified'
+  | 'self_tested'
+  | 'friend_tested'
+  | 'community_verified';
+
+export interface AdapterApplicabilityProfile {
+  verification_status: AdapterVerificationStatus;
+  tested_versions: string[];
+  tested_platforms: string[];
+  supported_os: string[];
+  network_conditions: string[];
+  known_limitations: string[];
+}
+
+export interface AdapterEvidenceProfile {
+  port_protocols: string[];
+  proof_items: string[];
+  test_steps: string[];
+  last_verified_at?: string | null;
 }
 
 export interface LaunchConfigField {
@@ -92,6 +125,8 @@ export interface GameSummary {
   multiplayer_conversion?: MultiplayerConversionProfile | null;
   network_type?: GameNetworkType;
   connection_plan?: GameConnectionPlan;
+  applicability?: AdapterApplicabilityProfile | null;
+  evidence?: AdapterEvidenceProfile | null;
   adapter_source?: 'builtin' | 'registry' | 'custom' | 'steam_scan' | string;
 }
 
@@ -110,6 +145,8 @@ export interface GameAdapter {
   multiplayer_conversion?: MultiplayerConversionProfile | null;
   network_type?: GameNetworkType;
   connection_plan?: GameConnectionPlan;
+  applicability?: AdapterApplicabilityProfile | null;
+  evidence?: AdapterEvidenceProfile | null;
   adapter_source?: 'builtin' | 'registry' | 'custom' | 'steam_scan' | string;
   executables: string[];
   default_ports: number[];

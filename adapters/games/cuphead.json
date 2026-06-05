@@ -1,0 +1,68 @@
+{
+  "game_id": "cuphead",
+  "display_name": "Cuphead / 茶杯头",
+  "steam_appid": "268910",
+  "capabilities": [
+    "local_coop",
+    "remote_play_together"
+  ],
+  "multiplayer_conversion": {
+    "capability": "local_coop_remote_play",
+    "methods": [
+      "steam_remote_play",
+      "sunshine_moonlight",
+      "manual_guide"
+    ],
+    "can_convert_to_lan": false,
+    "risk_level": "low",
+    "notes": [
+      "Cuphead 主要是本地同屏合作，不是 LAN/IP 直连游戏。",
+      "联机助手不应强行把它转换成局域网联机；推荐远程同屏方案。"
+    ],
+    "required_components": [
+      "Steam Remote Play Together",
+      "或 Sunshine + Moonlight",
+      "房主侧游戏客户端与手柄/键鼠输入配置"
+    ]
+  },
+  "network_type": "local_coop_remote_play",
+  "connection_plan": {
+    "summary": "房主启动 Cuphead 并进入本地双人模式，通过 Steam Remote Play Together 或 Sunshine + Moonlight 邀请好友远程操控第二位玩家。",
+    "host_role": "房主启动游戏，确认本地双人/同屏合作可用，然后发起 Steam Remote Play Together 邀请；非 Steam 版本可配置 Sunshine 串流。",
+    "join_role": "加入者接受 Steam Remote Play 邀请，或使用 Moonlight 连接房主 Sunshine，确认手柄/键鼠输入映射。",
+    "default_join_host": "Steam Remote Play / Moonlight 会话",
+    "default_join_port": null,
+    "requires_virtual_lan": false,
+    "requires_tcp_port_proxy": false,
+    "requires_udp_broadcast_bridge": false,
+    "requires_dedicated_server": false,
+    "invite_template": [
+      "这不是 LAN/IP 直连游戏，不需要填写房主虚拟 IP。",
+      "房主启动 Cuphead 并进入本地双人模式。",
+      "优先使用 Steam Remote Play Together 邀请好友。",
+      "如果 Steam Remote Play 不稳定，改用 Sunshine + Moonlight 串流。"
+    ],
+    "troubleshooting": [
+      "如果好友没有输入权限，检查 Steam Remote Play 的输入授权。",
+      "如果串流延迟高，降低分辨率/码率或改用 Sunshine + Moonlight。",
+      "不要用 n2n 端口检测判断 Cuphead 联机是否成功；它没有 LAN 服务端端口。"
+    ]
+  },
+  "executables": [
+    "Cuphead.exe"
+  ],
+  "default_ports": [],
+  "launch_profiles": [
+    {
+      "id": "client",
+      "name": "启动 Cuphead",
+      "type": "client",
+      "exe": "Cuphead.exe"
+    },
+    {
+      "id": "docs",
+      "name": "查看远程同屏说明",
+      "type": "docs"
+    }
+  ]
+}

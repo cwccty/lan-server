@@ -124,7 +124,7 @@ function readTerrariaConfigFromReferenceForm(): LaunchConfig {
 function readSolutionsRegistryUrl() {
   const root = findPageRoot('方案库');
   const input = root?.querySelector('input[type="text"]') as HTMLInputElement | null;
-  return input?.value?.trim() || 'http://127.0.0.1:5173/adapter-registry/index.json';
+  return input?.value?.trim() || 'https://cwccty.github.io/lan-server/adapter-registry/index.json';
 }
 
 function chooseJsonFile() {

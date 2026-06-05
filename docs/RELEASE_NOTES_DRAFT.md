@@ -1,7 +1,7 @@
 ﻿# 联机助手首版发布说明草稿
 
-日期：2026-06-03
-版本：0.1.0 草稿
+日期：2026-06-05
+版本：0.1.0 / v0.1 草稿
 
 > 本文件是发布前草稿，不等于最终公告。它用于明确当前版本已经验证的能力、仍需用户注意的边界，以及首批游戏的推荐使用方式。
 
@@ -37,7 +37,7 @@
 ### 2.1 自动化验证通过
 
 - registry index 生成工具通过；
-- `adapter-registry/index.json` 可解析，当前 3 个示例游戏；
+- `adapter-registry/index.json` 可解析，当前 5 个示例游戏：Terraria、Minecraft Java、Stardew Valley、Cuphead、Palworld；
 - 前端生产构建通过；
 - Rust 后端检查通过；
 - Tauri release 打包通过；
@@ -248,3 +248,4 @@
 3. Minecraft Java adapter 人工审核；
 4. Stardew Valley adapter 人工审核；
 5. 根据首批用户反馈决定是否做“发布验证页”。
+

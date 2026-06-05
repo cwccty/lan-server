@@ -1,3 +1,170 @@
+﻿# 当前长期目标完成证据审计
+
+审计时间：2026-06-05 11:46:38 +08:00
+
+本节对应当前持续目标的 6 条主线：邀请包一键加入、房主开房向导、游戏适配器与共享方案库、多联机方式、非局域网游戏转换方案引擎、诊断页问题修复中心。
+
+## 总体结论
+
+当前状态：**核心功能闭环已接入并通过自动化发布预检；真实双机和真实游戏内加入仍保留 PENDING，不调用 goal complete。**
+
+原因：
+
+- `npm run release:preflight` 已证明关键源码、页面入口、复制自检、诊断交接和发布文档守卫存在。
+- `npm run build`、`cargo check`、`npm run tauri:build` 和真实 EXE 启动烟测已通过。
+- 但“真实双机 n2n 互通、真实加入者连接房主虚拟 IP、Terraria 双机 Join via IP、更多 adapter 真实审核”仍需人工环境验证。
+- 因此当前可以作为 v0.1 MVP 测试版推进，不应宣称“所有游戏一键联机”或“长期目标完全完成”。
+
+## 1. 邀请包一键加入闭环
+
+目标要求：好友粘贴邀请包 → 检测到邀请 → 仅填入参数 / 保存并启动 n2n → 显示 joined / pending / failed → 失败进入诊断 → 复制错误给房主 → 成功后提示游戏内连接房主虚拟 IP 和端口。
+
+当前证据：
+
+- `src/product-ui/ProductNetworkView.tsx`
+- `src/product-ui/invitePacket.ts`
+- `src/product-ui/inviteJoinFlow.ts`
+- `src/product-ui/inviteDiagnosticContext.ts`
+- `src/product-ui/inviteJoinSuccess.ts`
+- `src/product-ui/inviteJoinClosureAudit.ts`
+- `tools/release_preflight.ps1` 守卫：
+  - `invite packet paste flow is wired`
+  - `invite one-click join flow is wired`
+  - `invite failure diagnostic handoff is wired`
+  - `invite pending auto retest is wired`
+  - `invite joined game confirmation is wired`
+  - `invite join closure audit is wired`
+
+当前判断：**功能闭环已接入；真实加入者电脑仍需人工验证。**
+
+## 2. 房主开房向导闭环
+
+目标要求：选择游戏 → 推荐方案 → 启动组网 → 启动服务端/游戏 → 分配好友 IP → 生成邀请包，并具备步骤条、缺什么提示什么、自动检测 n2n 状态、自动检测游戏端口、一键复制给好友。
+
+当前证据：
+
+- `src/product-ui/ProductRecommendationView.tsx`
+- `src/product-ui/hostRoomClosureAudit.ts`
+- `src/product-ui/hostDiagnosticContext.ts`
+- `src/product-ui/statusCenter.ts`
+- `tools/release_preflight.ps1` 守卫：
+  - `host room wizard flow is wired`
+  - `host room closure audit is wired`
+  - `host failure diagnostic handoff is wired`
+  - `Product status center covers core states`
+  - `product state consistency audit is wired`
+
+当前判断：**房主侧流程已接入；真实双机或虚拟机加入仍需人工验证。**
+
+## 3. 游戏适配器与共享方案库增强
+
+目标要求：游戏能力识别、管理员创建适配器、用户提交适配方案、本地适配器库、远程共享库、GitHub Pages / VPS 同步、版本 / 来源 / 说明 / 适用条件、同游戏自动套用方案。
+
+当前证据：
+
+- `src/product-ui/ProductSolutionsView.tsx`
+- `src/product-ui/adapterRegistryClosureAudit.ts`
+- `src/product-ui/adapterContribution.ts`
+- `src/product-ui/adapterQualityScore.ts`
+- `src/product-ui/adapterPublishAudit.ts`
+- `src/product-ui/adapterRegistrySubmit.ts`
+- `adapter-registry/index.json` 当前包含 5 个示例：Terraria、Minecraft Java、Stardew Valley、Cuphead、Palworld。
+- `tools/release_preflight.ps1` 守卫：
+  - `adapter registry closure audit is wired`
+  - `adapter user contribution package is wired`
+  - `adapter registry sync preflight is wired`
+  - `adapter backup restore workflow is wired`
+  - `adapter quality confidence is wired`
+  - `game scan recommendation explanation is wired`
+
+当前判断：**适配器闭环已接入；更多真实游戏 adapter 仍需用户反馈和审核扩容。**
+
+## 4. 多联机方式支持
+
+目标要求：把软件从 n2n 工具升级成联机方式选择器；支持 n2n、WireGuard、ZeroTier / Tailscale、TCP 端口代理、UDP 代理、UDP 广播桥、Steam Remote Play、Sunshine + Moonlight、Steam Relay / Steam P2P 插件入口。
+
+当前证据：
+
+- `src/product-ui/ProductAdvancedToolsView.tsx`
+- `src/product-ui/connectionMethodCatalog.ts`
+- `src/product-ui/connectionCapabilityMatrix.ts`
+- `src/product-ui/connectionMethodClosureAudit.ts`
+- `docs/PORT_PROXY_MVP.md`
+- `docs/UDP_BRIDGE_MVP.md`
+- `docs/STEAM_RELAY_ENTRY.md`
+- `tools/release_preflight.ps1` 守卫：
+  - `multi connection method entries are exposed`
+  - `connection capability decision matrix is wired`
+  - `advanced tool risk self-test loop is wired`
+  - `remote coop guide is wired`
+  - `connection method closure audit is wired`
+
+当前判断：**方式矩阵和主要高级工具已接入；WireGuard / ZeroTier / Tailscale / Steam Relay 深度自动化仍属于后续扩展。**
+
+## 5. 非局域网游戏转换方案引擎
+
+目标要求：识别游戏原本多人能力，判断是否可转换，并给出最合适方案；原生 LAN 走 n2n，广播大厅走 n2n + UDP 广播桥，本地同屏走 Steam Remote Play / Sunshine，Steam P2P 走 Steam Relay / 插件或原方案，官方服务器限定不建议转换。
+
+当前证据：
+
+- `src/product-ui/conversionAssessmentEngine.ts`
+- `src/product-ui/conversionAssessmentSamples.ts`
+- `src/product-ui/conversionEngineClosureAudit.ts`
+- `src/product-ui/remoteCoopGuide.ts`
+- `src/product-ui/diagnosticConversionAdvice.ts`
+- `tools/release_preflight.ps1` 守卫：
+  - `non-LAN conversion assessment engine is wired`
+  - `conversion assessment sample validation is wired`
+  - `conversion engine closure audit is wired`
+  - `diagnostic conversion route correction is wired`
+  - `remote coop guide is wired`
+
+当前判断：**转换分类与边界已接入；不能宣称所有非 LAN 游戏都能转换。**
+
+## 6. 诊断页问题修复中心
+
+目标要求：n2n 未启动、Supernode 无响应、IP 冲突、游戏端口不通、服务端崩溃、防火墙可能阻止、edge.exe 缺失、版本不匹配等问题对应原因说明、一键修复、手动命令、复制给朋友/管理员。
+
+当前证据：
+
+- `src/product-ui/ProductDiagnosticsView.tsx`
+- `src/product-ui/errorActions.ts`
+- `src/product-ui/diagnosticRepairCenterClosureAudit.ts`
+- `src/product-ui/diagnosticConversionAdvice.ts`
+- `src/product-ui/advancedToolIntent.ts`
+- `tools/release_preflight.ps1` 守卫：
+  - `diagnostic issue fix actions are wired`
+  - `diagnostic one-click backend fixes are wired`
+  - `diagnostic auto retest after fix is wired`
+  - `diagnostic fix history recap is wired`
+  - `diagnostic repair center closure audit is wired`
+
+当前判断：**诊断修复中心已接入；真实失败场景仍需首批用户反馈继续扩展分类。**
+
+## 发布前验证状态
+
+已通过：
+
+- `npm run build`
+- `cargo check --manifest-path src-tauri/Cargo.toml`
+- `npm run tauri:build`
+- `powershell -ExecutionPolicy Bypass -File tools/real_exe_smoke_test.ps1 -StartupSeconds 5 -AppendLog`
+- `npm run release:preflight`
+
+仍需人工 PENDING：
+
+- 真实双机 n2n 互通。
+- 真实加入者电脑连接房主虚拟 IP 与游戏端口。
+- Terraria 双机 Join via IP。
+- Minecraft Java adapter 真实流程审核。
+- Stardew Valley adapter 真实流程审核。
+- 不同 NAT / 不同运营商环境下稳定性和延迟。
+
+## 当前结论
+
+当前实现已经足够进入 **v0.1 MVP 小范围测试 / GitHub Release 准备**；但不能调用长期 goal complete，因为仍缺真实双机、真实游戏内加入和更多游戏 adapter 的外部验证证据。
+
+---
 # 最终参考前端 `(3)` 复刻与前后端完全对接完成度审计
 
 审计时间：2026-06-04

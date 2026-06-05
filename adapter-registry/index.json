@@ -1,8 +1,14 @@
 {
-  "version": 1,
+  "version": 2,
   "updated_at": "2026-06-04",
   "description": "Lan Helper local adapter registry example. Can be hosted by VPS, static HTTP server, GitHub Pages, or any HTTPS static file hosting.",
   "games": [
+    {
+      "game_id": "cuphead",
+      "steam_appid": "268910",
+      "adapter_url": "games/cuphead.json",
+      "sha256": "bea9c0b09b2bc8cd32c0beabdcb25d0ada8bc10913af8bd02b7b67f93a95f203"
+    },
     {
       "game_id": "minecraft_java",
       "steam_appid": null,

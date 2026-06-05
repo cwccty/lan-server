@@ -259,7 +259,7 @@ export function startReferenceAdvancedProxy(form: ReferenceAdvancedProxyForm) {
       return startUdpProxy(config);
     }
 
-    const target = form.target_host.includes(':') ? form.target_host : `${form.target_host}:${form.listen_port}`;
+    const target = form.target_host.includes(':') ? form.target_host : `${form.target_host}:${form.target_port ?? form.listen_port}`;
     const config: UdpBroadcastBridgeConfig = {
       listen_host: '0.0.0.0',
       listen_port: form.listen_port,
@@ -272,7 +272,7 @@ export function startReferenceAdvancedProxy(form: ReferenceAdvancedProxyForm) {
   });
 }
 
-export function selfTestReferenceAdvancedProxy(type: ReferenceAdvancedProxyKind) {
+export function selfTestReferenceAdvancedProxy(type: ReferenceAdvancedProxyKind): Promise<ReferenceActionResult<unknown>> {
   if (type === 'tcp') return withSnapshot('自测 TCP 端口代理', () => selfTestPortProxy());
   if (type === 'udp') return withSnapshot('自测 UDP 端口代理', () => selfTestUdpProxy());
   return withSnapshot('自测 UDP 广播桥', () => selfTestUdpBroadcastBridge());

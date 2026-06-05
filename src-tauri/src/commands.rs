@@ -18,7 +18,11 @@ use crate::models::recommendation::{LaunchResult, Recommendation};
 use crate::models::server_session::{GenericServerLaunchConfig, ServerSessionStatus};
 use crate::models::settings::{AppSettings, EdgePathCheck};
 use crate::network::{manual_lan_backend, n2n_backend, radmin_backend};
-use crate::storage::adapter_store::{self, AdapterRegistrySyncResult};
+use crate::storage::adapter_store::{
+    self, AdapterBackupEntry, AdapterConflictReport, AdapterRegistryLocalPublishResult,
+    AdapterRegistrySyncPreview,
+    AdapterRegistrySyncResult,
+};
 use crate::storage::friend_store;
 use crate::storage::settings_store;
 use serde_json::Value;
@@ -39,8 +43,38 @@ pub fn list_game_adapters() -> Result<Vec<GameAdapter>, String> {
 }
 
 #[tauri::command]
+pub fn preview_adapter_registry_sync(registry_url: String) -> Result<AdapterRegistrySyncPreview, String> {
+    adapter_store::preview_adapter_registry_sync(registry_url)
+}
+
+#[tauri::command]
+pub fn list_adapter_conflicts() -> Result<Vec<AdapterConflictReport>, String> {
+    adapter_store::list_adapter_conflicts()
+}
+
+#[tauri::command]
+pub fn list_adapter_backups() -> Result<Vec<AdapterBackupEntry>, String> {
+    adapter_store::list_adapter_backups()
+}
+
+#[tauri::command]
+pub fn restore_adapter_backup(backup_id: String) -> Result<GameAdapter, String> {
+    adapter_store::restore_adapter_backup(backup_id)
+}
+
+#[tauri::command]
 pub fn save_game_adapter(adapter: GameAdapter) -> Result<GameAdapter, String> {
     adapter_store::save_game_adapter(adapter)
+}
+
+#[tauri::command]
+pub fn promote_registry_adapter_to_custom(game_id: String) -> Result<GameAdapter, String> {
+    adapter_store::promote_registry_adapter_to_custom(game_id)
+}
+
+#[tauri::command]
+pub fn pin_active_adapter_as_custom(game_id: String) -> Result<GameAdapter, String> {
+    adapter_store::pin_active_adapter_as_custom(game_id)
 }
 
 #[tauri::command]
@@ -61,6 +95,11 @@ pub fn sync_adapter_registry(registry_url: String) -> Result<AdapterRegistrySync
 #[tauri::command]
 pub fn sync_local_adapter_registry_example() -> Result<AdapterRegistrySyncResult, String> {
     adapter_store::sync_local_adapter_registry_example()
+}
+
+#[tauri::command]
+pub fn publish_adapters_to_local_registry(game_ids: Vec<String>) -> Result<AdapterRegistryLocalPublishResult, String> {
+    adapter_store::publish_adapters_to_local_registry(game_ids)
 }
 
 #[tauri::command]
