@@ -1,4 +1,4 @@
-# v0.1.0 发布一致性审计
+﻿# v0.1.0 发布一致性审计
 
 更新时间：2026-06-05
 
@@ -29,8 +29,8 @@
 - Release 名称：`联机助手 v0.1.0`
 - 状态：Prerelease / 早期公开测试版
 - 资产：`LanHelper-v0.1.0-windows-x64.zip`
-- 当前 `master` 已推送清理提交：`46fcd6f`
-- 当前 GitHub Release 资产仍是旧 ZIP，SHA256 为 `3a26d8cc8ec66473c216a930fe08742a04cf460cf60843bcceeedc5cc30ba45d`
+- 当前 `master` 已推送清理提交：`4b36a6f`
+- 当前 `v0.1.0` tag 已移动并推送到清理后的提交：`4b36a6f`。\n- 当前 GitHub Release 资产仍是旧 ZIP，SHA256 为 `3a26d8cc8ec66473c216a930fe08742a04cf460cf60843bcceeedc5cc30ba45d`
 - 本地已生成的新 ZIP 为 `release-artifacts/LanHelper-v0.1.0-windows-x64.zip`，SHA256 为 `91617585501427da6bb2502e18ad28e0bc1038270c04db00364e7a4b04331a75`
 - GitHub API 查询到旧资产下载数为 `0` 时，替换 `v0.1.0` 资产仍可接受；若之后下载数大于 0，建议改发 `v0.1.1`
 
@@ -119,3 +119,4 @@ npm run release:preflight
 ```
 
 全部通过后，新建 `v0.1.1` Release，并上传同一份新 ZIP 或重新按 `Version=0.1.1` 打包。
+
