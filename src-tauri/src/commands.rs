@@ -1,6 +1,6 @@
 use crate::core::{
     capability_engine, connectivity_tester, diagnostic_logger, game_detector, game_launcher,
-    port_proxy, recommendation_engine, server_session, udp_broadcast_bridge, udp_proxy,
+    port_proxy, recommendation_engine, server_session, steam_relay, udp_broadcast_bridge, udp_proxy,
 };
 use crate::models::diagnostics::DiagnosticReport;
 use crate::models::friend::{FriendAllocation, FriendAllocationInput, FriendCheckInput};
@@ -17,6 +17,7 @@ use crate::models::udp_proxy::{UdpProxyConfig, UdpProxySelfTestReport, UdpProxyS
 use crate::models::recommendation::{LaunchResult, Recommendation};
 use crate::models::server_session::{GenericServerLaunchConfig, ServerSessionStatus};
 use crate::models::settings::{AppSettings, EdgePathCheck, UserAccountState};
+use crate::models::steam_relay::{SteamP2pGuestRequest, SteamP2pHostRequest, SteamP2pSessionStatus, SteamRelayStatus};
 use crate::network::{manual_lan_backend, n2n_backend, radmin_backend};
 use crate::storage::adapter_store::{
     self, AdapterBackupEntry, AdapterConflictReport, AdapterRegistryLocalPublishResult,
@@ -158,6 +159,31 @@ pub fn logout_local_account() -> Result<UserAccountState, String> {
 #[tauri::command]
 pub fn update_account_nickname(nickname: String) -> Result<UserAccountState, String> {
     account_store::update_account_nickname(nickname)
+}
+
+#[tauri::command]
+pub fn get_steam_relay_status() -> Result<SteamRelayStatus, String> {
+    Ok(steam_relay::get_steam_relay_status())
+}
+
+#[tauri::command]
+pub fn start_steam_p2p_host(input: SteamP2pHostRequest) -> Result<SteamP2pSessionStatus, String> {
+    steam_relay::start_steam_p2p_host(input)
+}
+
+#[tauri::command]
+pub fn start_steam_p2p_guest(input: SteamP2pGuestRequest) -> Result<SteamP2pSessionStatus, String> {
+    steam_relay::start_steam_p2p_guest(input)
+}
+
+#[tauri::command]
+pub fn stop_steam_p2p_session() -> Result<SteamP2pSessionStatus, String> {
+    steam_relay::stop_steam_p2p_session()
+}
+
+#[tauri::command]
+pub fn get_steam_p2p_session_status() -> Result<SteamP2pSessionStatus, String> {
+    steam_relay::get_steam_p2p_session_status()
 }
 
 #[tauri::command]

@@ -20,8 +20,11 @@ import {
   startReferenceGenericServer
 } from '../reference-adapter/actions';
 import { useReferenceRuntime } from '../reference-adapter/useReferenceRuntime';
+import { toProductSafeMessage } from './productSafeMessage';
 import {
   sendServerCommand,
+  getSteamRelayStatus,
+  type SteamRelayStatus,
   stopPortProxy,
   stopServerSession,
   stopUdpBroadcastBridge,
@@ -121,9 +124,9 @@ function buildAdvancedToolRiskChecks(input: {
     : { id: 'target-port-invalid', level: input.kind === 'bridge' ? 'warn' : 'danger', label: '目标端口需确认', detail: '端口代理需要明确目标端口；广播桥未填时通常沿用监听端口。' });
 
   if (!host) {
-    checks.push({ id: 'target-host-missing', level: 'danger', label: '目标地址缺失', detail: '必须填写好友/房主虚拟 IP 或广播转发目标。' });
+    checks.push({ id: 'target-host-missing', level: 'danger', label: '目标地址缺失', detail: '必须填写好友/房主联机地址或广播转发目标。' });
   } else if (host === '127.0.0.1' || host.toLowerCase() === 'localhost') {
-    checks.push({ id: 'target-host-localhost', level: 'warn', label: '目标是本机地址', detail: '诊断预填通常应指向好友/房主虚拟 IP；localhost 只适合本机自测。' });
+    checks.push({ id: 'target-host-localhost', level: 'warn', label: '目标是本机地址', detail: '诊断预填通常应指向好友/房主联机地址；localhost 只适合本机测试。' });
   } else if (!/^(\d{1,3}\.){3}\d{1,3}(:\d+)?$/.test(host) && !host.includes(':')) {
     checks.push({ id: 'target-host-format', level: 'warn', label: '目标格式需人工确认', detail: '目标不是常见 IPv4/host:port 格式，请确认广播桥或代理能解析该地址。' });
   } else {
@@ -136,7 +139,7 @@ function buildAdvancedToolRiskChecks(input: {
       level: input.intent?.reason === 'udp_broadcast_bridge' ? 'ok' : 'warn',
       label: '广播桥用途',
       detail: input.intent?.reason === 'udp_broadcast_bridge'
-        ? '来自诊断的 UDP 广播发现路线，启动后会自动自测广播桥。'
+        ? '来自诊断的 UDP 广播发现路线，启动后会自动检查广播桥。'
         : '广播桥只解决 LAN 大厅发现，不等于游戏端口已经可连接。',
     });
   } else {
@@ -145,8 +148,8 @@ function buildAdvancedToolRiskChecks(input: {
       level: input.intent?.reason === 'port_proxy' ? 'ok' : 'warn',
       label: '端口代理用途',
       detail: input.intent?.reason === 'port_proxy'
-        ? '来自诊断的端口代理路线，启动后会自动自测代理。'
-        : '请确认该游戏确实需要端口代理；如果只是普通 LAN/IP 直连，优先检查 n2n。',
+        ? '来自诊断的端口代理路线，启动后会自动检查代理。'
+        : '请确认该游戏确实需要端口代理；如果只是普通局域网/IP 直连，优先回到开房向导。',
     });
   }
 
@@ -158,7 +161,7 @@ function buildAdvancedToolRiskChecks(input: {
 }
 
 function summarizeSelfTestData(data: unknown) {
-  if (!data || typeof data !== 'object') return { ok: true, notes: [] as string[], detail: '自测已完成。' };
+  if (!data || typeof data !== 'object') return { ok: true, notes: [] as string[], detail: '检查已完成。' };
   const record = data as Partial<{
     ok: boolean;
     listen: string;
@@ -198,7 +201,7 @@ function appendDiagnosticFixHistoryFromAdvancedTool(recap: AdvancedToolSelfTestR
       beforeIssueIds: [],
       afterIssueIds: recap.ok ? [] : ['advanced_tool_self_test_failed'],
       reportSummary: recap.summary,
-      summary: `${recap.ok ? '高级工具自测通过' : '高级工具自测失败'}：${recap.params}`,
+      summary: `${recap.ok ? '高级工具检查通过' : '高级工具检查失败'}：${recap.params}`,
       generatedAt: recap.generatedAt,
     };
     window.localStorage.setItem(DIAGNOSTIC_FIX_HISTORY_KEY, JSON.stringify([entry, ...history].slice(0, 12)));
@@ -223,9 +226,27 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
   const [advancedToolIntent, setAdvancedToolIntent] = useState<AdvancedToolIntent | null>(() => readAdvancedToolIntent());
   const [advancedToolIntentApplied, setAdvancedToolIntentApplied] = useState(false);
   const [advancedToolSelfTestRecap, setAdvancedToolSelfTestRecap] = useState<AdvancedToolSelfTestRecap | null>(null);
+  const [steamRelayStatus, setSteamRelayStatus] = useState<SteamRelayStatus | null>(null);
+  const [steamRelayBusy, setSteamRelayBusy] = useState(false);
 
   useEffect(() => {
     refreshReferenceRuntime(false).catch(() => undefined);
+  }, []);
+
+  const refreshSteamRelayStatus = async () => {
+    setSteamRelayBusy(true);
+    try {
+      setSteamRelayStatus(await getSteamRelayStatus());
+    } catch (error) {
+      onTriggerToast(`读取 Steam 中继状态失败：${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setSteamRelayBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshSteamRelayStatus().catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const applyAdvancedToolIntent = (intent: AdvancedToolIntent) => {
@@ -245,7 +266,7 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
     if (!advancedToolIntent || advancedToolIntentApplied) return;
     applyAdvancedToolIntent(advancedToolIntent);
     setAdvancedToolIntentApplied(true);
-    onTriggerToast('已根据诊断建议预填高级工具参数，请核对目标虚拟 IP 后再启动。');
+    onTriggerToast('已根据诊断建议预填连接信息，请核对目标联机地址后再启动。');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [advancedToolIntent, advancedToolIntentApplied]);
 
@@ -332,7 +353,7 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
     target_port: Number(targetPort) || Number(listenPort) || 7777
   });
 
-  const runAdvancedToolSelfTest = async (label = '高级工具自测', reason = '手动自测') => {
+  const runAdvancedToolSelfTest = async (label = '高级工具检查', reason = '手动检查') => {
     const result = await selfTestReferenceAdvancedProxy(kind);
     const data = summarizeSelfTestData(result.data);
     const ok = result.ok && data.ok;
@@ -361,7 +382,7 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
 
   const startProxy = async () => {
     if (blockingRiskCount > 0) {
-      onTriggerToast('高级工具参数仍有阻断风险，请先修正红色风险项。');
+      onTriggerToast('连接信息仍有阻断风险，请先修正红色风险项。');
       return;
     }
     setBusy('启动高级连接链路');
@@ -371,9 +392,9 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
       await refreshReferenceRuntime(false);
       onTriggerToast('启动高级连接链路完成。');
       if (advancedToolIntent) {
-        setBusy('启动后自动自测');
-        const recap = await runAdvancedToolSelfTest('启动后自动自测', '诊断预填启动后自动自测');
-        onTriggerToast(recap.ok ? '高级工具已启动并通过自动自测。' : '高级工具已启动，但自动自测未通过。');
+        setBusy('启动后自动检查');
+        const recap = await runAdvancedToolSelfTest('启动后自动检查', '诊断预填启动后自动检查');
+        onTriggerToast(recap.ok ? '高级工具已启动并通过自动检查。' : '高级工具已启动，但自动检查未通过。');
       }
     } catch (error) {
       onTriggerToast(`启动高级连接链路失败：${error instanceof Error ? error.message : String(error)}`);
@@ -391,7 +412,7 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
   const selfTest = (targetKind: ToolKind) => {
     const previousKind = kind;
     if (targetKind !== kind) setKind(targetKind);
-    setBusy('高级连接自测');
+    setBusy('高级连接检查');
     Promise.resolve()
       .then(() => selfTestReferenceAdvancedProxy(targetKind))
       .then((result) => {
@@ -401,11 +422,11 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
         const recap: AdvancedToolSelfTestRecap = {
           id: `${Date.now()}-${targetKind}-self-test`,
           kind: targetKind,
-          label: '手动高级工具自测',
+          label: '手动高级工具检查',
           ok,
           params,
           notes: data.notes,
-          summary: `手动自测：${ok ? '通过' : '失败'}｜${result.message}｜${data.detail}`,
+          summary: `手动检查：${ok ? '通过' : '失败'}｜${result.message}｜${data.detail}`,
           generatedAt: new Date().toISOString(),
         };
         setAdvancedToolSelfTestRecap(recap);
@@ -415,10 +436,10 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
         if (!result.ok) throw new Error(result.message);
         return refreshReferenceRuntime(false);
       })
-      .then(() => onTriggerToast('高级连接自测完成。'))
+      .then(() => onTriggerToast('高级连接检查完成。'))
       .catch((error) => {
         if (targetKind !== previousKind) setKind(previousKind);
-        onTriggerToast(`高级连接自测失败：${error instanceof Error ? error.message : String(error)}`);
+        onTriggerToast(`高级连接检查失败：${error instanceof Error ? error.message : String(error)}`);
       })
       .finally(() => setBusy(''));
   };
@@ -484,7 +505,7 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
       const clipboard = navigator.clipboard;
       if (!clipboard || typeof clipboard.writeText !== 'function') throw new Error('剪贴板不可用');
       await clipboard.writeText(formatConnectionMethodClosureAuditReport(connectionMethodClosureAuditInput));
-      onTriggerToast('已复制联机方式自检。');
+      onTriggerToast('已复制联机方式检查。');
     } catch (error) {
       onTriggerToast(`复制失败：${error instanceof Error ? error.message : String(error)}`);
     }
@@ -492,24 +513,24 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
 
   const copyAdvancedToolSelfTestRecap = async () => {
     if (!advancedToolSelfTestRecap) {
-      onTriggerToast('暂无高级工具自测复盘。');
+      onTriggerToast('暂无高级工具检查结果。');
       return;
     }
     try {
       const clipboard = navigator.clipboard;
       if (!clipboard || typeof clipboard.writeText !== 'function') throw new Error('剪贴板不可用');
       await clipboard.writeText([
-        '[联机助手高级工具自测复盘]',
+        '[联机助手高级工具检查结果]',
         `时间：${new Date(advancedToolSelfTestRecap.generatedAt).toLocaleString()}`,
         `工具：${advancedToolSelfTestRecap.kind}`,
-        `参数：${advancedToolSelfTestRecap.params}`,
+        `连接信息：${advancedToolSelfTestRecap.params}`,
         `结果：${advancedToolSelfTestRecap.ok ? '通过' : '失败'}`,
         `摘要：${advancedToolSelfTestRecap.summary}`,
         `备注：${advancedToolSelfTestRecap.notes.join('；') || '无'}`,
         advancedToolIntent?.display_name ? `来源游戏：${advancedToolIntent.display_name} (${advancedToolIntent.game_id || '-'})` : '',
         advancedToolIntent?.note ? `诊断建议：${advancedToolIntent.note}` : '',
       ].filter(Boolean).join('\n'));
-      onTriggerToast('高级工具自测复盘已复制。');
+      onTriggerToast('高级工具检查结果已复制。');
     } catch (error) {
       onTriggerToast(`复制失败：${error instanceof Error ? error.message : String(error)}`);
     }
@@ -537,12 +558,12 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
 
   return (
     <div className="space-y-6" data-lan-helper-product-controlled="advanced_tools">
-      <ProductBusyOverlay visible={Boolean(busy)} label={busy || '正在处理'} detail="正在启动/停止高级连接工具、服务端或执行自测；请等待真实运行实例刷新。" />
+      <ProductBusyOverlay visible={Boolean(busy)} label={busy || '正在处理'} detail="正在启动或测试连接工具；请等待状态刷新。" />
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h2 className="font-heading text-2xl font-bold text-slate-800">高级连接工具</h2>
           <p className="mt-1 max-w-3xl text-sm text-slate-500">
-            用于端口代理、UDP 广播桥和通用服务端测试；适合需要高级网络转发的游戏。
+            只有推荐方案或诊断提示需要时再使用。它不是给所有游戏用的；普通开房优先回到“开房邀请”按步骤操作。
           </p>
         </div>
         <button
@@ -551,9 +572,118 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
           className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60"
         >
           <RefreshCw className={`h-4 w-4 ${busy ? 'animate-spin' : ''}`} />
-          刷新真实状态
+          刷新状态
         </button>
       </div>
+
+      <section className="rounded-2xl border border-amber-100 bg-amber-50/70 p-5 shadow-sm" data-advanced-tool-user-guide="visible">
+        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <div className="mb-2 inline-flex rounded-full bg-white/80 px-3 py-1 text-[11px] font-bold text-amber-700">
+              特殊连接工具是什么
+            </div>
+            <h3 className="text-base font-black text-slate-900">当游戏“看得到人但连不上”或“看不到房间”时，用它补一段连接。</h3>
+            <p className="mt-2 max-w-4xl text-xs leading-relaxed text-slate-700">
+              开房邀请页会尽量自动带入端口和地址；你只需要核对数字是否和游戏显示一致，然后点击“挂载并上线”。挂载成功后，回到游戏里刷新房间或按邀请地址加入。
+            </p>
+          </div>
+          <button
+            onClick={startProxy}
+            disabled={Boolean(busy) || blockingRiskCount > 0}
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-50"
+          >
+            <Play className="h-4 w-4" />
+            挂载并上线
+          </button>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="rounded-2xl bg-white/80 p-4 text-xs leading-relaxed text-slate-600">
+            <p className="mb-1 font-bold text-slate-900">端口代理</p>
+            <p>游戏已经开了房，但好友连不上端口时使用。它会把本机入口转到房主或好友的游戏端口。</p>
+            <p className="mt-2 text-[11px] text-slate-500">常见：Minecraft/Terraria 的 TCP 端口，或 Palworld 这类 UDP 服务端的备用方案。</p>
+          </div>
+          <div className="rounded-2xl bg-white/80 p-4 text-xs leading-relaxed text-slate-600">
+            <p className="mb-1 font-bold text-slate-900">UDP 广播桥</p>
+            <p>游戏靠“局域网房间列表”找房间，但好友列表里看不到房间时使用。它负责把房间发现信息带到联机房间里。</p>
+            <p className="mt-2 text-[11px] text-slate-500">如果游戏支持直接输入 IP，优先直接输入房主地址，不必先开广播桥。</p>
+          </div>
+          <div className="rounded-2xl bg-white/80 p-4 text-xs leading-relaxed text-slate-600">
+            <p className="mb-1 font-bold text-slate-900">通用服务端</p>
+            <p>只有你已经有 server.exe、bat、cmd 或 server.jar 时才用。它负责托管服务端进程，不能替你下载或破解官方服务端。</p>
+            <p className="mt-2 text-[11px] text-slate-500">更简单的路径：能在开房邀请页启动的游戏，优先从开房邀请页启动。</p>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-2 md:grid-cols-4">
+          {[
+            '从开房邀请页进入，优先使用自动预填。',
+            '核对端口：必须和游戏或服务端显示的一致。',
+            '点击挂载并上线，再点测试连接。',
+            '回到游戏里刷新房间或按邀请地址加入。'
+          ].map((item, index) => (
+            <div key={item} className="rounded-xl bg-white/75 p-3 text-xs leading-relaxed text-slate-600">
+              <b className="text-slate-900">{index + 1}. </b>{item}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm" data-steam-relay-p2p="experimental">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] font-bold text-white">Steam 中继 / P2P（实验）</span>
+              <span className={`rounded-full px-3 py-1 text-[11px] font-bold ${steamRelayStatus?.available ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                {steamRelayStatus?.available ? '预检通过' : '仅预检，未启用真实连接'}
+              </span>
+            </div>
+            <h3 className="text-sm font-bold text-slate-900">合法 Steamworks 预检和后续转发入口。</h3>
+            <p className="mt-1 max-w-4xl text-xs leading-relaxed text-slate-600">
+              这个入口用于后续通过 Steamworks Networking 建立两端 TCP 转发通道。当前未配置 Steamworks SDK 或 AppID 时不能启动真实连接。
+              它不会修改游戏文件，不绕过 Steam 或游戏拥有权，也不会复制游戏目录里的 steam_api64.dll。
+            </p>
+          </div>
+          <button
+            onClick={refreshSteamRelayStatus}
+            disabled={steamRelayBusy}
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+          >
+            <RefreshCw className={`h-4 w-4 ${steamRelayBusy ? 'animate-spin' : ''}`} />
+            重新预检
+          </button>
+        </div>
+        <div className="mt-4 grid gap-2 md:grid-cols-4">
+          {[
+            ['Steam 客户端', steamRelayStatus?.steam_running ? '已运行' : '未检测到', steamRelayStatus?.steam_process_path || '请先启动并登录 Steam'],
+            ['STEAMWORKS_SDK_DIR', steamRelayStatus?.steamworks_sdk_configured ? '已配置' : '未配置', steamRelayStatus?.steamworks_sdk_dir || '需要指向 Steamworks SDK 根目录'],
+            ['SDK redist', steamRelayStatus?.redistributable_found ? '已找到' : '未找到', steamRelayStatus?.redistributable_path || '检查 redistributable_bin/win64/steam_api64.dll'],
+            ['AppID', steamRelayStatus?.app_id_configured ? '已配置' : '未配置', steamRelayStatus?.app_id || '设置 STEAM_APP_ID 或 steam_appid.txt'],
+          ].map(([label, status, detail]) => (
+            <div key={label} className="min-w-0 rounded-xl bg-slate-50 p-3">
+              <p className="text-xs font-bold text-slate-800">{label}</p>
+              <p className="mt-1 text-[11px] font-bold text-slate-600">{status}</p>
+              <p className="mt-1 break-words text-[11px] leading-relaxed text-slate-500">{detail}</p>
+            </div>
+          ))}
+        </div>
+        {steamRelayStatus?.unavailable_reasons?.length ? (
+          <div className="mt-4 grid gap-3 lg:grid-cols-2">
+            <div className="rounded-xl border border-amber-100 bg-amber-50 p-3">
+              <p className="text-xs font-bold text-amber-800">为什么现在不可用</p>
+              <ul className="mt-2 space-y-1 text-[11px] leading-relaxed text-amber-800">
+                {steamRelayStatus.unavailable_reasons.map((item) => <li key={item}>• {item}</li>)}
+              </ul>
+            </div>
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+              <p className="text-xs font-bold text-slate-800">下一步怎么配置</p>
+              <ul className="mt-2 space-y-1 text-[11px] leading-relaxed text-slate-600">
+                {steamRelayStatus.next_steps.map((item) => <li key={item}>• {item}</li>)}
+              </ul>
+            </div>
+          </div>
+        ) : null}
+      </section>
 
       <section className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-5 shadow-sm" data-connection-method-closure-audit="checklist">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -567,10 +697,10 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
                 当前工具：{kind === 'bridge' ? 'UDP 广播桥' : kind === 'udp' ? 'UDP 代理' : 'TCP 代理'}
               </span>
             </div>
-            <h3 className="text-sm font-bold text-slate-800">联机方式目录、游戏类型矩阵、高级工具和诊断预填已纳入同一闭环。</h3>
+            <h3 className="text-sm font-bold text-slate-800">联机方式、游戏类型和诊断建议已连通。</h3>
             <p className="mt-1 max-w-4xl text-xs leading-relaxed text-slate-600">
               {connectionMethodClosureAudit.summary}
-              当前运行实例 {runningCount}/{totalCount}，阻断风险 {blockingRiskCount} 项。
+              当前运行记录 {runningCount}/{totalCount}，阻断风险 {blockingRiskCount} 项。
               下一风险：{connectionMethodClosureAudit.nextRisk}
             </p>
             <div className="mt-3 grid gap-2 sm:grid-cols-3">
@@ -595,7 +725,7 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
             className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-slate-800"
           >
             <ClipboardCopy className="h-4 w-4" />
-            复制联机方式自检
+            复制联机方式检查
           </button>
         </div>
       </section>
@@ -614,17 +744,17 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
                 ) : null}
               </div>
               <h3 className="text-sm font-bold text-slate-800">
-                {advancedToolIntent.reason === 'udp_broadcast_bridge' ? '该诊断路线需要广播桥补齐 LAN 大厅发现' : '该诊断路线需要端口代理补齐游戏端口可达性'}
+                {advancedToolIntent.reason === 'udp_broadcast_bridge' ? '该诊断建议需要房间发现辅助' : '该诊断建议需要端口辅助'}
               </h3>
               <p className="mt-1 max-w-4xl text-xs leading-relaxed text-slate-600">
                 已填入监听端口 {advancedToolIntent.listen_port || listenPort}、目标 {advancedToolIntent.target_host || targetHost}:{advancedToolIntent.target_port || targetPort}。
-                这里是真实高级工具参数，请先核对目标虚拟 IP 是否是好友/房主需要转发的地址，再点击“挂载并上线”。
+                这里已自动填入连接信息，请先核对目标联机地址，再点击“挂载并上线”。
               </p>
               {advancedToolIntent.note ? (
                 <p className="mt-2 rounded-xl bg-white/70 px-3 py-2 text-[11px] leading-relaxed text-amber-800">{advancedToolIntent.note}</p>
               ) : null}
               {advancedToolIntent.evidence?.length ? (
-                <div className="mt-2 flex flex-wrap gap-2">
+                <div className="mt-2 flex flex-wrap gap-2" data-advanced-runtime-technical="details">
                   {advancedToolIntent.evidence.slice(0, 4).map((item) => (
                     <span key={item} className="rounded-lg bg-white/70 px-2 py-1 text-[10px] font-bold text-slate-600">{item}</span>
                   ))}
@@ -633,7 +763,7 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">
               <button onClick={() => applyAdvancedToolIntent(advancedToolIntent)} className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800">
-                重新套用参数
+                重新套用信息
               </button>
               <button onClick={dismissAdvancedToolIntent} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">
                 关闭建议
@@ -643,7 +773,7 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
         </section>
       ) : null}
 
-      <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+      <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm" data-advanced-connection-methods="catalog">
         <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h3 className="flex items-center gap-2 text-base font-bold text-slate-800">
@@ -651,7 +781,7 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
               多联机方式入口
             </h3>
             <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">
-              当前主线是 n2n；TCP/UDP/广播桥已接入高级工具。WireGuard、ZeroTier/Tailscale、Steam Remote Play、Sunshine + Moonlight、Steam Relay 先作为引导/预留入口，方便按游戏类型选择正确方案。
+              这里保留给管理员查看不同联机方式的接入状态。普通用户不需要逐项理解。
             </p>
           </div>
           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
@@ -691,7 +821,7 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
         </div>
       </section>
 
-      <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm" data-connection-capability-matrix="decision-table">
+      <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm" data-connection-capability-matrix="decision-table" data-advanced-connection-matrix="decision-table">
         <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h3 className="flex items-center gap-2 text-base font-bold text-slate-800">
@@ -699,7 +829,7 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
               联机方式能力矩阵 / 游戏类型决策表
             </h3>
             <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">
-              这是非局域网游戏转换方案引擎的入口：先判断游戏原本多人能力，再决定是 n2n、服务端、广播桥、端口代理、远程同屏、Steam/P2P，还是不建议转换。
+              这里用于管理员判断游戏类型并沉淀方案。普通用户只需要使用已保存的推荐方案。
             </p>
           </div>
           <button
@@ -770,7 +900,7 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
               </p>
               <div className="mt-3 grid gap-3">
                 <div className="rounded-xl bg-white/75 p-3">
-                  <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">adapter 信号</p>
+                  <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">方案信号</p>
                   <ul className="space-y-1 text-[11px] leading-relaxed text-slate-600">
                     {selectedDecision.adapterSignals.map((item) => <li key={item}>• {item}</li>)}
                   </ul>
@@ -782,7 +912,7 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
                   </ul>
                 </div>
                 <div className="rounded-xl bg-white/75 p-3">
-                  <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">关键 adapter 字段</p>
+                  <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">关键方案字段</p>
                   <div className="flex flex-wrap gap-1.5">
                     {selectedDecision.adapterFields.map((field) => (
                       <span key={field} className="rounded-full bg-slate-100 px-2 py-1 font-mono text-[10px] font-bold text-slate-600">
@@ -802,20 +932,20 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
 
       <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
         <section className="space-y-4">
-          <div className="rounded-2xl border border-slate-100 bg-slate-950 p-5 text-white shadow-sm">
+          <div className="rounded-2xl border border-slate-100 bg-slate-950 p-5 text-white shadow-sm" data-advanced-tool-explainer="details">
             <div className="mb-3 flex items-center gap-2 text-amber-300">
               <Waves className="h-4 w-4" />
               <h3 className="text-sm font-bold">这些工具解决什么</h3>
             </div>
             <ul className="space-y-3 text-xs leading-relaxed text-slate-200">
-              <li><b className="text-amber-200">TCP/UDP 端口代理：</b>把本地监听端口转发到好友虚拟 IP 的指定游戏端口。</li>
+              <li><b className="text-amber-200">TCP/UDP 端口代理：</b>把本地监听端口转发到好友联机地址的指定游戏端口。</li>
               <li><b className="text-amber-200">UDP 广播桥：</b>把只在局域网广播里出现的大厅发现包转发到虚拟网段。</li>
               <li><b className="text-amber-200">通用服务端：</b>管理 exe、bat、cmd、jar 服务端进程和控制台命令。</li>
             </ul>
           </div>
 
           <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-            <h3 className="mb-4 text-sm font-bold text-slate-800">新增链路实例</h3>
+            <h3 className="mb-4 text-sm font-bold text-slate-800">配置连接辅助</h3>
             <div className="space-y-3">
               <label className="block text-xs font-semibold text-slate-600">
                 链路类型
@@ -834,16 +964,23 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
                 <input value={listenPort} onChange={(event) => setListenPort(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 outline-none focus:border-amber-400" />
               </label>
               <label className="block text-xs font-semibold text-slate-600">
-                对端虚拟 IP / 广播目标
+                对端联机地址 / 广播目标
                 <input value={targetHost} onChange={(event) => setTargetHost(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 outline-none focus:border-amber-400" />
               </label>
               <label className="block text-xs font-semibold text-slate-600">
                 对端端口
                 <input value={targetPort} onChange={(event) => setTargetPort(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 outline-none focus:border-amber-400" />
               </label>
-              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3" data-advanced-tool-risk-check="preflight">
+              <div className={`rounded-xl border px-3 py-2 text-xs leading-relaxed ${
+                blockingRiskCount ? 'border-amber-100 bg-amber-50 text-amber-800' : 'border-emerald-100 bg-emerald-50 text-emerald-700'
+              }`}>
+                {blockingRiskCount
+                  ? `还有 ${blockingRiskCount} 项连接信息需要确认。请先检查端口和对端联机地址。`
+                  : '连接信息已满足启动条件。'}
+              </div>
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3" data-advanced-tool-risk-check="preflight" data-advanced-tool-risk-detail="checks">
                 <div className="mb-2 flex items-center justify-between gap-2">
-                  <p className="text-xs font-bold text-slate-800">启动前参数风险检查</p>
+                  <p className="text-xs font-bold text-slate-800">启动前连接信息检查</p>
                   <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
                     blockingRiskCount ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
                   }`}>
@@ -863,7 +1000,7 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
                   挂载并上线
                 </button>
                 <button onClick={() => selfTest(kind)} disabled={Boolean(busy)} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60">
-                  一键自测
+                  测试连接
                 </button>
               </div>
               {advancedToolSelfTestRecap ? (
@@ -884,14 +1021,14 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
                     <p className="mt-1">备注：{advancedToolSelfTestRecap.notes.join('；')}</p>
                   ) : null}
                   <button onClick={copyAdvancedToolSelfTestRecap} className="mt-2 rounded-lg bg-white/85 px-3 py-1.5 text-[11px] font-bold text-slate-700 ring-1 ring-black/5 hover:bg-white">
-                    复制自测复盘
+                    复制检查结果
                   </button>
                 </div>
               ) : null}
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm" data-advanced-runtime-technical="details">
             <h3 className="mb-4 text-sm font-bold text-slate-800">通用服务端</h3>
             <div className="space-y-3">
               <input value={serverName} onChange={(event) => setServerName(event.target.value)} placeholder="游戏名" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-amber-400" />
@@ -905,10 +1042,10 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
         </section>
 
         <section className="space-y-4">
-          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm" data-advanced-runtime-technical="details">
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-bold text-slate-800">真实运行实例</h3>
+                <h3 className="text-sm font-bold text-slate-800">运行记录</h3>
                 <p className="mt-1 text-xs text-slate-500">运行中 {runningCount} / 实例 {totalCount}</p>
               </div>
               {busy ? <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">处理中：{busy}</span> : null}
@@ -916,14 +1053,14 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
 
             {runtime.errors.length ? (
               <div className="mb-4 rounded-xl border border-rose-100 bg-rose-50 p-3 text-xs text-rose-700">
-                {runtime.errors.slice(0, 3).join('；')}
+                {runtime.errors.slice(0, 3).map(toProductSafeMessage).join('；')}
               </div>
             ) : null}
 
             <div className="space-y-3">
               {proxyRows.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
-                  当前没有 TCP/UDP/广播桥实例。创建链路后会在这里出现真实状态。
+                  当前没有高级链路实例。创建链路后会在这里出现状态。
                 </div>
               ) : proxyRows.map((row) => (
                 <div key={`${row.kind}-${row.id}`} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
@@ -940,7 +1077,7 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
                     </div>
                     <div className="flex shrink-0 gap-2">
                       <button onClick={() => selfTest(row.kind)} disabled={Boolean(busy)} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60">
-                        自测
+                        检查
                       </button>
                       <button onClick={() => stopProxy(row)} disabled={Boolean(busy)} className="rounded-lg border border-rose-100 bg-white px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-60">
                         停止
@@ -955,7 +1092,7 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm" data-advanced-runtime-technical="details">
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Server className="h-4 w-4 text-amber-600" />

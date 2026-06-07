@@ -1715,6 +1715,48 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
         </div>
       </section>
 
+      <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm" data-diagnostic-priority-fixes="top-three">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h3 className="text-base font-bold text-slate-900">先修这 1-3 件事</h3>
+            <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-600">
+              诊断生成后会把最影响联机的项目排在这里。没有报告时，请先点击“生成诊断”，完成后这里会给出下一步按钮。
+            </p>
+          </div>
+          {!record ? (
+            <button onClick={() => runDiagnostic()} disabled={Boolean(busy)} className="shrink-0 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-60">
+              生成诊断
+            </button>
+          ) : null}
+        </div>
+        {fixGroups.length ? (
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            {fixGroups.slice(0, 3).map((group) => (
+              <article key={group.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <h4 className="text-sm font-bold text-slate-900">{group.title}</h4>
+                  <span className="rounded-full bg-white px-2 py-1 text-[10px] font-bold text-slate-500">{group.issueCount} 项</span>
+                </div>
+                <p className="text-xs leading-relaxed text-slate-600">{group.summary}</p>
+                {group.actions[0] ? (
+                  <button
+                    onClick={() => runFixAction(group.actions[0])}
+                    disabled={Boolean(busy)}
+                    className="mt-3 rounded-lg bg-white px-3 py-2 text-[11px] font-bold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-60"
+                  >
+                    {group.actions[0].label}
+                  </button>
+                ) : null}
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm leading-relaxed text-slate-600">
+            暂无诊断报告或暂无待修复项。点击“生成诊断”后，联机助手会检查组网、联机地址、中继、游戏端口和服务端状态，并给出下一步。
+          </div>
+        )}
+      </section>
+
       <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
@@ -1743,7 +1785,7 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
             </button>
             <button onClick={() => onNavigateTab('protocol')} className="inline-flex min-w-0 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
               <Target className="h-4 w-4 shrink-0" />
-              回到开房
+              回到开房修复
             </button>
             <button onClick={() => onNavigateTab('settings')} className="inline-flex min-w-0 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
               <Wrench className="h-4 w-4 shrink-0" />

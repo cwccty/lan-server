@@ -109,6 +109,7 @@ interface ProductSolutionsViewProps {
   onTriggerToast: (msg: string) => void;
   solutionsUrl: string;
   onUpdateSolutionsUrl: (url: string) => void;
+  onNavigateTab?: (tab: 'games' | 'protocol' | 'diagnostics' | 'settings') => void;
 }
 
 interface SavedAdapterReview {
@@ -121,7 +122,11 @@ interface SavedAdapterReview {
 
 type ReviewWorkbenchFilter = 'all' | 'high_confidence' | 'needs_review' | 'missing_evidence' | 'submit_ready';
 
-const DEFAULT_REGISTRY_URL = 'https://cwccty.github.io/lan-server/adapter-registry/index.json';
+const DEFAULT_REGISTRY_URL = 'https://raw.githubusercontent.com/cwccty/lan-server/master/adapter-registry/index.json';
+const LEGACY_DEFAULT_REGISTRY_URL = 'https://cwccty.github.io/lan-server/adapter-registry/index.json';
+const DEFAULT_GITHUB_RAW_PREFIX = 'https://raw.githubusercontent.com/cwccty/lan-server/master/';
+const LEGACY_GITHUB_PAGES_PREFIX = 'https://cwccty.github.io/lan-server/';
+const GITHUB_BLOB_PREFIX = 'https://github.com/cwccty/lan-server/blob/master/';
 const SUBMIT_QUEUE_STORAGE_KEY = 'lan-helper.adapterSubmitQueue';
 const CONTRIBUTION_REVIEW_QUEUE_STORAGE_KEY = 'lan-helper.adapterContributionReviewQueue';
 
@@ -153,13 +158,13 @@ const emptyEditor = {
   tested_versions: '',
   tested_platforms: 'Steam',
   supported_os: 'Windows',
-  network_conditions: '同一虚拟局域网；防火墙允许游戏端口',
+  network_conditions: '同一联机房间；防火墙允许游戏端口',
   known_limitations: '',
   port_protocols: 'TCP 7777',
   evidence_items: '',
-  test_steps: '房主启动组网\n房主启动游戏/服务端\n好友加入同一组网\n好友连接房主虚拟 IP 和端口',
+  test_steps: '房主启动组网\n房主启动游戏/服务端\n好友加入同一组网\n好友连接房主联机地址和端口',
   last_verified_at: '',
-  notes: '通过虚拟局域网或端口工具转换为局域网联机体验。',
+  notes: '通过组网服务或端口工具转换为局域网联机体验。',
 };
 
 type AdapterEditorState = typeof emptyEditor;
@@ -175,7 +180,7 @@ function editorFromIntent(intent: AdapterCreationIntent, previous: AdapterEditor
   const isConversionAssessment = intent.reason === 'conversion_assessment';
   const networkType = intent.network_type || (isConversionAssessment ? 'unknown_need_review' : 'unknown_need_review');
   const notes = [
-    `${isConversionAssessment ? '转换评估来源' : '诊断来源'}：${intent.note || '当前游戏缺少 adapter，需要人工确认联机类型。'}`,
+    `${isConversionAssessment ? '联机方式判断来源' : '诊断来源'}：${intent.note || '当前游戏缺少方案，需要确认联机类型。'}`,
     gameId ? `目标 game_id：${gameId}` : '',
     displayName ? `游戏名称：${displayName}` : '',
     intent.game_type ? `评估类型：${intent.game_type}` : '',
@@ -184,8 +189,8 @@ function editorFromIntent(intent: AdapterCreationIntent, previous: AdapterEditor
     intent.conversion_verdict ? `转换结论：${intent.conversion_verdict}` : '',
     typeof intent.can_become_lan === 'boolean' ? `是否可转 LAN：${intent.can_become_lan ? '是' : '否'}` : '',
     intent.boundaries?.length ? `边界说明：${intent.boundaries.join('；')}` : '',
-    '请先判断游戏属于：原生 LAN / 专用服务端 / UDP 广播发现 / 本地同屏远程游玩 / Steam P2P / 官方服限定。',
-    '确认后修改“联机类型”和端口，再保存为本地 custom adapter。'
+    '请先判断游戏属于：原生局域网 / 专用服务端 / UDP 广播发现 / 本地同屏远程游玩 / Steam 邀请 / 官方服限定。',
+    '确认后修改“联机类型”和端口，再保存为本地方案。'
   ].filter(Boolean).join('\n');
 
   return {
@@ -362,6 +367,19 @@ function clearAdapterSubmitQueueSnapshot() {
   }
 }
 
+function normalizeKnownRegistryUrl(rawUrl: string) {
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return DEFAULT_REGISTRY_URL;
+  if (trimmed === LEGACY_DEFAULT_REGISTRY_URL) return DEFAULT_REGISTRY_URL;
+  if (trimmed.startsWith(LEGACY_GITHUB_PAGES_PREFIX)) {
+    return `${DEFAULT_GITHUB_RAW_PREFIX}${trimmed.slice(LEGACY_GITHUB_PAGES_PREFIX.length)}`;
+  }
+  if (trimmed.startsWith(GITHUB_BLOB_PREFIX)) {
+    return `${DEFAULT_GITHUB_RAW_PREFIX}${trimmed.slice(GITHUB_BLOB_PREFIX.length)}`;
+  }
+  return trimmed;
+}
+
 function formatSubmitQueueSnapshotTime(value?: string) {
   if (!value) return '未保存';
   const date = new Date(value);
@@ -454,7 +472,7 @@ function adapterDefaultsForNetworkType(type: GameNetworkType, canConvert: boolea
     methods: ['virtual_lan', 'manual_guide'],
     canConvert,
     risk: 'low',
-    components: ['n2n edge', '虚拟网卡'],
+    components: ['组网服务', '虚拟网卡'],
   };
 
   if (type === 'dedicated_server') {
@@ -463,7 +481,7 @@ function adapterDefaultsForNetworkType(type: GameNetworkType, canConvert: boolea
       capabilities: ['lan', 'ip_join', 'dedicated_server'] as GameCapability[],
       capability: 'hidden_dedicated_server' as MultiplayerCapability,
       methods: ['virtual_lan', 'dedicated_server_launcher'] as ConversionMethod[],
-      components: ['n2n edge', '虚拟网卡', '游戏服务端'],
+      components: ['组网服务', '虚拟网卡', '游戏服务端'],
     };
   }
   if (type === 'tcp_port_proxy_needed') {
@@ -472,7 +490,7 @@ function adapterDefaultsForNetworkType(type: GameNetworkType, canConvert: boolea
       capability: 'tcp_udp_proxy_possible' as MultiplayerCapability,
       methods: ['virtual_lan', 'port_proxy'] as ConversionMethod[],
       risk: 'medium' as const,
-      components: ['n2n edge', 'TCP/UDP 端口代理'],
+      components: ['组网服务', 'TCP/UDP 端口代理'],
     };
   }
   if (type === 'udp_broadcast_needed') {
@@ -481,7 +499,7 @@ function adapterDefaultsForNetworkType(type: GameNetworkType, canConvert: boolea
       capability: 'lan_discovery_broadcast' as MultiplayerCapability,
       methods: ['virtual_lan', 'broadcast_bridge'] as ConversionMethod[],
       risk: 'medium' as const,
-      components: ['n2n edge', 'UDP 广播桥'],
+      components: ['组网服务', 'UDP 广播桥'],
     };
   }
   if (type === 'local_coop_remote_play') {
@@ -570,7 +588,7 @@ function buildAdapter(form: typeof emptyEditor): GameAdapter {
           ? '保留 Steam 大厅/P2P 入口，按游戏原生邀请流程加入。'
           : officialOnly
             ? '当前仅建议使用官方服务器或官方联机入口。'
-            : '使用虚拟局域网后，在游戏内通过虚拟 IP 和端口加入。'),
+            : '使用组网服务后，在游戏内通过房主联机地址和端口加入。'),
       host_role: remoteCoop
         ? '房主启动游戏并进入本地同屏/本地合作模式，然后发起远程同屏邀请。'
         : steamOnly
@@ -584,7 +602,7 @@ function buildAdapter(form: typeof emptyEditor): GameAdapter {
           ? '好友通过 Steam 邀请或游戏官方大厅加入。'
           : officialOnly
             ? '按官方入口加入，不使用本地转换。'
-            : '好友使用同一组网配置加入后，连接房主虚拟 IP。',
+            : '好友使用同一组网配置加入后，连接房主联机地址。',
       default_join_host: remoteCoop ? 'Steam Remote Play / Moonlight 会话' : steamOnly ? 'Steam 大厅/官方邀请' : '10.0.8.1',
       default_join_port: remoteCoop || steamOnly || officialOnly ? null : ports[0] ?? 7777,
       requires_virtual_lan: requiresVirtualLan,
@@ -595,12 +613,12 @@ function buildAdapter(form: typeof emptyEditor): GameAdapter {
         ? ['房主启动本地同屏模式', '通过 Steam Remote Play 或 Sunshine + Moonlight 邀请好友', '确认好友输入权限']
         : steamOnly
           ? ['使用 Steam/官方大厅邀请好友', '如需插件方案请先人工确认']
-          : ['游戏：{game}', '房主虚拟 IP：{host_ip}', '端口：{port}'],
+          : ['游戏：{game}', '房主联机地址：{host_ip}', '端口：{port}'],
       troubleshooting: remoteCoop
-        ? ['检查远程同屏输入权限', '降低串流分辨率或码率', '不要用 n2n 端口检测判断同屏游戏']
+        ? ['检查远程同屏输入权限', '降低串流分辨率或码率', '不要用组网端口检测判断同屏游戏']
         : steamOnly
           ? ['确认 Steam 好友邀请可用', '涉及反作弊或官方账号时保持官方流程']
-          : ['确认双方处于同一 n2n 房间', '确认防火墙允许游戏端口'],
+          : ['确认双方处于同一联机房间', '确认防火墙允许游戏端口'],
     },
     applicability: {
       verification_status: form.verification_status,
@@ -627,6 +645,7 @@ export function ProductSolutionsView({
   onTriggerToast,
   solutionsUrl,
   onUpdateSolutionsUrl,
+  onNavigateTab,
 }: ProductSolutionsViewProps) {
   const [initialSubmitQueue] = useState(() => readAdapterSubmitQueueSnapshot());
   const [adapters, setAdapters] = useState<GameAdapter[]>([]);
@@ -757,12 +776,29 @@ export function ProductSolutionsView({
     const registryActive = adapterConflicts.filter((item) => item.active_source === 'registry').length;
     return { conflicts, multiSource, pinnedCustom, registryActive, total: adapterConflicts.length };
   }, [adapterConflicts]);
-  const activeRegistryUrl = solutionsUrl.trim() || DEFAULT_REGISTRY_URL;
+  const activeRegistryUrl = normalizeKnownRegistryUrl(solutionsUrl.trim() || DEFAULT_REGISTRY_URL);
   const activeRegistryKind = activeRegistryUrl === DEFAULT_REGISTRY_URL
-    ? 'GitHub Pages 默认库'
+    ? 'GitHub Raw 默认库'
     : activeRegistryUrl.includes('github.io')
       ? 'GitHub Pages 自建库'
-      : 'VPS / 静态服务器库';
+      : activeRegistryUrl.includes('raw.githubusercontent.com')
+        ? 'GitHub Raw 自建库'
+        : 'VPS / 静态服务器库';
+  useEffect(() => {
+    const trimmed = solutionsUrl.trim();
+    if (!trimmed) return;
+    const normalized = normalizeKnownRegistryUrl(trimmed);
+    if (normalized !== trimmed) {
+      onUpdateSolutionsUrl(normalized);
+    }
+  }, [onUpdateSolutionsUrl, solutionsUrl]);
+  const hasSharedLibrary = Boolean(syncResult?.ok);
+  const solutionMainStatus = hasSharedLibrary
+    ? `共享库已更新，本地已有 ${adapters.length} 个游戏方案。`
+    : adapters.length
+      ? `本地已有 ${adapters.length} 个游戏方案，建议先更新共享库。`
+      : '还没有可用方案，先更新共享库。';
+  const solutionPrimaryAction = hasSharedLibrary ? '去扫描游戏' : '更新共享库';
   const syncPreviewDiffSummary = useMemo(() => {
     if (!syncPreview) {
       return {
@@ -803,8 +839,8 @@ export function ProductSolutionsView({
     const nextAction = failed > 0
       ? '先复制同步报告给管理员，处理拉取/哈希/写入失败。'
       : changed > 0
-        ? '同步后重新打开推荐页或游戏扫描页，确认新 adapter 是否被自动套用。'
-        : '没有写入变化；如果游戏仍缺方案，进入自建适配器编辑器补充。';
+        ? '同步后重新打开推荐页或游戏扫描页，确认新游戏方案是否被自动套用。'
+        : '没有写入变化；如果游戏仍缺方案，进入自建方案编辑器补充。';
     return { changed, failed, unchanged, source, nextAction };
   }, [syncResult]);
   const conversionAssessmentValidationResults = useMemo(
@@ -919,7 +955,7 @@ export function ProductSolutionsView({
       network_type: intent.network_type || previous.network_type,
       default_ports: intent.default_port ? String(intent.default_port) : previous.default_ports,
       observed_flow: previous.observed_flow || [
-        isConversionAssessment ? `转换评估：${intent.note || '需要确认游戏原始多人能力。'}` : (intent.note || '当前诊断提示缺少 adapter，需要补充游戏联机现象和测试步骤。'),
+        isConversionAssessment ? `转换评估：${intent.note || '需要确认游戏原始多人能力。'}` : (intent.note || '当前诊断提示缺少游戏方案，需要补充游戏联机现象和测试步骤。'),
         intent.game_type ? `游戏类型：${intent.game_type}` : '',
         intent.original_capability ? `原始能力：${intent.original_capability}` : '',
         intent.recommended_plan ? `推荐方案：${intent.recommended_plan}` : '',
@@ -930,8 +966,8 @@ export function ProductSolutionsView({
         : previous.proof_items,
       known_limitations: intent.boundaries?.length ? intent.boundaries.join('\n') : previous.known_limitations,
       extra_notes: previous.extra_notes || [
-        isConversionAssessment ? '来源：推荐页非 LAN 转换评估' : '来源：诊断缺 adapter 引导',
-        intent.adapter_signals?.length ? `adapter 信号：${intent.adapter_signals.join('；')}` : '',
+        isConversionAssessment ? '来源：推荐页非局域网转换评估' : '来源：诊断缺游戏方案引导',
+        intent.adapter_signals?.length ? `方案信号：${intent.adapter_signals.join('；')}` : '',
         intent.assessment_report ? `评估报告：\n${intent.assessment_report}` : '',
       ].filter(Boolean).join('\n'),
     }));
@@ -966,7 +1002,7 @@ export function ProductSolutionsView({
     onTriggerToast(`已按“${row.gameType}”套用决策表，端口和游戏标识保持不变。`);
   };
 
-  const loadAdapters = async (label = '读取真实方案库') => {
+  const loadAdapters = async (label = '读取方案库') => {
     setBusy(label);
     try {
       const result = await listGameAdapters();
@@ -976,16 +1012,16 @@ export function ProductSolutionsView({
         setAdapterConflicts(conflicts);
       } catch (conflictError) {
         setAdapterConflicts([]);
-        onTriggerToast(`适配器版本状态读取失败：${conflictError instanceof Error ? conflictError.message : String(conflictError)}`);
+        onTriggerToast(`方案版本状态读取失败：${conflictError instanceof Error ? conflictError.message : String(conflictError)}`);
       }
       try {
         const backups = await listAdapterBackups();
         setAdapterBackups(backups);
       } catch (backupError) {
         setAdapterBackups([]);
-        onTriggerToast(`适配器备份历史读取失败：${backupError instanceof Error ? backupError.message : String(backupError)}`);
+        onTriggerToast(`方案备份历史读取失败：${backupError instanceof Error ? backupError.message : String(backupError)}`);
       }
-      onTriggerToast(`已读取 ${result.length} 个本地真实适配方案。`);
+      onTriggerToast(`已读取 ${result.length} 个本地方案。`);
       return result;
     } catch (error) {
       onTriggerToast(`${label}失败：${error instanceof Error ? error.message : String(error)}`);
@@ -1004,7 +1040,7 @@ export function ProductSolutionsView({
     if (!adapterIntent || adapterIntentApplied) return;
     applyAdapterIntent(adapterIntent);
     setAdapterIntentApplied(true);
-    onTriggerToast('已根据诊断预填自建适配器草稿。请先同步共享库，再决定是否保存。');
+    onTriggerToast('已根据诊断预填自建方案草稿。请先同步共享库，再决定是否保存。');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [adapterIntent, adapterIntentApplied]);
 
@@ -1069,9 +1105,12 @@ export function ProductSolutionsView({
   const runRemoteSyncNow = async (registryUrl: string) => {
     setBusy('同步共享方案库');
     try {
-      const result = await syncAdapterRegistry(registryUrl);
+      const result = await syncAdapterRegistry(normalizeKnownRegistryUrl(registryUrl));
       setReferenceAdapterSyncResult('remote', result);
       setSyncResult(result);
+      if (result.registry_url && result.registry_url !== solutionsUrl.trim()) {
+        onUpdateSolutionsUrl(result.registry_url);
+      }
       setSyncPreviewRequiresConfirm(false);
       const nextAdapters = await loadAdapters('刷新同步后的方案库');
       const matched = adapterIntent?.game_id ? nextAdapters?.find((adapter) => adapter.game_id === adapterIntent.game_id) : null;
@@ -1086,8 +1125,8 @@ export function ProductSolutionsView({
   };
 
   const syncRemote = async (confirmed = false, explicitRegistryUrl?: string) => {
-    const registryUrl = explicitRegistryUrl?.trim() || activeRegistryUrl;
-    if (explicitRegistryUrl?.trim()) {
+    const registryUrl = normalizeKnownRegistryUrl(explicitRegistryUrl?.trim() || activeRegistryUrl);
+    if (explicitRegistryUrl?.trim() || registryUrl !== solutionsUrl.trim()) {
       onUpdateSolutionsUrl(registryUrl);
     }
     if (confirmed) {
@@ -1126,7 +1165,7 @@ export function ProductSolutionsView({
       const matched = adapterIntent?.game_id ? nextAdapters?.find((adapter) => adapter.game_id === adapterIntent.game_id) : null;
       onTriggerToast(matched
         ? `本地示例同步完成，并已找到 ${matched.display_name} 的方案。`
-        : `本地 adapter-registry 示例同步完成：新增 ${result.created}，更新 ${result.updated}。`);
+        : `本地示例方案库同步完成：新增 ${result.created}，更新 ${result.updated}。`);
     } catch (error) {
       onTriggerToast(`同步本地示例失败：${error instanceof Error ? error.message : String(error)}`);
     } finally {
@@ -1136,10 +1175,10 @@ export function ProductSolutionsView({
 
   const importAdapter = async () => {
     if (!importText.trim()) {
-      onTriggerToast('请先粘贴 adapter JSON。');
+      onTriggerToast('请先粘贴方案 JSON。');
       return;
     }
-    setBusy('导入 adapter JSON');
+    setBusy('导入方案 JSON');
     try {
       const pendingAdapter = JSON.parse(importText) as GameAdapter;
       const previousAdapter = adapters.find((item) => item.game_id === pendingAdapter.game_id);
@@ -1152,7 +1191,7 @@ export function ProductSolutionsView({
         diffFields,
       );
       await loadAdapters('刷新导入结果');
-      onTriggerToast(`已导入真实适配器：${adapter.display_name}`);
+      onTriggerToast(`已导入方案：${adapter.display_name}`);
     } catch (error) {
       onTriggerToast(`导入失败：${error instanceof Error ? error.message : String(error)}`);
     } finally {
@@ -1165,7 +1204,7 @@ export function ProductSolutionsView({
     try {
       const content = await exportGameAdapterJson(adapter.game_id);
       setExportText(content);
-      const pack = await buildAdapterRegistrySubmitPackage(content, solutionsUrl.trim() || DEFAULT_REGISTRY_URL);
+      const pack = await buildAdapterRegistrySubmitPackage(content, activeRegistryUrl);
       setSubmitPackage(pack);
       onTriggerToast(`已导出 ${adapter.display_name}，并生成共享库提交包。`);
     } catch (error) {
@@ -1429,7 +1468,7 @@ export function ProductSolutionsView({
     }
     setBusy('批量生成共享库提交队列');
     try {
-      const registryUrl = solutionsUrl.trim() || DEFAULT_REGISTRY_URL;
+      const registryUrl = activeRegistryUrl;
       const packs: AdapterRegistrySubmitPackage[] = [];
       for (const adapter of submitQueueAdapters) {
         const content = await exportGameAdapterJson(adapter.game_id);
@@ -1658,9 +1697,9 @@ export function ProductSolutionsView({
   ].filter((item): item is string => Boolean(item));
   const editorPreviewWarnings = [
     editorPreviewAdapter.network_type === 'unknown_need_review' ? '当前方案仍需确认：请先补充端口、联机方式或实测证据，再用于开房邀请。' : '',
-    editorPreviewAdapter.network_type === 'local_coop_remote_play' ? '本地同屏远程不是 LAN：不会生成虚拟 IP 邀请包，应走 Remote Play / Sunshine。' : '',
+    editorPreviewAdapter.network_type === 'local_coop_remote_play' ? '本地同屏远程不是局域网：不会生成联机地址邀请包，应走 Remote Play / Sunshine。' : '',
     editorPreviewAdapter.network_type === 'steam_p2p_only' || editorPreviewAdapter.network_type === 'steam_relay_plugin' || editorPreviewAdapter.network_type === 'steam_lobby_direct_possible'
-      ? 'Steam 大厅/P2P 默认保留原生邀请，不要误导用户使用 n2n 连接虚拟 IP。'
+      ? 'Steam 大厅/P2P 默认保留原生邀请，不要误导用户使用通用组网连接联机地址。'
       : '',
     editorPreviewAdapter.network_type === 'official_only' || editorPreviewAdapter.network_type === 'not_supported'
       ? '官方服/暂不支持不会转换为 LAN，只能给限制说明。'
@@ -1759,12 +1798,12 @@ export function ProductSolutionsView({
 
   const generateSubmitPackageFromExport = async () => {
     if (!exportText.trim()) {
-      onTriggerToast('请先导出 adapter JSON。');
+      onTriggerToast('请先导出方案 JSON。');
       return;
     }
     setBusy('生成共享库提交包');
     try {
-      const pack = await buildAdapterRegistrySubmitPackage(exportText, solutionsUrl.trim() || DEFAULT_REGISTRY_URL);
+      const pack = await buildAdapterRegistrySubmitPackage(exportText, activeRegistryUrl);
       setExportText(pack.normalizedJson);
       setSubmitPackage(pack);
       onTriggerToast(`已生成 ${pack.adapter.display_name} 的共享库提交包。`);
@@ -1846,7 +1885,7 @@ export function ProductSolutionsView({
       return;
     }
     if (!editorPreviewConfirmed) {
-      onTriggerToast('请先查看保存前真实预览，并勾选确认后再保存。');
+      onTriggerToast('请先查看保存前预览，并勾选确认后再保存。');
       return;
     }
     const previewForSave = editorPreviewAdapter;
@@ -1876,7 +1915,7 @@ export function ProductSolutionsView({
         sourceContributionStatus,
       });
       setPendingContributionDraftId(null);
-      onTriggerToast(`已保存真实自建适配器：${adapter.display_name}，请查看保存后复核。`);
+    onTriggerToast(`已保存自建方案：${adapter.display_name}，请查看保存后复核。`);
     } catch (error) {
       onTriggerToast(`保存失败：${error instanceof Error ? error.message : String(error)}`);
     } finally {
@@ -1888,22 +1927,22 @@ export function ProductSolutionsView({
     clearAdapterCreationIntent();
     setAdapterIntent(null);
     setAdapterIntentApplied(false);
-    onTriggerToast('已关闭诊断创建适配器引导。');
+    onTriggerToast('已关闭诊断创建游戏方案引导。');
   };
 
   return (
     <div className="space-y-6" data-lan-helper-product-controlled="solutions">
-      <ProductBusyOverlay visible={Boolean(busy)} label={busy || '正在处理'} detail="正在同步共享库、导入导出 adapter、保存方案或生成提交包；请等待操作完成。" />
+      <ProductBusyOverlay visible={Boolean(busy)} label={busy || '正在处理'} detail="正在同步方案库或保存方案；请等待操作完成。" />
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h2 className="font-heading text-2xl font-bold text-slate-800">方案库</h2>
-          <p className="mt-1 text-sm text-slate-500">优先同步 adapter-registry 共享库，再保存你确认过的自建方案。</p>
-          <p className="mt-1 font-mono text-[11px] text-slate-400">当前真实适配器：{adapters.length} 个 ｜ {busy || '空闲'}</p>
+          <p className="mt-1 text-sm text-slate-500">先更新游戏方案，再去扫描游戏或开房。</p>
+          <p className="mt-1 text-xs text-slate-400">{solutionMainStatus}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button onClick={() => loadAdapters('手动刷新方案库')} disabled={Boolean(busy)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60">
             <RefreshCw className={`h-4 w-4 ${busy ? 'animate-spin' : ''}`} />
-            刷新本地方案
+            刷新方案
           </button>
           <button onClick={() => syncRemote()} disabled={Boolean(busy)} className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-slate-800 disabled:opacity-60">
             <CloudDownload className="h-4 w-4" />
@@ -1911,6 +1950,98 @@ export function ProductSolutionsView({
           </button>
         </div>
       </header>
+
+      <section className="rounded-2xl border border-amber-100 bg-amber-50/80 p-5 shadow-sm">
+        <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
+          <div>
+            <h3 className="text-base font-bold text-slate-900">现在先更新方案库</h3>
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-amber-800">
+              更新后，联机助手会自动判断这个游戏应该怎么开房或加入。普通用户不需要理解方案字段。
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2 text-xs">
+              <span className="rounded-full bg-white/80 px-3 py-1 font-bold text-amber-700">{hasSharedLibrary ? '共享库已更新' : '等待更新共享库'}</span>
+              <span className="rounded-full bg-white/80 px-3 py-1 font-bold text-slate-600">可用方案 {adapters.length} 个</span>
+              <span className="rounded-full bg-white/80 px-3 py-1 font-bold text-slate-600">{hasSharedLibrary ? '共享方案已就绪' : '等待方案同步'}</span>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
+            <button
+              onClick={() => hasSharedLibrary ? onNavigateTab?.('games') : syncDefaultGithubRegistry()}
+              disabled={Boolean(busy)}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-60"
+            >
+              {hasSharedLibrary ? <Search className="h-4 w-4" /> : <CloudDownload className="h-4 w-4" />}
+              {solutionPrimaryAction}
+            </button>
+            <button
+              onClick={() => onNavigateTab?.('protocol')}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-200 bg-white px-4 py-2 text-xs font-bold text-amber-700 hover:bg-amber-50"
+            >
+              <Network className="h-4 w-4" />
+              去开房邀请
+            </button>
+            <button
+              onClick={() => {
+                setContributionOpen(true);
+                onTriggerToast('已打开游戏方案反馈入口。');
+              }}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
+            >
+              <Upload className="h-4 w-4" />
+              反馈缺少的游戏
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm" data-one-click-server-roadmap="v020">
+        <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
+          <div className="min-w-0">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] font-bold text-white">重点推荐 + 游戏网格</span>
+              <span className="rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-700">更多游戏马上呈现</span>
+            </div>
+            <h3 className="text-base font-bold text-slate-900">一键开服和推荐联机方式进度</h3>
+            <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-600">
+              这里先告诉普通用户每个游戏现在该怎么联机；真正的一键开服会按游戏逐步补齐，不把未完成能力伪装成已接入。
+            </p>
+            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {[
+                ['Terraria', '已接入 / 优先推荐', '可使用 Terraria 向导开服；房主先开服务端，再复制邀请给好友。', 'terraria'],
+                ['Palworld', '建议专用服务端', '需要确认 UDP 端口、防火墙和服务端配置；当前优先走方案库与手动向导。', 'palworld'],
+                ['Minecraft Java', 'Java 服务端 / TCP', '适合 TCP 25565 或自定义端口；先启动服务端，再让好友连接房主联机地址。', 'minecraft'],
+                ['Stardew Valley', '普通联机 / Steam 邀请边界', '优先使用游戏内联机或 Steam 邀请；需要组网时按方案库提示走。', 'stardew'],
+                ['Cuphead', '本地同屏更合适', '不是传统局域网开服游戏；优先 Steam Remote Play 或 Sunshine + Moonlight。', 'cuphead'],
+              ].map(([name, status, detail, key]) => (
+                <article key={key} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <h4 className="min-w-0 text-sm font-bold text-slate-900">{name}</h4>
+                    <span className="shrink-0 rounded-full bg-white px-2 py-1 text-[10px] font-bold text-slate-600">{status}</span>
+                  </div>
+                  <p className="mt-2 text-xs leading-relaxed text-slate-600">{detail}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+          <aside className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
+            <h4 className="text-sm font-bold text-slate-900">下一批一键开服计划</h4>
+            <ul className="mt-3 space-y-2 text-xs leading-relaxed text-amber-900">
+              <li>• 先补齐 Palworld / Minecraft 的服务端参数检查。</li>
+              <li>• 再补 Stardew / Cuphead 的推荐联机边界和远程同屏提示。</li>
+              <li>• 缺少游戏时请点击“反馈缺少的游戏”，管理员会按证据补方案。</li>
+            </ul>
+            <button
+              onClick={() => {
+                setContributionOpen(true);
+                onTriggerToast('已打开游戏方案反馈入口。');
+              }}
+              className="mt-4 w-full rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800"
+            >
+              反馈缺少的游戏
+            </button>
+          </aside>
+        </div>
+      </section>
 
       <section
         className="rounded-2xl border border-sky-100 bg-sky-50/80 p-5 shadow-sm"
@@ -2001,7 +2132,7 @@ export function ProductSolutionsView({
                 <span className={`rounded-full px-3 py-1 text-xs font-bold ${
                   adapterIntentMatch ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'
                 }`}>
-                  {adapterIntentIsConversionAssessment ? '转换评估已带入方案库' : '诊断建议创建适配器'}
+                  {adapterIntentIsConversionAssessment ? '联机方式建议已带入方案库' : '诊断建议创建游戏方案'}
                 </span>
                 {adapterIntentIsConversionAssessment ? (
                   <span className="rounded-full bg-white/70 px-3 py-1 text-[11px] font-bold text-slate-600">
@@ -2009,24 +2140,24 @@ export function ProductSolutionsView({
                   </span>
                 ) : null}
                 {adapterIntent.issue_ids?.length ? (
-                  <span className="rounded-full bg-white/70 px-3 py-1 font-mono text-[11px] font-bold text-slate-500">
+                  <span className="rounded-full bg-white/70 px-3 py-1 font-mono text-[11px] font-bold text-slate-500" data-solutions-technical-details="advanced">
                     {adapterIntent.issue_ids.join(', ')}
                   </span>
                 ) : null}
               </div>
               <h3 className="text-base font-bold text-slate-800">
                 {adapterIntent.display_name || adapterIntent.game_id || '未知游戏'}
-                {adapterIntentIsConversionAssessment ? ' 的转换评估需要沉淀为方案' : ' 缺少可复用联机方案'}
+                {adapterIntentIsConversionAssessment ? ' 的联机方式需要沉淀为方案' : ' 缺少可复用联机方案'}
               </h3>
               <p className="mt-2 max-w-4xl text-xs leading-relaxed text-slate-600">
                 {adapterIntentIsConversionAssessment
-                  ? '这是从推荐页非 LAN 转换评估带来的创建意图。正确路径是：先同步共享库查找同款游戏；如果仍缺失，再把评估结论、缺失证据和边界说明转成用户贡献包或管理员 custom adapter。'
-                  : '这是从诊断页带来的创建意图。正确路径是：先同步共享库查找同款游戏；如果仍然缺失，再由管理员确认游戏类型、端口和适用条件，保存为本地 custom adapter，后续同一游戏会自动套用方案。'}
+                  ? '这是从推荐页带来的联机方式建议。先同步共享库查找同款游戏；如果仍缺失，再把建议和证据转成反馈内容或本地方案。'
+                  : '这是从诊断页带来的创建建议。先同步共享库查找同款游戏；如果仍然缺失，再确认游戏类型、端口和适用条件，保存为本地方案。'}
               </p>
               {adapterIntentIsConversionAssessment ? (
                 <div className="mt-3 grid gap-2 text-[11px] text-slate-600 md:grid-cols-3" data-conversion-assessment-handoff="solutions-intent">
                   <div className="rounded-xl bg-white/70 p-3">
-                    <b className="text-slate-800">评估结论</b>
+                    <b className="text-slate-800">判断结论</b>
                     <p className="mt-1">{adapterIntent.note || '需要确认是否可转换。'}</p>
                   </div>
                   <div className="rounded-xl bg-white/70 p-3">
@@ -2034,7 +2165,7 @@ export function ProductSolutionsView({
                     <p className="mt-1">{adapterIntent.recommended_plan || '待管理员确认。'}</p>
                   </div>
                   <div className="rounded-xl bg-white/70 p-3">
-                    <b className="text-slate-800">需补证据</b>
+                    <b className="text-slate-800">待补充</b>
                     <p className="mt-1">{adapterIntent.admin_evidence?.slice(0, 2).join('、') || '暂无。'}</p>
                   </div>
                 </div>
@@ -2046,11 +2177,11 @@ export function ProductSolutionsView({
                 </div>
                 <div className="rounded-xl bg-white/70 p-3">
                   <b className="text-slate-800">2. 判定类型</b>
-                  <p className="mt-1">LAN、广播发现、专用服务端、同屏远程或 Steam P2P。</p>
+                  <p className="mt-1">判断它适合局域网、开服、房间发现、远程同屏、Steam 邀请还是官方入口。</p>
                 </div>
                 <div className="rounded-xl bg-white/70 p-3">
                   <b className="text-slate-800">3. 保存复用</b>
-                  <p className="mt-1">保存后推荐页和诊断页会按 adapter 给出方案。</p>
+                  <p className="mt-1">保存后推荐页和诊断页会按该方案给出下一步。</p>
                 </div>
               </div>
               {adapterIntentMatch ? (
@@ -2066,11 +2197,11 @@ export function ProductSolutionsView({
               </button>
               <button onClick={() => applyAdapterIntent(adapterIntent)} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
                 <FileJson className="h-4 w-4" />
-                {adapterIntentIsConversionAssessment ? '用评估预填编辑器' : '打开预填编辑器'}
+                {adapterIntentIsConversionAssessment ? '用建议填写方案' : '打开方案编辑'}
               </button>
               <button onClick={() => prefillContributionFromIntent(adapterIntent)} className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-200 bg-white px-4 py-2 text-xs font-bold text-amber-700 hover:bg-amber-50">
                 <Upload className="h-4 w-4" />
-                {adapterIntentIsConversionAssessment ? '用评估生成贡献包' : '生成用户贡献包'}
+                {adapterIntentIsConversionAssessment ? '用建议生成反馈' : '生成反馈内容'}
               </button>
               <button onClick={dismissAdapterIntent} className="inline-flex items-center justify-center rounded-xl border border-transparent px-4 py-2 text-xs font-bold text-slate-500 hover:bg-white/60">
                 关闭引导
@@ -2193,7 +2324,7 @@ export function ProductSolutionsView({
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-12">
+      <section className="grid gap-6 lg:grid-cols-12" data-solutions-technical-details="advanced">
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm lg:col-span-8">
           <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex items-start gap-3">
@@ -2203,7 +2334,7 @@ export function ProductSolutionsView({
               <div>
                 <h3 className="text-sm font-bold text-slate-800">共享方案库优先</h3>
                 <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                  先从共享库拉取经过校验的 adapter，再扫描本机游戏；自建方案仅用于补充或覆盖确认过的游戏。
+                  先从共享库拉取经过校验的游戏方案，再扫描本机游戏；自建方案仅用于补充或覆盖确认过的游戏。
                 </p>
               </div>
             </div>
@@ -2233,10 +2364,10 @@ export function ProductSolutionsView({
             <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
               <div className="mb-2 flex items-center gap-2">
                 <CloudDownload className="h-4 w-4 text-emerald-600" />
-                <b className="text-xs text-emerald-800">GitHub Pages 默认库</b>
+                <b className="text-xs text-emerald-800">GitHub Raw 默认库</b>
               </div>
               <p className="text-[11px] leading-relaxed text-emerald-700">
-                普通用户优先选择。地址固定为项目公开共享库，适合直接拉取社区已经整理好的 adapter。
+                普通用户优先选择。地址固定为项目公开共享库，适合直接拉取社区已经整理好的游戏方案。
               </p>
               <button
                 onClick={syncDefaultGithubRegistry}
@@ -2252,7 +2383,7 @@ export function ProductSolutionsView({
                 <b className="text-xs text-sky-800">VPS / 自建静态库</b>
               </div>
               <p className="text-[11px] leading-relaxed text-sky-700">
-                管理员把 adapter-registry 上传到 VPS 或静态站点后，在上方填入 index.json URL，再先预检差异。
+                管理员把共享方案目录上传到 VPS 或静态站点后，在上方填入 index.json URL，再先预检差异。
               </p>
               <button
                 onClick={syncCurrentRemoteRegistry}
@@ -2268,7 +2399,7 @@ export function ProductSolutionsView({
                 <b className="text-xs text-amber-800">本地示例库</b>
               </div>
               <p className="text-[11px] leading-relaxed text-amber-700">
-                开发/管理员测试用。读取项目内 adapter-registry/index.json，不需要联网，用于验证刚写入的本地共享库。
+                开发/管理员测试用。读取项目内本地示例库，不需要联网，用于验证刚写入的本地共享库。
               </p>
               <button
                 onClick={syncLocalExample}
@@ -2286,9 +2417,9 @@ export function ProductSolutionsView({
             <BookOpen className="h-5 w-5 text-amber-500" />
             <h3 className="text-sm font-bold text-slate-800">自建方案</h3>
           </div>
-          <p className="mb-4 text-xs leading-relaxed text-slate-500">管理员确认某游戏类型后，可把转换方案保存为 adapter，后续用户遇到同一游戏时直接复用。</p>
+          <p className="mb-4 text-xs leading-relaxed text-slate-500">确认某游戏类型后，可把转换方案保存为本地方案，后续用户遇到同一游戏时直接复用。</p>
           <button onClick={() => setEditorOpen((value) => !value)} className="w-full rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-amber-950 shadow-sm hover:bg-amber-400">
-            {editorOpen ? '关闭编辑器' : '打开自建适配器编辑器'}
+            {editorOpen ? '关闭编辑器' : '打开自建方案编辑器'}
           </button>
           <button onClick={() => setContributionOpen((value) => !value)} className="mt-2 w-full rounded-xl border border-amber-200 bg-white px-4 py-2 text-xs font-bold text-amber-700 hover:bg-amber-50">
             {contributionOpen ? '关闭用户贡献入口' : '打开用户贡献入口'}
@@ -2304,9 +2435,9 @@ export function ProductSolutionsView({
                 <span className="rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold text-amber-700">用户贡献入口</span>
                 <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] font-bold text-white">贡献包 v1</span>
               </div>
-              <h3 className="text-sm font-bold text-slate-800">不懂 adapter JSON 也可以提交游戏线索</h3>
+              <h3 className="text-sm font-bold text-slate-800">不懂方案 JSON 也可以提交游戏线索</h3>
               <p className="mt-1 max-w-4xl text-xs leading-relaxed text-slate-600">
-                普通用户只需要描述游戏联机现象、端口、测试步骤和证据。系统会生成可复制的贡献包，管理员再据此复核并转成正式 adapter。
+                普通用户只需要描述游戏联机现象、端口、测试步骤和证据。系统会生成可复制的反馈内容，维护者再据此复核并转成正式方案。
               </p>
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">
@@ -2317,7 +2448,7 @@ export function ProductSolutionsView({
                 复制贡献包
               </button>
               <button onClick={applyContributionToEditor} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
-                转入管理员编辑器
+                转入方案编辑器
               </button>
             </div>
           </div>
@@ -2364,7 +2495,7 @@ export function ProductSolutionsView({
             </label>
             <label className="text-[11px] font-bold text-slate-600">
               网络条件
-              <textarea value={contributionForm.network_conditions} onChange={(event) => updateContributionField('network_conditions', event.target.value)} className="mt-1 min-h-24 w-full rounded-xl border border-amber-100 bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-amber-400" placeholder="例如 双方同一 n2n 房间；防火墙已放行" />
+              <textarea value={contributionForm.network_conditions} onChange={(event) => updateContributionField('network_conditions', event.target.value)} className="mt-1 min-h-24 w-full rounded-xl border border-amber-100 bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-amber-400" placeholder="例如 双方同一联机房间；防火墙已放行" />
             </label>
             <label className="text-[11px] font-bold text-slate-600">
               可执行文件特征
@@ -2409,7 +2540,7 @@ export function ProductSolutionsView({
               <div>
                 <p className="text-xs font-bold text-slate-800">管理员导入 / 审核用户贡献包</p>
                 <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
-                  管理员可以粘贴用户发来的完整贡献包文本或 JSON。解析后先显示缺失项、风险和复核清单，再决定转为 adapter 草稿或要求用户补充证据。
+                  管理员可以粘贴用户发来的完整贡献包文本或 JSON。解析后先显示缺失项、风险和复核清单，再决定转为方案草稿或要求用户补充证据。
                 </p>
               </div>
               <div className="flex shrink-0 flex-wrap gap-2">
@@ -2448,7 +2579,7 @@ export function ProductSolutionsView({
                     <p className="mt-1 text-[11px] leading-relaxed text-slate-600">{contributionReview.summary}</p>
                   </div>
                   <button onClick={applyContributionReviewToEditor} className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800">
-                    转为 adapter 草稿
+                    转为方案草稿
                   </button>
                 </div>
                 <div className="grid gap-3 md:grid-cols-3">
@@ -2711,7 +2842,7 @@ export function ProductSolutionsView({
         <section className="rounded-2xl border border-slate-800 bg-slate-900 p-5 text-xs text-slate-200 shadow-sm">
           <div className="mb-4 flex items-center gap-2 border-b border-slate-800 pb-3">
             <FileJson className="h-4 w-4 text-amber-400" />
-            <h3 className="font-bold text-amber-400">真实 Adapter Schema Builder</h3>
+            <h3 className="font-bold text-amber-400">方案编辑器</h3>
           </div>
           <div className="mb-4 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4" data-adapter-editor-decision-matrix="preset">
             <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
@@ -2730,7 +2861,7 @@ export function ProductSolutionsView({
                   ))}
                 </select>
                 <p className="text-[11px] leading-relaxed text-slate-400">
-                  选择后会真实写入 network_type、是否可转 LAN 和说明文案；game_id、名称、端口不会被覆盖。
+                  选择后会写入联机类型、是否可转局域网和说明文案；game_id、名称、端口不会被覆盖。
                 </p>
               </label>
               <div className="rounded-xl border border-slate-700 bg-slate-950/80 p-3">
@@ -2790,7 +2921,7 @@ export function ProductSolutionsView({
               <div>
                 <h4 className="text-sm font-bold text-slate-100">适用条件与验证证据</h4>
                 <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
-                  这些字段会写入 adapter JSON，供共享库审核、质量评分和远程同步判断使用；不要只把证据塞进 notes。
+                  这些字段会写入方案 JSON，供共享库审核、质量评分和远程同步判断使用；不要只把证据塞进备注。
                 </p>
               </div>
               <label className="space-y-1">
@@ -2812,7 +2943,7 @@ export function ProductSolutionsView({
               <textarea value={editor.tested_platforms} onChange={(e) => setEditor({ ...editor, tested_platforms: e.target.value })} placeholder="平台/商店版本，例如 Steam；GOG；Epic" className="min-h-20 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 outline-none focus:border-amber-400" />
               <textarea value={editor.supported_os} onChange={(e) => setEditor({ ...editor, supported_os: e.target.value })} placeholder="适用系统，例如 Windows；Linux；Steam Deck" className="min-h-20 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 outline-none focus:border-amber-400" />
               <textarea value={editor.network_conditions} onChange={(e) => setEditor({ ...editor, network_conditions: e.target.value })} placeholder="适用网络条件，例如 同一虚拟局域网；防火墙允许端口" className="min-h-20 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 outline-none focus:border-amber-400" />
-              <textarea value={editor.known_limitations} onChange={(e) => setEditor({ ...editor, known_limitations: e.target.value })} placeholder="不适用边界/风险，例如 官方服限定；不能虚拟 IP 加入" className="min-h-20 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 outline-none focus:border-amber-400" />
+              <textarea value={editor.known_limitations} onChange={(e) => setEditor({ ...editor, known_limitations: e.target.value })} placeholder="不适用边界/风险，例如 官方服限定；不能用联机地址加入" className="min-h-20 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 outline-none focus:border-amber-400" />
               <textarea value={editor.port_protocols} onChange={(e) => setEditor({ ...editor, port_protocols: e.target.value })} placeholder="端口协议证据，例如 TCP 7777；UDP 27015 广播发现" className="min-h-20 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 outline-none focus:border-amber-400" />
               <textarea value={editor.evidence_items} onChange={(e) => setEditor({ ...editor, evidence_items: e.target.value })} placeholder="证据项，例如 多人菜单截图；服务端日志；端口监听截图；好友加入截图" className="min-h-20 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 outline-none focus:border-amber-400" />
               <textarea value={editor.test_steps} onChange={(e) => setEditor({ ...editor, test_steps: e.target.value })} placeholder="实测步骤，每行一步" className="min-h-20 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 outline-none focus:border-amber-400" />
@@ -2823,7 +2954,7 @@ export function ProductSolutionsView({
             <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <span className="rounded-full bg-amber-400/10 px-3 py-1 text-[11px] font-bold text-amber-300">保存前真实预览</span>
+                  <span className="rounded-full bg-amber-400/10 px-3 py-1 text-[11px] font-bold text-amber-300">保存前预览</span>
                   <span className={`rounded-full px-3 py-1 text-[11px] font-bold ${
                     editorWillGenerateLanInvite ? 'bg-emerald-400/10 text-emerald-300' : 'bg-slate-800 text-slate-300'
                   }`}>
@@ -2837,7 +2968,7 @@ export function ProductSolutionsView({
                   {editorPreviewAdapter.display_name || '未填写游戏名称'} 写入后会怎样生效
                 </h4>
                 <p className="mt-1 max-w-4xl text-[11px] leading-relaxed text-slate-400">
-                  这里展示的是 buildAdapter(editor) 真实结果。确认后保存会写入本地 custom adapter，并驱动游戏扫描、推荐方案、邀请包、诊断页和高级工具入口。
+                  这里展示的是保存后的方案结果。确认后保存会写入本地方案，并驱动游戏扫描、推荐方案、邀请包、诊断页和高级工具入口。
                 </p>
               </div>
               <label className="flex shrink-0 items-center gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-[11px] font-bold text-amber-200">
@@ -2950,7 +3081,7 @@ export function ProductSolutionsView({
                 ) : null}
               </div>
               <h3 className="text-sm font-bold text-slate-800">
-                {savedAdapterReview.adapter.display_name} 已保存为本地 custom adapter
+                {savedAdapterReview.adapter.display_name} 已保存为本地方案
               </h3>
               <p className="mt-1 max-w-4xl text-xs leading-relaxed text-slate-600">
                 保存时间：{savedAdapterReview.savedAt}。下面展示保存后的质量评分、发布审核状态、推荐路线影响和共享库提交建议，避免保存完成后还要到多个区域手动查。
@@ -2959,7 +3090,7 @@ export function ProductSolutionsView({
                 <p className="mt-2 max-w-4xl rounded-xl border border-sky-100 bg-white/80 px-3 py-2 text-[11px] leading-relaxed text-sky-700">
                   来源：用户贡献包 {savedAdapterReview.sourceContributionId}，当前贡献队列状态为
                   {contributionReviewQueueStatusLabel(savedAdapterReview.sourceContributionStatus || 'drafted')}。
-                  已完成“贡献包 → adapter 草稿 → 保存复核”，下一步可按发布审核结果加入共享库提交队列。
+                  已完成“贡献包 → 方案草稿 → 保存复核”，下一步可按发布审核结果加入共享库提交队列。
                 </p>
               ) : null}
             </div>
@@ -3018,7 +3149,7 @@ export function ProductSolutionsView({
               <p className="text-[11px] font-bold text-slate-500">下一步动作</p>
               <ul className="mt-2 space-y-1 text-[11px] leading-relaxed text-slate-600">
                 <li>• {savedAdapterReviewAudit.canSubmit ? '生成提交包，或直接加入共享库提交队列。' : '先补齐缺失项或复核风险，再考虑提交。'}</li>
-                <li>• 在推荐页选择该游戏，确认是否按 adapter 自动切换路线。</li>
+                <li>• 在推荐页选择该游戏，确认是否按方案自动切换路线。</li>
                 <li>• 若是 LAN 类方案，至少做一次端口检测和邀请包测试。</li>
               </ul>
             </div>
@@ -3056,10 +3187,10 @@ export function ProductSolutionsView({
         </section>
       ) : null}
 
-      <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+      <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm" data-solutions-technical-details="advanced">
         <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
           <div>
-            <h3 className="text-sm font-bold text-slate-800">adapter 分类总览</h3>
+            <h3 className="text-sm font-bold text-slate-800">方案分类总览</h3>
             <p className="mt-1 text-xs text-slate-500">
               当前库内 {inventory.total} 个方案，其中 {inventory.convertible} 个可作为局域网/直连转换候选，{inventory.registry} 个来自共享库。
             </p>
@@ -3521,7 +3652,7 @@ export function ProductSolutionsView({
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-12">
+      <section className="grid gap-6 lg:grid-cols-12" data-solutions-technical-details="advanced">
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm lg:col-span-7">
           <div className="mb-4 flex items-center justify-between gap-3">
             <h3 className="text-sm font-bold text-slate-800">本地真实适配器列表</h3>
@@ -3700,7 +3831,7 @@ export function ProductSolutionsView({
                 </article>
               );
             })}
-            {filteredAdapters.length === 0 && <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500">暂无适配器，请同步共享库或导入 JSON。</div>}
+            {filteredAdapters.length === 0 && <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500">暂无方案，请同步共享库或导入 JSON。</div>}
           </div>
         </div>
 
@@ -3708,9 +3839,9 @@ export function ProductSolutionsView({
           <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
             <div className="mb-3 flex items-center gap-2">
               <Upload className="h-5 w-5 text-amber-500" />
-              <h3 className="text-sm font-bold text-slate-800">导入单个 Adapter JSON</h3>
+              <h3 className="text-sm font-bold text-slate-800">导入单个方案 JSON</h3>
             </div>
-            <textarea value={importText} onChange={(event) => setImportText(event.target.value)} placeholder="粘贴 adapter JSON 内容" className="min-h-28 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 font-mono text-xs outline-none focus:border-amber-400" />
+            <textarea value={importText} onChange={(event) => setImportText(event.target.value)} placeholder="粘贴方案 JSON 内容" className="min-h-28 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 font-mono text-xs outline-none focus:border-amber-400" />
             <button onClick={importAdapter} disabled={Boolean(busy)} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-60">
               <Upload className="h-4 w-4" />
               导入并写入本地方案库
@@ -3813,7 +3944,7 @@ export function ProductSolutionsView({
                 </div>
                 <div className="rounded-xl bg-white/80 p-3">
                   <p className="mb-1 font-bold text-slate-800">发布地址</p>
-                  <p className="break-all font-mono text-[11px] text-slate-600">{solutionsUrl.trim() || DEFAULT_REGISTRY_URL}</p>
+                  <p className="break-all font-mono text-[11px] text-slate-600">{activeRegistryUrl}</p>
                   <button onClick={() => copyText(submitPackage.adapterUrl, 'adapter_url')} className="mt-2 text-[11px] font-bold text-amber-700">复制 adapter_url</button>
                 </div>
               </div>

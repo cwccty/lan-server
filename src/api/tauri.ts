@@ -222,6 +222,65 @@ export const loginLocalAccount = (nickname: string, password: string, rememberMe
 export const logoutLocalAccount = () => invoke<UserAccountState>('logout_local_account');
 export const updateAccountNickname = (nickname: string) =>
   invoke<UserAccountState>('update_account_nickname', { nickname });
+
+export interface SteamRelayStatus {
+  available: boolean;
+  steam_running: boolean;
+  steam_process_path?: string | null;
+  steamworks_sdk_dir?: string | null;
+  steamworks_sdk_configured: boolean;
+  redistributable_found: boolean;
+  redistributable_path?: string | null;
+  app_id?: string | null;
+  app_id_configured: boolean;
+  unavailable_reasons: string[];
+  next_steps: string[];
+  legal_notice: string;
+}
+
+export interface SteamP2pInvitePacket {
+  method: 'steam_p2p';
+  host_steam_id: string;
+  virtual_port: number;
+  protocol: 'tcp';
+  target_host: string;
+  target_port: number;
+  guest_local_port: number;
+  app_id: string;
+  created_at: string;
+}
+
+export interface SteamP2pHostRequest {
+  host_steam_id: string;
+  virtual_port: number;
+  target_host: string;
+  target_port: number;
+  app_id?: string | null;
+}
+
+export interface SteamP2pGuestRequest {
+  host_steam_id: string;
+  virtual_port: number;
+  guest_local_port: number;
+  app_id?: string | null;
+}
+
+export interface SteamP2pSessionStatus {
+  running: boolean;
+  mode: string;
+  state: string;
+  message: string;
+  invite?: SteamP2pInvitePacket | null;
+  status: SteamRelayStatus;
+}
+
+export const getSteamRelayStatus = () => invoke<SteamRelayStatus>('get_steam_relay_status');
+export const startSteamP2pHost = (input: SteamP2pHostRequest) =>
+  invoke<SteamP2pSessionStatus>('start_steam_p2p_host', { input });
+export const startSteamP2pGuest = (input: SteamP2pGuestRequest) =>
+  invoke<SteamP2pSessionStatus>('start_steam_p2p_guest', { input });
+export const stopSteamP2pSession = () => invoke<SteamP2pSessionStatus>('stop_steam_p2p_session');
+export const getSteamP2pSessionStatus = () => invoke<SteamP2pSessionStatus>('get_steam_p2p_session_status');
 export const listFriendAllocations = () =>
   invoke<FriendAllocation[]>('list_friend_allocations');
 export const upsertFriendAllocation = (input: FriendAllocationInput) =>
