@@ -1,37 +1,37 @@
 {
-  "version": 2,
-  "updated_at": "2026-06-05",
-  "description": "Lan Helper local adapter registry example. Can be hosted by VPS, static HTTP server, GitHub Pages, or any HTTPS static file hosting.",
+  "version": 3,
+  "updated_at": "2026-06-07",
+  "description": "Lan Helper adapter registry: ordinary-user-first connection plans with route preflight, invite flow, and diagnostics hints.",
   "games": [
     {
       "game_id": "cuphead",
       "steam_appid": "268910",
       "adapter_url": "games/cuphead.json",
-      "sha256": "32e28cc11a198636413b2b1bf3c46bbcbdf9123bb3565bf4d6bb9e7453ea636f"
+      "sha256": "502936e7172d1dc4b399a6c1c8379c1a14121fa875a29ef60d8ec22f65902beb"
     },
     {
       "game_id": "minecraft_java",
       "steam_appid": null,
       "adapter_url": "games/minecraft_java.json",
-      "sha256": "6ef1688955c93389a707e2dd60217d87f784326c06a4cd9d28d6320117296b9f"
+      "sha256": "9e30cea21404453c93687e444333aba88abdd0f65923334f0eb90aa487bcfe05"
     },
     {
       "game_id": "palworld",
       "steam_appid": "1623730",
       "adapter_url": "games/palworld.json",
-      "sha256": "949b76a74112a26c9c91a35933f330112554529bb5cca17bacfa6a79ae8e3e25"
+      "sha256": "653e75b291bd473856dec5a13a1ec4b09af9f433d66b9e843237a7dede900fd3"
     },
     {
       "game_id": "stardew_valley",
       "steam_appid": "413150",
       "adapter_url": "games/stardew_valley.json",
-      "sha256": "20ab3f954d1ea388590e9a786ff8bd957377dcad7d4a1c96c6b1e179a0a6dc19"
+      "sha256": "8213264b4bdb6552d2a1eefe73687c825331fb52057f80f5f2a7641dbcdceb17"
     },
     {
       "game_id": "terraria",
       "steam_appid": "105600",
       "adapter_url": "games/terraria.json",
-      "sha256": "4f0b0895bc0b5c0f3c8ee2d85f76bc2ad3102277a8afbd47080bc46d899ab0ac"
+      "sha256": "0179d07077cc405fb52c92c3abff2868a0c9cc576e72e9d0d723f220747edaf2"
     }
   ]
 }

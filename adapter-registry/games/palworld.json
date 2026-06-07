@@ -3,7 +3,7 @@
   "display_name": "Palworld / 幻兽帕鲁",
   "steam_appid": "1623730",
   "adapter_version": "1.0.0",
-  "description": "?????/IP ????????? n2n ???????????? Palworld UDP 8211?",
+  "description": "专用服务器/IP 加入路线；首选虚拟联机房间 + Palworld UDP 8211，UDP 代理只作为直连失败后的备用。",
   "capabilities": [
     "ip_join",
     "dedicated_server"
@@ -13,28 +13,27 @@
     "methods": [
       "virtual_lan",
       "dedicated_server_launcher",
-      "port_proxy",
       "manual_guide"
     ],
     "can_convert_to_lan": true,
     "risk_level": "medium",
     "notes": [
-      "Palworld 支持专用服务器与 IP/端口加入；联机助手主要负责虚拟局域网、端口提示、UDP 代理和邀请信息。",
-      "该适配器不承诺把官方服务器、Steam 好友大厅或平台匹配强制转换成本地 LAN，只覆盖可通过 IP/端口加入的专用服流程。",
+      "Palworld 支持专用服务器与 IP/端口加入；联机助手主要负责虚拟联机房间、UDP 端口提示、服务端托管和邀请信息。",
+      "该适配器只覆盖可通过 IP/端口加入的专用服流程，不把官方服务器、Steam 好友大厅或平台匹配强制转换成本地 LAN。",
       "默认游戏端口为 UDP 8211；如果服务端配置改过端口，请以实际端口为准。"
     ],
     "required_components": [
-      "n2n/Radmin/已有局域网",
-      "PalServer-Win64-Shipping.exe 或 SteamCMD 安装的 Palworld Dedicated Server",
+      "双方进入同一联机房间",
+      "Palworld Dedicated Server / PalServer.exe",
       "UDP 8211 或实际服务端端口",
-      "必要时启用 UDP 端口代理"
+      "必要时在高级工具中使用 UDP 单播代理"
     ]
   },
   "network_type": "dedicated_server",
   "connection_plan": {
-    "summary": "房主启动 Palworld 专用服务器，双方进入同一虚拟局域网后，好友通过房主虚拟 IP:8211 加入。",
-    "host_role": "房主启动 Palworld Dedicated Server 或 PalServer-Win64-Shipping.exe，并确认服务端监听 UDP 8211 或实际配置端口；保持 n2n edge 在线。",
-    "join_role": "加入者进入同一虚拟局域网后，在 Palworld 多人游戏/专用服务器地址中输入 房主虚拟 IP:8211 或实际端口。",
+    "summary": "房主启动 Palworld 专用服务器，软件检查本机 UDP 8211 是否已开出；好友进入同一联机房间后，在 Palworld 中输入 房主联机地址:8211 加入。",
+    "host_role": "房主启动 Palworld Dedicated Server（PalServer.exe），确认端口是 UDP 8211 或你改过的实际端口，并保持联机房间在线。",
+    "join_role": "好友进入同一联机房间后，在 Palworld 多人游戏/专用服务器地址中输入 房主联机地址:8211 或实际端口。",
     "default_join_host": "房主虚拟 IP",
     "default_join_port": 8211,
     "requires_virtual_lan": true,
@@ -42,22 +41,22 @@
     "requires_udp_broadcast_bridge": false,
     "requires_dedicated_server": true,
     "invite_template": [
-      "双方先进入同一虚拟局域网。",
-      "房主启动 Palworld 专用服务器，并确认 UDP 8211 端口开放。",
-      "加入者连接 房主虚拟 IP:8211。",
-      "如果直连失败，先用联机助手检测虚拟 IP 与端口，再按需启用 UDP 端口代理。"
+      "双方先进入同一联机房间。",
+      "房主启动 Palworld 专用服务器，并确认 UDP 8211 或实际端口已开启。",
+      "加入者连接 房主联机地址:8211。",
+      "如果直连失败，先检查房主 UDP 端口、防火墙和服务端配置；必要时再使用高级工具的 UDP 代理。"
     ],
     "troubleshooting": [
-      "确认服务端进程已启动，且实际端口与邀请包端口一致。",
-      "Palworld 默认是 UDP 8211；TCP 端口测试失败不一定代表 UDP 服务不可用。",
-      "如果虚拟网内能互 ping 但游戏无法加入，检查 Windows 防火墙是否允许 PalServer/Palworld 通过 UDP。",
-      "如果服务端绑定地址或 NAT 行为异常，可尝试高级连接工具中的 UDP 单播代理。"
+      "Palworld 默认是 UDP 8211；TCP 端口测试失败不代表服务端不可用。",
+      "如果房主本机 UDP 端口未监听，先确认 PalServer 是否启动成功、端口参数是否一致。",
+      "如果房主本机 UDP 已监听但好友无法加入，检查双方联机房间、防火墙是否允许 PalServer/Palworld 通过 UDP。",
+      "UDP 远端端口无法像 TCP 一样自动可靠判定，最终以游戏内加入结果为准。"
     ]
   },
   "executables": [
     "Palworld.exe",
-    "PalServer-Win64-Shipping.exe",
-    "PalServer.exe"
+    "PalServer.exe",
+    "PalServer-Win64-Shipping.exe"
   ],
   "default_ports": [
     8211
@@ -74,7 +73,7 @@
       "id": "server",
       "name": "启动 Palworld 专用服务端",
       "type": "server",
-      "exe": "PalServer-Win64-Shipping.exe",
+      "exe": "PalServer.exe",
       "arg_templates": [
         "-port={{port}}",
         "-players={{max_players}}",
@@ -110,7 +109,7 @@
   "applicability": {
     "verification_status": "unverified",
     "tested_versions": [
-      "??????????? Palworld ??"
+      "Palworld Dedicated Server 常见 Windows 版本，需用户本机确认服务端文件位置"
     ],
     "tested_platforms": [
       "Steam",
@@ -120,29 +119,29 @@
       "Windows"
     ],
     "network_conditions": [
-      "???????????",
-      "???? PalServer/Palworld ?? UDP 8211 ?????"
+      "双方已进入同一联机房间",
+      "房主防火墙允许 PalServer/Palworld 的 UDP 8211 或实际端口"
     ],
     "known_limitations": [
-      "TCP ?????????? UDP 8211 ??",
-      "?????/??????????????",
-      "????????????????"
+      "UDP 远端端口无法完全自动检测",
+      "不覆盖官方服/匹配服",
+      "服务端安装目录可能与游戏客户端不同"
     ]
   },
   "evidence": {
     "port_protocols": [
-      "UDP 8211???????????"
+      "UDP 8211（Palworld Dedicated Server 默认）"
     ],
     "proof_items": [
-      "??????????dedicated_server",
-      "connection_plan ?? UDP 8211 ??? UDP ????"
+      "适配器主路线为 dedicated_server",
+      "开房页使用 UDP 本机监听检测而不是 TCP-only 检测"
     ],
     "test_steps": [
-      "???? Palworld Dedicated Server",
-      "???? n2n ??? ACK/PONG",
-      "????? ???? IP:8211",
-      "??????????? UDP ????"
+      "房主启动 Palworld Dedicated Server",
+      "检查本机 UDP 8211 监听",
+      "双方进入同一联机房间",
+      "好友在游戏内连接 房主联机地址:8211"
     ],
-    "last_verified_at": "2026-06-05"
+    "last_verified_at": "2026-06-07"
   }
 }
