@@ -7,21 +7,21 @@
 - 文件：`release-artifacts/LanHelper-v0.1.0-windows-x64.zip`
 - 本地 SHA256：`b4643eaad3ec80e245592f988b771817165de7da1d1bbcdee9516ee612fe62fb`
 
-远程 GitHub Release `v0.1.0` 当前资产仍是旧包：
+远程 GitHub Release `v0.1.0` 当前资产已同步到本轮最新包：
 
 - Release：`https://github.com/cwccty/lan-server/releases/tag/v0.1.0`
 - 资产：`LanHelper-v0.1.0-windows-x64.zip`
-- 远程 digest：`sha256:91617585501427da6bb2502e18ad28e0bc1038270c04db00364e7a4b04331a75`
-- 结论：远程 Release 资产尚未同步到本轮最新包。
+- 远程 digest：`sha256:b4643eaad3ec80e245592f988b771817165de7da1d1bbcdee9516ee612fe62fb`
+- 结论：远程 Release 资产已同步到本轮最新包。
 
-## 需要的外部资源
+## 后续重新发布时需要的外部资源
 
 需要一个具备 `cwccty/lan-server` 仓库 Release 更新权限的 GitHub token：
 
 - 环境变量名：`GITHUB_TOKEN` 或 `GH_TOKEN`
 - 权限：至少可读取 release、删除旧 asset、上传新 asset、更新 release body。
 
-## 更新步骤
+## 后续重新生成 ZIP 后的更新步骤
 
 在 PowerShell 中执行：
 

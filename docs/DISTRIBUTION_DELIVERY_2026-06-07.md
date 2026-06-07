@@ -4,9 +4,9 @@
 
 本轮已完成交付/打包分发阶段的本机可验证项：Vite chunk 拆分、release 构建、Windows x64 zip 打包与校验、release exe 启动、远程 registry v3 发布与 hash 校验。
 
-GitHub Release 资产上传尚未完成：本地分发 zip 已生成并校验，但 `v0.1.0` Release 上的 `LanHelper-v0.1.0-windows-x64.zip` 仍是旧 digest。实际更新需要 `GITHUB_TOKEN` 或 `GH_TOKEN`，当前环境未提供该 token。
+GitHub Release 资产上传已完成：`v0.1.0` Release 上的 `LanHelper-v0.1.0-windows-x64.zip` digest 已与本地最新 zip 一致。
 
-源码分发提交也尚未推送成功：本地已创建交付/分发提交（当前本地 HEAD，以 `git rev-parse --short HEAD` 为准），记录 Vite chunk 拆分、ZIP 清理脚本和交付/回归文档；但 `git push origin master` 两次因无法连接 `github.com:443` 失败，当前本地仍显示 `master...origin/master [ahead 1]`。
+源码分发提交已推送成功：`origin/master` 已包含交付/分发提交链，记录 Vite chunk 拆分、ZIP 清理脚本和交付/回归文档；具体提交以 `git log --oneline origin/master` 为准。
 
 真实双机 Palworld / Minecraft / Stardew / Cuphead 游戏内回归尚未执行；原因是当前环境缺少第二台 Windows 机器、对应游戏账号/客户端和远端好友环境。已补充可执行回归清单：`docs/REAL_DUAL_MACHINE_REGRESSION_2026-06-07.md`。
 
@@ -52,8 +52,8 @@ npm run release:zip:verify
 - 分发包内 exe 启动：通过，窗口标题为“联机助手”。
 - release UI CDP 9 页冒烟：通过，9 个主要页面均可点击、文本非空、无明显问号乱码。
 - 远程 registry v3：通过，raw URL HTTP 200，`version: 3`，5 个游戏 JSON sha256 全部匹配 index。
-- GitHub Release 资产更新：未完成。`npm run release:github:update -- --DryRun` 通过并确认会替换旧资产；实际 `npm run release:github:update` 因缺少 `GITHUB_TOKEN` / `GH_TOKEN` 失败。
-- 源码提交推送：未完成。本地交付/分发提交存在，但远程 `origin/master` 尚未包含该提交；证据见 `git-push-distribution-commit-status.json`。
+- GitHub Release 资产更新：通过。远程 asset digest 已等于本地 zip digest。
+- 源码提交推送：通过。`origin/master` 已包含交付/分发提交链。
 
 ## 产物
 
@@ -67,11 +67,11 @@ npm run release:zip:verify
 - 远程 registry commit：`86bf597 chore: publish adapter registry v3`
 - 远程 registry raw：`https://raw.githubusercontent.com/cwccty/lan-server/master/adapter-registry/index.json`
 - 本地交付/分发源码提交：当前本地 HEAD（`chore: document distribution delivery status`）
-  - 状态：尚未推送到远程，`git push` 网络连接失败。
+  - 状态：已推送到 `origin/master`。
 - GitHub Release 页面：`https://github.com/cwccty/lan-server/releases/tag/v0.1.0`
-  - 当前远程资产 digest：`sha256:91617585501427da6bb2502e18ad28e0bc1038270c04db00364e7a4b04331a75`
+  - 当前远程资产 digest：`sha256:b4643eaad3ec80e245592f988b771817165de7da1d1bbcdee9516ee612fe62fb`
   - 本地最新 zip digest：`sha256:b4643eaad3ec80e245592f988b771817165de7da1d1bbcdee9516ee612fe62fb`
-  - 结论：远程 Release 资产未同步到本轮最新包。
+  - 结论：远程 Release 资产已同步到本轮最新包。
 
 ## 证据目录
 
@@ -104,6 +104,7 @@ npm run release:zip:verify
 - `release-github-update-dryrun.log`
 - `release-github-update-attempt.log`
 - `github-release-asset-current.json`
+- `github-release-asset-after-user-push.json`
 - `remote-registry-recheck-escalated.json`
 - `github-release-asset-current-escalated.json`
 - `git-push-distribution-commit-status.json`
@@ -135,14 +136,12 @@ npm run tauri:build
 ## 风险与剩余事项
 
 - 真实双机游戏内回归未完成，不能宣称 Palworld / Minecraft / Stardew / Cuphead 已实机通过；需要第二台机器和对应游戏账号/客户端后按 `docs/REAL_DUAL_MACHINE_REGRESSION_2026-06-07.md` 执行。
-- GitHub Release 资产未更新到最新 zip；需要提供具备 repo release 权限的 `GITHUB_TOKEN` 或 `GH_TOKEN` 后运行 `npm run release:github:update`，再复验远程 asset digest 等于本地 zip digest。
-- 本地交付/分发源码提交未推送到远程；需要网络恢复后运行 `git push origin master`，再确认 `origin/master` 包含该提交。
 - 当前工作树仍有大量历史未提交改动；本轮远程发布只最小提交了 `adapter-registry` v3，未把所有 UI/Rust/文档改动整体纳入远程源码交付。
 - release 构建前必须关闭正在运行的 `lan-helper.exe`，否则 Windows 会锁定目标 exe 导致构建失败。
 - `tools/n2n/edge.exe` 仍属于外部二进制，分发时应保留 hash 校验和来源说明；杀软误报需要用户自行确认信任来源。
 
 ## GitHub Release 资产更新手册
 
-当具备 release 权限的 token 到位后，按 `docs/GITHUB_RELEASE_UPDATE_RUNBOOK_2026-06-07.md` 替换 GitHub Release 上的旧 ZIP 资产并复验 digest。
+若后续重新生成 zip，按 `docs/GITHUB_RELEASE_UPDATE_RUNBOOK_2026-06-07.md` 替换 GitHub Release 上的 ZIP 资产并复验 digest。
 
 

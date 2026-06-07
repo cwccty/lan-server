@@ -6,9 +6,9 @@
 
 当前工作树已达到本轮本机可验证的交付门槛：前端构建、Rust 检查、Tauri release 构建、Windows release 启动、默认方案库地址、方案库同步预检/同步/成功失败提示、设置页旧地址规范化、主要页面无明显问号乱码，以及本轮新增的“普通用户说明增强”和“非 Terraria 游戏联机闭环优化”均已有证据。
 
-分发阶段补充状态：远程 registry v3 已发布并验证；Vite chunk 已拆分；Windows x64 zip 已生成并本地校验。GitHub Release 资产上传尚未完成，因为当前环境缺少具备 release 权限的 `GITHUB_TOKEN` / `GH_TOKEN`。真实双机 Palworld / Minecraft / Stardew / Cuphead 游戏内回归也尚未执行，需第二台 Windows 机器、对应游戏账号/客户端和远端好友环境。
+分发阶段补充状态：远程 registry v3 已发布并验证；Vite chunk 已拆分；Windows x64 zip 已生成并本地校验；GitHub Release 资产已上传并验证 digest 与本地 zip 一致。真实双机 Palworld / Minecraft / Stardew / Cuphead 游戏内回归尚未执行，需第二台 Windows 机器、对应游戏账号/客户端和远端好友环境。
 
-源码同步补充状态：本地已创建交付/分发提交（当前本地 HEAD，以 `git rev-parse --short HEAD` 为准），但 `git push origin master` 因无法连接 `github.com:443` 失败，当前本地仍领先远程 1 个提交；远程仓库尚未包含这次 Vite chunk/ZIP 清理/交付文档提交。
+源码同步补充状态：交付/分发提交链已推送到 `origin/master`；远程仓库已包含 Vite chunk/ZIP 清理/交付文档提交。
 
 release 可执行文件：
 
@@ -122,8 +122,8 @@ npm run tauri:build
 - Vite 仍提示主 chunk 超过 500 kB，当前不阻断交付，后续可做 code splitting。
 - 真实公网/跨机组网能力、真实双机加入游戏和第三方平台联机账号未做外部实机验收；本轮验收覆盖客户端启动、UI、配置、方案库、诊断入口和本地端口/流程逻辑。
 - 远程 GitHub raw 默认库已发布为 version 3，并通过 hash 校验；证据见 `E:\Documents\联机助手\docs\acceptance-artifacts\2026-06-07\distribution\remote-registry-v3-hash-verify.json`。
-- GitHub Release 上 `v0.1.0` 的 zip 资产仍是旧 digest；本地最新 zip 为 `sha256:b4643eaad3ec80e245592f988b771817165de7da1d1bbcdee9516ee612fe62fb`，远程资产仍为 `sha256:91617585501427da6bb2502e18ad28e0bc1038270c04db00364e7a4b04331a75`。需要 token 后运行 `npm run release:github:update`。
-- 本地交付/分发源码提交尚未推送；网络恢复后需要运行 `git push origin master` 并确认远程包含该提交。
+- GitHub Release 上 `v0.1.0` 的 zip 资产已更新；本地最新 zip 与远程资产 digest 均为 `sha256:b4643eaad3ec80e245592f988b771817165de7da1d1bbcdee9516ee612fe62fb`。
+- 交付/分发源码提交链已推送；`origin/master` 已包含本轮 Vite chunk、ZIP 清理脚本和交付文档。
 - Palworld UDP 远端端口无法像 TCP connect 一样可靠自动判定，最终仍需以游戏内加入为准；软件已改为提示游戏内实测。
 - UDP 代理端到端测试曾复现统计读取时序波动，已通过测试侧等待统计达到预期后再断言修复；后续如真实运行也出现 UDP 转发统计异常，应继续排查运行时统计刷新。
 - `.lan-helper\settings.json` 是本机验收状态文件，不应作为代码提交内容。
@@ -132,6 +132,6 @@ npm run tauri:build
 
 ## GitHub Release 资产更新手册
 
-当具备 release 权限的 token 到位后，按 `docs/GITHUB_RELEASE_UPDATE_RUNBOOK_2026-06-07.md` 替换 GitHub Release 上的旧 ZIP 资产并复验 digest。
+若后续重新生成 zip，按 `docs/GITHUB_RELEASE_UPDATE_RUNBOOK_2026-06-07.md` 替换 GitHub Release 上的 ZIP 资产并复验 digest。
 
 

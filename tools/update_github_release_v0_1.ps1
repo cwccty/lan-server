@@ -43,8 +43,9 @@ function Invoke-GitHubJson {
   if ($null -eq $Body) {
     return Invoke-RestMethod -Method $Method -Uri $Uri -Headers $headers -TimeoutSec 60
   }
-  $json = $Body | ConvertTo-Json -Depth 20
-  return Invoke-RestMethod -Method $Method -Uri $Uri -Headers $headers -ContentType "application/json" -Body $json -TimeoutSec 60
+  $json = $Body | ConvertTo-Json -Depth 20 -Compress
+  $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
+  return Invoke-RestMethod -Method $Method -Uri $Uri -Headers $headers -ContentType "application/json; charset=utf-8" -Body $bytes -TimeoutSec 60
 }
 
 $zipFullPath = Resolve-Path -LiteralPath $ZipPath
