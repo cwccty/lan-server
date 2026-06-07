@@ -272,16 +272,15 @@ function buildDiagnosticAutoNextStepDecision(input: {
     return {
       id: isPendingInvite ? 'invite-pending-generate-diagnostic' : 'invite-failure-generate-diagnostic',
       tone: 'warning',
-      title: isPendingInvite ? '先按邀请等待 ACK/PONG 状态生成诊断' : '先按邀请包失败信息生成诊断',
+      title: isPendingInvite ? '先按邀请等待状态生成诊断' : '先按邀请加入失败生成诊断',
       summary: isPendingInvite
-        ? '检测到好友加入后处于等待确认状态，已带入房主虚拟 IP、Supernode、房间名、端口和 pending 分类。'
-        : '检测到好友加入邀请失败，已带入房主虚拟 IP、Supernode、房间名、端口和失败分类。',
+        ? '检测到好友加入后还在等待确认，已带入房主联机地址、房间名和端口。'
+        : '检测到好友加入失败，已带入房主联机地址、房间名和端口。',
       primaryLabel: isPendingInvite ? '按等待状态生成诊断' : '按邀请包生成诊断',
       actionKind: 'generate_diagnostic',
       evidence: [
-        `${isPendingInvite ? '等待分类' : '失败分类'}：${input.inviteDiagnosticContext.reasonKind}`,
-        `Supernode：${input.inviteDiagnosticContext.packet.supernode || input.inviteDiagnosticContext.supernode || '未读取'}`,
-        `房主：${input.inviteDiagnosticContext.packet.hostVirtualIp || input.inviteDiagnosticContext.connectHost || '未读取'}`,
+        `状态：${isPendingInvite ? '等待确认' : '加入失败'}`,
+        `房主联机地址：${input.inviteDiagnosticContext.packet.hostVirtualIp || input.inviteDiagnosticContext.connectHost || '未读取'}`,
         `端口：${input.inviteDiagnosticContext.packet.gamePort || input.inviteDiagnosticContext.gamePort || '未读取'}`,
       ],
     };
@@ -294,14 +293,12 @@ function buildDiagnosticAutoNextStepDecision(input: {
       tone: openAdvanced ? 'warning' : 'danger',
       title: openAdvanced ? '房主路线需要先配置高级工具' : '先按房主开房失败信息生成诊断',
       summary: openAdvanced
-        ? '检测到房主开房路线需要端口代理或 UDP 广播桥，已带入游戏、端口、好友虚拟 IP 和路线要求。'
-        : '检测到房主开房失败，已带入当前游戏、推荐路线、Supernode、端口、服务端状态和失败分类。',
-      primaryLabel: openAdvanced ? '带参数去高级工具' : '按房主失败生成诊断',
+        ? '检测到当前游戏需要端口代理或房间发现辅助，已带入游戏、端口和好友联机地址。'
+        : '检测到房主开房失败，已带入当前游戏、推荐方式、端口和服务端状态。',
+      primaryLabel: openAdvanced ? '带信息去高级工具' : '按房主失败生成诊断',
       actionKind: openAdvanced ? 'open_advanced_tools' : 'generate_diagnostic',
       evidence: [
-        `失败分类：${input.hostDiagnosticContext.reasonKind}`,
-        `路线：${input.hostDiagnosticContext.routeTitle}`,
-        `Supernode：${input.hostDiagnosticContext.supernode || '未读取'}`,
+        `推荐方式：${input.hostDiagnosticContext.routeTitle}`,
         `端口：${input.hostDiagnosticContext.gamePort || '未读取'}`,
       ],
     };
@@ -311,11 +308,11 @@ function buildDiagnosticAutoNextStepDecision(input: {
     return {
       id: 'generate-first-diagnostic',
       tone: 'idle',
-      title: '先生成真实诊断',
-      summary: '还没有后端诊断报告，无法判断应该修 n2n、端口、服务端还是方案库。',
-      primaryLabel: '生成真实诊断',
+      title: '先生成诊断',
+      summary: '还没有诊断报告，无法判断应该修组网、端口、服务端还是游戏方案。',
+      primaryLabel: '生成诊断',
       actionKind: 'generate_diagnostic',
-      evidence: ['诊断页会读取真实 runtime、n2n、游戏端口和适配器状态。'],
+      evidence: ['诊断页会读取当前组网、游戏端口和游戏方案状态。'],
     };
   }
 
@@ -325,11 +322,11 @@ function buildDiagnosticAutoNextStepDecision(input: {
     return {
       id: latestAdvancedFailed ? 'continue-failed-advanced-tool' : 'open-advanced-tool-route',
       tone: latestAdvancedFailed ? 'danger' : 'warning',
-      title: latestAdvancedFailed ? '高级工具自测未通过，先继续调整参数' : '当前路线需要高级工具，先带参数过去',
+      title: latestAdvancedFailed ? '高级工具检查未通过，先继续调整连接信息' : '当前方式需要高级工具，先带信息过去',
       summary: latestAdvancedFailed
-        ? '最近一次端口代理 / UDP 广播桥自测仍失败，继续修 n2n 前应先确认监听端口、目标虚拟 IP 和目标端口。'
+        ? '最近一次端口代理 / 房间发现辅助检查仍失败，先确认监听端口、目标联机地址和目标端口。'
         : input.diagnosticConversionAdvice.summary,
-      primaryLabel: '带参数去高级工具',
+      primaryLabel: '带信息去高级工具',
       actionKind: 'open_advanced_tools',
       evidence: [
         input.diagnosticConversionAdvice.title,
@@ -345,7 +342,7 @@ function buildDiagnosticAutoNextStepDecision(input: {
       id: goSolutions ? 'route-needs-solution-review' : 'route-not-n2n-open-recommendation',
       tone: input.diagnosticConversionAdvice.tone === 'blocked' ? 'danger' : 'warning',
       title: input.diagnosticConversionAdvice.title,
-      summary: '当前游戏路线不应优先修 n2n，先回到正确联机方式，避免用户继续连接错误的虚拟 IP。',
+      summary: '当前游戏可能不适合优先修通用组网，先回到正确联机方式，避免继续连接错误地址。',
       primaryLabel: goSolutions ? '带建议去方案库' : '打开推荐方案',
       actionKind: goSolutions ? 'open_solutions' : 'open_recommendation',
       evidence: [
@@ -360,8 +357,8 @@ function buildDiagnosticAutoNextStepDecision(input: {
     return {
       id: 'advanced-tool-failed-without-route-advice',
       tone: 'danger',
-      title: '最近高级工具自测仍失败',
-      summary: '端口代理或广播桥还没通过自测，建议先回高级工具修参数，再重新诊断。',
+      title: '最近高级工具检查仍失败',
+      summary: '端口辅助或房间发现辅助还没通过检查，建议先回高级工具调整连接信息，再重新诊断。',
       primaryLabel: '继续调整高级工具',
       actionKind: 'open_advanced_tools',
       evidence: [input.latestAdvancedToolFix.summary],
@@ -403,12 +400,12 @@ function buildDiagnosticAutoNextStepDecision(input: {
     tone: input.report.release_ready ? 'success' : 'info',
     title: input.report.release_ready ? '当前诊断没有明确阻断项' : '当前没有明确问题',
     summary: input.report.release_ready
-      ? '如果好友仍无法加入，下一步重点确认游戏内连接地址是否是房主虚拟 IP 和端口。'
-      : '报告没有发现明确 issue，但发布检查仍可继续核对。',
+      ? '如果好友仍无法加入，下一步重点确认游戏内连接地址和端口。'
+      : '报告没有发现明确问题，可继续复制报告给朋友确认。',
     primaryLabel: '复制完整报告',
     actionKind: 'copy_report',
     evidence: [
-      `发布检查 ${input.report.required_passed}/${input.report.required_total}`,
+      `检查项 ${input.report.required_passed}/${input.report.required_total}`,
       input.report.summary || '无额外摘要',
     ],
   };
@@ -453,7 +450,7 @@ function formatDiagnosticRecord(record: DiagnosticRecord) {
   const report = record.report;
   const issue = report.most_likely_cause ?? report.issues?.[0];
   const lines = [
-    '# 联机助手真实诊断报告',
+    '# 联机助手诊断报告',
     '',
     `诊断目标: ${record.target_label}`,
     `目标模式: ${record.target_mode}`,
@@ -517,19 +514,47 @@ function simplifyText(text: string) {
   return text
     .replace(/^处理\s+/, '')
     .replace(/Terraria 服务端尚未证明 30 秒稳定运行：/g, 'Terraria：')
-    .replace(/n2n edge 未运行：/g, 'n2n：')
-    .replace(/n2n edge 运行状态：/g, 'n2n：')
+    .replace(/n2n edge 未运行：/g, '组网服务：')
+    .replace(/n2n edge 运行状态：/g, '组网服务：')
     .replace(/有游戏方案需要专用服务端，但当前没有观察到服务端会话：/g, '服务端：')
     .replace(/当前游戏需要专用服务端，但未观察到服务端运行：/g, '服务端：')
     .replace(/处理 内嵌服务端托管状态可观察：/g, '服务端：')
     .replace(/如果服务端退出，查看内嵌控制台的最后日志和 exit_code。/g, '查看服务端最后日志。')
     .replace(/等待至少 30 秒后重新生成诊断报告。/g, '等待 30 秒后重新诊断。')
-    .replace(/在通用组网中心点击“启动 n2n edge”。/g, '在组网中心启动 n2n。')
+    .replace(/在通用组网中心点击“启动 n2n edge”。/g, '在组网中心启动组网服务。')
     .replace(/启动后等待 10-20 秒，再查看是否出现 ACK\/PONG。/g, '等待 10-20 秒后刷新状态。')
-    .replace(/尚未检测到正在运行的 n2n edge；发布前需要启动一次并确认 supernode 注册成功。/g, '启动 n2n 并确认 ACK/PONG。')
-    .replace(/检测到联机助手记录或系统中正在运行的 n2n edge。/g, 'n2n 正在运行。')
-    .replace(/已从 edge 日志看到 supernode ACK\/PONG，supernode 响应正常。/g, 'ACK/PONG 正常。')
+    .replace(/尚未检测到正在运行的 n2n edge；发布前需要启动一次并确认 supernode 注册成功。/g, '启动组网服务并等待联机确认。')
+    .replace(/检测到联机助手记录或系统中正在运行的 n2n edge。/g, '组网服务正在运行。')
+    .replace(/已从 edge 日志看到 supernode ACK\/PONG，supernode 响应正常。/g, '联机确认正常。')
+    .replace(/ACK\/PONG/g, '联机确认')
+    .replace(/Supernode/g, '中继地址')
+    .replace(/supernode/g, '中继地址')
+    .replace(/n2n edge/g, '组网服务')
+    .replace(/n2n/g, '组网')
+    .replace(/edge\.exe/g, '组网程序')
+    .replace(/edge/g, '组网程序')
+    .replace(/adapter-registry/g, '共享方案库')
+    .replace(/adapter/g, '游戏方案')
+    .replace(/runtime/g, '运行状态')
+    .replace(/后端/g, '本机服务')
+    .replace(/发布检查/g, '检查项')
+    .replace(/真实诊断/g, '诊断')
+    .replace(/真实 EXE/g, '客户端')
+    .replace(/LAN 邀请/g, '本地联机邀请')
+    .replace(/\bLAN\b/g, '本地联机')
+    .replace(/\bissue\b/gi, '问题')
+    .replace(/\bMVP\b/g, '必需')
+    .replace(/虚拟 IP/g, '联机地址')
+    .replace(/虚拟IP/g, '联机地址')
+    .replace(/virtual IP/gi, '联机地址')
     .trim();
+}
+
+function severityLabel(severity: string) {
+  const value = severity.toLowerCase();
+  if (value.includes('critical') || value.includes('error') || value.includes('high')) return '需要处理';
+  if (value.includes('warn') || value.includes('medium')) return '注意';
+  return '提示';
 }
 
 function uniqueShortList(items: string[] | undefined, limit: number) {
@@ -655,8 +680,8 @@ function IssueCard({
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex items-center gap-2">
-            <span className="rounded-full bg-white/70 px-2 py-0.5 font-mono text-[10px] font-bold">{issue.severity}</span>
-            <h4 className="min-w-0 break-words text-sm font-bold">{issue.title}</h4>
+            <span className="rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-bold">{severityLabel(issue.severity)}</span>
+            <h4 className="min-w-0 break-words text-sm font-bold">{simplifyText(issue.title)}</h4>
           </div>
           <p className="break-words text-xs leading-relaxed">{simplifyText(issue.detail)}</p>
           {actions.length ? (
@@ -665,7 +690,12 @@ function IssueCard({
             </ul>
           ) : null}
           {evidence.length ? (
-            <pre className="mt-3 max-h-24 max-w-full overflow-auto whitespace-pre-wrap break-words rounded-xl bg-white/70 p-2 text-[11px] leading-relaxed">{evidence.join('\n')}</pre>
+            <pre
+              className="mt-3 max-h-24 max-w-full overflow-auto whitespace-pre-wrap break-words rounded-xl bg-white/70 p-2 text-[11px] leading-relaxed"
+              data-diagnostic-technical-details="advanced"
+            >
+              {evidence.join('\n')}
+            </pre>
           ) : null}
           {onRunFix ? (
             <div className="mt-3 flex flex-wrap gap-2">
@@ -676,7 +706,7 @@ function IssueCard({
                   className="rounded-lg bg-white/80 px-3 py-1.5 text-[11px] font-bold text-slate-700 ring-1 ring-black/5 hover:bg-white"
                   title={action.description}
                 >
-                  {action.label}
+                  {simplifyText(action.label)}
                 </button>
               ))}
             </div>
@@ -712,16 +742,16 @@ function FixGroupCard({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-bold">影响 {group.issueCount} 项</span>
-            <span className="rounded-full bg-white/70 px-2 py-0.5 font-mono text-[10px] font-bold">{group.affectedIssueIds.join(', ')}</span>
+            <span className="rounded-full bg-white/70 px-2 py-0.5 font-mono text-[10px] font-bold" data-diagnostic-technical-details="advanced">{group.affectedIssueIds.join(', ')}</span>
           </div>
-          <h4 className="mt-2 text-sm font-bold">{group.title}</h4>
-          <p className="mt-1 text-xs leading-relaxed">{group.summary}</p>
+          <h4 className="mt-2 text-sm font-bold">{simplifyText(group.title)}</h4>
+          <p className="mt-1 text-xs leading-relaxed">{simplifyText(group.summary)}</p>
         </div>
         <Wrench className="mt-1 h-4 w-4 shrink-0" />
       </div>
 
       {evidence.length ? (
-        <div className="mt-3 rounded-xl bg-white/70 p-3 text-[11px] leading-relaxed">
+        <div className="mt-3 rounded-xl bg-white/70 p-3 text-[11px] leading-relaxed" data-diagnostic-technical-details="advanced">
           <p className="mb-1 font-bold">关键证据</p>
           <ul className="list-disc space-y-1 pl-4">
             {evidence.map((item) => <li className="break-words" key={item}>{item}</li>)}
@@ -735,9 +765,9 @@ function FixGroupCard({
             key={action.id}
             onClick={() => onRunFix(action)}
             className="rounded-lg bg-white/85 px-3 py-1.5 text-[11px] font-bold text-slate-700 ring-1 ring-black/5 hover:bg-white"
-            title={action.description}
+            title={simplifyText(action.description)}
           >
-            {action.label}
+            {simplifyText(action.label)}
           </button>
         ))}
       </div>
@@ -1120,10 +1150,10 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
   };
 
   const runDiagnostic = async (overrideTarget = target) => {
-    setBusy('生成真实诊断');
+    setBusy('生成诊断');
     try {
       const nextRecord = await generateAndStoreDiagnosticRecord(overrideTarget);
-      onTriggerToast(`已生成 ${nextRecord.target_label} 的真实诊断报告。`);
+      onTriggerToast(`已生成 ${nextRecord.target_label} 的诊断报告。`);
       return nextRecord;
     } catch (error) {
       onTriggerToast(`生成诊断失败：${error instanceof Error ? error.message : String(error)}`);
@@ -1148,14 +1178,14 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
 
   const copyReport = async () => {
     if (!record) {
-      onTriggerToast('尚未生成真实诊断报告。');
+      onTriggerToast('尚未生成诊断报告。');
       return;
     }
     try {
       const clipboard = navigator.clipboard;
       if (!clipboard || typeof clipboard.writeText !== 'function') throw new Error('剪贴板不可用');
       await clipboard.writeText(formatDiagnosticRecord(record));
-      onTriggerToast('真实诊断报告已复制到剪贴板。');
+      onTriggerToast('诊断报告已复制到剪贴板。');
     } catch (error) {
       onTriggerToast(`复制失败：${error instanceof Error ? error.message : String(error)}`);
     }
@@ -1166,7 +1196,7 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
       const clipboard = navigator.clipboard;
       if (!clipboard || typeof clipboard.writeText !== 'function') throw new Error('剪贴板不可用');
       await clipboard.writeText(formatDiagnosticRepairCenterClosureAuditReport(diagnosticRepairCenterClosureAuditInput));
-      onTriggerToast('诊断修复中心自检已复制。');
+      onTriggerToast('诊断修复检查已复制。');
     } catch (error) {
       onTriggerToast(`复制失败：${error instanceof Error ? error.message : String(error)}`);
     }
@@ -1177,7 +1207,7 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
       const clipboard = navigator.clipboard;
       if (!clipboard || typeof clipboard.writeText !== 'function') throw new Error('剪贴板不可用');
       await clipboard.writeText(formatProductStateConsistencyAuditReport(productStateConsistencyAuditInput));
-      onTriggerToast('状态一致性自检已复制。');
+      onTriggerToast('状态一致性检查已复制。');
     } catch (error) {
       onTriggerToast(`复制失败：${error instanceof Error ? error.message : String(error)}`);
     }
@@ -1242,13 +1272,13 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
 
   const exportReport = () => {
     if (!record) {
-      onTriggerToast('尚未生成真实诊断报告。');
+      onTriggerToast('尚未生成诊断报告。');
       return;
     }
     const safeTarget = record.target_label.replace(/[^\u4e00-\u9fa5\w.-]+/g, '-').replace(/-+/g, '-').slice(0, 80) || 'diagnostic';
     const filename = `lan-helper-diagnostic-${safeTarget}-${new Date(record.generated_at).getTime() || Date.now()}.txt`;
     downloadText(filename, formatDiagnosticRecord(record));
-    onTriggerToast(`真实诊断报告已导出：${filename}`);
+    onTriggerToast(`诊断报告已导出：${filename}`);
   };
 
   const copyFixHistoryEntry = async (entry: DiagnosticFixHistoryEntry) => {
@@ -1414,13 +1444,13 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
       evidence: [
         `房主失败分类：${hostDiagnosticContext.reasonKind}`,
         `路线：${hostDiagnosticContext.routeTitle}`,
-        `房主虚拟 IP：${hostDiagnosticContext.hostVirtualIp || '未读取'}`,
-        `好友虚拟 IP：${hostDiagnosticContext.friendVirtualIp || '未选择'}`,
+        `房主联机地址：${hostDiagnosticContext.hostVirtualIp || '未读取'}`,
+        `好友联机地址：${hostDiagnosticContext.friendVirtualIp || '未选择'}`,
         `端口检测：${hostDiagnosticContext.hostPortCheck || '未检测'}`,
       ],
     });
     onNavigateTab('advanced_tools');
-    onTriggerToast('已把房主失败上下文预填到高级工具，请核对好友虚拟 IP 和端口。');
+    onTriggerToast('已把房主失败信息预填到高级工具，请核对好友联机地址和端口。');
   };
 
   const openAdvancedToolsWithDiagnosticIntent = () => {
@@ -1450,42 +1480,42 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
       ],
     });
     onNavigateTab('advanced_tools');
-    onTriggerToast('已把诊断建议和端口参数带入高级工具，请核对目标虚拟 IP。');
+    onTriggerToast('已把诊断建议和端口信息带入高级工具，请核对目标联机地址。');
   };
 
   const runBackendFix = async (action: ProductFixAction) => {
-    if (!action.operation) throw new Error('缺少后端修复操作。');
+    if (!action.operation) throw new Error('缺少修复操作。');
 
     if (action.operation === 'detect_edge_path') {
       const result = await testReferenceEdgePath();
       const check = result.data;
       return check?.exists
-        ? `edge.exe 检测通过：${check.path}`
-        : `仍未找到 edge.exe：${result.message}`;
+        ? `组网程序检测通过：${check.path}`
+        : `仍未找到组网程序：${result.message}`;
     }
 
     if (action.operation === 'start_n2n_last_config') {
       const configResult = await readReferenceN2nLastConfig();
-      if (!configResult.ok || !configResult.data) throw new Error(configResult.message || '没有最近保存的 n2n 配置。');
+      if (!configResult.ok || !configResult.data) throw new Error(configResult.message || '没有最近保存的组网配置。');
       const startResult = await startReferenceN2n(configResult.data);
       if (!startResult.ok) throw new Error(startResult.message);
-      return `已按最近配置启动 n2n：${startResult.data?.message || startResult.message}`;
+      return `已按最近配置启动组网服务：${startResult.data?.message || startResult.message}`;
     }
 
     if (action.operation === 'restart_n2n_last_config') {
       const configResult = await readReferenceN2nLastConfig();
-      if (!configResult.ok || !configResult.data) throw new Error(configResult.message || '没有最近保存的 n2n 配置。');
+      if (!configResult.ok || !configResult.data) throw new Error(configResult.message || '没有最近保存的组网配置。');
       await stopReferenceN2n();
       await new Promise((resolve) => window.setTimeout(resolve, 900));
       const startResult = await startReferenceN2n(configResult.data);
       if (!startResult.ok) throw new Error(startResult.message);
-      return `已重启 n2n 并重新注册：${startResult.data?.message || startResult.message}`;
+      return `已重启组网服务并重新确认：${startResult.data?.message || startResult.message}`;
     }
 
     if (action.operation === 'refresh_runtime') {
       const result = await refreshReferenceRuntime(true);
       if (!result.ok) throw new Error(result.message);
-      return '已刷新 runtime 状态，请重新生成诊断确认问题是否仍存在。';
+      return '已刷新状态，请重新生成诊断确认问题是否仍存在。';
     }
 
     if (action.operation === 'test_local_game_port') {
@@ -1500,7 +1530,7 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
       return `本机端口检测：127.0.0.1:${port} ${result.data.reachable ? '已监听' : '未监听'}${result.data.notes.length ? `｜${result.data.notes.join('；')}` : ''}`;
     }
 
-    throw new Error(`未知后端修复操作：${action.operation}`);
+    throw new Error(`未知修复操作：${action.operation}`);
   };
 
   const autoRetestAfterFix = async (
@@ -1549,7 +1579,7 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
           steam_appid: matchedGame?.steam_appid || null,
           detected_path: matchedGame?.detected_path || null,
           issue_ids: (report?.issues ?? []).filter((item) => item.id === 'selected_game_adapter_missing').map((item) => item.id),
-          note: '诊断报告发现当前游戏缺少可用 adapter。请先同步共享库；若仍缺失，由管理员确认游戏联机类型后保存自建方案。'
+          note: '诊断报告发现当前游戏缺少可用方案。请先同步共享库；若仍缺失，由管理员确认游戏联机类型后保存自建方案。'
         });
       }
       onNavigateTab(action.targetTab);
@@ -1647,9 +1677,81 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
           report?.release_ready ? 'border-emerald-100 bg-emerald-50 text-emerald-700' : report ? 'border-amber-100 bg-amber-50 text-amber-700' : 'border-slate-200 bg-slate-50 text-slate-600'
         }`}>
           {report?.release_ready ? <ShieldCheck className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
-          {busy || (report ? `必需项 ${report.required_passed}/${report.required_total}` : '等待诊断')}
+          {busy || (report ? `检查项 ${report.required_passed}/${report.required_total}` : '等待诊断')}
         </div>
       </div>
+
+      <section className={`rounded-2xl border p-5 shadow-sm ${autoNextStepToneClass(diagnosticAutoNextStep.tone)}`}>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-white/80 px-3 py-1 text-[11px] font-bold text-slate-700">先做这一步</span>
+              <span className="rounded-full bg-white/80 px-3 py-1 text-[11px] font-bold text-slate-600">
+                {report ? `${report.issues?.length ?? 0} 个待处理` : '还没有诊断'}
+              </span>
+            </div>
+            <h3 className="text-base font-bold text-slate-900">{simplifyText(diagnosticAutoNextStep.title)}</h3>
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed">{simplifyText(diagnosticAutoNextStep.summary)}</p>
+          </div>
+          <div className="flex shrink-0 flex-col gap-2 sm:flex-row lg:flex-col">
+            <button
+              onClick={runDiagnosticAutoNextStep}
+              disabled={Boolean(busy)}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-60"
+            >
+              {report ? <Wrench className="h-4 w-4" /> : <Search className="h-4 w-4" />}
+              {simplifyText(diagnosticAutoNextStep.primaryLabel)}
+            </button>
+            {record ? (
+              <button
+                onClick={copyReport}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
+              >
+                <ClipboardCopy className="h-4 w-4" />
+                复制报告给朋友
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="min-w-0">
+            <h3 className="text-sm font-bold text-slate-800">报告工具条</h3>
+            <p className="mt-1 max-w-4xl text-xs leading-relaxed text-slate-500">
+              先看上面的结论和下一步。需要分享给朋友或回到开房流程时，再用这里的按钮，不再让小操作面板占住整列空间。
+            </p>
+            {record ? (
+              <p className="mt-2 break-words text-[11px] text-slate-400">
+                最近报告：{new Date(record.generated_at).toLocaleString()} ｜ {record.target_label}
+              </p>
+            ) : null}
+          </div>
+          <div className="grid min-w-0 gap-2 sm:grid-cols-2 lg:grid-cols-5 xl:w-auto">
+            <button onClick={() => runDiagnostic()} disabled={Boolean(busy)} className="inline-flex min-w-0 items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-60">
+              <Search className="h-4 w-4 shrink-0" />
+              重新检测
+            </button>
+            <button onClick={copyReport} disabled={!record} className="inline-flex min-w-0 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+              <ClipboardCopy className="h-4 w-4 shrink-0" />
+              复制报告
+            </button>
+            <button onClick={exportReport} disabled={!record} className="inline-flex min-w-0 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+              <Download className="h-4 w-4 shrink-0" />
+              保存文本
+            </button>
+            <button onClick={() => onNavigateTab('protocol')} className="inline-flex min-w-0 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+              <Target className="h-4 w-4 shrink-0" />
+              回到开房
+            </button>
+            <button onClick={() => onNavigateTab('settings')} className="inline-flex min-w-0 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+              <Wrench className="h-4 w-4 shrink-0" />
+              打开设置
+            </button>
+          </div>
+        </div>
+      </section>
 
       <section
         className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-5 shadow-sm"
@@ -1673,7 +1775,7 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
             </p>
             <div className="mt-3 grid gap-2 sm:grid-cols-4">
               <div className="rounded-xl bg-white/75 px-3 py-2">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">一键后端动作</p>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">一键处理动作</p>
                 <p className="mt-1 text-xs font-bold text-slate-700">{diagnosticRepairCenterClosureAudit.backendActionCount} 个</p>
               </div>
               <div className="rounded-xl bg-white/75 px-3 py-2">
@@ -1695,7 +1797,7 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
             className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-slate-800"
           >
             <ClipboardCopy className="h-4 w-4" />
-            复制诊断修复自检
+            复制诊断修复检查
           </button>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
@@ -1746,7 +1848,7 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
               <div className="rounded-xl bg-white/75 px-3 py-2">
                 <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">运行状态</p>
                 <p className="mt-1 text-xs font-bold text-slate-700">
-                  {runtime.network.running ? 'edge 运行中' : 'edge 未运行'} / {runtime.network.ready ? 'ACK 已通过' : 'ACK 未通过'}
+                  {runtime.network.running ? '组网运行中' : '组网未启动'} / {runtime.network.ready ? '确认通过' : '等待确认'}
                 </p>
               </div>
               <div className="rounded-xl bg-white/75 px-3 py-2">
@@ -1762,7 +1864,7 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
             className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-slate-800"
           >
             <ClipboardCopy className="h-4 w-4" />
-            复制状态一致性自检
+            复制状态一致性检查
           </button>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
@@ -1931,9 +2033,9 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
         </div>
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
-        <section className="space-y-4">
-          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+      <div className="space-y-4">
+        <section className="grid gap-4 xl:grid-cols-2">
+          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm" data-diagnostic-technical-details="advanced">
             <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-slate-800">
               <Target className="h-4 w-4 text-amber-600" />
               诊断目标
@@ -1969,7 +2071,7 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
               <div className="grid grid-cols-2 gap-2">
                 <button onClick={() => runDiagnostic()} disabled={Boolean(busy)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-60">
                   <Search className="h-4 w-4" />
-                  生成真实诊断
+                  生成诊断
                 </button>
                 <button onClick={refreshGames} disabled={Boolean(busy)} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60">
                   <RefreshCw className={`h-4 w-4 ${busy === '刷新诊断目标' ? 'animate-spin' : ''}`} />
@@ -1979,49 +2081,34 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-            <h3 className="mb-4 text-sm font-bold text-slate-800">真实 runtime 摘要</h3>
-            <div className="space-y-2 text-xs text-slate-600">
-              <p>n2n：{runtime.network.label || '暂无'}</p>
-              <p>虚拟 IP：<span className="font-mono">{runtime.network.virtualIp || '-'}</span></p>
-              <p>Supernode：<span className="font-mono">{runtime.network.supernode || '-'}</span></p>
-              <p>Terraria：{runtime.terraria.message}</p>
+          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm" data-diagnostic-technical-details="advanced">
+            <h3 className="mb-4 text-sm font-bold text-slate-800">运行状态摘要</h3>
+            <div className="grid gap-2 text-xs text-slate-600 sm:grid-cols-2">
+              <p className="min-w-0 rounded-xl bg-slate-50 px-3 py-2 leading-relaxed">组网：<span className="break-words">{runtime.network.label || '暂无'}</span></p>
+              <p className="min-w-0 rounded-xl bg-slate-50 px-3 py-2 leading-relaxed">联机地址：<span className="break-words font-mono">{runtime.network.virtualIp || '-'}</span></p>
+              <p className="min-w-0 rounded-xl bg-slate-50 px-3 py-2 leading-relaxed">中继地址：<span className="break-words font-mono">{runtime.network.supernode || '-'}</span></p>
+              <p className="min-w-0 rounded-xl bg-slate-50 px-3 py-2 leading-relaxed">Terraria：<span className="break-words">{runtime.terraria.message}</span></p>
             </div>
-          </div>
-
-          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-            <h3 className="mb-4 text-sm font-bold text-slate-800">报告操作</h3>
-            <div className="grid grid-cols-2 gap-2">
-              <button onClick={copyReport} disabled={!record} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
-                <ClipboardCopy className="h-4 w-4" />
-                复制报告
-              </button>
-              <button onClick={exportReport} disabled={!record} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
-                <Download className="h-4 w-4" />
-                导出文本
-              </button>
-            </div>
-            {record ? <p className="mt-3 text-[11px] text-slate-400">最近报告：{new Date(record.generated_at).toLocaleString()}｜{record.target_label}</p> : null}
           </div>
         </section>
 
         <section className="space-y-4">
           <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-            <div className="mb-4 flex items-start justify-between gap-4">
-              <div>
-                <h3 className="text-base font-bold text-slate-800">真实诊断结论</h3>
-                <p className="mt-1 text-xs text-slate-500">{report?.summary || '尚未生成诊断报告。'}</p>
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <h3 className="text-base font-bold text-slate-800">诊断结论</h3>
+                <p className="mt-1 max-w-4xl break-words text-xs leading-relaxed text-slate-500">{report?.summary ? simplifyText(report.summary) : '尚未生成诊断报告。'}</p>
               </div>
               {report ? (
                 <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${report.release_ready ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
-                  {report.release_ready ? '发布检查通过' : '存在待处理项'}
+                  {report.release_ready ? '检查通过' : '存在待处理项'}
                 </span>
               ) : null}
             </div>
 
             {issue ? <IssueCard issue={issue} onRunFix={runFixAction} /> : (
               <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
-                点击“生成真实诊断”后，这里会显示后端返回的最可能原因和下一步动作。
+                点击“生成诊断”后，这里会显示最可能原因和下一步动作。
               </div>
             )}
             {inviteDiagnosticContext ? (
@@ -2038,9 +2125,9 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
                   <div className="min-w-0">
                     <div className="mb-2 flex flex-wrap items-center gap-2">
                       <span className={`rounded-full bg-white/80 px-3 py-1 text-[11px] font-bold ${inviteDiagnosticContextIsPending ? 'text-amber-700' : 'text-rose-700'}`}>
-                        {inviteDiagnosticContextIsPending ? '邀请等待 ACK/PONG' : '邀请加入失败'}
+                        {inviteDiagnosticContextIsPending ? '邀请等待确认' : '邀请加入失败'}
                       </span>
-                      <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] font-bold text-white">{inviteDiagnosticContext.reasonKind}</span>
+                      <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] font-bold text-white" data-diagnostic-context-technical="details">{inviteDiagnosticContext.reasonKind}</span>
                       <span className="rounded-full bg-white/75 px-3 py-1 font-mono text-[11px] font-bold text-slate-500">
                         {new Date(inviteDiagnosticContext.createdAt).toLocaleString()}
                       </span>
@@ -2055,10 +2142,10 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
                         房主 {inviteDiagnosticContext.packet.hostVirtualIp || inviteDiagnosticContext.connectHost || '-'}:{inviteDiagnosticContext.packet.gamePort || inviteDiagnosticContext.gamePort || '-'}
                       </p>
                       <p className="rounded-xl bg-white/70 px-3 py-2 font-mono text-[11px] leading-relaxed text-slate-600">
-                        我的 IP {inviteDiagnosticContext.packet.friendVirtualIp || inviteDiagnosticContext.localIp || '-'}
+                        我的联机地址 {inviteDiagnosticContext.packet.friendVirtualIp || inviteDiagnosticContext.localIp || '-'}
                       </p>
-                      <p className="rounded-xl bg-white/70 px-3 py-2 font-mono text-[11px] leading-relaxed text-slate-600">
-                        Supernode {inviteDiagnosticContext.packet.supernode || inviteDiagnosticContext.supernode || '-'}
+                      <p className="rounded-xl bg-white/70 px-3 py-2 font-mono text-[11px] leading-relaxed text-slate-600" data-diagnostic-context-technical="details">
+                        中继地址 {inviteDiagnosticContext.packet.supernode || inviteDiagnosticContext.supernode || '-'}
                       </p>
                     </div>
                     <p className="mt-2 rounded-xl bg-white/75 px-3 py-2 text-[11px] leading-relaxed text-slate-600">
@@ -2070,7 +2157,7 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
                       {inviteDiagnosticContextIsPending ? '按等待状态生成诊断' : '按邀请包生成诊断'}
                     </button>
                     <button onClick={copyInviteDiagnosticContext} className={`rounded-lg border bg-white px-3 py-1.5 text-[11px] font-bold ${inviteDiagnosticContextIsPending ? 'border-amber-200 text-amber-700 hover:bg-amber-50' : 'border-rose-200 text-rose-700 hover:bg-rose-50'}`}>
-                      {inviteDiagnosticContextIsPending ? '复制等待上下文' : '复制失败上下文'}
+                      {inviteDiagnosticContextIsPending ? '复制等待信息' : '复制失败信息'}
                     </button>
                     <button onClick={clearInviteFailureDiagnostic} className="rounded-lg border border-rose-100 bg-white/80 px-3 py-1.5 text-[11px] font-bold text-rose-500 hover:bg-white">
                       清除
@@ -2088,7 +2175,7 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
                   <div className="min-w-0">
                     <div className="mb-2 flex flex-wrap items-center gap-2">
                       <span className="rounded-full bg-white/80 px-3 py-1 text-[11px] font-bold text-rose-700">房主开房失败</span>
-                      <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] font-bold text-white">{hostDiagnosticContext.reasonKind}</span>
+                      <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] font-bold text-white" data-diagnostic-context-technical="details">{hostDiagnosticContext.reasonKind}</span>
                       <span className="rounded-full bg-white/75 px-3 py-1 font-mono text-[11px] font-bold text-slate-500">
                         {new Date(hostDiagnosticContext.createdAt).toLocaleString()}
                       </span>
@@ -2100,16 +2187,16 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
                         游戏：{hostDiagnosticContext.gameName || '未知'}{hostDiagnosticContext.gameId ? `｜${hostDiagnosticContext.gameId}` : ''}
                       </p>
                       <p className="rounded-xl bg-white/70 px-3 py-2 text-[11px] leading-relaxed text-slate-600">
-                        路线：{hostDiagnosticContext.routeTitle}
+                        推荐方式：{hostDiagnosticContext.routeTitle}
                       </p>
                       <p className="rounded-xl bg-white/70 px-3 py-2 font-mono text-[11px] leading-relaxed text-slate-600">
-                        房主 {hostDiagnosticContext.hostVirtualIp || '-'}:{hostDiagnosticContext.gamePort || '-'}
+                        房主联机地址 {hostDiagnosticContext.hostVirtualIp || '-'}:{hostDiagnosticContext.gamePort || '-'}
                       </p>
                       <p className="rounded-xl bg-white/70 px-3 py-2 font-mono text-[11px] leading-relaxed text-slate-600">
-                        好友 {hostDiagnosticContext.friendVirtualIp || '-'}
+                        好友联机地址 {hostDiagnosticContext.friendVirtualIp || '-'}
                       </p>
-                      <p className="rounded-xl bg-white/70 px-3 py-2 font-mono text-[11px] leading-relaxed text-slate-600">
-                        Supernode {hostDiagnosticContext.supernode || '-'}
+                      <p className="rounded-xl bg-white/70 px-3 py-2 font-mono text-[11px] leading-relaxed text-slate-600" data-diagnostic-context-technical="details">
+                        中继地址 {hostDiagnosticContext.supernode || '-'}
                       </p>
                       <p className="rounded-xl bg-white/70 px-3 py-2 text-[11px] leading-relaxed text-slate-600">
                         端口检测：{hostDiagnosticContext.hostPortCheck || '未检测'}
@@ -2125,11 +2212,11 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
                     </button>
                     {hostDiagnosticContext.nextActionKind === 'advanced_tools' || hostDiagnosticContext.requiresTcpPortProxy || hostDiagnosticContext.requiresUdpBroadcastBridge ? (
                       <button onClick={openAdvancedToolsWithHostContext} className="rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-[11px] font-bold text-amber-700 hover:bg-amber-50">
-                        带参数去高级工具
+                        带信息去高级工具
                       </button>
                     ) : null}
                     <button onClick={copyHostDiagnosticContext} className="rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-[11px] font-bold text-rose-700 hover:bg-rose-50">
-                      复制失败上下文
+                      复制失败信息
                     </button>
                     <button onClick={clearHostFailureDiagnostic} className="rounded-lg border border-rose-100 bg-white/80 px-3 py-1.5 text-[11px] font-bold text-rose-500 hover:bg-white">
                       清除
@@ -2147,17 +2234,17 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
                   <div className="mb-2 flex flex-wrap items-center gap-2">
                     <span className="rounded-full bg-white/80 px-3 py-1 text-[11px] font-bold text-slate-700">自动下一步</span>
                     <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] font-bold text-white">最短修复路径</span>
-                    <span className="rounded-full bg-white/75 px-3 py-1 font-mono text-[11px] font-bold text-slate-500">
+                    <span className="rounded-full bg-white/75 px-3 py-1 font-mono text-[11px] font-bold text-slate-500" data-diagnostic-technical-details="advanced">
                       {diagnosticAutoNextStep.id}
                     </span>
                   </div>
-                  <h4 className="text-sm font-bold text-slate-900">{diagnosticAutoNextStep.title}</h4>
-                  <p className="mt-1 text-xs leading-relaxed">{diagnosticAutoNextStep.summary}</p>
+                  <h4 className="text-sm font-bold text-slate-900">{simplifyText(diagnosticAutoNextStep.title)}</h4>
+                  <p className="mt-1 text-xs leading-relaxed">{simplifyText(diagnosticAutoNextStep.summary)}</p>
                   {diagnosticAutoNextStep.evidence.length ? (
                     <div className="mt-3 grid gap-2 md:grid-cols-2">
                       {diagnosticAutoNextStep.evidence.slice(0, 4).map((item) => (
                         <p key={item} className="rounded-xl bg-white/70 px-3 py-2 text-[11px] leading-relaxed text-slate-600">
-                          {item}
+                          {simplifyText(item)}
                         </p>
                       ))}
                     </div>
@@ -2168,7 +2255,7 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
                   disabled={Boolean(busy)}
                   className="shrink-0 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-slate-800 disabled:opacity-60"
                 >
-                  {diagnosticAutoNextStep.primaryLabel}
+                  {simplifyText(diagnosticAutoNextStep.primaryLabel)}
                 </button>
               </div>
             </div>
@@ -2193,7 +2280,7 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
               {lastFixResult ? (
                 <div className="mb-4 rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs leading-relaxed text-slate-600" data-diagnostic-one-click-fix-result="latest">
                   <span className="font-bold text-slate-800">最近一键处理：</span>
-                  {lastFixResult}
+                  {simplifyText(lastFixResult)}
                 </div>
               ) : null}
               {diagnosticConversionAdvice ? (
@@ -2210,16 +2297,16 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
                   <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div>
                       <div className="mb-2 flex flex-wrap items-center gap-2">
-                        <span className="rounded-full bg-white/80 px-3 py-1 text-[11px] font-bold text-slate-700">转换路线纠错</span>
-                        <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] font-bold text-white">{diagnosticAdapterRoute.title}</span>
+                        <span className="rounded-full bg-white/80 px-3 py-1 text-[11px] font-bold text-slate-700">联机方式提示</span>
+                        <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] font-bold text-white">{simplifyText(diagnosticAdapterRoute.title)}</span>
                         <span className="rounded-full bg-white/80 px-3 py-1 text-[11px] font-bold text-slate-600">
-                          {diagnosticAdapterRoute.canCreateLanInvite ? '会生成 LAN 邀请' : '不生成 LAN 邀请'}
+                          {diagnosticAdapterRoute.canCreateLanInvite ? '会生成邀请' : '不生成邀请'}
                         </span>
                       </div>
-                      <h4 className="text-sm font-bold text-slate-800">{diagnosticConversionAdvice.title}</h4>
-                      <p className="mt-1 max-w-4xl text-xs leading-relaxed text-slate-600">{diagnosticConversionAdvice.summary}</p>
+                      <h4 className="text-sm font-bold text-slate-800">{simplifyText(diagnosticConversionAdvice.title)}</h4>
+                      <p className="mt-1 max-w-4xl text-xs leading-relaxed text-slate-600">{simplifyText(diagnosticConversionAdvice.summary)}</p>
                       <p className="mt-2 rounded-xl bg-white/70 px-3 py-2 text-[11px] leading-relaxed text-slate-600">
-                        {diagnosticConversionAdvice.whyDiagnosticMatters}
+                        {simplifyText(diagnosticConversionAdvice.whyDiagnosticMatters)}
                       </p>
                     </div>
                     <div className="flex shrink-0 flex-wrap gap-2">
@@ -2228,7 +2315,7 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
                       </button>
                       {diagnosticConversionAdvice.shouldShowAdvancedTools ? (
                         <button onClick={openAdvancedToolsWithDiagnosticIntent} className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs font-bold text-amber-700 hover:bg-amber-50">
-                          带参数去高级工具
+                          带信息去高级工具
                         </button>
                       ) : null}
                       {diagnosticConversionAdvice.shouldCreateAdapterIntent ? (
@@ -2244,7 +2331,7 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
                   <div className="grid gap-2 md:grid-cols-3">
                     {diagnosticConversionAdvice.suggestedActions.slice(0, 3).map((action) => (
                       <div key={action} className="rounded-xl bg-white/75 p-3 text-[11px] leading-relaxed text-slate-600">
-                        {action}
+                        {simplifyText(action)}
                       </div>
                     ))}
                   </div>
@@ -2275,7 +2362,7 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
                       <p className="mt-1">{fixRetestResult.actionLabel}</p>
                     </div>
                   </div>
-                  <div className="mt-2 grid gap-2 text-[11px] md:grid-cols-3">
+                   <div className="mt-2 grid gap-2 text-[11px] md:grid-cols-3" data-diagnostic-auto-retest-technical="details">
                     <div className="rounded-xl bg-white/70 p-3 text-slate-600">
                       <p className="font-bold text-emerald-700">已解决</p>
                       <p className="mt-1 break-words font-mono">{fixRetestResult.resolvedIssueIds.join(', ') || '暂无'}</p>
@@ -2308,8 +2395,8 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
                           {new Date(latestAdvancedToolFix.generatedAt).toLocaleString()}
                         </span>
                       </div>
-                      <p className="text-xs font-bold text-slate-800">{latestAdvancedToolFix.actionLabel}</p>
-                      <p className="mt-1 text-[11px] leading-relaxed text-amber-800">{latestAdvancedToolFix.summary}</p>
+                      <p className="text-xs font-bold text-slate-800">{simplifyText(latestAdvancedToolFix.actionLabel)}</p>
+                      <p className="mt-1 text-[11px] leading-relaxed text-amber-800">{simplifyText(latestAdvancedToolFix.summary)}</p>
                       <p className="mt-2 font-mono text-[11px] text-amber-700">
                         问题 {latestAdvancedToolFix.beforeIssueCount} → {latestAdvancedToolFix.afterIssueCount}
                         ｜已解决 {latestAdvancedToolFix.resolvedIssueIds.length}
@@ -2353,10 +2440,10 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-slate-600">{new Date(entry.generatedAt).toLocaleString()}</span>
-                              <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-bold text-white">{entry.actionLabel}</span>
+                              <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-bold text-white">{simplifyText(entry.actionLabel)}</span>
                             </div>
                             <p className="mt-2 text-xs font-bold text-slate-800">{entry.targetLabel}</p>
-                            <p className="mt-1 text-[11px] leading-relaxed text-slate-600">{entry.summary}</p>
+                            <p className="mt-1 text-[11px] leading-relaxed text-slate-600">{simplifyText(entry.summary)}</p>
                             <p className="mt-1 font-mono text-[11px] text-slate-500">
                               问题 {entry.beforeIssueCount} → {entry.afterIssueCount} ｜ 已解决 {entry.resolvedIssueIds.length} ｜ 仍存在 {entry.remainingIssueIds.length} ｜ 新出现 {entry.newIssueIds.length}
                             </p>
@@ -2378,13 +2465,13 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
                     </div>
                   ) : diagnosticConversionAdvice?.shouldDeprioritizeN2nFixes ? (
                     <div className="rounded-xl border border-violet-100 bg-violet-50 p-4 text-xs leading-relaxed text-violet-700">
-                      当前转换路线优先处理远程同屏 / Steam / 官方入口方向，n2n 相关修复已移到低优先级区域，避免误点。
+                      当前游戏优先处理远程同屏 / Steam / 官方入口方向，通用组网相关修复已移到低优先级区域，避免误点。
                     </div>
                   ) : null}
                   {routeDeprioritizedFixGroups.length ? (
                     <details className="rounded-2xl border border-slate-100 bg-slate-50 p-4" data-diagnostic-n2n-fixes-deprioritized="route-aware">
                       <summary className="cursor-pointer text-xs font-bold text-slate-600">
-                        低优先级 n2n 排查（当前转换路线可能不需要） · {routeDeprioritizedFixGroups.length} 类
+                        低优先级组网排查（当前联机方式可能不需要） · {routeDeprioritizedFixGroups.length} 类
                       </summary>
                       <div className="mt-3 grid gap-3 xl:grid-cols-2">
                         {routeDeprioritizedFixGroups.map((group) => <FixGroupCard key={group.id} group={group} onRunFix={runFixAction} />)}
@@ -2404,12 +2491,12 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
             <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
               <h3 className="mb-3 text-sm font-bold text-slate-800">下一步动作</h3>
               <ol className="list-decimal space-y-2 pl-5 text-sm text-slate-600">
-                {compactNextActions.map((action) => <li className="break-words" key={action}>{action}</li>)}
+                {compactNextActions.map((action) => <li className="break-words" key={action}>{simplifyText(action)}</li>)}
               </ol>
             </div>
           ) : null}
 
-          <div className="grid gap-4 xl:grid-cols-2">
+          <div className="grid gap-4 xl:grid-cols-2" data-diagnostic-technical-details="advanced">
             <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
               <h3 className="mb-3 text-sm font-bold text-slate-800">发布检查</h3>
               <div className="space-y-2">
@@ -2429,7 +2516,7 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5 text-white shadow-sm">
+          <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5 text-white shadow-sm" data-diagnostic-technical-details="advanced">
             <h3 className="mb-3 text-sm font-bold text-amber-200">报告原文预览</h3>
             <pre className="max-h-96 overflow-auto whitespace-pre-wrap text-[11px] leading-relaxed text-slate-300">
               {record ? formatDiagnosticRecord(record) : '尚未生成真实诊断报告。'}
