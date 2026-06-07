@@ -1,5 +1,5 @@
 param(
-  [string]$Version = "0.1.0",
+  [string]$Version = "",
   [string]$OutputRoot = "release-artifacts",
   [switch]$Clean,
   [switch]$Rebuild
@@ -8,6 +8,22 @@ param(
 $ErrorActionPreference = "Stop"
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 Set-Location $repoRoot
+
+function Get-ProjectVersion {
+  $packageJsonPath = Join-Path $repoRoot "package.json"
+  if (-not (Test-Path -LiteralPath $packageJsonPath)) {
+    throw "Missing package.json: $packageJsonPath"
+  }
+  $packageJson = Get-Content -LiteralPath $packageJsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
+  if ([string]::IsNullOrWhiteSpace($packageJson.version)) {
+    throw "package.json version is empty."
+  }
+  return [string]$packageJson.version
+}
+
+if ([string]::IsNullOrWhiteSpace($Version)) {
+  $Version = Get-ProjectVersion
+}
 
 $packageName = "LanHelper-v$Version-windows-x64"
 $outRoot = Join-Path $repoRoot $OutputRoot
@@ -67,7 +83,7 @@ if (-not (Test-Path -LiteralPath $exeSource)) {
   throw "Missing release EXE: $exeSource. Run npm run tauri:build first."
 }
 if (-not (Test-Path -LiteralPath $edgeSource)) {
-  throw "Missing n2n edge.exe: $edgeSource. Put a verified edge.exe there before packaging v0.1.0."
+  throw "Missing n2n edge.exe: $edgeSource. Put a verified edge.exe there before packaging v$Version."
 }
 
 $outRootFull = [System.IO.Path]::GetFullPath($outRoot).TrimEnd("\") + "\"

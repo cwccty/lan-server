@@ -1,8 +1,9 @@
 param(
   [string]$Owner = "cwccty",
   [string]$Repo = "lan-server",
-  [string]$Tag = "v0.1.0",
-  [string]$ZipPath = "release-artifacts\LanHelper-v0.1.0-windows-x64.zip",
+  [string]$Version = "",
+  [string]$Tag = "",
+  [string]$ZipPath = "",
   [string]$ReleaseBodyPath = "docs\GITHUB_RELEASE_DRAFT.md",
   [switch]$SkipAsset,
   [switch]$SkipBody,
@@ -12,6 +13,28 @@ param(
 $ErrorActionPreference = "Stop"
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 Set-Location $repoRoot
+
+function Get-ProjectVersion {
+  $packageJsonPath = Join-Path $repoRoot "package.json"
+  if (-not (Test-Path -LiteralPath $packageJsonPath)) {
+    throw "Missing package.json: $packageJsonPath"
+  }
+  $packageJson = Get-Content -LiteralPath $packageJsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
+  if ([string]::IsNullOrWhiteSpace($packageJson.version)) {
+    throw "package.json version is empty."
+  }
+  return [string]$packageJson.version
+}
+
+if ([string]::IsNullOrWhiteSpace($Version)) {
+  $Version = Get-ProjectVersion
+}
+if ([string]::IsNullOrWhiteSpace($Tag)) {
+  $Tag = "v$Version"
+}
+if ([string]::IsNullOrWhiteSpace($ZipPath)) {
+  $ZipPath = "release-artifacts\LanHelper-v$Version-windows-x64.zip"
+}
 
 $token = if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_TOKEN)) {
   $env:GITHUB_TOKEN

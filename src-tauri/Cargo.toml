@@ -1,6 +1,6 @@
 [package]
 name = "lan-helper"
-version = "0.1.0"
+version = "0.1.1"
 description = "\u8054\u673a\u52a9\u624b"
 edition = "2021"
 

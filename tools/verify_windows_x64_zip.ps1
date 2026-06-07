@@ -1,11 +1,27 @@
 param(
-  [string]$Version = "0.1.0",
+  [string]$Version = "",
   [string]$OutputRoot = "release-artifacts"
 )
 
 $ErrorActionPreference = "Stop"
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 Set-Location $repoRoot
+
+function Get-ProjectVersion {
+  $packageJsonPath = Join-Path $repoRoot "package.json"
+  if (-not (Test-Path -LiteralPath $packageJsonPath)) {
+    throw "Missing package.json: $packageJsonPath"
+  }
+  $packageJson = Get-Content -LiteralPath $packageJsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
+  if ([string]::IsNullOrWhiteSpace($packageJson.version)) {
+    throw "package.json version is empty."
+  }
+  return [string]$packageJson.version
+}
+
+if ([string]::IsNullOrWhiteSpace($Version)) {
+  $Version = Get-ProjectVersion
+}
 
 $packageName = "LanHelper-v$Version-windows-x64"
 $zipPath = Join-Path $repoRoot (Join-Path $OutputRoot "$packageName.zip")
