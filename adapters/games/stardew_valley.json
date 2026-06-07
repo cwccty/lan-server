@@ -29,35 +29,73 @@
     "can_convert_to_lan": true,
     "risk_level": "low",
     "notes": [
-      "Stardew Valley 已有原生联机能力，联机助手主要提供组网和连通性诊断。",
-      "是否能直接用 IP/LAN 加入，取决于游戏版本和房主创建的联机方式。"
+      "Stardew Valley 已有原生合作能力，联机助手主要提供组网、端口提示和诊断。",
+      "不同版本/平台显示的加入入口可能不同；如果游戏只显示平台邀请，应保留游戏原生邀请。"
     ],
     "required_components": [
-      "n2n/Radmin/已有局域网",
-      "游戏内合作模式",
-      "实际使用的游戏端口"
+      "双方进入同一联机房间",
+      "游戏内合作农场",
+      "游戏实际使用的端口或原生邀请入口"
     ]
   },
   "network_type": "lan_ip_direct",
   "connection_plan": {
-    "summary": "Stardew Valley 主要依赖游戏内合作模式；联机助手负责组网、端口提示和诊断。",
-    "host_role": "房主在游戏内创建合作农场，并确保双方在同一虚拟局域网。",
-    "join_role": "加入者通过游戏内合作入口或可用的 IP/LAN 方式加入。",
-    "default_join_host": "房主虚拟 IP",
+    "summary": "房主在游戏内创建合作农场，双方进入同一联机房间；如果游戏提供 LAN/IP 加入，好友连接房主联机地址和游戏端口，否则使用游戏内原生邀请。",
+    "host_role": "房主在 Stardew Valley 中创建合作农场并保持存档在线；如果游戏显示端口，把端口填进联机助手。",
+    "join_role": "好友优先使用游戏内合作入口；如版本支持 LAN/IP，则输入房主联机地址和端口加入。",
+    "default_join_host": "房主联机地址",
     "default_join_port": 24642,
     "requires_virtual_lan": true,
     "requires_tcp_port_proxy": false,
     "requires_udp_broadcast_bridge": false,
     "requires_dedicated_server": false,
     "invite_template": [
-      "双方进入同一虚拟局域网。",
+      "双方进入同一联机房间。",
       "房主在游戏内创建合作农场。",
-      "加入者优先使用游戏内合作入口；如版本支持 IP/LAN，则连接房主虚拟 IP。"
+      "如果游戏显示端口，把端口填进联机助手后再复制邀请。",
+      "好友优先使用游戏内合作入口；支持 LAN/IP 时连接房主联机地址。"
     ],
     "troubleshooting": [
-      "确认游戏版本和联机方式是否支持 LAN/IP。",
-      "如果游戏只显示平台邀请，当前适配器不承诺强制转换。",
-      "必要时记录实际端口后再做连接测试。"
+      "确认游戏版本和平台是否显示 LAN/IP 加入入口。",
+      "如果只显示平台邀请，当前方案不强行转换，按游戏原生邀请加入。",
+      "如果能输入 IP 但加入失败，检查双方联机房间、防火墙和游戏显示端口。"
     ]
+  },
+  "description": "原生合作游戏；联机助手负责让双方进入同一联机房间、记录房主地址和端口，并在版本支持 IP/LAN 时辅助加入。",
+  "applicability": {
+    "verification_status": "unverified",
+    "tested_versions": [
+      "Stardew Valley 常见 Windows 版本，联机入口以游戏实际显示为准"
+    ],
+    "tested_platforms": [
+      "Steam"
+    ],
+    "supported_os": [
+      "Windows"
+    ],
+    "network_conditions": [
+      "双方已进入同一联机房间",
+      "房主合作农场已经在线"
+    ],
+    "known_limitations": [
+      "部分版本更偏向平台邀请",
+      "端口可能不固定",
+      "联机助手不替代游戏账号/平台邀请要求"
+    ]
+  },
+  "evidence": {
+    "port_protocols": [
+      "TCP/UDP 24642 或游戏实际显示端口，需以当前版本为准"
+    ],
+    "proof_items": [
+      "适配器主路线为 lan_ip_direct",
+      "邀请模板要求优先使用游戏内合作入口"
+    ],
+    "test_steps": [
+      "房主创建合作农场",
+      "双方进入同一联机房间",
+      "好友按游戏内合作入口或 IP/LAN 入口加入"
+    ],
+    "last_verified_at": "2026-06-07"
   }
 }

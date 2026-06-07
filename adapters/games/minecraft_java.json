@@ -16,50 +16,95 @@
   ],
   "launch_profiles": [
     {
+      "id": "client",
+      "name": "启动 Minecraft Launcher",
+      "type": "client",
+      "exe": "MinecraftLauncher.exe"
+    },
+    {
       "id": "docs",
       "name": "查看连接说明",
       "type": "docs"
     }
   ],
   "multiplayer_conversion": {
-    "capability": "hidden_dedicated_server",
+    "capability": "native_lan_ip",
     "methods": [
       "virtual_lan",
-      "dedicated_server_launcher",
       "manual_guide"
     ],
     "can_convert_to_lan": true,
     "risk_level": "low",
     "notes": [
-      "Minecraft Java 支持 LAN 和独立服务端。",
-      "当前适配器先保留说明入口；后续可加入 server.jar 下载/版本选择/启动器。"
+      "Minecraft Java 可通过开放到局域网或 server.jar 让好友按 IP:端口加入。",
+      "开放到局域网时端口通常由游戏随机显示，必须以游戏画面显示的端口为准。",
+      "如果使用独立 server.jar，默认端口通常是 TCP 25565。"
     ],
     "required_components": [
-      "n2n/Radmin/已有局域网",
-      "Minecraft server.jar 或游戏内开放到局域网",
-      "25565 或实际端口"
+      "双方进入同一联机房间",
+      "房主的 Minecraft 世界或 server.jar",
+      "游戏显示端口或 server.properties 中的 server-port"
     ]
   },
-  "network_type": "dedicated_server",
+  "network_type": "lan_ip_direct",
   "connection_plan": {
-    "summary": "房主开启 Minecraft Java 服务端或开放到局域网，好友通过虚拟 IP 和实际端口加入。",
-    "host_role": "房主启动 server.jar，或在游戏内开放到局域网并记录实际端口。",
-    "join_role": "加入者进入多人游戏，添加服务器：房主虚拟 IP:端口。",
-    "default_join_host": "房主虚拟 IP",
+    "summary": "房主先创建世界并选择“开放到局域网”，把游戏显示的端口填进联机助手；好友加入同一联机房间后，用房主联机地址:端口加入。已有 server.jar 的玩家也可以使用 25565 或自定义端口。",
+    "host_role": "房主进入世界，按 Esc 选择“开放到局域网”，记录聊天框/画面显示的端口；如果用 server.jar，则先启动服务端并确认端口。",
+    "join_role": "好友进入“多人游戏”，选择“直接连接”或“添加服务器”，输入 房主联机地址:游戏显示端口。",
+    "default_join_host": "房主联机地址",
     "default_join_port": 25565,
     "requires_virtual_lan": true,
     "requires_tcp_port_proxy": false,
     "requires_udp_broadcast_bridge": false,
-    "requires_dedicated_server": true,
+    "requires_dedicated_server": false,
     "invite_template": [
-      "双方先进入同一虚拟局域网。",
-      "房主启动 Minecraft Java 服务端或开放到局域网。",
-      "加入者连接 房主虚拟 IP:25565 或游戏显示的实际端口。"
+      "双方先进入同一联机房间。",
+      "房主在 Minecraft Java 中开放到局域网，或启动已有 server.jar。",
+      "把游戏显示的端口填进联机助手；server.jar 默认可用 25565。",
+      "好友在多人游戏中连接 房主联机地址:端口。"
     ],
     "troubleshooting": [
-      "确认 Minecraft 服务端或 LAN 房间端口正在监听。",
-      "如果开放到局域网端口不是 25565，请以游戏显示端口为准。",
-      "如果本机端口通但虚拟 IP 不通，检查防火墙或启用 TCP 端口代理。"
+      "开放到局域网的端口通常不是 25565，请以游戏显示端口为准。",
+      "如果房主本机端口未监听，说明世界没有开放到局域网或 server.jar 未启动成功。",
+      "如果房主本机可监听但好友进不来，检查双方是否在同一联机房间、Windows 防火墙是否允许 Java/Minecraft。"
     ]
+  },
+  "description": "首选“开放到局域网”或已有 server.jar；双方进入同一联机房间后，好友用房主地址和游戏显示端口加入。",
+  "applicability": {
+    "verification_status": "unverified",
+    "tested_versions": [
+      "Minecraft Java 常见版本，开放到局域网端口需以游戏显示为准"
+    ],
+    "tested_platforms": [
+      "Minecraft Java Launcher",
+      "自备 server.jar"
+    ],
+    "supported_os": [
+      "Windows"
+    ],
+    "network_conditions": [
+      "双方已进入同一联机房间",
+      "房主 Java/Minecraft 已被防火墙放行"
+    ],
+    "known_limitations": [
+      "联机助手不下载 server.jar",
+      "开放到局域网端口可能每次变化",
+      "不同正版/离线/整合包环境可能有额外登录或 Mod 要求"
+    ]
+  },
+  "evidence": {
+    "port_protocols": [
+      "TCP 25565（server.jar 默认）；开放到局域网时使用游戏显示的 TCP 端口"
+    ],
+    "proof_items": [
+      "适配器主路线为 lan_ip_direct",
+      "邀请包要求用户填写游戏显示端口"
+    ],
+    "test_steps": [
+      "房主开放到局域网并记录端口",
+      "双方进入同一联机房间",
+      "好友连接 房主联机地址:端口"
+    ],
+    "last_verified_at": "2026-06-07"
   }
 }

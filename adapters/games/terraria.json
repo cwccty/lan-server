@@ -67,7 +67,7 @@
             "y",
             "n"
           ],
-          "help": "使用虚拟局域网时一般填 n 也可以；公网开服可尝试 y。"
+          "help": "使用同一联机房间时一般填 n 也可以；公网开服可尝试 y。"
         },
         {
           "id": "password",
@@ -95,35 +95,74 @@
     "risk_level": "low",
     "notes": [
       "Terraria 支持 IP 直连，并提供 TerrariaServer.exe。",
-      "联机助手可负责 n2n 组网、后台启动本地服务端、端口诊断和邀请信息。"
+      "联机助手可负责 组网服务 组网、后台启动本地服务端、端口诊断和邀请信息。"
     ],
     "required_components": [
-      "n2n/Radmin/已有局域网",
+      "组网服务/Radmin/已有局域网",
       "TerrariaServer.exe",
       "7777 或自定义游戏端口"
     ]
   },
   "network_type": "dedicated_server",
   "connection_plan": {
-    "summary": "房主启动 TerrariaServer.exe，双方进入同一虚拟局域网后，好友连接房主虚拟 IP:7777。",
-    "host_role": "房主在联机助手内启动 Terraria 本地服务端，并保持 n2n edge 运行。",
-    "join_role": "加入者启动 n2n edge 后，在 Terraria 中选择 Join via IP，连接房主虚拟 IP 和端口。",
-    "default_join_host": "房主虚拟 IP",
+    "summary": "房主启动 TerrariaServer.exe，双方进入同一同一联机房间后，好友连接房主联机地址:7777。",
+    "host_role": "房主在联机助手内启动 Terraria 本地服务端，并保持 组网服务 运行。",
+    "join_role": "加入者启动 组网服务 后，在 Terraria 中选择 Join via IP，连接房主联机地址 和端口。",
+    "default_join_host": "房主联机地址",
     "default_join_port": 7777,
     "requires_virtual_lan": true,
     "requires_tcp_port_proxy": false,
     "requires_udp_broadcast_bridge": false,
     "requires_dedicated_server": true,
     "invite_template": [
-      "双方填写相同 community、密钥和 supernode。",
-      "房主虚拟 IP 通常为 10.10.10.2，加入者使用不同虚拟 IP。",
+      "双方填写相同 community、密钥和 中继地址。",
+      "房主联机地址 通常为 10.10.10.2，加入者使用不同联机地址。",
       "房主启动 Terraria 服务端并确认 7777 端口监听。",
-      "加入者在 Terraria 中 Join via IP：房主虚拟 IP:7777。"
+      "加入者在 Terraria 中 Join via IP：房主联机地址:7777。"
     ],
     "troubleshooting": [
-      "先确认 n2n 诊断出现 ACK/PONG。",
-      "确认 127.0.0.1:7777 和房主虚拟 IP:7777 都可达。",
+      "先确认 组网服务 诊断出现 连接状态正常。",
+      "确认 127.0.0.1:7777 和房主联机地址:7777 都可达。",
       "如果服务端只监听本地地址，可启用 TCP 端口代理。"
     ]
+  },
+  "description": "专用服务端/IP 直连路线；房主启动 TerrariaServer.exe 后，好友连接房主联机地址:7777。",
+  "applicability": {
+    "verification_status": "self_tested",
+    "tested_versions": [
+      "本地 30 秒服务端稳定性与端口监听流程"
+    ],
+    "tested_platforms": [
+      "Steam",
+      "TerrariaServer.exe"
+    ],
+    "supported_os": [
+      "Windows"
+    ],
+    "network_conditions": [
+      "双方已进入同一联机房间",
+      "房主允许 TerrariaServer.exe/TCP 7777 通过防火墙"
+    ],
+    "known_limitations": [
+      "世界选择、密码、端口需与实际配置一致",
+      "防火墙或杀毒软件可能拦截服务端",
+      "服务端只监听本机时可再使用 TCP 端口代理"
+    ]
+  },
+  "evidence": {
+    "port_protocols": [
+      "TCP 7777"
+    ],
+    "proof_items": [
+      "TerrariaServer.exe 可被后台托管并观察端口监听",
+      "开房向导包含服务端启动、端口检测和邀请包复制"
+    ],
+    "test_steps": [
+      "启动联机房间并确认 连接状态正常",
+      "后台启动 TerrariaServer.exe",
+      "检测 127.0.0.1:7777 与房主联机地址:7777",
+      "好友在 Terraria 中 Join via IP 连接房主联机地址:7777"
+    ],
+    "last_verified_at": "2026-06-07"
   }
 }
