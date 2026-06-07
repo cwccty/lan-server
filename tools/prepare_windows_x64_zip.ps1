@@ -70,13 +70,17 @@ if (-not (Test-Path -LiteralPath $edgeSource)) {
   throw "Missing n2n edge.exe: $edgeSource. Put a verified edge.exe there before packaging v0.1.0."
 }
 
-if ($Clean) {
-  if (Test-Path -LiteralPath $outDir) {
-    Remove-Item -LiteralPath $outDir -Recurse -Force
-  }
-  if (Test-Path -LiteralPath $zipPath) {
-    Remove-Item -LiteralPath $zipPath -Force
-  }
+$outRootFull = [System.IO.Path]::GetFullPath($outRoot).TrimEnd("\") + "\"
+$outDirFull = [System.IO.Path]::GetFullPath($outDir)
+if (-not $outDirFull.StartsWith($outRootFull, [System.StringComparison]::OrdinalIgnoreCase)) {
+  throw "Refusing to clean package directory outside output root: $outDir"
+}
+
+if (Test-Path -LiteralPath $outDir) {
+  Remove-Item -LiteralPath $outDir -Recurse -Force
+}
+if (Test-Path -LiteralPath $zipPath) {
+  Remove-Item -LiteralPath $zipPath -Force
 }
 
 New-Item -ItemType Directory -Path $outDir -Force | Out-Null
