@@ -5,10 +5,16 @@ use std::process::Command;
 use chrono::Utc;
 
 use crate::core::process_util::hide_console_window;
-use crate::models::settings::{AppSettings, EdgePathCheck};
+use crate::models::settings::{AppSettings, AppearanceSettings, EdgePathCheck};
 
 const SETTINGS_DIR: &str = ".lan-helper";
 const SETTINGS_FILE: &str = "settings.json";
+const DEFAULT_ADAPTER_REGISTRY_URL: &str =
+    "https://raw.githubusercontent.com/cwccty/lan-server/master/adapter-registry/index.json";
+const LEGACY_GITHUB_PAGES_PREFIX: &str = "https://cwccty.github.io/lan-server/";
+const GITHUB_BLOB_PREFIX: &str = "https://github.com/cwccty/lan-server/blob/master/";
+const DEFAULT_GITHUB_RAW_PREFIX: &str =
+    "https://raw.githubusercontent.com/cwccty/lan-server/master/";
 
 pub fn get_app_settings() -> Result<AppSettings, String> {
     let path = settings_file_path()?;
@@ -22,11 +28,15 @@ pub fn get_app_settings() -> Result<AppSettings, String> {
     if settings.updated_at.trim().is_empty() {
         settings.updated_at = Utc::now().to_rfc3339();
     }
+    normalize_settings_registry_url(&mut settings);
+    settings.appearance = Some(normalize_appearance(settings.appearance));
     Ok(settings)
 }
 
 pub fn save_app_settings(mut settings: AppSettings) -> Result<AppSettings, String> {
     settings.updated_at = Utc::now().to_rfc3339();
+    normalize_settings_registry_url(&mut settings);
+    settings.appearance = Some(normalize_appearance(settings.appearance));
     let path = settings_file_path()?;
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|err| format!("create settings dir failed: {err}"))?;
@@ -35,6 +45,67 @@ pub fn save_app_settings(mut settings: AppSettings) -> Result<AppSettings, Strin
         .map_err(|err| format!("serialize settings failed: {err}"))?;
     fs::write(&path, content).map_err(|err| format!("write settings failed: {err}"))?;
     Ok(settings)
+}
+
+fn normalize_settings_registry_url(settings: &mut AppSettings) {
+    if let Some(url) = settings.adapter_registry_url.as_deref() {
+        let normalized = normalize_known_registry_url(url);
+        if normalized != url.trim() {
+            settings.adapter_registry_url = Some(normalized);
+        }
+    }
+}
+
+fn normalize_appearance(value: Option<AppearanceSettings>) -> AppearanceSettings {
+    let mut next = value.unwrap_or_else(default_appearance);
+    if !matches!(next.theme.as_str(), "system" | "light" | "dark" | "warm") {
+        next.theme = "system".to_string();
+    }
+    if !matches!(next.background_mode.as_str(), "default" | "gradient" | "custom") {
+        next.background_mode = "default".to_string();
+    }
+    let allowed_accents = [
+        "#f59e0b", "#2563eb", "#16a34a", "#dc2626", "#7c3aed", "#0891b2",
+    ];
+    if !allowed_accents.iter().any(|item| item.eq_ignore_ascii_case(next.accent.trim())) {
+        next.accent = "#f59e0b".to_string();
+    }
+    next.background_strength = next.background_strength.clamp(0.0, 1.0);
+    next.background_blur = next.background_blur.clamp(0.0, 24.0);
+    if next.background_mode != "custom" {
+        next.background_value = None;
+    } else {
+        next.background_value = next
+            .background_value
+            .map(|item| item.trim().to_string())
+            .filter(|item| !item.is_empty());
+    }
+    next
+}
+
+pub fn default_appearance() -> AppearanceSettings {
+    AppearanceSettings {
+        theme: "system".to_string(),
+        accent: "#f59e0b".to_string(),
+        background_mode: "default".to_string(),
+        background_value: None,
+        background_strength: 0.35,
+        background_blur: 0.0,
+    }
+}
+
+fn normalize_known_registry_url(raw_url: &str) -> String {
+    let trimmed = raw_url.trim();
+    if trimmed.is_empty() {
+        return DEFAULT_ADAPTER_REGISTRY_URL.to_string();
+    }
+    if let Some(path) = trimmed.strip_prefix(LEGACY_GITHUB_PAGES_PREFIX) {
+        return format!("{DEFAULT_GITHUB_RAW_PREFIX}{path}");
+    }
+    if let Some(path) = trimmed.strip_prefix(GITHUB_BLOB_PREFIX) {
+        return format!("{DEFAULT_GITHUB_RAW_PREFIX}{path}");
+    }
+    trimmed.to_string()
 }
 
 pub fn reset_app_settings() -> Result<AppSettings, String> {
@@ -215,8 +286,9 @@ fn default_settings() -> AppSettings {
     AppSettings {
         edge_path: None,
         supernode_default: Some("127.0.0.1:7777".to_string()),
-        adapter_registry_url: Some("https://cwccty.github.io/lan-server/adapter-registry/index.json".to_string()),
+        adapter_registry_url: Some(DEFAULT_ADAPTER_REGISTRY_URL.to_string()),
         product_mode: false,
+        appearance: Some(default_appearance()),
         log_dir: settings_dir_path()
             .ok()
             .map(|path| path.join("logs").to_string_lossy().to_string()),

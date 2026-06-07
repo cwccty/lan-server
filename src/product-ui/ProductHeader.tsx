@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Activity, Bell, RefreshCw, UserCircle, Wifi, WifiOff } from 'lucide-react';
+import { Activity, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { refreshReferenceRuntime, startReferenceN2n, stopReferenceN2n } from '../reference-adapter/actions';
 import { useReferenceRuntime } from '../reference-adapter/useReferenceRuntime';
 import { productStatusDotClasses, productStatusToneClasses, resolveProductStatusCenter } from './statusCenter';
+import { ProductAccountPanel } from './ProductAccountPanel';
 
 interface ProductHeaderProps {
   onOpenDiagnostics: () => void;
@@ -39,7 +40,7 @@ export function ProductHeader({ onOpenDiagnostics, onTabChange, onTriggerToast }
     setBusy(true);
     try {
       const result = await refreshReferenceRuntime(false);
-      onTriggerToast(result.ok ? '真实状态已刷新。' : `刷新失败：${result.message}`);
+      onTriggerToast(result.ok ? '状态已刷新。' : `刷新失败：${result.message}`);
     } catch (error) {
       onTriggerToast(`刷新失败：${error instanceof Error ? error.message : String(error)}`);
     } finally {
@@ -69,14 +70,16 @@ export function ProductHeader({ onOpenDiagnostics, onTabChange, onTriggerToast }
       </div>
 
       <div className="flex items-center gap-4">
+        <ProductAccountPanel compact onTriggerToast={onTriggerToast} />
+
         <button
           onClick={refreshStatus}
           disabled={busy}
-          className={`flex items-center gap-2 text-xs px-3 py-1 rounded-full border font-mono transition-colors disabled:opacity-60 ${productStatusToneClasses(status.tone)}`}
-          title={status.detail || runtime.network.label || '刷新真实后端状态'}
+          className={`flex items-center gap-2 text-xs px-3 py-1 rounded-full border transition-colors disabled:opacity-60 ${productStatusToneClasses(status.tone)}`}
+          title={status.detail || runtime.network.label || '刷新状态'}
         >
           <span className={`w-1.5 h-1.5 rounded-full ${productStatusDotClasses(status.tone)}`} />
-          <span>{busy ? '处理中...' : `真实状态: ${status.label}`}</span>
+          <span>{busy ? '处理中...' : `状态：${status.label}`}</span>
         </button>
 
         <button
@@ -84,7 +87,7 @@ export function ProductHeader({ onOpenDiagnostics, onTabChange, onTriggerToast }
           className="px-4 py-1.5 border border-slate-200 text-slate-600 rounded-lg font-sans text-xs font-medium hover:bg-slate-50 transition-colors flex items-center gap-1.5"
         >
           <Activity className="w-3.5 h-3.5 text-slate-400" />
-          打开诊断
+          排查问题
         </button>
 
         <button
@@ -99,12 +102,12 @@ export function ProductHeader({ onOpenDiagnostics, onTabChange, onTriggerToast }
           {actionIsStop ? (
             <>
               <WifiOff className="w-3.5 h-3.5" />
-              停止 n2n
+              停止组网
             </>
           ) : (
             <>
               <Wifi className="w-3.5 h-3.5" />
-              启动 n2n
+              启动组网
             </>
           )}
         </button>
@@ -113,22 +116,10 @@ export function ProductHeader({ onOpenDiagnostics, onTabChange, onTriggerToast }
           onClick={refreshStatus}
           disabled={busy}
           className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors disabled:opacity-60"
-          title="刷新真实状态"
+          title="刷新状态"
         >
           <RefreshCw className={`w-4 h-4 ${busy ? 'animate-spin' : ''}`} />
         </button>
-
-        <div className="w-px h-6 bg-slate-200 mx-1" />
-
-        <div className="flex items-center gap-1">
-          <button className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors relative">
-            <Bell className="w-4 h-4" />
-            <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-500" />
-          </button>
-          <button className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors">
-            <UserCircle className="w-4 h-4" />
-          </button>
-        </div>
       </div>
     </header>
   );

@@ -16,7 +16,7 @@ use crate::models::udp_broadcast_bridge::{
 use crate::models::udp_proxy::{UdpProxyConfig, UdpProxySelfTestReport, UdpProxyStatus};
 use crate::models::recommendation::{LaunchResult, Recommendation};
 use crate::models::server_session::{GenericServerLaunchConfig, ServerSessionStatus};
-use crate::models::settings::{AppSettings, EdgePathCheck};
+use crate::models::settings::{AppSettings, EdgePathCheck, UserAccountState};
 use crate::network::{manual_lan_backend, n2n_backend, radmin_backend};
 use crate::storage::adapter_store::{
     self, AdapterBackupEntry, AdapterConflictReport, AdapterRegistryLocalPublishResult,
@@ -24,7 +24,7 @@ use crate::storage::adapter_store::{
     AdapterRegistrySyncResult,
 };
 use crate::storage::friend_store;
-use crate::storage::settings_store;
+use crate::storage::{account_store, settings_store};
 use serde_json::Value;
 
 #[tauri::command]
@@ -125,6 +125,39 @@ pub fn open_path(path: String) -> Result<(), String> {
 #[tauri::command]
 pub fn test_edge_path(path: Option<String>) -> Result<EdgePathCheck, String> {
     settings_store::test_edge_path(path)
+}
+
+#[tauri::command]
+pub fn get_account_state() -> Result<UserAccountState, String> {
+    account_store::get_account_state()
+}
+
+#[tauri::command]
+pub fn create_local_account(
+    nickname: String,
+    password: String,
+    remember_me: bool,
+) -> Result<UserAccountState, String> {
+    account_store::create_local_account(nickname, password, remember_me)
+}
+
+#[tauri::command]
+pub fn login_local_account(
+    nickname: String,
+    password: String,
+    remember_me: bool,
+) -> Result<UserAccountState, String> {
+    account_store::login_local_account(nickname, password, remember_me)
+}
+
+#[tauri::command]
+pub fn logout_local_account() -> Result<UserAccountState, String> {
+    account_store::logout_local_account()
+}
+
+#[tauri::command]
+pub fn update_account_nickname(nickname: String) -> Result<UserAccountState, String> {
+    account_store::update_account_nickname(nickname)
 }
 
 #[tauri::command]

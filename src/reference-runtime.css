@@ -3,3 +3,148 @@
 @source "./product-ui/**/*.{ts,tsx}";
 @import "./reference-ui/index.css";
 
+[data-product-accent] .bg-amber-500 {
+  background-color: var(--product-accent, #f59e0b) !important;
+}
+
+[data-product-accent] .text-amber-600,
+[data-product-accent] .text-amber-700 {
+  color: var(--product-accent, #d97706) !important;
+}
+
+[data-product-appearance-theme="dark"] {
+  background-color: #0f172a !important;
+  color: #e2e8f0;
+}
+
+[data-product-appearance-theme="dark"] header,
+[data-product-appearance-theme="dark"] .bg-white,
+[data-product-appearance-theme="dark"] .bg-white\/70,
+[data-product-appearance-theme="dark"] .bg-white\/80,
+[data-product-appearance-theme="dark"] .bg-white\/85 {
+  background-color: rgba(15, 23, 42, 0.9) !important;
+  color: #e2e8f0 !important;
+}
+
+[data-product-appearance-theme="dark"] .bg-slate-50,
+[data-product-appearance-theme="dark"] .bg-slate-50\/70,
+[data-product-appearance-theme="dark"] .bg-slate-100 {
+  background-color: rgba(30, 41, 59, 0.86) !important;
+}
+
+[data-product-appearance-theme="dark"] .text-slate-900,
+[data-product-appearance-theme="dark"] .text-slate-800,
+[data-product-appearance-theme="dark"] .text-slate-700 {
+  color: #f8fafc !important;
+}
+
+[data-product-appearance-theme="dark"] .text-slate-600,
+[data-product-appearance-theme="dark"] .text-slate-500,
+[data-product-appearance-theme="dark"] .text-slate-400 {
+  color: #cbd5e1 !important;
+}
+
+[data-product-appearance-theme="warm"] {
+  background-color: #f8f2e8 !important;
+}
+
+[data-product-appearance-theme="warm"] header,
+[data-product-appearance-theme="warm"] .bg-white,
+[data-product-appearance-theme="warm"] .bg-white\/70,
+[data-product-appearance-theme="warm"] .bg-white\/80,
+[data-product-appearance-theme="warm"] .bg-white\/85 {
+  background-color: rgba(255, 251, 235, 0.9) !important;
+}
+
+[data-product-appearance-background="custom"] > main,
+[data-product-appearance-background="gradient"] > main {
+  backdrop-filter: blur(var(--product-bg-blur, 0px));
+}
+
+/*
+ * 普通玩家默认不应看到开发/发布用的审计卡片。
+ * 这些内容保留给设置页“显示开发者验证信息”开关，避免删除自检能力。
+ */
+[data-developer-validation="hidden"] [data-adapter-registry-closure-audit="checklist"],
+[data-developer-validation="hidden"] [data-conversion-engine-closure-audit="checklist"],
+[data-developer-validation="hidden"] [data-conversion-assessment-sample-validation="checklist"],
+[data-developer-validation="hidden"] [data-diagnostic-repair-center-closure-audit="checklist"],
+[data-developer-validation="hidden"] [data-product-state-consistency-audit="checklist"],
+[data-developer-validation="hidden"] [data-real-exe-validation-checklist="checklist"],
+[data-developer-validation="hidden"] [data-connection-method-closure-audit="checklist"],
+[data-developer-validation="hidden"] [data-invite-join-closure-audit="checklist"],
+[data-developer-validation="hidden"] [data-host-room-closure-audit="checklist"],
+[data-developer-validation="hidden"] [data-adapter-publish-audit="summary"],
+[data-developer-validation="hidden"] [data-adapter-review-workbench="queue"],
+[data-developer-validation="hidden"] [data-adapter-version-conflicts="summary"],
+[data-developer-validation="hidden"] [data-adapter-backup-history="restore"] {
+  display: none !important;
+}
+
+/*
+ * 首页普通用户只保留“身份选择 + 下一步”。
+ * 拓扑图、真实检查单和重复的房主二级说明属于调试/验证信息，
+ * 默认收起到开发者验证模式里。
+ */
+[data-developer-validation="hidden"] [data-home-technical-status="topology"],
+[data-developer-validation="hidden"] [data-home-secondary-guide="host"] {
+  display: none !important;
+}
+
+/*
+ * 组网页普通用户默认只看“粘贴邀请包 -> 保存并加入 -> 进入游戏”。
+ * 重复的旧邀请入口、n2n 日志和高级工具关系说明归入开发者验证信息。
+ */
+[data-developer-validation="hidden"] [data-network-legacy-invite="details"],
+[data-developer-validation="hidden"] [data-network-technical-details="advanced"] {
+  display: none !important;
+}
+
+/*
+ * 开房邀请页普通用户默认只看“选游戏 -> 启动组网/服务端 -> 添加好友 -> 复制邀请”。
+ * 推荐可信度、非 LAN 转换评估、底层推荐列表、原始邀请包、好友连接检测和失败原因字段属于方案维护/调试信息。
+ */
+[data-developer-validation="hidden"] [data-adapter-quality-confidence="recommendation"],
+[data-developer-validation="hidden"] [data-adapter-quality-confidence="summary"],
+[data-developer-validation="hidden"] [data-recommendation-technical-details="details"],
+[data-developer-validation="hidden"] [data-host-diagnostic-technical="details"] {
+  display: none !important;
+}
+
+/*
+ * 方案库、诊断页、设置页继续保留维护能力，但普通用户默认只看主入口。
+ * 共享库 URL、adapter 列表、runtime 摘要、发布检查、报告原文、物理路径和日志目录属于排查/维护信息。
+ */
+[data-developer-validation="hidden"] [data-solutions-technical-details="advanced"],
+[data-developer-validation="hidden"] [data-diagnostic-technical-details="advanced"],
+[data-developer-validation="hidden"] [data-diagnostic-context-technical="details"],
+[data-developer-validation="hidden"] [data-diagnostic-auto-retest-technical="details"],
+[data-developer-validation="hidden"] [data-diagnostic-advanced-tool-self-test-history="latest"],
+[data-developer-validation="hidden"] [data-diagnostic-fix-history="timeline"],
+[data-developer-validation="hidden"] [data-diagnostic-n2n-fixes-deprioritized="route-aware"],
+[data-developer-validation="hidden"] [data-settings-technical-details="advanced"] {
+  display: none !important;
+}
+
+/*
+ * 高级连接工具和游戏专用向导默认只露出可操作步骤。
+ * 方法目录、能力矩阵、完整参数检查、底层运行实例、日志和控制台都属于排查详情。
+ */
+[data-developer-validation="hidden"] [data-advanced-connection-methods="catalog"],
+[data-developer-validation="hidden"] [data-advanced-connection-matrix="decision-table"],
+[data-developer-validation="hidden"] [data-advanced-tool-explainer="details"],
+[data-developer-validation="hidden"] [data-advanced-tool-risk-detail="checks"],
+[data-developer-validation="hidden"] [data-advanced-runtime-technical="details"],
+[data-developer-validation="hidden"] [data-terraria-technical-details="advanced"],
+[data-developer-validation="hidden"] [data-network-manual-technical="details"] {
+  display: none !important;
+}
+
+/*
+ * 游戏扫描页默认只帮助玩家选游戏和继续下一步。
+ * adapter 分类、版本、可信度、推荐证据、后端推荐预览属于方案维护信息。
+ */
+[data-developer-validation="hidden"] [data-game-scan-technical-details="advanced"],
+[data-developer-validation="hidden"] [data-game-scan-recommendation-evidence="details"] {
+  display: none !important;
+}

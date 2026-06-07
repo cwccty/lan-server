@@ -13,7 +13,7 @@ import type {
 } from '../types/network';
 import type { LaunchConfig, LaunchResult, Recommendation } from '../types/recommendation';
 import type { GenericServerLaunchConfig, ServerSessionStatus } from '../types/serverSession';
-import type { AppSettings, EdgePathCheck } from '../types/settings';
+import type { AppSettings, EdgePathCheck, UserAccountState } from '../types/settings';
 import type { PortProxyConfig, PortProxySelfTestReport, PortProxyStatus } from '../types/portProxy';
 import type {
   UdpBroadcastBridgeConfig,
@@ -214,6 +214,14 @@ export const resetAppSettings = () => invoke<AppSettings>('reset_app_settings');
 export const openPath = (path: string) => invoke<void>('open_path', { path });
 export const testEdgePath = (path?: string | null) =>
   invoke<EdgePathCheck>('test_edge_path', { path });
+export const getAccountState = () => invoke<UserAccountState>('get_account_state');
+export const createLocalAccount = (nickname: string, password: string, rememberMe: boolean) =>
+  invoke<UserAccountState>('create_local_account', { nickname, password, rememberMe });
+export const loginLocalAccount = (nickname: string, password: string, rememberMe: boolean) =>
+  invoke<UserAccountState>('login_local_account', { nickname, password, rememberMe });
+export const logoutLocalAccount = () => invoke<UserAccountState>('logout_local_account');
+export const updateAccountNickname = (nickname: string) =>
+  invoke<UserAccountState>('update_account_nickname', { nickname });
 export const listFriendAllocations = () =>
   invoke<FriendAllocation[]>('list_friend_allocations');
 export const upsertFriendAllocation = (input: FriendAllocationInput) =>

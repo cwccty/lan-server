@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { AppState, AppTab, NetworkStatus } from './types';
 import Sidebar from './components/Sidebar';
 import { ProductSidebar } from '../product-ui/ProductSidebar';
+import { toProductSafeToastMessage } from '../product-ui/productSafeMessage';
 import Header from './components/Header';
 import HomeView from './components/HomeView';
 import { ProductHomeView } from '../product-ui/ProductHomeView';
@@ -22,9 +23,17 @@ import { ProductDiagnosticsView } from '../product-ui/ProductDiagnosticsView';
 import SettingsView from './components/SettingsView';
 import { ProductSettingsView } from '../product-ui/ProductSettingsView';
 import { ProductAdvancedToolsView } from '../product-ui/ProductAdvancedToolsView';
+import { appearanceRootStyle, defaultAppearance, onAppearanceUpdated, readAppearance } from '../product-ui/accountAppearance';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, X, Gift, CheckCircle } from 'lucide-react';
 import { useReferenceProductMode } from '../reference-adapter/useReferenceProductMode';
+
+const DEVELOPER_VALIDATION_VISIBLE_KEY = 'lan-helper.developerValidationVisible';
+
+function readDeveloperValidationVisible() {
+  if (typeof window === 'undefined') return false;
+  return window.localStorage.getItem(DEVELOPER_VALIDATION_VISIBLE_KEY) === '1';
+}
 
 export default function App() {
   const productMode = useReferenceProductMode();
@@ -57,13 +66,15 @@ export default function App() {
     
     edgePath: 'C:/Program Files/N2N/edge.exe',
     supernode_default: 'backup.supernode.me:7778',
-    solutions_url: 'https://cwccty.github.io/lan-server/adapter-registry/index.json'
+    solutions_url: 'https://raw.githubusercontent.com/cwccty/lan-server/master/adapter-registry/index.json'
   });
 
   // UI States
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showVersionModal, setShowVersionModal] = useState(false);
   const [visitedProductTabs, setVisitedProductTabs] = useState<Set<AppTab>>(() => new Set<AppTab>(['home']));
+  const [developerValidationVisible, setDeveloperValidationVisible] = useState(readDeveloperValidationVisible);
+  const [appearance, setAppearance] = useState(defaultAppearance);
 
   // Auto-hide toast after 3 seconds
   useEffect(() => {
@@ -75,8 +86,22 @@ export default function App() {
     }
   }, [toastMessage]);
 
+  useEffect(() => {
+    if (!productMode.enabled) return;
+    readAppearance().then(setAppearance).catch(() => undefined);
+    return onAppearanceUpdated(setAppearance);
+  }, [productMode.enabled]);
+
   const handleTriggerToast = (msg: string) => {
-    setToastMessage(msg);
+    setToastMessage(toProductSafeToastMessage(msg));
+  };
+
+  const handleToggleDeveloperValidation = (visible: boolean) => {
+    setDeveloperValidationVisible(visible);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(DEVELOPER_VALIDATION_VISIBLE_KEY, visible ? '1' : '0');
+    }
+    handleTriggerToast(visible ? '已显示开发者验证信息。发布给普通用户前建议关闭。' : '已隐藏开发者验证信息。普通用户界面会更简洁。');
   };
 
   const navigateTab = (tab: AppTab, showToast = false) => {
@@ -147,7 +172,14 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-100/40 text-slate-700 font-sans selection:bg-amber-500/20 selection:text-amber-900 selection:antialiased">
+    <div
+      className="min-h-screen bg-slate-100/40 text-slate-700 font-sans selection:bg-amber-500/20 selection:text-amber-900 selection:antialiased"
+      data-developer-validation={developerValidationVisible ? 'visible' : 'hidden'}
+      data-product-appearance-theme={appearance.theme}
+      data-product-appearance-background={appearance.background_mode}
+      data-product-accent={appearance.accent}
+      style={productMode.enabled ? appearanceRootStyle(appearance) : undefined}
+    >
       {/* Sidebar Navigation */}
       {productMode.enabled ? (
         <ProductSidebar
@@ -205,6 +237,7 @@ export default function App() {
                   onTriggerToast={handleTriggerToast}
                   solutionsUrl={state.solutions_url}
                   onUpdateSolutionsUrl={(url) => updateStateValue('solutions_url', url)}
+                  onNavigateTab={(tab) => navigateTab(tab)}
                 />
               </section>
             )}
@@ -252,7 +285,11 @@ export default function App() {
             )}
             {visitedProductTabs.has('settings') && (
               <section className={productPageClass('settings')}>
-                <ProductSettingsView onTriggerToast={handleTriggerToast} />
+                <ProductSettingsView
+                  onTriggerToast={handleTriggerToast}
+                  showDeveloperValidation={developerValidationVisible}
+                  onToggleDeveloperValidation={handleToggleDeveloperValidation}
+                />
               </section>
             )}
           </div>
@@ -292,6 +329,7 @@ export default function App() {
                   onTriggerToast={handleTriggerToast}
                   solutionsUrl={state.solutions_url}
                   onUpdateSolutionsUrl={(url) => updateStateValue('solutions_url', url)}
+                  onNavigateTab={(tab) => navigateTab(tab)}
                 />
               ) : (
                 <SolutionsView
