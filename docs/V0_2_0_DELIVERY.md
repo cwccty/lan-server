@@ -5,16 +5,17 @@
 ## 当前版本与提交状态
 
 - 版本：`v0.2.0` release candidate
-- 本地提交：`ecbd8f0 chore: mark v0.2.0 release candidate`
+- 提交：`ecbd8f0 chore: mark v0.2.0 release candidate`
 - 远端状态：`ecbd8f0` 已推送到 `origin/master`
-- 说明：当前代码远端已同步；后续发布还需要确认 GitHub Release 资产是否上传到本版 ZIP。
+- 标签：`v0.2.0` 已创建并推送
+- 说明：当前代码远端已同步；后续发布还需要确认 GitHub Release 页面和 ZIP 资产是否创建成功。
 
 ## 本版做了什么
 
 ### 普通用户体验
 
 - 恢复首页适度信息密度：让用户能看到当前状态、下一步、房主/加入者该做什么。
-- 补齐开房和加入说明：房主先选游戏、启动组网/服务端、检测端口、复制完整邀请；加入者粘贴邀请、进入同一联机房间、按提示到游戏内连接。
+- 补齐开房和加入说明：房主先选游戏、启动组网或服务端、检测端口、复制完整邀请；加入者粘贴邀请、进入同一联机房间、按提示到游戏内连接。
 - 诊断页优先展示“先修这 1-3 件事”，减少只看到原始报告但不知道怎么修的问题。
 - 特殊连接工具页补充普通用户说明：端口代理、UDP 广播桥、通用服务端分别适合什么场景、怎么自测。
 
@@ -92,6 +93,23 @@ Stop-Process -Id $p.Id -Force
 - ZIP 路径：`release-artifacts\LanHelper-v0.2.0-windows-x64.zip`
 - SHA256：`5B9654BE0A0DFF5490D334C254CC39221BA7CA008B3C8EC4E796E126C5C1B18B`
 - 验证结果：`npm run release:zip:verify` 已通过。
+
+## 创建 GitHub Release
+
+如果 `v0.2.0` 标签已经存在，但 GitHub Release 页面还没有创建，可由具备仓库发布权限的运行者执行：
+
+```powershell
+$env:GITHUB_TOKEN='<repo release 权限 token>'
+powershell -ExecutionPolicy Bypass -File tools\update_github_release_v0_1.ps1 -CreateIfMissing
+```
+
+注意：不要把真实 token 写入文档、命令历史、提交信息或日志。也可以使用 `GH_TOKEN` 环境变量。首次发布前可先 dry run：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\update_github_release_v0_1.ps1 -CreateIfMissing -DryRun
+```
+
+该脚本会读取 `docs\GITHUB_RELEASE_DRAFT.md` 作为发布说明，并追加本地 ZIP 的 SHA256。
 
 ## 已知风险与边界
 
