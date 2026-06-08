@@ -225,6 +225,9 @@ export const updateAccountNickname = (nickname: string) =>
 
 export interface SteamRelayStatus {
   available: boolean;
+  overall_status: string;
+  native_status: SteamRelayNativeStatus;
+  connecttool_status: ConnectToolStatus;
   steam_running: boolean;
   steam_process_path?: string | null;
   steamworks_sdk_dir?: string | null;
@@ -236,6 +239,41 @@ export interface SteamRelayStatus {
   unavailable_reasons: string[];
   next_steps: string[];
   legal_notice: string;
+}
+
+export interface SteamRelayNativeStatus {
+  built_in: boolean;
+  available: boolean;
+  state: string;
+  message: string;
+}
+
+export interface ConnectToolFileStatus {
+  name: string;
+  required: boolean;
+  found: boolean;
+  path?: string | null;
+  sha256?: string | null;
+}
+
+export interface ConnectToolStatus {
+  enabled: boolean;
+  directory?: string | null;
+  directory_exists: boolean;
+  app_id?: string | null;
+  app_id_path?: string | null;
+  required_files_ok: boolean;
+  wintun_available: boolean;
+  helper_running: boolean;
+  helper_process_path?: string | null;
+  helper_pid?: number | null;
+  can_start: boolean;
+  can_tcp_forward: boolean;
+  can_tun: boolean;
+  missing_files: string[];
+  file_statuses: ConnectToolFileStatus[];
+  diagnostics: string[];
+  next_steps: string[];
 }
 
 export interface SteamP2pInvitePacket {
@@ -274,7 +312,14 @@ export interface SteamP2pSessionStatus {
   status: SteamRelayStatus;
 }
 
-export const getSteamRelayStatus = () => invoke<SteamRelayStatus>('get_steam_relay_status');
+export const getSteamRelayStatus = (connecttoolDir?: string | null) =>
+  connecttoolDir
+    ? invoke<SteamRelayStatus>('get_steam_relay_status_for_dir', { connecttoolDir })
+    : invoke<SteamRelayStatus>('get_steam_relay_status');
+export const startConnectToolHelper = (directory?: string | null) =>
+  invoke<SteamRelayStatus>('start_connecttool_helper', { input: { directory } });
+export const stopConnectToolHelper = (directory?: string | null) =>
+  invoke<SteamRelayStatus>('stop_connecttool_helper', { input: { directory } });
 export const startSteamP2pHost = (input: SteamP2pHostRequest) =>
   invoke<SteamP2pSessionStatus>('start_steam_p2p_host', { input });
 export const startSteamP2pGuest = (input: SteamP2pGuestRequest) =>

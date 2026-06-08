@@ -17,7 +17,10 @@ use crate::models::udp_proxy::{UdpProxyConfig, UdpProxySelfTestReport, UdpProxyS
 use crate::models::recommendation::{LaunchResult, Recommendation};
 use crate::models::server_session::{GenericServerLaunchConfig, ServerSessionStatus};
 use crate::models::settings::{AppSettings, EdgePathCheck, UserAccountState};
-use crate::models::steam_relay::{SteamP2pGuestRequest, SteamP2pHostRequest, SteamP2pSessionStatus, SteamRelayStatus};
+use crate::models::steam_relay::{
+    ConnectToolLaunchRequest, SteamP2pGuestRequest, SteamP2pHostRequest, SteamP2pSessionStatus,
+    SteamRelayStatus,
+};
 use crate::network::{manual_lan_backend, n2n_backend, radmin_backend};
 use crate::storage::adapter_store::{
     self, AdapterBackupEntry, AdapterConflictReport, AdapterRegistryLocalPublishResult,
@@ -164,6 +167,21 @@ pub fn update_account_nickname(nickname: String) -> Result<UserAccountState, Str
 #[tauri::command]
 pub fn get_steam_relay_status() -> Result<SteamRelayStatus, String> {
     Ok(steam_relay::get_steam_relay_status())
+}
+
+#[tauri::command]
+pub fn get_steam_relay_status_for_dir(connecttool_dir: Option<String>) -> Result<SteamRelayStatus, String> {
+    Ok(steam_relay::get_steam_relay_status_for_dir(connecttool_dir))
+}
+
+#[tauri::command]
+pub fn start_connecttool_helper(input: ConnectToolLaunchRequest) -> Result<SteamRelayStatus, String> {
+    steam_relay::start_connecttool_helper(input)
+}
+
+#[tauri::command]
+pub fn stop_connecttool_helper(input: ConnectToolLaunchRequest) -> Result<SteamRelayStatus, String> {
+    steam_relay::stop_connecttool_helper(input)
 }
 
 #[tauri::command]

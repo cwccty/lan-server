@@ -126,6 +126,7 @@ $readme = @(
   "- Native LAN / direct IP / dedicated-server games should use the n2n virtual LAN route.",
   "- Local couch co-op games should use Steam Remote Play or Sunshine/Moonlight routes.",
   "- Official-server-only or Steam lobby/P2P games are not forced into LAN mode.",
+  "- Steam Relay / P2P ConnectTool compatible mode can detect and launch a user-provided helper; the helper, Steam DLLs, and Steamworks SDK are not bundled in this ZIP.",
   "",
   "Package notes:",
   "- SHA256SUMS.txt can be used to verify file integrity.",

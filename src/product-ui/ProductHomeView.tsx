@@ -366,7 +366,7 @@ export function ProductHomeView({
     ['一键开服', 'Terraria 已接入，更多游戏逐步补齐'],
     ['桥接工具', '端口代理、UDP 广播桥用于特殊发现或端口转发'],
     ['远程同屏', 'Steam Remote Play、Sunshine/Moonlight 适合本地合作游戏'],
-    ['Steam 中继/P2P', 'v0.2.0 实验入口，只做合法 Steamworks 预检'],
+    ['Steam 中继/P2P', 'v0.3.0 ConnectTool 兼容模式，可检测并启动用户自备 helper'],
   ];
 
   return (

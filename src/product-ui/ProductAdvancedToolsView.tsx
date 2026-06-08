@@ -24,6 +24,8 @@ import { toProductSafeMessage } from './productSafeMessage';
 import {
   sendServerCommand,
   getSteamRelayStatus,
+  startConnectToolHelper,
+  stopConnectToolHelper,
   type SteamRelayStatus,
   stopPortProxy,
   stopServerSession,
@@ -226,6 +228,7 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
   const [advancedToolIntent, setAdvancedToolIntent] = useState<AdvancedToolIntent | null>(() => readAdvancedToolIntent());
   const [advancedToolIntentApplied, setAdvancedToolIntentApplied] = useState(false);
   const [advancedToolSelfTestRecap, setAdvancedToolSelfTestRecap] = useState<AdvancedToolSelfTestRecap | null>(null);
+  const [connectToolDir, setConnectToolDir] = useState('E:\\BaiduNetdiskDownload\\connecttool-qt-1.5.7\\connecttool-qt-windows-x86_64');
   const [steamRelayStatus, setSteamRelayStatus] = useState<SteamRelayStatus | null>(null);
   const [steamRelayBusy, setSteamRelayBusy] = useState(false);
 
@@ -236,7 +239,7 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
   const refreshSteamRelayStatus = async () => {
     setSteamRelayBusy(true);
     try {
-      setSteamRelayStatus(await getSteamRelayStatus());
+      setSteamRelayStatus(await getSteamRelayStatus(connectToolDir));
     } catch (error) {
       onTriggerToast(`读取 Steam 中继状态失败：${error instanceof Error ? error.message : String(error)}`);
     } finally {
@@ -248,6 +251,86 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
     refreshSteamRelayStatus().catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const startConnectTool = async () => {
+    setSteamRelayBusy(true);
+    try {
+      setSteamRelayStatus(await startConnectToolHelper(connectToolDir));
+      onTriggerToast('已启动 ConnectTool helper，请在 helper 窗口里创建或加入房间。');
+    } catch (error) {
+      onTriggerToast(`启动 ConnectTool helper 失败：${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setSteamRelayBusy(false);
+    }
+  };
+
+  const stopConnectTool = async () => {
+    setSteamRelayBusy(true);
+    try {
+      setSteamRelayStatus(await stopConnectToolHelper(connectToolDir));
+      onTriggerToast('已尝试停止 ConnectTool helper。');
+    } catch (error) {
+      onTriggerToast(`停止 ConnectTool helper 失败：${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setSteamRelayBusy(false);
+    }
+  };
+
+  const copySteamRelayText = async (title: string, text: string) => {
+    try {
+      const clipboard = navigator.clipboard;
+      if (!clipboard || typeof clipboard.writeText !== 'function') throw new Error('剪贴板不可用');
+      await clipboard.writeText(text);
+      onTriggerToast(`已复制${title}。`);
+    } catch (error) {
+      onTriggerToast(`复制失败：${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  const steamHostSteps = [
+    '房主步骤（TCP 转发）',
+    '1. 先在游戏里开服或开房，确认本机游戏端口已经监听，例如 Palworld 8211、Minecraft 25565。',
+    '2. 在联机助手高级工具里确认 ConnectTool helper 文件完整，并启动 helper。',
+    '3. 在 helper 中选择 TCP 转发，填写本地游戏端口，创建房间。',
+    '4. 把 helper 显示的 Steam ID、房间或邀请信息发给好友。',
+    '5. 好友加入后，让好友在游戏里连接 127.0.0.1:本地绑定端口 或 helper 给出的地址。',
+  ].join('\n');
+
+  const steamGuestSteps = [
+    '加入者步骤（TCP 转发）',
+    '1. 启动 Steam 并登录自己的账号。',
+    '2. 在联机助手高级工具里启动 ConnectTool helper。',
+    '3. 在 helper 中填入房主 Steam ID，或接受房主邀请加入房间。',
+    '4. helper 建立转发后，在游戏里连接 127.0.0.1:本地绑定端口。',
+    '5. 如果连接失败，复制联机助手诊断报告给房主一起核对 Steam、端口、防火墙和 helper 文件。',
+  ].join('\n');
+
+  const buildConnectToolDiagnosticReport = () => {
+    const status = steamRelayStatus?.connecttool_status;
+    if (!status) return '尚未读取 ConnectTool 兼容模式状态。';
+    return [
+      '[联机助手 Steam 中继 / P2P ConnectTool 兼容模式诊断]',
+      `时间：${new Date().toLocaleString()}`,
+      `目录：${status.directory || connectToolDir || '未设置'}`,
+      `Steam：${steamRelayStatus?.steam_running ? '已运行' : '未检测到'}`,
+      `helper：${status.helper_running ? `运行中${status.helper_pid ? ` PID=${status.helper_pid}` : ''}` : '未运行'}`,
+      `AppID：${status.app_id || '未读取'}`,
+      `TCP 转发：${status.can_tcp_forward ? '可继续配置' : '暂不可用'}`,
+      `TUN 组网：${status.can_tun ? '可尝试' : '不可用或缺 WinTUN/权限'}`,
+      `缺失文件：${status.missing_files.join('、') || '无'}`,
+      '',
+      '文件 SHA256：',
+      ...status.file_statuses.map((file) => `- ${file.name}: ${file.found ? file.sha256 || '已找到，未计算' : '未找到'}`),
+      '',
+      '诊断：',
+      ...(status.diagnostics.length ? status.diagnostics.map((item) => `- ${item}`) : ['- 当前未发现阻断项。']),
+      '',
+      '下一步：',
+      ...(status.next_steps.length ? status.next_steps.map((item) => `- ${item}`) : ['- 启动 helper 后在 helper 中创建或加入房间。']),
+      '',
+      '说明：当前是 ConnectTool 兼容模式，实际 Steam 通道由用户自备 helper 完成；联机助手负责检测、启动和诊断。',
+    ].join('\n');
+  };
 
   const applyAdvancedToolIntent = (intent: AdvancedToolIntent) => {
     setKind(intent.kind);
@@ -629,36 +712,62 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
         </div>
       </section>
 
-      <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm" data-steam-relay-p2p="experimental">
+      <section className="rounded-2xl border border-sky-100 bg-white p-5 shadow-sm" data-steam-relay-p2p="connecttool-compatible">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
             <div className="mb-2 flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] font-bold text-white">Steam 中继 / P2P（实验）</span>
-              <span className={`rounded-full px-3 py-1 text-[11px] font-bold ${steamRelayStatus?.available ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
-                {steamRelayStatus?.available ? '预检通过' : '仅预检，未启用真实连接'}
+              <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] font-bold text-white">Steam 中继 / P2P（ConnectTool 兼容）</span>
+              <span className={`rounded-full px-3 py-1 text-[11px] font-bold ${steamRelayStatus?.connecttool_status?.helper_running ? 'bg-emerald-50 text-emerald-700' : steamRelayStatus?.connecttool_status?.can_start ? 'bg-sky-50 text-sky-700' : 'bg-amber-50 text-amber-700'}`}>
+                {steamRelayStatus?.connecttool_status?.helper_running ? 'helper 运行中' : steamRelayStatus?.connecttool_status?.can_start ? '可启动兼容模式' : '需要修复后使用'}
+              </span>
+              <span className="rounded-full bg-slate-50 px-3 py-1 text-[11px] font-bold text-slate-600">
+                原生内置：{steamRelayStatus?.native_status?.built_in ? '已内置' : '未内置'}
               </span>
             </div>
-            <h3 className="text-sm font-bold text-slate-900">合法 Steamworks 预检和后续转发入口。</h3>
+            <h3 className="text-sm font-bold text-slate-900">通过用户自备 ConnectTool helper 实现真实 Steam Relay/P2P 通道。</h3>
             <p className="mt-1 max-w-4xl text-xs leading-relaxed text-slate-600">
-              这个入口用于后续通过 Steamworks Networking 建立两端 TCP 转发通道。当前未配置 Steamworks SDK 或 AppID 时不能启动真实连接。
-              它不会修改游戏文件，不绕过 Steam 或游戏拥有权，也不会复制游戏目录里的 steam_api64.dll。
+              联机助手负责检测、启动、参数说明和诊断；实际 Steam 通道由本机 ConnectTool helper 完成。不会修改游戏文件，
+              不绕过 Steam 或游戏拥有权，也不会把外部 DLL 打包进联机助手。
             </p>
           </div>
-          <button
-            onClick={refreshSteamRelayStatus}
-            disabled={steamRelayBusy}
-            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-          >
-            <RefreshCw className={`h-4 w-4 ${steamRelayBusy ? 'animate-spin' : ''}`} />
-            重新预检
-          </button>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <button onClick={refreshSteamRelayStatus} disabled={steamRelayBusy} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60">
+              <RefreshCw className={`h-4 w-4 ${steamRelayBusy ? 'animate-spin' : ''}`} />
+              重新检测
+            </button>
+            <button onClick={startConnectTool} disabled={steamRelayBusy || !steamRelayStatus?.connecttool_status?.can_start} className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-50">
+              <Play className="h-4 w-4" />
+              启动 helper
+            </button>
+            <button onClick={stopConnectTool} disabled={steamRelayBusy || !steamRelayStatus?.connecttool_status?.helper_running} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+              <Square className="h-4 w-4" />
+              停止 helper
+            </button>
+          </div>
         </div>
+
+        <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+          <label className="text-xs font-bold text-slate-800">ConnectTool helper 目录</label>
+          <div className="mt-2 flex flex-col gap-2 lg:flex-row">
+            <input
+              value={connectToolDir}
+              onChange={(event) => setConnectToolDir(event.target.value)}
+              placeholder="例如 E:\BaiduNetdiskDownload\connecttool-qt-1.5.7\connecttool-qt-windows-x86_64"
+              className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-sky-300"
+            />
+            <button onClick={refreshSteamRelayStatus} disabled={steamRelayBusy} className="rounded-xl bg-white px-4 py-2 text-xs font-bold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60">检测这个目录</button>
+          </div>
+          <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+            目录内应包含 connecttool-qt.exe、steam_api64.dll、steamwebrtc64.dll、steam_appid.txt；wintun.dll 用于 TUN 组网路线。
+          </p>
+        </div>
+
         <div className="mt-4 grid gap-2 md:grid-cols-4">
           {[
             ['Steam 客户端', steamRelayStatus?.steam_running ? '已运行' : '未检测到', steamRelayStatus?.steam_process_path || '请先启动并登录 Steam'],
-            ['STEAMWORKS_SDK_DIR', steamRelayStatus?.steamworks_sdk_configured ? '已配置' : '未配置', steamRelayStatus?.steamworks_sdk_dir || '需要指向 Steamworks SDK 根目录'],
-            ['SDK redist', steamRelayStatus?.redistributable_found ? '已找到' : '未找到', steamRelayStatus?.redistributable_path || '检查 redistributable_bin/win64/steam_api64.dll'],
-            ['AppID', steamRelayStatus?.app_id_configured ? '已配置' : '未配置', steamRelayStatus?.app_id || '设置 STEAM_APP_ID 或 steam_appid.txt'],
+            ['ConnectTool helper', steamRelayStatus?.connecttool_status?.helper_running ? '运行中' : steamRelayStatus?.connecttool_status?.can_start ? '可启动' : '不可启动', steamRelayStatus?.connecttool_status?.helper_process_path || steamRelayStatus?.connecttool_status?.directory || '请设置 helper 目录'],
+            ['AppID', steamRelayStatus?.connecttool_status?.app_id || '未读取', steamRelayStatus?.connecttool_status?.app_id_path || '读取 steam_appid.txt'],
+            ['TUN 组网', steamRelayStatus?.connecttool_status?.can_tun ? '可尝试' : '需 WinTUN/权限', steamRelayStatus?.connecttool_status?.wintun_available ? '已检测到 wintun.dll' : '未检测到 wintun.dll'],
           ].map(([label, status, detail]) => (
             <div key={label} className="min-w-0 rounded-xl bg-slate-50 p-3">
               <p className="text-xs font-bold text-slate-800">{label}</p>
@@ -667,21 +776,59 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
             </div>
           ))}
         </div>
-        {steamRelayStatus?.unavailable_reasons?.length ? (
-          <div className="mt-4 grid gap-3 lg:grid-cols-2">
-            <div className="rounded-xl border border-amber-100 bg-amber-50 p-3">
-              <p className="text-xs font-bold text-amber-800">为什么现在不可用</p>
-              <ul className="mt-2 space-y-1 text-[11px] leading-relaxed text-amber-800">
-                {steamRelayStatus.unavailable_reasons.map((item) => <li key={item}>• {item}</li>)}
-              </ul>
-            </div>
-            <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-              <p className="text-xs font-bold text-slate-800">下一步怎么配置</p>
-              <ul className="mt-2 space-y-1 text-[11px] leading-relaxed text-slate-600">
-                {steamRelayStatus.next_steps.map((item) => <li key={item}>• {item}</li>)}
-              </ul>
+
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          <div className="rounded-2xl border border-sky-100 bg-sky-50 p-4">
+            <p className="text-sm font-black text-slate-900">路线一：TCP 转发</p>
+            <p className="mt-2 text-xs leading-relaxed text-slate-700">适合 Palworld、Minecraft 等有“地址 + 端口”的游戏。房主开服后让 helper 建立 Steam 通道，加入者在自己电脑的游戏里连接 127.0.0.1:本地绑定端口。</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button onClick={() => copySteamRelayText('房主步骤', steamHostSteps)} className="inline-flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-[11px] font-bold text-slate-700 shadow-sm hover:bg-slate-50"><ClipboardCopy className="h-3.5 w-3.5" />复制房主步骤</button>
+              <button onClick={() => copySteamRelayText('加入者步骤', steamGuestSteps)} className="inline-flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-[11px] font-bold text-slate-700 shadow-sm hover:bg-slate-50"><ClipboardCopy className="h-3.5 w-3.5" />复制加入者步骤</button>
             </div>
           </div>
+          <div className="rounded-2xl border border-violet-100 bg-violet-50 p-4">
+            <p className="text-sm font-black text-slate-900">路线二：TUN 组网（实验）</p>
+            <p className="mt-2 text-xs leading-relaxed text-slate-700">适合需要“像在同一局域网”的实验路线。需要 wintun.dll、管理员权限和防火墙许可；如果只是 IP + 端口，优先用 TCP 转发。</p>
+            <ul className="mt-3 space-y-1 text-[11px] leading-relaxed text-slate-600">
+              <li>• Steam ID：Steam 账号的数字 ID，用来让 helper 找到对端。</li>
+              <li>• 房间：helper 里创建或加入的连接会话。</li>
+              <li>• 端口：游戏服务端真正监听的数字。</li>
+              <li>• 本地绑定端口：加入者本机 127.0.0.1 上给游戏连接的入口。</li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          <div className="rounded-xl border border-amber-100 bg-amber-50 p-3">
+            <p className="text-xs font-bold text-amber-800">当前诊断</p>
+            <ul className="mt-2 space-y-1 text-[11px] leading-relaxed text-amber-800">
+              {(steamRelayStatus?.connecttool_status?.diagnostics?.length ? steamRelayStatus.connecttool_status.diagnostics : steamRelayStatus?.unavailable_reasons || ['尚未读取状态']).map((item) => <li key={item}>• {item}</li>)}
+            </ul>
+          </div>
+          <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-bold text-slate-800">下一步怎么做</p>
+              <button onClick={() => copySteamRelayText('Steam 诊断报告', buildConnectToolDiagnosticReport())} className="inline-flex items-center gap-1 rounded-lg bg-white px-2 py-1 text-[11px] font-bold text-slate-600 shadow-sm hover:bg-slate-50"><ClipboardCopy className="h-3.5 w-3.5" />复制诊断报告</button>
+            </div>
+            <ul className="mt-2 space-y-1 text-[11px] leading-relaxed text-slate-600">
+              {(steamRelayStatus?.connecttool_status?.next_steps?.length ? steamRelayStatus.connecttool_status.next_steps : steamRelayStatus?.next_steps || ['先重新检测 ConnectTool 目录。']).map((item) => <li key={item}>• {item}</li>)}
+            </ul>
+          </div>
+        </div>
+
+        {steamRelayStatus?.connecttool_status?.file_statuses?.length ? (
+          <details className="mt-4 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+            <summary className="cursor-pointer text-xs font-bold text-slate-800">展开文件校验和 SHA256</summary>
+            <div className="mt-3 grid gap-2 md:grid-cols-2">
+              {steamRelayStatus.connecttool_status.file_statuses.map((file) => (
+                <div key={file.name} className="min-w-0 rounded-xl bg-white p-3 text-[11px] leading-relaxed text-slate-600">
+                  <p className="font-bold text-slate-800">{file.name} {file.required ? '（必需）' : '（可选）'}：{file.found ? '已找到' : '未找到'}</p>
+                  <p className="break-words">{file.path || '-'}</p>
+                  <p className="break-all text-slate-500">SHA256：{file.sha256 || '-'}</p>
+                </div>
+              ))}
+            </div>
+          </details>
         ) : null}
       </section>
 
