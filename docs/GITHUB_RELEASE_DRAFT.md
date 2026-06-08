@@ -52,6 +52,14 @@
 - 真实双机 Steam Relay/P2P 联机仍需要两台 Windows、两个 Steam 账号、目标游戏环境进行回归。
 - 不承诺绕过 Steam、游戏拥有权、官方服务器、反作弊或 DRM；不修改游戏文件。
 
+## 真实双机回归跟踪
+
+真实双机 Steam Relay/P2P 回归统一在 Issue #1 跟踪：
+
+- https://github.com/cwccty/lan-server/issues/1
+
+在 Issue #1 的 Palworld / Minecraft Java / Stardew Valley / Cuphead 回归表补齐前，请继续把本版本描述为“ConnectTool 兼容 MVP”，不要宣传为原生 Steamworks 或所有目标游戏真实双机已完成。
+
 ## 建议反馈内容
 
 如果你参与测试，请反馈：
