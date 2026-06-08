@@ -66,6 +66,7 @@ try {
   $required = @(
     "$packageName.exe",
     $readmeName,
+    "FRIEND_RETEST_GUIDE.txt",
     "SHA256SUMS.txt",
     "release-manifest.json",
     "tools/n2n/edge.exe",
@@ -87,6 +88,29 @@ try {
     $path = Join-Path $packageDir ($relative.Replace("/", "\"))
     if (-not (Test-Path -LiteralPath $path)) {
       Add-Error "missing file: $relative"
+    }
+  }
+
+  $readmePath = Join-Path $packageDir $readmeName
+  if (Test-Path -LiteralPath $readmePath) {
+    $readmeContent = Get-Content -LiteralPath $readmePath -Raw -Encoding UTF8
+    if (-not $readmeContent.Contains("FRIEND_RETEST_GUIDE.txt")) {
+      Add-Error "$readmeName does not point users to FRIEND_RETEST_GUIDE.txt"
+    }
+    foreach ($oldTerm in @("Supernode", "virtual IP", "n2n virtual LAN route")) {
+      if ($readmeContent.Contains($oldTerm)) {
+        Add-Error "$readmeName still exposes old developer wording: $oldTerm"
+      }
+    }
+  }
+
+  $friendGuidePath = Join-Path $packageDir "FRIEND_RETEST_GUIDE.txt"
+  if (Test-Path -LiteralPath $friendGuidePath) {
+    $friendGuideContent = Get-Content -LiteralPath $friendGuidePath -Raw -Encoding UTF8
+    foreach ($requiredHint in @("ZIP", "10.10.10.2", "10.10.10.3", "Windows")) {
+      if (-not $friendGuideContent.Contains($requiredHint)) {
+        Add-Error "FRIEND_RETEST_GUIDE.txt missing required retest hint: $requiredHint"
+      }
     }
   }
 

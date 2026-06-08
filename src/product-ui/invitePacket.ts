@@ -1,6 +1,6 @@
 ﻿import type { NetworkConfig } from '../types/network';
 
-export const LAN_INVITE_PACKET_HEADER = '[联机助手真实邀请包]';
+export const LAN_INVITE_PACKET_HEADER = '[联机助手邀请包]';
 
 export interface LanInvitePacket {
   gameName?: string;
@@ -50,15 +50,15 @@ export function parseLanInvitePacket(text: string): LanInvitePacket | null {
     if (gameName) packet.gameName = cleanUnknown(gameName) || undefined;
     const gameId = valueOf(line, '游戏 ID');
     if (gameId) packet.gameId = cleanUnknown(gameId) || undefined;
-    const host = valueOf(line, '房主虚拟 IP');
+    const host = valueOf(line, '房主联机地址') || valueOf(line, '房主虚拟 IP');
     if (host) packet.hostVirtualIp = cleanUnknown(host) || undefined;
-    const friend = valueOf(line, '好友预留 IP');
+    const friend = valueOf(line, '好友预留地址') || valueOf(line, '好友预留 IP');
     if (friend) {
       const parsed = splitFriend(friend);
       packet.friendVirtualIp = parsed.ip || undefined;
       packet.friendName = parsed.name || undefined;
     }
-    const supernode = valueOf(line, 'Supernode');
+    const supernode = valueOf(line, '中继地址') || valueOf(line, 'Supernode');
     if (supernode) packet.supernode = cleanUnknown(supernode) || undefined;
     const roomName = valueOf(line, '房间名');
     if (roomName) packet.roomName = cleanUnknown(roomName) || undefined;
@@ -82,11 +82,11 @@ export function parseLanInvitePacket(text: string): LanInvitePacket | null {
 
 export function validateLanInvitePacket(packet: LanInvitePacket): LanInviteValidationResult {
   const missing: string[] = [];
-  if (!cleanUnknown(packet.supernode)) missing.push('Supernode');
+  if (!cleanUnknown(packet.supernode)) missing.push('中继地址');
   if (!cleanUnknown(packet.roomName)) missing.push('房间名');
   if (!cleanUnknown(packet.roomKey)) missing.push('房间密钥');
-  if (!cleanUnknown(packet.friendVirtualIp)) missing.push('好友预留 IP');
-  if (!cleanUnknown(packet.hostVirtualIp)) missing.push('房主虚拟 IP');
+  if (!cleanUnknown(packet.friendVirtualIp)) missing.push('好友预留地址');
+  if (!cleanUnknown(packet.hostVirtualIp)) missing.push('房主联机地址');
   if (!Number.isFinite(Number(packet.gamePort)) || Number(packet.gamePort) <= 0) missing.push('游戏端口');
   return {
     ok: missing.length === 0,
@@ -114,16 +114,16 @@ export function buildLanInvitePacket(input: {
     LAN_INVITE_PACKET_HEADER,
     `游戏：${input.gameName || '未选择'}`,
     `游戏 ID：${input.gameId || '未选择'}`,
-    `房主虚拟 IP：${input.hostVirtualIp || input.n2n?.local_ip || '未读取'}`,
-    `好友预留 IP：${friend}`,
-    `Supernode：${input.n2n?.supernode || '未读取'}`,
+    `房主联机地址：${input.hostVirtualIp || input.n2n?.local_ip || '未读取'}`,
+    `好友预留地址：${friend}`,
+    `中继地址：${input.n2n?.supernode || '未读取'}`,
     `房间名：${input.n2n?.room_name || '未读取'}`,
     `房间密钥：${input.n2n?.secret || '未读取'}`,
     `游戏端口：${input.port}`,
     `服务端状态：${input.serverRunning ? '运行中' : '未运行'}`,
     `好友检测：${input.friendCheck || '未检测'}`,
     '',
-    '好友操作：打开联机助手，粘贴此邀请包，确认进入后启动 n2n，再在游戏内连接房主虚拟 IP 和端口。'
+    '好友操作：打开联机助手，粘贴此邀请包，点击“保存并加入”，再在游戏内连接房主联机地址和端口。'
   ].join('\n');
 }
 

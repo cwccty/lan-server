@@ -72,9 +72,9 @@ export function classifyJoinFailure(error: unknown, runtimeLabel = ''): InviteJo
   if (message.includes('missing_fields') || message.includes('邀请包缺少') || message.includes('配置缺少') || message.includes('未填写')) {
     return {
       kind: 'config_missing',
-      title: '邀请参数不完整',
-      detail: '邀请包缺少房间名、密钥或 Supernode。请让房主重新生成完整邀请包。',
-      nextAction: '重新向房主要邀请包，或手动补齐参数后再启动。',
+      title: '邀请信息不完整',
+      detail: '邀请包缺少房间名、密钥或中继地址。请让房主重新生成完整邀请包。',
+      nextAction: '重新向房主要邀请包，或手动补齐信息后再启动。',
     };
   }
   if (
@@ -99,57 +99,57 @@ export function classifyJoinFailure(error: unknown, runtimeLabel = ''): InviteJo
   if (message.includes('room') || message.includes('secret')) {
     return {
       kind: 'config_missing',
-      title: '邀请参数不完整',
-      detail: '邀请包缺少房间名、密钥或 Supernode。请让房主重新生成完整邀请包。',
-      nextAction: '重新向房主要邀请包，或手动补齐参数后再启动。',
+      title: '邀请信息不完整',
+      detail: '邀请包缺少房间名、密钥或中继地址。请让房主重新生成完整邀请包。',
+      nextAction: '重新向房主要邀请包，或手动补齐信息后再启动。',
     };
   }
   if (message.includes('already in use') || message.includes('conflict') || message.includes('冲突') || message.includes('占用')) {
     return {
       kind: 'ip_conflict',
-      title: '虚拟 IP 可能冲突',
-      detail: '邀请包里的好友虚拟 IP 可能已被占用。请让房主重新分配一个好友 IP。',
-      nextAction: '让房主换一个好友 IP，再生成新的邀请包。',
+      title: '联机地址可能冲突',
+      detail: '邀请包里的好友联机地址可能已被占用。请让房主重新分配一个好友地址。',
+      nextAction: '让房主换一个好友地址，再生成新的邀请包。',
     };
   }
   if (message.includes('supernode') || message.includes('not responding') || message.includes('无响应') || message.includes('timeout')) {
     return {
       kind: 'supernode',
-      title: 'Supernode 暂无响应',
-      detail: '中继节点可能未启动、端口未放行或网络不可达。请房主检查 VPS 上的 supernode。',
-      nextAction: '让房主检查 supernode 地址、端口、防火墙和 n2n 服务。',
+      title: '中继地址暂无响应',
+      detail: '中继节点可能未启动、端口未放行或网络不可达。请房主检查中继地址。',
+      nextAction: '让房主检查中继地址、端口、防火墙和组网服务。',
     };
   }
   if (message.includes('edge') || message.includes('not found') || message.includes('找不到')) {
     return {
       kind: 'edge_missing',
-      title: 'n2n edge 不可用',
-      detail: '没有找到可用的 edge.exe，或 edge 路径配置不正确。',
-      nextAction: '到设置与帮助检查 edge.exe 路径，必要时重新选择工具目录。',
+      title: '组网程序不可用',
+      detail: '没有找到可用的组网程序，或程序路径配置不正确。',
+      nextAction: '到设置与帮助检查组网程序，必要时重新选择工具目录。',
     };
   }
   if (message.includes('permission') || message.includes('权限') || message.includes('administrator') || message.includes('管理员')) {
     return {
       kind: 'permission',
       title: '权限不足',
-      detail: '启动虚拟网卡或 edge 可能需要更高权限。',
+      detail: '启动虚拟网卡或组网程序可能需要更高权限。',
       nextAction: '尝试以管理员身份运行联机助手，然后重新加入。',
     };
   }
   return {
     kind: 'not_ready',
     title: '加入失败',
-    detail: 'n2n 未能稳定启动或未读取到有效连接状态。请生成诊断报告查看详细原因。',
+    detail: '组网服务未能稳定启动或未读取到有效连接状态。请生成诊断报告查看详细原因。',
     nextAction: '打开诊断报告，复制错误信息给房主或管理员。',
   };
 }
 
 export function validateInviteNetworkConfig(config: NetworkConfig) {
   const missing: string[] = [];
-  if (!config.supernode?.trim()) missing.push('Supernode');
+  if (!config.supernode?.trim()) missing.push('中继地址');
   if (!config.room_name?.trim()) missing.push('房间名');
   if (!config.secret?.trim()) missing.push('房间密钥');
-  if (!config.local_ip?.trim()) missing.push('我的虚拟 IP');
+  if (!config.local_ip?.trim()) missing.push('我的联机地址');
   return missing;
 }
 
@@ -163,7 +163,7 @@ export function inviteResultTone(phase: InviteJoinPhase) {
 export function joinSuccessDetail(packet: LanInvitePacket, context: InviteJoinContext = {}) {
   const host = packet.hostVirtualIp || context.connectHost || '未读取';
   const port = packet.gamePort || Number(context.gamePort) || 7777;
-  return `请在游戏内连接房主虚拟 IP：${host}，端口：${port}。`;
+  return `请在游戏内连接房主联机地址：${host}，端口：${port}。`;
 }
 
 function sameInviteValue(expected?: string, actual?: string | null) {
@@ -240,12 +240,12 @@ export async function joinFromInvitePacket(packet: LanInvitePacket, context: Inv
       };
     }
     if (n2n?.ok_link && !matchesInvite) {
-      const error = 'n2n 当前连接状态与本次邀请参数不一致，可能读到了旧 edge 状态或配置尚未生效。';
+      const error = '当前连接状态与本次邀请信息不一致，可能读到了旧组网状态或配置尚未生效。';
       const reason = classifyJoinFailure(error, n2n.summary);
       return {
         phase: 'failed',
         title: '当前连接与邀请不一致',
-        detail: '联机助手没有把旧连接状态当作加入成功。请先停止 n2n，再用这份邀请包重新保存并启动。',
+        detail: '联机助手没有把旧连接状态当作加入成功。请先停止组网，再用这份邀请包重新保存并启动。',
         packet,
         error,
         reason,
@@ -253,12 +253,12 @@ export async function joinFromInvitePacket(packet: LanInvitePacket, context: Inv
       };
     }
     if (n2n?.running) {
-      const error = 'edge 已运行，但暂未收到 ACK/PONG 确认。';
+      const error = '组网程序已运行，但暂未收到联机确认。';
       const reason = classifyJoinFailure(error, n2n.summary);
       return {
         phase: 'pending',
-        title: 'n2n 已启动，等待确认',
-        detail: 'edge 已运行，但暂未看到 ACK/PONG。等待 10 到 20 秒后刷新，若仍未连接请生成诊断报告。',
+        title: '组网已启动，但中继尚未确认',
+        detail: '组网程序已运行，但暂未收到中继确认。请核对双方中继地址、房间名、密钥和联机地址；仍不行请生成诊断报告并复制手动启动命令与组网日志。',
         packet,
         error,
         reason,
@@ -266,7 +266,7 @@ export async function joinFromInvitePacket(packet: LanInvitePacket, context: Inv
       };
     }
 
-    const error = n2n?.last_error || latest?.errors?.[0] || n2n?.summary || 'edge 未保持运行';
+    const error = n2n?.last_error || latest?.errors?.[0] || n2n?.summary || '组网程序未保持运行';
     const reason = classifyJoinFailure(error, n2n?.summary);
     return {
       phase: 'failed',
@@ -300,12 +300,12 @@ export function buildInviteJoinErrorText(result: InviteJoinResult, context: Invi
     result.reason?.nextAction ? `建议：${result.reason.nextAction}` : '',
     result.error ? `错误：${result.error}` : '',
     `游戏：${packet?.gameName || '未知'}`,
-    `房主虚拟 IP：${packet?.hostVirtualIp || context.connectHost || '未读取'}`,
-    `我的预留 IP：${packet?.friendVirtualIp || context.localIp || '未读取'}`,
-    `Supernode：${packet?.supernode || context.supernode || '未读取'}`,
+    `房主联机地址：${packet?.hostVirtualIp || context.connectHost || '未读取'}`,
+    `我的预留地址：${packet?.friendVirtualIp || context.localIp || '未读取'}`,
+    `中继地址：${packet?.supernode || context.supernode || '未读取'}`,
     `房间名：${packet?.roomName || context.roomName || '未读取'}`,
     `游戏端口：${packet?.gamePort || context.gamePort || '未读取'}`,
-    `当前 n2n 状态：${context.runtimeLabel || '未读取'}`,
-    context.runtimeErrors?.length ? `runtime 错误：${context.runtimeErrors.join('；')}` : '',
+    `当前组网状态：${context.runtimeLabel || '未读取'}`,
+    context.runtimeErrors?.length ? `运行错误：${context.runtimeErrors.join('；')}` : '',
   ].filter(Boolean).join('\n');
 }

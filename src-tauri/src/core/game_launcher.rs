@@ -36,7 +36,8 @@ pub fn launch_profile(
 
     let values = collect_config_values(profile, config)?;
     let steam_libraries = game_detector::discover_steam_libraries();
-    let Some(game_path) = game_detector::find_installed_game_path(&adapter, &steam_libraries) else {
+    let Some(game_path) = game_detector::find_installed_game_path(&adapter, &steam_libraries)
+    else {
         return Ok(LaunchResult {
             ok: false,
             message: format!(
@@ -139,7 +140,10 @@ pub fn launch_profile(
 fn build_terraria_server_args(
     values: &HashMap<String, String>,
 ) -> Result<(Vec<String>, String), String> {
-    let world_path = if let Some(path) = values.get("world_path").filter(|item| !item.trim().is_empty()) {
+    let world_path = if let Some(path) = values
+        .get("world_path")
+        .filter(|item| !item.trim().is_empty())
+    {
         PathBuf::from(path)
     } else {
         let world_choice = values

@@ -24,8 +24,13 @@ import { toProductSafeMessage } from './productSafeMessage';
 import {
   sendServerCommand,
   getSteamRelayStatus,
+  getSteamP2pSessionStatus,
   startConnectToolHelper,
+  startSteamP2pGuest,
+  startSteamP2pHost,
   stopConnectToolHelper,
+  stopSteamP2pSession,
+  type SteamP2pSessionStatus,
   type SteamRelayStatus,
   stopPortProxy,
   stopServerSession,
@@ -44,10 +49,18 @@ import {
   type ConnectionCapabilityDecisionRow,
 } from './connectionCapabilityMatrix';
 import {
+  ADVANCED_TOOL_INTENT_UPDATED_EVENT,
   clearAdvancedToolIntent,
+  connectionCardFromAdvancedToolIntent,
   readAdvancedToolIntent,
+  type AdvancedConnectionCardId,
   type AdvancedToolIntent,
 } from './advancedToolIntent';
+import {
+  ADAPTER_CATEGORY_ROUTE_ANCHOR_EVENT,
+  consumeAdapterCategoryRouteAnchor,
+  scrollToAdapterCategoryRouteAnchor,
+} from './adapterCategoryRoute';
 import {
   buildConnectionMethodClosureAudit,
   formatConnectionMethodClosureAuditReport,
@@ -60,7 +73,6 @@ interface ProductAdvancedToolsViewProps {
 }
 
 type ToolKind = ReferenceAdvancedProxyKind;
-
 interface AdvancedToolRiskCheck {
   id: string;
   level: 'ok' | 'warn' | 'danger';
@@ -228,12 +240,32 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
   const [advancedToolIntent, setAdvancedToolIntent] = useState<AdvancedToolIntent | null>(() => readAdvancedToolIntent());
   const [advancedToolIntentApplied, setAdvancedToolIntentApplied] = useState(false);
   const [advancedToolSelfTestRecap, setAdvancedToolSelfTestRecap] = useState<AdvancedToolSelfTestRecap | null>(null);
-  const [connectToolDir, setConnectToolDir] = useState('E:\\BaiduNetdiskDownload\\connecttool-qt-1.5.7\\connecttool-qt-windows-x86_64');
+  const [connectToolDir, setConnectToolDir] = useState('');
   const [steamRelayStatus, setSteamRelayStatus] = useState<SteamRelayStatus | null>(null);
+  const [steamP2pSession, setSteamP2pSession] = useState<SteamP2pSessionStatus | null>(null);
   const [steamRelayBusy, setSteamRelayBusy] = useState(false);
+  const [steamHostId, setSteamHostId] = useState('');
+  const [steamVirtualPort, setSteamVirtualPort] = useState('8211');
+  const [steamTargetHost, setSteamTargetHost] = useState('127.0.0.1');
+  const [steamTargetPort, setSteamTargetPort] = useState('8211');
+  const [steamGuestLocalPort, setSteamGuestLocalPort] = useState('8211');
+  const [steamAppId, setSteamAppId] = useState('');
+  const [bridgeChoicePending, setBridgeChoicePending] = useState(false);
+  const [activeConnectionCard, setActiveConnectionCard] = useState<AdvancedConnectionCardId | null>(() => (
+    connectionCardFromAdvancedToolIntent(readAdvancedToolIntent()) ?? null
+  ));
 
   useEffect(() => {
     refreshReferenceRuntime(false).catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    const handleAdvancedToolIntentUpdated = () => {
+      setAdvancedToolIntent(readAdvancedToolIntent());
+      setAdvancedToolIntentApplied(false);
+    };
+    window.addEventListener(ADVANCED_TOOL_INTENT_UPDATED_EVENT, handleAdvancedToolIntentUpdated);
+    return () => window.removeEventListener(ADVANCED_TOOL_INTENT_UPDATED_EVENT, handleAdvancedToolIntentUpdated);
   }, []);
 
   const refreshSteamRelayStatus = async () => {
@@ -249,7 +281,21 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
 
   useEffect(() => {
     refreshSteamRelayStatus().catch(() => undefined);
+    getSteamP2pSessionStatus().then(setSteamP2pSession).catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const scrollToPendingAnchor = (selector: string | null | undefined) => {
+      scrollToAdapterCategoryRouteAnchor(selector, 180);
+    };
+    scrollToPendingAnchor(consumeAdapterCategoryRouteAnchor());
+    const onAnchorUpdated = (event: Event) => {
+      const selector = (event as CustomEvent<{ selector?: string }>).detail?.selector;
+      scrollToPendingAnchor(selector);
+    };
+    window.addEventListener(ADAPTER_CATEGORY_ROUTE_ANCHOR_EVENT, onAnchorUpdated);
+    return () => window.removeEventListener(ADAPTER_CATEGORY_ROUTE_ANCHOR_EVENT, onAnchorUpdated);
   }, []);
 
   const startConnectTool = async () => {
@@ -276,11 +322,130 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
     }
   };
 
+  const parseSteamPort = (value: string, fallback: number) => {
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isFinite(parsed) && parsed >= 1 && parsed <= 65535) return parsed;
+    return fallback;
+  };
+
+  const startSteamHostProfile = async () => {
+    setSteamRelayBusy(true);
+    try {
+      const session = await startSteamP2pHost({
+        host_steam_id: steamHostId.trim() || '待填写房主 Steam ID',
+        virtual_port: parseSteamPort(steamVirtualPort, 8211),
+        target_host: steamTargetHost.trim() || '127.0.0.1',
+        target_port: parseSteamPort(steamTargetPort, 8211),
+        app_id: steamAppId.trim() || null,
+        connecttool_dir: connectToolDir.trim() || null,
+      });
+      setSteamP2pSession(session);
+      setSteamRelayStatus(session.status);
+      onTriggerToast('已生成房主配置，请在 helper 中按相同端口创建房间。');
+    } catch (error) {
+      onTriggerToast(`生成房主配置失败：${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setSteamRelayBusy(false);
+    }
+  };
+
+  const startSteamGuestProfile = async () => {
+    setSteamRelayBusy(true);
+    try {
+      const session = await startSteamP2pGuest({
+        host_steam_id: steamHostId.trim() || '待填写房主 Steam ID',
+        virtual_port: parseSteamPort(steamVirtualPort, 8211),
+        guest_local_port: parseSteamPort(steamGuestLocalPort, parseSteamPort(steamVirtualPort, 8211)),
+        app_id: steamAppId.trim() || null,
+        connecttool_dir: connectToolDir.trim() || null,
+      });
+      setSteamP2pSession(session);
+      setSteamRelayStatus(session.status);
+      onTriggerToast('已生成加入者配置，请在 helper 中加入房主房间后回到游戏连接本机端口。');
+    } catch (error) {
+      onTriggerToast(`生成加入者配置失败：${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setSteamRelayBusy(false);
+    }
+  };
+
+  const clearSteamP2pSession = async () => {
+    setSteamRelayBusy(true);
+    try {
+      const session = await stopSteamP2pSession();
+      setSteamP2pSession(session);
+      setSteamRelayStatus(session.status);
+      onTriggerToast('已清空 Steam/P2P 配置状态。');
+    } catch (error) {
+      onTriggerToast(`清空 Steam/P2P 配置失败：${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setSteamRelayBusy(false);
+    }
+  };
+
+  const focusSteamConnectToolInput = () => {
+    window.setTimeout(() => {
+      const target = document.querySelector('[data-steam-helper-directory="input"]');
+      if (!target) return;
+      const rect = target.getBoundingClientRect();
+      const top = Math.max(0, window.scrollY + rect.top - 140);
+      window.scrollTo({ top, behavior: 'smooth' });
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (target instanceof HTMLElement) window.setTimeout(() => target.focus(), 220);
+    }, 220);
+  };
+
+  const buildSteamP2pInviteText = () => {
+    const invite = steamP2pSession?.invite;
+    if (!invite) return '尚未生成 Steam/P2P 房主或加入者配置。';
+    return [
+      '[联机助手 Steam/P2P ConnectTool 配置]',
+      `模式：${steamP2pSession?.mode || '未记录'}`,
+      `状态：${steamP2pSession?.state || '未记录'}`,
+      `说明：${steamP2pSession?.message || '无'}`,
+      `房主 Steam ID：${invite.host_steam_id}`,
+      `AppID：${invite.app_id || '未读取'}`,
+      `协议：${invite.protocol}`,
+      `房主目标：${invite.target_host}:${invite.target_port}`,
+      `房间/虚拟端口：${invite.virtual_port}`,
+      `加入者本机端口：${invite.guest_local_port}`,
+      '',
+      '使用方式：',
+      '1. 双方先启动 Steam 并登录不同账号。',
+      '2. 双方在联机助手中检测并启动自己准备的 ConnectTool helper。',
+      '3. 房主在 helper 中创建房间或 TCP 转发，端口与上面一致。',
+      '4. 加入者在 helper 中加入房主房间。',
+      `5. 加入者回到游戏，连接 127.0.0.1:${invite.guest_local_port}。`,
+      '',
+      '边界：该配置不等于真实双机已通过，最终仍以两台电脑游戏内加入成功为准。',
+    ].join('\n');
+  };
+
   const copySteamRelayText = async (title: string, text: string) => {
     try {
+      const fallbackCopy = () => {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.setAttribute('readonly', 'true');
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        textarea.style.top = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        const copied = document.execCommand('copy');
+        document.body.removeChild(textarea);
+        if (!copied) throw new Error('剪贴板不可用');
+      };
       const clipboard = navigator.clipboard;
-      if (!clipboard || typeof clipboard.writeText !== 'function') throw new Error('剪贴板不可用');
-      await clipboard.writeText(text);
+      if (clipboard && typeof clipboard.writeText === 'function') {
+        try {
+          await clipboard.writeText(text);
+        } catch {
+          fallbackCopy();
+        }
+      } else {
+        fallbackCopy();
+      }
       onTriggerToast(`已复制${title}。`);
     } catch (error) {
       onTriggerToast(`复制失败：${error instanceof Error ? error.message : String(error)}`);
@@ -332,14 +497,78 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
     ].join('\n');
   };
 
+  const buildSteamDualMachineEvidenceTemplate = () => {
+    const status = steamRelayStatus?.connecttool_status;
+    return [
+      '[联机助手 Steam Relay/P2P 真实双机回归证据]',
+      '',
+      '一、基础信息',
+      `测试日期：${new Date().toLocaleDateString()}`,
+      '测试人：',
+      '联机助手版本：v0.3.0 或当前测试版本',
+      'Release URL：https://github.com/cwccty/lan-server/releases/tag/v0.3.0',
+      'Release ZIP SHA256：97525924f16bb8abafa772abca288f7eaaae026688ae4f7408d7e8a2a27abb7e',
+      '',
+      '二、ConnectTool helper',
+      `helper 目录：${status?.directory || connectToolDir || '未填写'}`,
+      `Steam 客户端：${steamRelayStatus?.steam_running ? '已运行' : '未检测到，请测试时重新确认'}`,
+      `helper 状态：${status?.helper_running ? '运行中' : status?.can_start ? '可启动，测试时需启动' : '当前不可启动，请先修复'}`,
+      `AppID：${status?.app_id || '未读取'}`,
+      `必需文件缺失：${status?.missing_files?.join('、') || '无或尚未检测'}`,
+      'helper 来源/版本：',
+      '',
+      '三、双机环境',
+      '房主 Windows 版本：',
+      '加入者 Windows 版本：',
+      '房主 Steam 账号状态：已登录 / 未登录',
+      '加入者 Steam 账号状态：已登录 / 未登录',
+      '网络环境：同宽带 / 不同宽带 / 手机热点 / 校园网 / 其他',
+      '防火墙处理：已放行 Steam、helper、游戏服务端 / 未处理 / 其他',
+      '',
+      '四、游戏与路线',
+      '游戏名称：Palworld / Minecraft Java / Stardew Valley / Cuphead / 其他',
+      '游戏版本/平台：',
+      '路线：TCP 转发 / TUN 组网实验 / 远程同屏 / 其他',
+      '房主游戏端口：',
+      '加入者本地绑定端口：',
+      '',
+      '五、执行结果',
+      '1. 房主开服或创建游戏房间：通过 / 未通过，说明：',
+      '2. 房主启动 helper 并创建房间：通过 / 未通过，说明：',
+      '3. 加入者启动 helper 并加入房间：通过 / 未通过，说明：',
+      '4. 加入者在游戏内连接 127.0.0.1:<本地绑定端口>：通过 / 未通过，说明：',
+      '5. 稳定性：游玩时长、延迟、掉线、重连情况：',
+      '',
+      '六、证据附件',
+      '房主诊断报告：',
+      '加入者诊断报告：',
+      '截图/录屏：',
+      '失败日志：',
+      '',
+      '七、结论',
+      '结论：通过 / 未通过 / 部分通过',
+      '是否需要更新 Release：是 / 否',
+      '是否需要更新方案库：是 / 否',
+      '备注：',
+    ].join('\n');
+  };
+
   const applyAdvancedToolIntent = (intent: AdvancedToolIntent) => {
+    if (intent.reason === 'bridge_or_proxy_choice') {
+      setBridgeChoicePending(true);
+      return;
+    }
+    setBridgeChoicePending(false);
+    const preferredCard = connectionCardFromAdvancedToolIntent(intent);
+    if (preferredCard) setActiveConnectionCard(preferredCard);
+    if (intent.reason === 'steam_relay_p2p') focusSteamConnectToolInput();
     setKind(intent.kind);
     if (intent.listen_port) setListenPort(String(intent.listen_port));
     if (intent.target_port) setTargetPort(String(intent.target_port));
     if (intent.target_host) setTargetHost(intent.target_host);
-    const decisionId = intent.reason === 'udp_broadcast_bridge'
+    const decisionId = intent.reason === 'udp_broadcast_bridge' || preferredCard === 'udp_broadcast_bridge'
       ? 'lan-discovery-broadcast'
-      : intent.reason === 'port_proxy'
+      : intent.reason === 'port_proxy' || preferredCard === 'tcp_proxy'
         ? 'port-proxy-needed'
         : selectedDecisionId;
     setSelectedDecisionId(decisionId);
@@ -349,7 +578,15 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
     if (!advancedToolIntent || advancedToolIntentApplied) return;
     applyAdvancedToolIntent(advancedToolIntent);
     setAdvancedToolIntentApplied(true);
-    onTriggerToast('已根据诊断建议预填连接信息，请核对目标联机地址后再启动。');
+    onTriggerToast(
+      advancedToolIntent.reason === 'steam_relay_p2p'
+        ? '已切到 Steam Relay / P2P。请先检查 Steam 连接工具文件夹，再按房主或加入者步骤操作。'
+        : advancedToolIntent.reason === 'generic_server'
+          ? '已切到通用服务端。请先选择服务端文件并做启动前检查。'
+          : advancedToolIntent.reason === 'bridge_or_proxy_choice'
+            ? '已打开桥接工具选择。请先判断是“地址+端口”还是“房间列表看不到”。'
+          : '已根据建议预填连接信息，请核对目标联机地址后再启动。'
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [advancedToolIntent, advancedToolIntentApplied]);
 
@@ -638,6 +875,100 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
   };
 
   const server = runtime.snapshot?.server_session ?? null;
+  const steamCardStatus = steamRelayStatus?.connecttool_status?.helper_running
+    ? '正在运行'
+    : steamRelayStatus?.connecttool_status?.can_start
+      ? '可启动'
+      : '需先检测';
+  const activeProxyName = kind === 'bridge' ? 'UDP 广播桥' : kind === 'udp' ? 'UDP 单播代理' : 'TCP 端口代理';
+  const activeConnectionCards: Array<{
+    id: AdvancedConnectionCardId;
+    title: string;
+    status: string;
+    description: string;
+    bestFor: string;
+    actionLabel: string;
+    tone: string;
+  }> = [
+    {
+      id: 'steam_relay',
+      title: 'Steam Relay / P2P',
+      status: steamCardStatus,
+      description: '游戏原本依赖 Steam 邀请、房间或 P2P 时，用外部 ConnectTool 建立 Steam 通道。',
+      bestFor: 'Palworld、部分 Steam 大厅游戏、需要 Steam ID 或房间信息的游戏',
+      actionLabel: '配置 Steam 通道',
+      tone: 'border-sky-100 bg-sky-50/80',
+    },
+    {
+      id: 'tcp_proxy',
+      title: '端口代理',
+      status: proxyRows.some((row) => row.kind === 'tcp' && row.running) ? '正在运行' : '可配置',
+      description: '游戏有明确“地址 + 端口”时，把本机入口转到房主或服务端端口。',
+      bestFor: 'Minecraft Java、Terraria、带 TCP 端口的专用服务端',
+      actionLabel: '填写端口',
+      tone: 'border-emerald-100 bg-emerald-50/80',
+    },
+    {
+      id: 'udp_broadcast_bridge',
+      title: 'UDP 广播桥',
+      status: proxyRows.some((row) => row.kind === 'bridge' && row.running) ? '正在运行' : '可配置',
+      description: '游戏靠局域网房间列表发现房间，但好友看不到房间时使用。',
+      bestFor: '需要局域网大厅发现、刷新房间列表的老游戏或局域网游戏',
+      actionLabel: '配置房间发现',
+      tone: 'border-violet-100 bg-violet-50/80',
+    },
+    {
+      id: 'generic_server',
+      title: '通用服务端',
+      status: server?.running ? '正在运行' : '可配置',
+      description: '已经有 server.exe、bat、cmd 或 server.jar 时，在联机助手里托管启动和停止。',
+      bestFor: 'Palworld、Minecraft、Terraria 等专用服务端路线',
+      actionLabel: '填写服务端',
+      tone: 'border-amber-100 bg-amber-50/80',
+    },
+  ];
+
+  const selectConnectionCard = (id: AdvancedConnectionCardId) => {
+    setActiveConnectionCard(id);
+    setBridgeChoicePending(false);
+    if (id === 'tcp_proxy') setKind('tcp');
+    if (id === 'udp_broadcast_bridge') setKind('bridge');
+  };
+  const chooseBridgeTool = (id: 'tcp_proxy' | 'udp_broadcast_bridge') => {
+    setBridgeChoicePending(false);
+    setActiveConnectionCard(id);
+    setKind(id === 'udp_broadcast_bridge' ? 'bridge' : 'tcp');
+    setSelectedDecisionId(id === 'udp_broadcast_bridge' ? 'lan-discovery-broadcast' : 'port-proxy-needed');
+    onTriggerToast(id === 'udp_broadcast_bridge'
+      ? '已选择 UDP 广播桥。适合好友看不到局域网房间列表。'
+      : '已选择端口代理。适合你已经知道房主地址和游戏端口。');
+  };
+  const activeConnectionCardDetail = bridgeChoicePending
+    ? {
+      id: 'tcp_proxy' as AdvancedConnectionCardId,
+      title: '桥接工具二选一',
+      status: '请先选择',
+      description: '先判断你是有房主地址和端口，还是好友看不到局域网房间列表。',
+      bestFor: '地址 + 端口走端口代理；房间列表看不到走 UDP 广播桥',
+      actionLabel: '选择桥接路线',
+      tone: 'border-violet-100 bg-violet-50/80',
+    }
+    : activeConnectionCard
+      ? activeConnectionCards.find((card) => card.id === activeConnectionCard) || null
+      : null;
+  const currentConnectionCardDetail = activeConnectionCardDetail ?? {
+    id: 'tcp_proxy' as AdvancedConnectionCardId,
+    title: '请先选择一种方式',
+    status: '未选择',
+    description: '四种高级联机方式是同级入口。先按游戏症状点一张卡片，下方才会展开对应操作。',
+    bestFor: '不确定时先回到“游戏扫描”或“方案库”，按联机方式筛选支持游戏。',
+    actionLabel: '选择方式',
+    tone: 'border-slate-100 bg-slate-50/80',
+  };
+  const activeConfigIsConnectionAssist =
+    !bridgeChoicePending
+    && activeConnectionCard !== null
+    && activeConnectionCard !== 'steam_relay';
 
   return (
     <div className="space-y-6" data-lan-helper-product-controlled="advanced_tools">
@@ -660,50 +991,29 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
       </div>
 
       <section className="rounded-2xl border border-amber-100 bg-amber-50/70 p-5 shadow-sm" data-advanced-tool-user-guide="visible">
-        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <div className="mb-2 inline-flex rounded-full bg-white/80 px-3 py-1 text-[11px] font-bold text-amber-700">
               特殊连接工具是什么
             </div>
             <h3 className="text-base font-black text-slate-900">当游戏“看得到人但连不上”或“看不到房间”时，用它补一段连接。</h3>
             <p className="mt-2 max-w-4xl text-xs leading-relaxed text-slate-700">
-              开房邀请页会尽量自动带入端口和地址；你只需要核对数字是否和游戏显示一致，然后点击“挂载并上线”。挂载成功后，回到游戏里刷新房间或按邀请地址加入。
+              下面四个入口同级，不是 Steam Relay/P2P 的附属功能。先按游戏实际情况选一种，再只填写这一种方式需要的信息；如果你从方案库、游戏扫描或诊断报告跳过来，联机助手会尽量帮你带入推荐方式。
             </p>
           </div>
-          <button
-            onClick={startProxy}
-            disabled={Boolean(busy) || blockingRiskCount > 0}
-            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-50"
-          >
-            <Play className="h-4 w-4" />
-            挂载并上线
-          </button>
-        </div>
-
-        <div className="grid gap-3 md:grid-cols-3">
-          <div className="rounded-2xl bg-white/80 p-4 text-xs leading-relaxed text-slate-600">
-            <p className="mb-1 font-bold text-slate-900">端口代理</p>
-            <p>游戏已经开了房，但好友连不上端口时使用。它会把本机入口转到房主或好友的游戏端口。</p>
-            <p className="mt-2 text-[11px] text-slate-500">常见：Minecraft/Terraria 的 TCP 端口，或 Palworld 这类 UDP 服务端的备用方案。</p>
-          </div>
-          <div className="rounded-2xl bg-white/80 p-4 text-xs leading-relaxed text-slate-600">
-            <p className="mb-1 font-bold text-slate-900">UDP 广播桥</p>
-            <p>游戏靠“局域网房间列表”找房间，但好友列表里看不到房间时使用。它负责把房间发现信息带到联机房间里。</p>
-            <p className="mt-2 text-[11px] text-slate-500">如果游戏支持直接输入 IP，优先直接输入房主地址，不必先开广播桥。</p>
-          </div>
-          <div className="rounded-2xl bg-white/80 p-4 text-xs leading-relaxed text-slate-600">
-            <p className="mb-1 font-bold text-slate-900">通用服务端</p>
-            <p>只有你已经有 server.exe、bat、cmd 或 server.jar 时才用。它负责托管服务端进程，不能替你下载或破解官方服务端。</p>
-            <p className="mt-2 text-[11px] text-slate-500">更简单的路径：能在开房邀请页启动的游戏，优先从开房邀请页启动。</p>
+          <div className="shrink-0 rounded-2xl border border-amber-200 bg-white/85 p-4 text-xs leading-relaxed text-amber-900 lg:max-w-sm">
+            <p className="font-bold text-slate-900">当前选择：{currentConnectionCardDetail.title}</p>
+            <p className="mt-1">{currentConnectionCardDetail.description}</p>
+            <p className="mt-2 text-[11px] text-amber-800">适合：{currentConnectionCardDetail.bestFor}</p>
           </div>
         </div>
 
         <div className="mt-4 grid gap-2 md:grid-cols-4">
           {[
-            '从开房邀请页进入，优先使用自动预填。',
-            '核对端口：必须和游戏或服务端显示的一致。',
-            '点击挂载并上线，再点测试连接。',
-            '回到游戏里刷新房间或按邀请地址加入。'
+            '先从方案库或游戏扫描确认联机方式。',
+            '四张方式卡只选一张，避免混用端口和 Steam 通道。',
+            '按选中的方式启动、检测或复制诊断。',
+            '回到游戏里刷新房间，或按邀请地址加入。'
           ].map((item, index) => (
             <div key={item} className="rounded-xl bg-white/75 p-3 text-xs leading-relaxed text-slate-600">
               <b className="text-slate-900">{index + 1}. </b>{item}
@@ -712,22 +1022,117 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
         </div>
       </section>
 
+      <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm" data-advanced-tool-method-level="equal">
+        <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h3 className="text-base font-bold text-slate-900">选择一种高级联机方式</h3>
+            <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">
+              四种方式在这里拥有相同层级。选中哪一种，下方就只展开对应的操作区；没有被选中的方式不会被折叠成“次要功能”。
+            </p>
+          </div>
+          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+            当前：{bridgeChoicePending ? '桥接工具二选一' : activeConnectionCards.find((card) => card.id === activeConnectionCard)?.title || '未选择'}
+          </span>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {activeConnectionCards.map((card) => {
+            const selected = !bridgeChoicePending && activeConnectionCard === card.id;
+            return (
+              <button
+                key={card.id}
+                onClick={() => selectConnectionCard(card.id)}
+                className={`min-h-[190px] rounded-2xl border p-4 text-left transition ${
+                  selected ? `${card.tone} ring-2 ring-slate-900/10` : 'border-slate-100 bg-slate-50/70 hover:border-slate-200 hover:bg-white'
+                }`}
+              >
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-white">
+                    {card.id === 'generic_server' ? <Server className="h-5 w-5" /> : card.id === 'udp_broadcast_bridge' ? <Waves className="h-5 w-5" /> : card.id === 'steam_relay' ? <Compass className="h-5 w-5" /> : <Activity className="h-5 w-5" />}
+                  </span>
+                  <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${
+                    selected ? 'bg-white/80 text-slate-800' : 'bg-white text-slate-500'
+                  }`}>
+                    {card.status}
+                  </span>
+                </div>
+                <h4 className="text-sm font-black text-slate-900">{card.title}</h4>
+                <p className="mt-2 text-xs leading-relaxed text-slate-600">{card.description}</p>
+                <p className="mt-3 rounded-xl bg-white/75 p-3 text-[11px] leading-relaxed text-slate-500">
+                  <b className="text-slate-800">适合：</b>{card.bestFor}
+                </p>
+                <span className="mt-3 inline-flex rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-bold text-white">
+                  {card.actionLabel}
+                </span>
+                <p className="mt-2 text-[10px] font-bold text-slate-500">
+                  方式 {activeConnectionCards.findIndex((item) => item.id === card.id) + 1} / {activeConnectionCards.length}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+        <div className={`mt-4 rounded-2xl border p-4 text-xs leading-relaxed ${bridgeChoicePending ? 'border-violet-100 bg-violet-50 text-violet-900' : 'border-slate-100 bg-slate-50 text-slate-600'}`}>
+          <p className="font-bold text-slate-900">{currentConnectionCardDetail.title} 下一步</p>
+          <p className="mt-1">
+            {bridgeChoicePending
+              ? '请先在下方二选一：有房主地址和端口就用端口代理；好友看不到局域网房间列表就用 UDP 广播桥。选完以后才展开对应表单。'
+              : activeConnectionCard
+                ? `${currentConnectionCardDetail.actionLabel}，然后按下方对应区域完成检测、启动或复制诊断。若不确定该选哪张卡，先回到“方案库”按联机方式筛选游戏。`
+                : '先点击上方任意一张方式卡。未选择前不展开 Steam 配置、端口代理或服务端表单，避免普通用户误以为某一种方式更重要。'}
+          </p>
+        </div>
+      </section>
+
+      {bridgeChoicePending ? (
+        <section className="rounded-2xl border border-violet-100 bg-white p-5 shadow-sm" data-bridge-route-choice="selector" tabIndex={-1}>
+          <div>
+            <div className="mb-2 inline-flex rounded-full bg-violet-50 px-3 py-1 text-[11px] font-bold text-violet-700">
+              桥接工具先选一种
+            </div>
+            <h3 className="text-base font-bold text-slate-900">你现在遇到的是哪一种问题？</h3>
+            <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-600">
+              没有具体游戏推荐时，联机助手不会强行把你带到端口代理。先按症状选一条路，选错了也可以随时切换。
+            </p>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => chooseBridgeTool('tcp_proxy')}
+              className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-left transition hover:border-emerald-200 hover:bg-emerald-100/70"
+            >
+              <p className="text-sm font-black text-slate-900">我有房主地址和游戏端口</p>
+              <p className="mt-2 text-xs leading-relaxed text-emerald-900">
+                例如好友给了 10.x.x.x:25565、7777，或游戏显示了直接连接端口。下一步填写本机入口端口、房主联机地址和游戏端口。
+              </p>
+              <span className="mt-3 inline-flex rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold text-white">使用端口代理</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => chooseBridgeTool('udp_broadcast_bridge')}
+              className="rounded-2xl border border-violet-100 bg-violet-50 p-4 text-left transition hover:border-violet-200 hover:bg-violet-100/70"
+            >
+              <p className="text-sm font-black text-slate-900">好友看不到局域网房间列表</p>
+              <p className="mt-2 text-xs leading-relaxed text-violet-900">
+                适合游戏靠“刷新局域网房间”找房间，但组网后列表仍为空。下一步启动 UDP 广播桥，再回游戏刷新房间。
+              </p>
+              <span className="mt-3 inline-flex rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold text-white">使用 UDP 广播桥</span>
+            </button>
+          </div>
+        </section>
+      ) : null}
+
+      {!bridgeChoicePending && activeConnectionCard === 'steam_relay' ? (
       <section className="rounded-2xl border border-sky-100 bg-white p-5 shadow-sm" data-steam-relay-p2p="connecttool-compatible">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
             <div className="mb-2 flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] font-bold text-white">Steam 中继 / P2P（ConnectTool 兼容）</span>
+              <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] font-bold text-white">Steam 中继 / P2P</span>
               <span className={`rounded-full px-3 py-1 text-[11px] font-bold ${steamRelayStatus?.connecttool_status?.helper_running ? 'bg-emerald-50 text-emerald-700' : steamRelayStatus?.connecttool_status?.can_start ? 'bg-sky-50 text-sky-700' : 'bg-amber-50 text-amber-700'}`}>
-                {steamRelayStatus?.connecttool_status?.helper_running ? 'helper 运行中' : steamRelayStatus?.connecttool_status?.can_start ? '可启动兼容模式' : '需要修复后使用'}
-              </span>
-              <span className="rounded-full bg-slate-50 px-3 py-1 text-[11px] font-bold text-slate-600">
-                原生内置：{steamRelayStatus?.native_status?.built_in ? '已内置' : '未内置'}
+                {steamRelayStatus?.connecttool_status?.helper_running ? '连接工具运行中' : steamRelayStatus?.connecttool_status?.can_start ? '可启动连接工具' : '需要先选择文件夹'}
               </span>
             </div>
-            <h3 className="text-sm font-bold text-slate-900">通过用户自备 ConnectTool helper 实现真实 Steam Relay/P2P 通道。</h3>
+            <h3 className="text-sm font-bold text-slate-900">用你自己准备的 Steam 连接工具，整理房主和加入者需要填的参数。</h3>
             <p className="mt-1 max-w-4xl text-xs leading-relaxed text-slate-600">
-              联机助手负责检测、启动、参数说明和诊断；实际 Steam 通道由本机 ConnectTool helper 完成。不会修改游戏文件，
-              不绕过 Steam 或游戏拥有权，也不会把外部 DLL 打包进联机助手。
+              联机助手负责检查文件夹、启动工具、记录参数和复制诊断；真实 Steam 通道仍由双方的外部连接工具完成。不会修改游戏文件，也不会绕过 Steam 或游戏拥有权。
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
@@ -737,37 +1142,41 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
             </button>
             <button onClick={startConnectTool} disabled={steamRelayBusy || !steamRelayStatus?.connecttool_status?.can_start} className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-50">
               <Play className="h-4 w-4" />
-              启动 helper
+              启动连接工具
             </button>
             <button onClick={stopConnectTool} disabled={steamRelayBusy || !steamRelayStatus?.connecttool_status?.helper_running} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
               <Square className="h-4 w-4" />
-              停止 helper
+              停止连接工具
             </button>
           </div>
         </div>
 
         <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50 p-4">
-          <label className="text-xs font-bold text-slate-800">ConnectTool helper 目录</label>
+          <label className="text-xs font-bold text-slate-800">Steam 连接工具文件夹</label>
           <div className="mt-2 flex flex-col gap-2 lg:flex-row">
             <input
+              data-steam-helper-directory="input"
               value={connectToolDir}
               onChange={(event) => setConnectToolDir(event.target.value)}
-              placeholder="例如 E:\BaiduNetdiskDownload\connecttool-qt-1.5.7\connecttool-qt-windows-x86_64"
+              placeholder="例如 D:\Tools\connecttool-qt-windows-x86_64，或粘贴你解压后的连接工具文件夹"
               className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-sky-300"
             />
             <button onClick={refreshSteamRelayStatus} disabled={steamRelayBusy} className="rounded-xl bg-white px-4 py-2 text-xs font-bold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60">检测这个目录</button>
           </div>
-          <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
-            目录内应包含 connecttool-qt.exe、steam_api64.dll、steamwebrtc64.dll、steam_appid.txt；wintun.dll 用于 TUN 组网路线。
-          </p>
+          <details className="mt-2 rounded-xl border border-slate-100 bg-white p-3">
+            <summary className="cursor-pointer text-[11px] font-bold text-slate-700">需要准备哪些文件</summary>
+            <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+              目录内应包含 connecttool-qt.exe、steam_api64.dll、steamwebrtc64.dll、steam_appid.txt；wintun.dll 只用于 TUN 组网实验路线。
+            </p>
+          </details>
         </div>
 
         <div className="mt-4 grid gap-2 md:grid-cols-4">
           {[
             ['Steam 客户端', steamRelayStatus?.steam_running ? '已运行' : '未检测到', steamRelayStatus?.steam_process_path || '请先启动并登录 Steam'],
-            ['ConnectTool helper', steamRelayStatus?.connecttool_status?.helper_running ? '运行中' : steamRelayStatus?.connecttool_status?.can_start ? '可启动' : '不可启动', steamRelayStatus?.connecttool_status?.helper_process_path || steamRelayStatus?.connecttool_status?.directory || '请设置 helper 目录'],
-            ['AppID', steamRelayStatus?.connecttool_status?.app_id || '未读取', steamRelayStatus?.connecttool_status?.app_id_path || '读取 steam_appid.txt'],
-            ['TUN 组网', steamRelayStatus?.connecttool_status?.can_tun ? '可尝试' : '需 WinTUN/权限', steamRelayStatus?.connecttool_status?.wintun_available ? '已检测到 wintun.dll' : '未检测到 wintun.dll'],
+            ['Steam 连接工具', steamRelayStatus?.connecttool_status?.helper_running ? '运行中' : steamRelayStatus?.connecttool_status?.can_start ? '可启动' : '不可启动', steamRelayStatus?.connecttool_status?.helper_process_path || steamRelayStatus?.connecttool_status?.directory || '请设置连接工具文件夹'],
+            ['AppID', steamRelayStatus?.connecttool_status?.app_id || '未读取', steamRelayStatus?.connecttool_status?.app_id_path || '从连接工具文件夹读取'],
+            ['TUN 组网', steamRelayStatus?.connecttool_status?.can_tun ? '可尝试' : '需额外文件/权限', steamRelayStatus?.connecttool_status?.wintun_available ? '已检测到相关文件' : '未检测到相关文件'],
           ].map(([label, status, detail]) => (
             <div key={label} className="min-w-0 rounded-xl bg-slate-50 p-3">
               <p className="text-xs font-bold text-slate-800">{label}</p>
@@ -780,7 +1189,7 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
         <div className="mt-4 grid gap-3 lg:grid-cols-2">
           <div className="rounded-2xl border border-sky-100 bg-sky-50 p-4">
             <p className="text-sm font-black text-slate-900">路线一：TCP 转发</p>
-            <p className="mt-2 text-xs leading-relaxed text-slate-700">适合 Palworld、Minecraft 等有“地址 + 端口”的游戏。房主开服后让 helper 建立 Steam 通道，加入者在自己电脑的游戏里连接 127.0.0.1:本地绑定端口。</p>
+            <p className="mt-2 text-xs leading-relaxed text-slate-700">适合 Palworld、Minecraft 等有“地址 + 端口”的游戏。房主开服后让 Steam 连接工具建立通道，加入者在自己电脑的游戏里连接 127.0.0.1:本地绑定端口。</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <button onClick={() => copySteamRelayText('房主步骤', steamHostSteps)} className="inline-flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-[11px] font-bold text-slate-700 shadow-sm hover:bg-slate-50"><ClipboardCopy className="h-3.5 w-3.5" />复制房主步骤</button>
               <button onClick={() => copySteamRelayText('加入者步骤', steamGuestSteps)} className="inline-flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-[11px] font-bold text-slate-700 shadow-sm hover:bg-slate-50"><ClipboardCopy className="h-3.5 w-3.5" />复制加入者步骤</button>
@@ -788,13 +1197,155 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
           </div>
           <div className="rounded-2xl border border-violet-100 bg-violet-50 p-4">
             <p className="text-sm font-black text-slate-900">路线二：TUN 组网（实验）</p>
-            <p className="mt-2 text-xs leading-relaxed text-slate-700">适合需要“像在同一局域网”的实验路线。需要 wintun.dll、管理员权限和防火墙许可；如果只是 IP + 端口，优先用 TCP 转发。</p>
+            <p className="mt-2 text-xs leading-relaxed text-slate-700">适合需要“像在同一局域网”的实验路线。需要额外文件、管理员权限和防火墙许可；如果只是 IP + 端口，优先用 TCP 转发。</p>
             <ul className="mt-3 space-y-1 text-[11px] leading-relaxed text-slate-600">
               <li>• Steam ID：Steam 账号的数字 ID，用来让 helper 找到对端。</li>
-              <li>• 房间：helper 里创建或加入的连接会话。</li>
+              <li>• 房间：Steam 连接工具里创建或加入的连接会话。</li>
               <li>• 端口：游戏服务端真正监听的数字。</li>
               <li>• 本地绑定端口：加入者本机 127.0.0.1 上给游戏连接的入口。</li>
             </ul>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-sky-100 bg-white p-4" data-steam-p2p-session-config="connecttool">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-sm font-black text-slate-900">房主 / 加入者配置单</p>
+              <p className="mt-2 max-w-3xl text-xs leading-relaxed text-slate-600">
+                这里把 Steam ID、端口和 AppID 记录成一份可复制配置。它不会替你完成 Steam 连接，真实通道仍需要双方在 Steam 连接工具里创建或加入房间。
+              </p>
+            </div>
+            <span className={`rounded-full px-3 py-1 text-[11px] font-bold ${
+              steamP2pSession?.state === 'helper_running' ? 'bg-emerald-50 text-emerald-700' : steamP2pSession?.state === 'helper_ready' ? 'bg-sky-50 text-sky-700' : 'bg-amber-50 text-amber-700'
+            }`}>
+              {steamP2pSession?.state === 'idle' || !steamP2pSession ? '尚未生成配置' : steamP2pSession.state}
+            </span>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+            <label className="text-[11px] font-bold text-slate-600 xl:col-span-2">
+              房主 Steam ID
+              <input
+                value={steamHostId}
+                onChange={(event) => setSteamHostId(event.target.value)}
+                placeholder="例如 7656119..."
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700 outline-none focus:border-sky-300"
+              />
+            </label>
+            <label className="text-[11px] font-bold text-slate-600">
+              房间/虚拟端口
+              <input
+                value={steamVirtualPort}
+                onChange={(event) => setSteamVirtualPort(event.target.value)}
+                placeholder="8211"
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700 outline-none focus:border-sky-300"
+              />
+            </label>
+            <label className="text-[11px] font-bold text-slate-600">
+              游戏目标端口
+              <input
+                value={steamTargetPort}
+                onChange={(event) => setSteamTargetPort(event.target.value)}
+                placeholder="8211"
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700 outline-none focus:border-sky-300"
+              />
+            </label>
+            <label className="text-[11px] font-bold text-slate-600">
+              加入者本机端口
+              <input
+                value={steamGuestLocalPort}
+                onChange={(event) => setSteamGuestLocalPort(event.target.value)}
+                placeholder="8211"
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700 outline-none focus:border-sky-300"
+              />
+            </label>
+            <label className="text-[11px] font-bold text-slate-600 md:col-span-2">
+              房主游戏地址
+              <input
+                value={steamTargetHost}
+                onChange={(event) => setSteamTargetHost(event.target.value)}
+                placeholder="127.0.0.1"
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700 outline-none focus:border-sky-300"
+              />
+            </label>
+            <label className="text-[11px] font-bold text-slate-600 md:col-span-2 xl:col-span-3">
+              AppID，可留空
+              <input
+                value={steamAppId}
+                onChange={(event) => setSteamAppId(event.target.value)}
+                placeholder={steamRelayStatus?.connecttool_status?.app_id || '从 steam_appid.txt 读取，或手动填写'}
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700 outline-none focus:border-sky-300"
+              />
+            </label>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button onClick={startSteamHostProfile} disabled={steamRelayBusy} className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-50">
+              <Play className="h-4 w-4" />
+              生成房主配置
+            </button>
+            <button onClick={startSteamGuestProfile} disabled={steamRelayBusy} className="inline-flex items-center justify-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-xs font-bold text-sky-800 hover:bg-sky-100 disabled:opacity-50">
+              <Play className="h-4 w-4" />
+              生成加入者配置
+            </button>
+            <button onClick={() => copySteamRelayText('Steam/P2P 配置单', buildSteamP2pInviteText())} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+              <ClipboardCopy className="h-4 w-4" />
+              复制配置单
+            </button>
+            <button onClick={clearSteamP2pSession} disabled={steamRelayBusy} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50">
+              <Trash2 className="h-4 w-4" />
+              清空配置
+            </button>
+          </div>
+          <div className="mt-4 rounded-xl bg-slate-50 p-3 text-xs leading-relaxed text-slate-600">
+            <p className="font-bold text-slate-900">{steamP2pSession?.message || '尚未生成配置。先检测 Steam 连接工具文件夹，再按房主或加入者身份生成。'}</p>
+            {steamP2pSession?.invite ? (
+              <p className="mt-1">
+                当前配置：房主 Steam ID {steamP2pSession.invite.host_steam_id || '未填'}，目标 {steamP2pSession.invite.target_host}:{steamP2pSession.invite.target_port}，加入者连接 127.0.0.1:{steamP2pSession.invite.guest_local_port}。
+              </p>
+            ) : (
+              <p className="mt-1">配置单只记录路线和端口，不代表真实联机成功；真实结果必须由双机游戏内加入验证。</p>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50 p-4" data-steam-dual-machine-evidence="template">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-sm font-black text-slate-900">真实双机回归证据</p>
+              <p className="mt-2 max-w-3xl text-xs leading-relaxed text-emerald-900">
+                这一步不是本机 smoke。需要房主和加入者各一台 Windows、两个 Steam 账号、同版本 helper 和目标游戏。
+                测试人员复制模板后，按 Palworld、Minecraft 或其他目标游戏逐项填写，再回填到回归 Issue。
+              </p>
+              <div className="mt-3 grid gap-2 text-[11px] leading-relaxed text-emerald-900 sm:grid-cols-3">
+                <div className="rounded-xl bg-white/75 p-3">
+                  <b className="text-slate-900">房主</b>
+                  <p className="mt-1">开服，确认端口，启动 helper，创建房间，保存诊断报告。</p>
+                </div>
+                <div className="rounded-xl bg-white/75 p-3">
+                  <b className="text-slate-900">加入者</b>
+                  <p className="mt-1">登录另一个 Steam 账号，加入 helper 房间，在游戏里连本机绑定端口。</p>
+                </div>
+                <div className="rounded-xl bg-white/75 p-3">
+                  <b className="text-slate-900">结论</b>
+                  <p className="mt-1">记录通过、部分通过或失败，并附截图、录屏、日志和双端诊断。</p>
+                </div>
+              </div>
+            </div>
+            <div className="flex shrink-0 flex-col gap-2 sm:flex-row lg:flex-col">
+              <button
+                onClick={() => copySteamRelayText('双机回归证据模板', buildSteamDualMachineEvidenceTemplate())}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800"
+              >
+                <ClipboardCopy className="h-4 w-4" />
+                复制证据模板
+              </button>
+              <button
+                onClick={() => copySteamRelayText('Steam 诊断报告', buildConnectToolDiagnosticReport())}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-50"
+              >
+                <ClipboardCopy className="h-4 w-4" />
+                复制当前诊断
+              </button>
+            </div>
           </div>
         </div>
 
@@ -828,9 +1379,104 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
                 </div>
               ))}
             </div>
-          </details>
+            </details>
         ) : null}
       </section>
+      ) : null}
+
+      {activeConfigIsConnectionAssist ? (
+      <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm" data-advanced-tool-visible-config="primary">
+        <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <div className="mb-2 inline-flex rounded-full bg-slate-100 px-3 py-1 text-[11px] font-bold text-slate-600">
+              {activeConnectionCard === 'generic_server' ? '服务端启动' : activeProxyName}
+            </div>
+            <h3 className="text-base font-bold text-slate-900">
+              {activeConnectionCard === 'generic_server' ? '启动已有的游戏服务端' : '填写连接信息并挂载上线'}
+            </h3>
+            <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">
+              {activeConnectionCard === 'generic_server'
+                ? '这里适合你已经下载好官方或游戏自带服务端的情况。选择服务端文件后启动，再回到开房邀请页复制地址给好友。'
+                : '先确认游戏里显示的端口和房主联机地址。启动成功后点“测试连接”，再回到游戏刷新房间或输入地址加入。'}
+            </p>
+          </div>
+          <span className={`rounded-full px-3 py-1 text-xs font-bold ${
+            activeConnectionCard === 'generic_server'
+              ? server?.running ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
+              : blockingRiskCount ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'
+          }`}>
+            {activeConnectionCard === 'generic_server'
+              ? server?.running ? '服务端运行中' : '等待选择文件'
+              : blockingRiskCount ? `还需确认 ${blockingRiskCount} 项` : '可启动'}
+          </span>
+        </div>
+
+        {activeConnectionCard === 'generic_server' ? (
+          <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+            <div className="grid gap-3 md:grid-cols-3">
+              <label className="block text-xs font-semibold text-slate-600">
+                游戏名称
+                <input value={serverName} onChange={(event) => setServerName(event.target.value)} placeholder="例如 Minecraft Java" className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-amber-400" />
+              </label>
+              <label className="block text-xs font-semibold text-slate-600 md:col-span-2">
+                服务端文件路径
+                <input value={serverPath} onChange={(event) => setServerPath(event.target.value)} placeholder="选择或粘贴 server.exe / .bat / .cmd / server.jar 路径" className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-amber-400" />
+              </label>
+              <label className="block text-xs font-semibold text-slate-600">
+                服务端端口
+                <input value={serverPort} onChange={(event) => setServerPort(event.target.value)} placeholder="例如 25565" className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-amber-400" />
+              </label>
+            </div>
+            <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4 text-xs leading-relaxed text-amber-900">
+              <p className="font-bold text-slate-900">普通用户步骤</p>
+              <ol className="mt-2 list-decimal space-y-1 pl-4">
+                <li>先准备游戏官方服务端文件。</li>
+                <li>在这里启动服务端，等待显示运行中。</li>
+                <li>回到开房邀请页复制联机地址给好友。</li>
+              </ol>
+              <button onClick={startServer} disabled={Boolean(busy) || !serverPath.trim()} className="mt-4 w-full rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-60">
+                启动服务端
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+            <div className="grid gap-3 md:grid-cols-3">
+              <label className="block text-xs font-semibold text-slate-600">
+                本机入口端口
+                <input value={listenPort} onChange={(event) => setListenPort(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 outline-none focus:border-amber-400" />
+              </label>
+              <label className="block text-xs font-semibold text-slate-600">
+                房主联机地址
+                <input value={targetHost} onChange={(event) => setTargetHost(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 outline-none focus:border-amber-400" />
+              </label>
+              <label className="block text-xs font-semibold text-slate-600">
+                游戏端口
+                <input value={targetPort} onChange={(event) => setTargetPort(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 outline-none focus:border-amber-400" />
+              </label>
+            </div>
+            <div className={`rounded-2xl border p-4 text-xs leading-relaxed ${
+              blockingRiskCount ? 'border-amber-100 bg-amber-50 text-amber-900' : 'border-emerald-100 bg-emerald-50 text-emerald-800'
+            }`}>
+              <p className="font-bold text-slate-900">启动前确认</p>
+              <p className="mt-2">
+                {blockingRiskCount
+                  ? '地址或端口还需要修正。请确认端口是 1 到 65535，房主地址不是 localhost。'
+                  : '连接信息看起来可以启动。启动后建议马上测试连接。'}
+              </p>
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <button onClick={startProxy} disabled={Boolean(busy) || blockingRiskCount > 0} className="rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-60">
+                  挂载并上线
+                </button>
+                <button onClick={() => selfTest(kind)} disabled={Boolean(busy)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60">
+                  测试连接
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+      ) : null}
 
       <section className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-5 shadow-sm" data-connection-method-closure-audit="checklist">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -882,20 +1528,37 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0">
               <div className="mb-2 flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-white/80 px-3 py-1 text-[11px] font-bold text-amber-700">诊断建议已预填</span>
+                <span className="rounded-full bg-white/80 px-3 py-1 text-[11px] font-bold text-amber-700">路线建议已带入</span>
                 <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] font-bold text-white">
-                  {advancedToolIntent.kind === 'bridge' ? 'UDP 广播桥' : advancedToolIntent.kind === 'udp' ? 'UDP 代理' : 'TCP 代理'}
+                  {advancedToolIntent.reason === 'steam_relay_p2p'
+                    ? 'Steam Relay / P2P'
+                    : advancedToolIntent.reason === 'generic_server'
+                      ? '通用服务端'
+                      : advancedToolIntent.reason === 'bridge_or_proxy_choice'
+                        ? '桥接工具二选一'
+                        : advancedToolIntent.kind === 'bridge' ? 'UDP 广播桥' : advancedToolIntent.kind === 'udp' ? 'UDP 代理' : 'TCP 代理'}
                 </span>
                 {advancedToolIntent.display_name ? (
                   <span className="rounded-full bg-white/80 px-3 py-1 text-[11px] font-bold text-slate-600">{advancedToolIntent.display_name}</span>
                 ) : null}
               </div>
               <h3 className="text-sm font-bold text-slate-800">
-                {advancedToolIntent.reason === 'udp_broadcast_bridge' ? '该诊断建议需要房间发现辅助' : '该诊断建议需要端口辅助'}
+                {advancedToolIntent.reason === 'steam_relay_p2p'
+                  ? '该路线需要先检查 Steam 连接工具文件夹，再创建或加入房间'
+                  : advancedToolIntent.reason === 'generic_server'
+                    ? '该路线需要先选择服务端文件，再启动和检测端口'
+                    : advancedToolIntent.reason === 'bridge_or_proxy_choice'
+                      ? '请先判断桥接工具该走哪条路'
+                    : advancedToolIntent.reason === 'udp_broadcast_bridge' ? '该建议需要房间发现辅助' : '该建议需要端口辅助'}
               </h3>
               <p className="mt-1 max-w-4xl text-xs leading-relaxed text-slate-600">
-                已填入监听端口 {advancedToolIntent.listen_port || listenPort}、目标 {advancedToolIntent.target_host || targetHost}:{advancedToolIntent.target_port || targetPort}。
-                这里已自动填入连接信息，请先核对目标联机地址，再点击“挂载并上线”。
+                {advancedToolIntent.reason === 'steam_relay_p2p'
+                  ? '已自动选中 Steam Relay / P2P。请填写或检测 Steam 连接工具文件夹，确认 Steam 已登录，再按房主/加入者步骤操作。'
+                  : advancedToolIntent.reason === 'generic_server'
+                    ? '已自动选中通用服务端。请准备官方或游戏自带服务端文件，先做启动前检查，不要把本机预检当成好友已能加入。'
+                    : advancedToolIntent.reason === 'bridge_or_proxy_choice'
+                      ? '已打开桥接工具选择。若你有房主地址和端口，选端口代理；若好友看不到局域网房间列表，选 UDP 广播桥。'
+                    : <>已填入监听端口 {advancedToolIntent.listen_port || listenPort}、目标 {advancedToolIntent.target_host || targetHost}:{advancedToolIntent.target_port || targetPort}。请先核对目标联机地址，再点击“挂载并上线”。</>}
               </p>
               {advancedToolIntent.note ? (
                 <p className="mt-2 rounded-xl bg-white/70 px-3 py-2 text-[11px] leading-relaxed text-amber-800">{advancedToolIntent.note}</p>
@@ -1077,7 +1740,12 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
         </div>
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
+      <details className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm" data-advanced-runtime-technical="details">
+        <summary className="cursor-pointer text-sm font-bold text-slate-800">
+          排查详情：运行记录和旧式高级配置
+          <span className="ml-2 text-[11px] font-semibold text-slate-500">普通用户通常不需要展开</span>
+        </summary>
+        <div className="mt-4 grid gap-6 lg:grid-cols-[360px_1fr]">
         <section className="space-y-4">
           <div className="rounded-2xl border border-slate-100 bg-slate-950 p-5 text-white shadow-sm" data-advanced-tool-explainer="details">
             <div className="mb-3 flex items-center gap-2 text-amber-300">
@@ -1277,7 +1945,8 @@ export function ProductAdvancedToolsView({ onTriggerToast }: ProductAdvancedTool
             </div>
           </div>
         </section>
-      </div>
+        </div>
+      </details>
     </div>
   );
 }

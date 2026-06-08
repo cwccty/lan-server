@@ -85,12 +85,16 @@ pub fn select_friend_allocation(input: FriendAllocationInput) -> Result<FriendAl
         }
     }
     write_all(&items)?;
-    items.into_iter()
+    items
+        .into_iter()
         .find(|item| item.id == selected.id)
         .ok_or_else(|| "选择好友席位失败。".to_string())
 }
 
-pub fn remove_friend_allocation(name: String, ip: Option<String>) -> Result<FriendAllocation, String> {
+pub fn remove_friend_allocation(
+    name: String,
+    ip: Option<String>,
+) -> Result<FriendAllocation, String> {
     let clean_name = name.trim();
     let clean_ip = ip.unwrap_or_default();
     let clean_ip = clean_ip.trim();
@@ -145,8 +149,7 @@ fn write_all(items: &[FriendAllocation]) -> Result<(), String> {
     }
     let content = serde_json::to_string_pretty(items)
         .map_err(|err| format!("serialize friend allocations failed: {err}"))?;
-    fs::write(&path, content)
-        .map_err(|err| format!("write friend allocations failed: {err}"))?;
+    fs::write(&path, content).map_err(|err| format!("write friend allocations failed: {err}"))?;
     Ok(())
 }
 

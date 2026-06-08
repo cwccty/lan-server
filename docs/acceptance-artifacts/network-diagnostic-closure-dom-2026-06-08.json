@@ -1,0 +1,48 @@
+{
+  "generated_at": "2026-06-08T15:25:15.589Z",
+  "preview_url": "http://127.0.0.1:4175",
+  "preview_started_by_script": false,
+  "networkDom": {
+    "clicked": true,
+    "hasNetworkPage": true,
+    "hasUserDiagnosticActions": true,
+    "hasTwoMachineSop": true,
+    "hasCopyReport": true,
+    "hasCopyManualCommand": true,
+    "hasCopyNetworkLogs": true,
+    "hasTwoMachineReportStep": true,
+    "hasDifferentLanIpHint": true,
+    "hasConfiguredNotStartedHint": true,
+    "hasRelayNotConfirmedHint": true,
+    "hasExecutableField": true,
+    "hasExecutablePathField": true,
+    "hasPidField": true,
+    "hasAckPongField": true,
+    "hasLogPathField": true,
+    "hasRegisterRepairFallback": true,
+    "hasUdpNonFirewallHint": true,
+    "hasOldEdgeLogCopy": false,
+    "hasOldWaitingRefresh": false,
+    "hasPlainStartingLabel": false,
+    "plainStartingElements": []
+  },
+  "diagnosticsDom": {
+    "clicked": true,
+    "hasDiagnosticsPage": true,
+    "hasToolbarActions": true,
+    "hasCopyReport": true,
+    "hasCopyManualCommand": true,
+    "hasCopyNetworkLogs": true,
+    "hasUdpNonFirewallHint": true,
+    "hasOldEdgeLogCopy": false,
+    "hasOldWaitingRefresh": false,
+    "hasPlainStartingLabel": false,
+    "plainStartingElements": []
+  },
+  "issues": [],
+  "passed": true,
+  "screenshots": [
+    "docs/acceptance-artifacts/network-diagnostic-closure-actions-2026-06-08.png",
+    "docs/acceptance-artifacts/diagnostics-n2n-copy-actions-2026-06-08.png"
+  ]
+}

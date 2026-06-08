@@ -1,0 +1,140 @@
+{
+  "schema": "lan-helper.dual-machine-regression-evidence.v1",
+  "version": "v0.3.1",
+  "created_at": "2026-06-08T21:20:00+08:00",
+  "package": {
+    "zip_path": "release-artifacts/LanHelper-v0.3.1-windows-x64.zip",
+    "zip_sha256": "EE65491E725538DD482CCE96CD33F2A834A311A702DA6CB0691F2C5BDA9E2C96",
+    "exe_path": "src-tauri/target/release/lan-helper.exe",
+    "exe_sha256": "75295FDB62187E75AB4A659647530F4F4A5F4824261ACAE49AC207C226645329"
+  },
+  "release_claims": {
+    "can_claim_v1": false,
+    "can_claim_real_dual_machine_passed": false,
+    "required_release_wording": "真实双机 Palworld / Minecraft / Stardew / Cuphead 回归仍待补齐；本地预检和服务端启动不等于好友已能在游戏内加入。"
+  },
+  "games": {
+    "palworld": {
+      "display_name": "Palworld / 幻兽帕鲁",
+      "status": "pending",
+      "route": "专用服务端 + 组网联机地址直连，默认 UDP 8211",
+      "host": {
+        "machine": "",
+        "os": "",
+        "lan_helper_version": "",
+        "game_version": "",
+        "notes": "需要 Palworld Dedicated Server 或官方服务端文件。"
+      },
+      "joiner": {
+        "machine": "",
+        "os": "",
+        "lan_helper_version": "",
+        "game_version": ""
+      },
+      "required_evidence": [
+        "房主一键开服向导截图，含待实机验证边界提示",
+        "房主服务端进程/日志和 UDP 8211 或自定义端口线索",
+        "双方组网诊断报告，含中继确认和不同联机地址",
+        "加入者游戏内输入房主联机地址和端口的截图",
+        "游戏内加入成功画面或失败错误文本"
+      ],
+      "evidence": {
+        "screenshots": [],
+        "diagnostic_reports": [],
+        "logs": []
+      },
+      "result_summary": "待实机验证，不能宣称通过。"
+    },
+    "minecraft_java": {
+      "display_name": "Minecraft Java",
+      "status": "pending",
+      "route": "server.jar 或 Open to LAN + 组网联机地址直连；端口以服务端/游戏显示为准",
+      "host": {
+        "machine": "",
+        "os": "",
+        "lan_helper_version": "",
+        "game_version": "",
+        "notes": "server.jar 需要 Java 和 eula.txt=true；Open to LAN 不能固定写死 25565。"
+      },
+      "joiner": {
+        "machine": "",
+        "os": "",
+        "lan_helper_version": "",
+        "game_version": ""
+      },
+      "required_evidence": [
+        "房主 server.jar/Open to LAN 启动截图和实际端口",
+        "双方组网诊断报告，含中继确认和不同联机地址",
+        "端口检测或服务端日志",
+        "加入者多人游戏直接连接截图",
+        "进入世界后 1 分钟交互截图或失败错误文本"
+      ],
+      "evidence": {
+        "screenshots": [],
+        "diagnostic_reports": [],
+        "logs": []
+      },
+      "result_summary": "待实机验证，不能宣称通过。"
+    },
+    "stardew_valley": {
+      "display_name": "Stardew Valley / 星露谷物语",
+      "status": "pending",
+      "route": "优先游戏原生合作/邀请；如版本支持 LAN/IP 再用组网地址直连",
+      "host": {
+        "machine": "",
+        "os": "",
+        "lan_helper_version": "",
+        "game_version": "",
+        "notes": "不要强行承诺所有版本都有 LAN/IP 直连。"
+      },
+      "joiner": {
+        "machine": "",
+        "os": "",
+        "lan_helper_version": "",
+        "game_version": ""
+      },
+      "required_evidence": [
+        "房主合作模式/邀请方式截图",
+        "双方组网诊断报告或游戏原生邀请证据",
+        "加入者合作入口截图",
+        "进入合作农场后 1 分钟交互截图或失败错误文本"
+      ],
+      "evidence": {
+        "screenshots": [],
+        "diagnostic_reports": [],
+        "logs": []
+      },
+      "result_summary": "待双机回归，不能宣称通过。"
+    },
+    "cuphead": {
+      "display_name": "Cuphead / 茶杯头",
+      "status": "pending",
+      "route": "远程同屏优先：Steam Remote Play Together 或 Sunshine + Moonlight；不得生成 LAN/n2n 邀请",
+      "host": {
+        "machine": "",
+        "os": "",
+        "lan_helper_version": "",
+        "game_version": "",
+        "notes": "Cuphead 是本地同屏边界，验证重点是不要误导为 LAN 游戏。"
+      },
+      "joiner": {
+        "machine": "",
+        "os": "",
+        "lan_helper_version": "",
+        "game_version": ""
+      },
+      "required_evidence": [
+        "方案库/游戏扫描显示远程同屏路线截图",
+        "未生成 LAN/n2n 邀请和未推荐端口检测的证据",
+        "Steam Remote Play 或 Sunshine/Moonlight 邀请截图",
+        "加入者获得第二位玩家输入权限的截图或失败错误文本"
+      ],
+      "evidence": {
+        "screenshots": [],
+        "diagnostic_reports": [],
+        "logs": []
+      },
+      "result_summary": "待实机验证，不能宣称通过。"
+    }
+  }
+}

@@ -21,10 +21,10 @@ pub fn get_app_settings() -> Result<AppSettings, String> {
     if !path.exists() {
         return Ok(default_settings());
     }
-    let content = fs::read_to_string(&path)
-        .map_err(|err| format!("read settings failed: {err}"))?;
-    let mut settings: AppSettings = serde_json::from_str(&content)
-        .map_err(|err| format!("parse settings failed: {err}"))?;
+    let content =
+        fs::read_to_string(&path).map_err(|err| format!("read settings failed: {err}"))?;
+    let mut settings: AppSettings =
+        serde_json::from_str(&content).map_err(|err| format!("parse settings failed: {err}"))?;
     if settings.updated_at.trim().is_empty() {
         settings.updated_at = Utc::now().to_rfc3339();
     }
@@ -61,13 +61,19 @@ fn normalize_appearance(value: Option<AppearanceSettings>) -> AppearanceSettings
     if !matches!(next.theme.as_str(), "system" | "light" | "dark" | "warm") {
         next.theme = "system".to_string();
     }
-    if !matches!(next.background_mode.as_str(), "default" | "gradient" | "custom") {
+    if !matches!(
+        next.background_mode.as_str(),
+        "default" | "gradient" | "custom"
+    ) {
         next.background_mode = "default".to_string();
     }
     let allowed_accents = [
         "#f59e0b", "#2563eb", "#16a34a", "#dc2626", "#7c3aed", "#0891b2",
     ];
-    if !allowed_accents.iter().any(|item| item.eq_ignore_ascii_case(next.accent.trim())) {
+    if !allowed_accents
+        .iter()
+        .any(|item| item.eq_ignore_ascii_case(next.accent.trim()))
+    {
         next.accent = "#f59e0b".to_string();
     }
     next.background_strength = next.background_strength.clamp(0.0, 1.0);
@@ -177,7 +183,11 @@ pub fn test_edge_path(path: Option<String>) -> Result<EdgePathCheck, String> {
                 Some(trimmed)
             }
         })
-        .or_else(|| get_app_settings().ok().and_then(|settings| settings.edge_path));
+        .or_else(|| {
+            get_app_settings()
+                .ok()
+                .and_then(|settings| settings.edge_path)
+        });
 
     let Some(candidate) = candidate else {
         return Ok(EdgePathCheck {
@@ -201,7 +211,8 @@ pub fn test_edge_path(path: Option<String>) -> Result<EdgePathCheck, String> {
         .and_then(|value| value.to_str())
         .unwrap_or_default()
         .to_ascii_lowercase();
-    let executable_name_ok = file_name == "edge.exe" || file_name == "n2n.exe" || file_name == "edge";
+    let executable_name_ok =
+        file_name == "edge.exe" || file_name == "n2n.exe" || file_name == "edge";
 
     if !exists || !is_file {
         return Ok(EdgePathCheck {
@@ -238,7 +249,8 @@ pub fn test_edge_path(path: Option<String>) -> Result<EdgePathCheck, String> {
                             || lower.contains("welcome"))
                 })
                 .map(ToString::to_string);
-            let can_execute = output.status.success() || version_hint.is_some() || !combined.trim().is_empty();
+            let can_execute =
+                output.status.success() || version_hint.is_some() || !combined.trim().is_empty();
             let ok = exists && is_file && executable_name_ok && can_execute;
             Ok(EdgePathCheck {
                 ok,
@@ -255,7 +267,11 @@ pub fn test_edge_path(path: Option<String>) -> Result<EdgePathCheck, String> {
                 } else {
                     "edge 可执行性检测未通过，请确认文件完整且有执行权限。".to_string()
                 },
-                stderr: if stderr.trim().is_empty() { None } else { Some(stderr) },
+                stderr: if stderr.trim().is_empty() {
+                    None
+                } else {
+                    Some(stderr)
+                },
             })
         }
         Err(err) => Ok(EdgePathCheck {

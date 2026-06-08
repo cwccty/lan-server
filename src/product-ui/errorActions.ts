@@ -44,24 +44,24 @@ export interface ProductDiagnosticFixGroup {
 
 const GROUP_META: Record<DiagnosticIssueType, { title: string; summary: string }> = {
   n2n_missing: {
-    title: 'n2n 程序缺失',
-    summary: '客户端没有找到 edge.exe，无法创建虚拟局域网。'
+    title: '组网程序缺失',
+    summary: '客户端没有找到可用的组网程序，无法创建联机房间。'
   },
   n2n_not_running: {
     title: '组网未启动',
-    summary: 'n2n edge 尚未运行或未完成注册，好友无法进入同一个虚拟局域网。'
+    summary: '组网服务尚未运行或未完成确认，好友无法进入同一个联机房间。'
   },
   supernode: {
-    title: 'Supernode 连接异常',
-    summary: '客户端没有收到 supernode 的 ACK/PONG，通常是地址、端口、防火墙或 VPS 服务状态问题。'
+    title: '中继地址连接异常',
+    summary: '客户端没有收到联机确认，通常是中继地址、端口、防火墙或服务器状态问题。'
   },
   n2n_auth_or_ip_conflict: {
-    title: '房间凭证或虚拟 IP 冲突',
-    summary: '房间名、密钥、虚拟 IP 或 MAC 被 supernode 判定冲突，需要统一参数或更换虚拟 IP。'
+    title: '房间凭证或联机地址冲突',
+    summary: '房间名、密钥或联机地址被判定冲突，需要统一信息或更换联机地址。'
   },
   n2n_virtual_ip: {
-    title: '虚拟 IP 未生效',
-    summary: '组网进程可能已启动，但系统网卡没有拿到可用于联机的虚拟 IP。'
+    title: '联机地址未生效',
+    summary: '组网进程可能已启动，但系统网卡没有拿到可用于联机的地址。'
   },
   game_port_or_proxy: {
     title: '游戏端口或代理异常',
@@ -73,15 +73,15 @@ const GROUP_META: Record<DiagnosticIssueType, { title: string; summary: string }
   },
   adapter_missing: {
     title: '游戏方案缺失',
-    summary: '当前游戏没有可靠适配器，客户端无法判断应该使用哪种联机方式。'
+    summary: '当前游戏没有可靠方案，客户端无法判断应该使用哪种联机方式。'
   },
   firewall_or_permission: {
     title: '权限或防火墙风险',
-    summary: '系统权限、防火墙或安全软件可能阻止 edge、服务端或代理端口。'
+    summary: '系统权限、防火墙或安全软件可能阻止组网程序、服务端或代理端口。'
   },
   version_mismatch: {
     title: '版本不匹配或组件版本风险',
-    summary: 'n2n、服务端、游戏版本、adapter 测试版本或好友客户端版本不一致，可能导致已组网但仍无法加入。'
+    summary: '组网程序、服务端、游戏版本、方案测试版本或好友客户端版本不一致，可能导致已组网但仍无法加入。'
   },
   general: {
     title: '其他待处理问题',
@@ -139,22 +139,22 @@ function getBaseActions(type: DiagnosticIssueType): ProductFixAction[] {
     return [
       {
         id: 'detect-edge-path',
-        label: '一键重新检测 edge.exe',
-        description: '让后端重新检测当前配置和默认目录中的 edge.exe，刷新诊断依据。',
+        label: '重新检测组网程序',
+        description: '重新检测当前配置和默认目录中的组网程序，刷新诊断依据。',
         kind: 'backend',
         operation: 'detect_edge_path'
       },
       {
         id: 'goto-network',
-        label: '去配置 n2n',
-        description: '打开通用组网中心，检查 edge.exe 检测状态与组网参数。',
+        label: '去配置组网',
+        description: '打开加入与组网页，检查组网程序检测状态与组网信息。',
         kind: 'navigate',
         targetTab: 'network'
       },
       {
         id: 'copy-edge-check',
         label: '复制本机检查命令',
-        description: '复制 PowerShell 命令，检查内置 n2n 目录里是否存在 edge.exe。',
+        description: '复制 PowerShell 命令，检查内置工具目录里是否存在组网程序。',
         kind: 'copy',
         copyText: 'Get-ChildItem -Path .\\src-tauri, .\\resources, .\\tools -Recurse -Filter edge.exe -ErrorAction SilentlyContinue | Select-Object FullName\nwhere.exe edge'
       }
@@ -165,24 +165,24 @@ function getBaseActions(type: DiagnosticIssueType): ProductFixAction[] {
     return [
       {
         id: 'start-n2n-last-config',
-        label: '一键启动 n2n',
-        description: '读取最近保存的 n2n 配置并直接启动 edge，适合已经保存过 Supernode、房间名和密钥的情况。',
+        label: '一键启动组网',
+        description: '读取最近保存的组网信息并直接启动，适合已经保存过中继地址、房间名和密钥的情况。',
         kind: 'backend',
         operation: 'start_n2n_last_config'
       },
       {
         id: 'goto-network',
         label: '去启动组网',
-        description: '打开通用组网中心，保存参数并启动 n2n。',
+        description: '打开加入与组网页，保存信息并启动组网。',
         kind: 'navigate',
         targetTab: 'network'
       },
       {
         id: 'copy-n2n-manual-start',
         label: '复制手动启动命令',
-        description: '复制 PowerShell 手动检查和启动 n2n edge 的命令，便于用户或管理员在终端复现启动问题。',
+        description: '复制 PowerShell 手动检查和启动组网程序的命令，便于用户或管理员在终端复现启动问题。',
         kind: 'copy',
-        copyText: '请确认双方填写同一个 Supernode、房间名、房间密钥；双方虚拟 IP 不能相同。启动后等待 10-20 秒，看到 ACK/PONG 再进游戏。\n\n# PowerShell：按实际路径和参数替换后执行\nGet-Process edge -ErrorAction SilentlyContinue\nGet-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -like "10.*" -or $_.InterfaceAlias -match "cfw|tap|n2n|edge" } | Format-Table InterfaceAlias,IPAddress\n.\\edge.exe -d edge0 -a 10.0.0.2 -c <room-name> -k <room-key> -l <supernode-host>:<port>'
+        copyText: '请确认双方填写同一个中继地址、房间名、房间密钥；双方联机地址不能相同。启动后等待 10-20 秒，看到联机确认后再进游戏。\n\n# PowerShell：按实际路径和信息替换后执行\nGet-Process edge -ErrorAction SilentlyContinue\nGet-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -like "10.*" -or $_.InterfaceAlias -match "cfw|tap|n2n|edge" } | Format-Table InterfaceAlias,IPAddress\n.\\edge.exe -d edge0 -a 10.0.0.2 -c <room-name> -k <room-key> -l <supernode-host>:<port>'
       }
     ];
   }
@@ -192,21 +192,21 @@ function getBaseActions(type: DiagnosticIssueType): ProductFixAction[] {
       {
         id: 'restart-n2n-registration',
         label: '一键重启注册',
-        description: '停止并重新启动 n2n edge，强制重新向 Supernode 注册，适合 ACK/PONG 长时间不出现的情况。',
+        description: '停止并重新启动组网服务，强制重新向中继地址注册，适合联机确认长时间不出现的情况。',
         kind: 'backend',
         operation: 'restart_n2n_last_config'
       },
       {
         id: 'goto-network',
-        label: '检查 Supernode',
-        description: '打开通用组网中心，确认 Supernode 地址和端口。',
+        label: '检查中继地址',
+        description: '打开加入与组网页，确认中继地址和端口。',
         kind: 'navigate',
         targetTab: 'network'
       },
       {
         id: 'copy-supernode-check',
-        label: '复制 VPS 检查命令',
-        description: '在 VPS 上确认 supernode 正在监听 UDP/TCP 端口。',
+        label: '复制中继检查命令',
+        description: '在中继服务器上确认服务正在监听 UDP/TCP 端口。',
         kind: 'copy',
         copyText: 'sudo ss -lunp | grep 7777 || sudo ss -ltnp | grep 7777\nsudo systemctl status n2n-supernode --no-pager || ps aux | grep supernode\nsudo ufw status || true'
       }
@@ -218,23 +218,23 @@ function getBaseActions(type: DiagnosticIssueType): ProductFixAction[] {
       {
         id: 'restart-after-conflict-release',
         label: '一键重启注册',
-        description: '先停止再重新启动 n2n，用于刚改过房间参数或等待 Supernode 释放旧注册后的复测。',
+        description: '先停止再重新启动组网，用于刚改过房间信息或等待中继释放旧注册后的复测。',
         kind: 'backend',
         operation: 'restart_n2n_last_config'
       },
       {
         id: 'goto-ip-fix',
-        label: '更换虚拟 IP',
-        description: '进入组网中心，把本机虚拟 IP 改成未被占用的地址。',
+        label: '更换联机地址',
+        description: '进入加入与组网页，把本机联机地址改成未被占用的地址。',
         kind: 'navigate',
         targetTab: 'network'
       },
       {
         id: 'copy-ip-conflict-check',
-        label: '复制 IP/密钥冲突检查',
-        description: '复制给房主/好友，用于核对房间密钥、虚拟 IP 分配和本机 10.x 地址占用情况。',
+        label: '复制地址/密钥冲突检查',
+        description: '复制给房主/好友，用于核对房间密钥、联机地址分配和本机 10.x 地址占用情况。',
         kind: 'copy',
-        copyText: 'n2n 注册被拒绝：请确认房间名和房间密钥完全一致；每个玩家使用不同虚拟 IP；如果刚退出过，等待 supernode 释放旧注册后再启动。\n\n# PowerShell：本机检查虚拟 IP / MAC 是否重复或被旧网卡占用\nGet-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -like "10.*" } | Format-Table InterfaceAlias,IPAddress,PrefixLength\nGet-NetAdapter | Where-Object { $_.InterfaceDescription -match "tap|n2n|edge|wintun|cfw" -or $_.Name -match "tap|n2n|edge|cfw" } | Format-Table Name,Status,MacAddress,InterfaceDescription\n# 和好友核对：每个人的虚拟 IP 必须唯一，房间名/密钥必须逐字一致。'
+        copyText: '组网注册被拒绝：请确认房间名和房间密钥完全一致；每个玩家使用不同联机地址；如果刚退出过，等待中继释放旧注册后再启动。\n\n# PowerShell：本机检查联机地址 / MAC 是否重复或被旧网卡占用\nGet-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -like "10.*" } | Format-Table InterfaceAlias,IPAddress,PrefixLength\nGet-NetAdapter | Where-Object { $_.InterfaceDescription -match "tap|n2n|edge|wintun|cfw" -or $_.Name -match "tap|n2n|edge|cfw" } | Format-Table Name,Status,MacAddress,InterfaceDescription\n# 和好友核对：每个人的联机地址必须唯一，房间名/密钥必须逐字一致。'
       }
     ];
   }
@@ -243,22 +243,22 @@ function getBaseActions(type: DiagnosticIssueType): ProductFixAction[] {
     return [
       {
         id: 'restart-n2n-for-virtual-ip',
-        label: '一键重启 n2n',
-        description: '停止并重新启动 edge，让虚拟网卡重新获取 10.x 虚拟 IP。',
+        label: '一键重启组网',
+        description: '停止并重新启动组网服务，让网卡重新获取 10.x 联机地址。',
         kind: 'backend',
         operation: 'restart_n2n_last_config'
       },
       {
         id: 'goto-network',
         label: '刷新组网状态',
-        description: '打开通用组网中心，停止后重新启动 n2n，并检查虚拟 IP。',
+        description: '打开加入与组网页，停止后重新启动组网，并检查联机地址。',
         kind: 'navigate',
         targetTab: 'network'
       },
       {
         id: 'copy-virtual-ip-check',
         label: '复制网卡检查命令',
-        description: '复制 PowerShell 命令，确认 cfw-tap/n2n 网卡是否拿到 10.x 虚拟 IP。',
+        description: '复制 PowerShell 命令，确认组联网卡是否拿到 10.x 联机地址。',
         kind: 'copy',
         copyText: 'Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -like "10.*" -or $_.InterfaceAlias -match "cfw|tap|n2n|edge" } | Format-Table InterfaceAlias,IPAddress,PrefixLength'
       }
@@ -270,7 +270,7 @@ function getBaseActions(type: DiagnosticIssueType): ProductFixAction[] {
       {
         id: 'test-local-game-port',
         label: '一键检测本机端口',
-        description: '按诊断目标或 adapter 默认端口检测 127.0.0.1 是否正在监听游戏端口。',
+        description: '按诊断目标或游戏方案默认端口检测 127.0.0.1 是否正在监听游戏端口。',
         kind: 'backend',
         operation: 'test_local_game_port'
       },
@@ -286,7 +286,7 @@ function getBaseActions(type: DiagnosticIssueType): ProductFixAction[] {
         label: '复制端口/代理检查命令',
         description: '复制本机监听、连通性和代理自测排查命令，便于确认游戏端口或 TCP/UDP 代理问题。',
         kind: 'copy',
-        copyText: '请先确认游戏服务端已经启动，并把 7777 替换成当前游戏端口。\n\n# PowerShell：本机端口监听与 TCP 连通性\nGet-NetTCPConnection -LocalPort 7777 -State Listen -ErrorAction SilentlyContinue\nTest-NetConnection 127.0.0.1 -Port 7777\nTest-NetConnection <friend-virtual-ip> -Port 7777\n\n# 如果使用 UDP/广播桥，请回到高级工具执行 UDP 代理或 UDP 广播桥自测，并把自测结果复制给房主/管理员。'
+        copyText: '请先确认游戏服务端已经启动，并把 7777 替换成当前游戏端口。\n\n# PowerShell：本机端口监听与 TCP 连通性\nGet-NetTCPConnection -LocalPort 7777 -State Listen -ErrorAction SilentlyContinue\nTest-NetConnection 127.0.0.1 -Port 7777\nTest-NetConnection <friend-lan-helper-ip> -Port 7777\n\n# 如果使用 UDP/广播桥，请回到高级工具执行 UDP 代理或 UDP 广播桥测试，并把测试结果复制给房主/管理员。'
       }
     ];
   }
@@ -322,7 +322,7 @@ function getBaseActions(type: DiagnosticIssueType): ProductFixAction[] {
       {
         id: 'goto-solutions',
         label: '去方案库',
-        description: '同步共享方案库，或创建当前游戏的自建适配器。',
+        description: '同步共享方案库，或创建当前游戏的自建方案。',
         kind: 'navigate',
         targetTab: 'solutions'
       },
@@ -336,9 +336,9 @@ function getBaseActions(type: DiagnosticIssueType): ProductFixAction[] {
       {
         id: 'copy-adapter-missing-hint',
         label: '复制方案缺失说明',
-        description: '复制给管理员或方案维护者，说明当前游戏缺少可用 adapter，需要补齐方案。',
+        description: '复制给管理员或方案维护者，说明当前游戏缺少可用方案，需要补齐方案。',
         kind: 'copy',
-        copyText: '当前游戏没有可用联机方案 adapter：请确认游戏名称、版本、平台、启动路径和联机方式；如是新游戏或新版本，请在方案库创建/同步 adapter，并补充 tested_versions、端口、启动方式和已知限制。'
+        copyText: '当前游戏没有可用联机方案：请确认游戏名称、版本、平台、启动路径和联机方式；如是新游戏或新版本，请在方案库创建/同步游戏方案，并补充测试版本、端口、启动方式和已知限制。'
       }
     ];
   }
@@ -348,23 +348,23 @@ function getBaseActions(type: DiagnosticIssueType): ProductFixAction[] {
       {
         id: 'refresh-runtime-after-permission',
         label: '一键刷新运行状态',
-        description: '重新读取后端 runtime、n2n、服务端和端口状态，确认是否只是状态缓存未刷新。',
+        description: '重新读取运行、组网、服务端和端口状态，确认是否只是状态缓存未刷新。',
         kind: 'backend',
         operation: 'refresh_runtime'
       },
       {
         id: 'goto-network',
         label: '检查组网',
-        description: '打开组网中心确认 edge 状态，再检查防火墙放行。',
+        description: '打开加入与组网页确认组网状态，再检查防火墙放行。',
         kind: 'navigate',
         targetTab: 'network'
       },
       {
         id: 'copy-firewall-hint',
         label: '复制防火墙命令',
-        description: '复制给用户/管理员，用于以管理员 PowerShell 放行 edge、游戏服务端和代理端口。',
+        description: '复制给用户/管理员，用于以管理员 PowerShell 放行组网程序、游戏服务端和代理端口。',
         kind: 'copy',
-        copyText: '请检查 Windows 防火墙/安全软件是否放行 edge.exe、游戏服务端进程，以及当前游戏端口。必要时以管理员权限运行联机助手后重试。\n\n# 示例：以管理员 PowerShell 执行，按实际 edge.exe 路径和游戏端口修改\nnetsh advfirewall firewall add rule name=\"Lan Helper n2n edge\" dir=in action=allow program=\"C:\\\\Path\\\\To\\\\edge.exe\" enable=yes\nnetsh advfirewall firewall add rule name=\"Lan Helper Game TCP 7777\" dir=in action=allow protocol=TCP localport=7777\nnetsh advfirewall firewall add rule name=\"Lan Helper Game UDP 7777\" dir=in action=allow protocol=UDP localport=7777'
+        copyText: '请检查 Windows 防火墙/安全软件是否放行组网程序、游戏服务端进程，以及当前游戏端口。必要时以管理员权限运行联机助手后重试。\n\n# 示例：以管理员 PowerShell 执行，按实际 edge.exe 路径和游戏端口修改\nnetsh advfirewall firewall add rule name=\"Lan Helper Network\" dir=in action=allow program=\"C:\\\\Path\\\\To\\\\edge.exe\" enable=yes\nnetsh advfirewall firewall add rule name=\"Lan Helper Game TCP 7777\" dir=in action=allow protocol=TCP localport=7777\nnetsh advfirewall firewall add rule name=\"Lan Helper Game UDP 7777\" dir=in action=allow protocol=UDP localport=7777'
       }
     ];
   }
@@ -374,23 +374,23 @@ function getBaseActions(type: DiagnosticIssueType): ProductFixAction[] {
       {
         id: 'refresh-runtime-after-version-check',
         label: '一键刷新运行状态',
-        description: '重新读取后端 runtime 和 adapter 状态，确认版本风险是否仍存在。',
+        description: '重新读取运行状态和游戏方案状态，确认版本风险是否仍存在。',
         kind: 'backend',
         operation: 'refresh_runtime'
       },
       {
         id: 'goto-solutions-version',
         label: '去方案库核对版本',
-        description: '打开方案库，检查 adapter 的测试版本、适用条件和已知限制。',
+        description: '打开方案库，检查游戏方案的测试版本、适用条件和已知限制。',
         kind: 'navigate',
         targetTab: 'solutions'
       },
       {
         id: 'copy-version-manual-check',
         label: '复制版本手动核对清单',
-        description: '复制给好友/管理员，用于手动核对 n2n、游戏、服务端和 adapter 测试版本。',
+        description: '复制给好友/管理员，用于手动核对组网、游戏、服务端和游戏方案测试版本。',
         kind: 'copy',
-        copyText: '请双方核对：1) 游戏版本/平台是否一致；2) 服务端版本是否匹配客户端；3) n2n edge/supernode 版本是否兼容；4) 当前 adapter 的 tested_versions / tested_platforms 是否覆盖本次环境；5) 如刚更新游戏，请重新扫描并同步共享方案库。\n\n# 可复制给管理员的手动核对项\n- 游戏客户端版本 / 平台 / Mod 列表：<填写>\n- 服务端版本 / 启动参数：<填写>\n- 联机助手版本：<填写>\n- n2n edge/supernode 版本：<填写>\n- 当前 adapter 名称与 tested_versions/tested_platforms：<填写>'
+        copyText: '请双方核对：1) 游戏版本/平台是否一致；2) 服务端版本是否匹配客户端；3) 组网程序和中继版本是否兼容；4) 当前游戏方案的 tested_versions / tested_platforms 是否覆盖本次环境；5) 如刚更新游戏，请重新扫描并同步共享方案库。\n\n# 可复制给管理员的手动核对项\n- 游戏客户端版本 / 平台 / Mod 列表：<填写>\n- 服务端版本 / 启动参数：<填写>\n- 联机助手版本：<填写>\n- 组网程序 / 中继版本：<填写>\n- 当前游戏方案名称与 tested_versions/tested_platforms：<填写>'
       }
     ];
   }

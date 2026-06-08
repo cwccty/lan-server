@@ -26,3 +26,23 @@ pub struct GenericServerLaunchConfig {
     pub raw_args: Option<String>,
     pub jar_memory_mb: Option<u32>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GenericServerPreflightCheck {
+    pub id: String,
+    pub level: String,
+    pub label: String,
+    pub detail: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GenericServerPreflightReport {
+    pub ok: bool,
+    pub can_start: bool,
+    pub executable_path: String,
+    pub working_dir: Option<String>,
+    pub executable_kind: String,
+    pub port: u16,
+    pub summary: String,
+    pub checks: Vec<GenericServerPreflightCheck>,
+}

@@ -24,7 +24,11 @@ use serde_json::Value;
 
 use crate::core::game_detector;
 use crate::core::process_util::hide_console_window;
-use crate::models::server_session::{GenericServerLaunchConfig, ServerSessionStatus};
+use crate::models::game::{GameAdapter, LaunchProfile};
+use crate::models::server_session::{
+    GenericServerLaunchConfig, GenericServerPreflightCheck, GenericServerPreflightReport,
+    ServerSessionStatus,
+};
 use crate::storage::adapter_store;
 
 #[cfg(windows)]
@@ -222,10 +226,6 @@ pub fn start_game_server_session(
     }
     *current = None;
 
-    if game_id != "terraria" || profile_id != "server" {
-        return Err("后台服务端第一版仅支持 Terraria 服务端。".to_string());
-    }
-
     let adapter = adapter_store::load_game_adapters()?
         .into_iter()
         .find(|item| item.game_id == game_id)
@@ -235,25 +235,29 @@ pub fn start_game_server_session(
         .iter()
         .find(|item| item.id == profile_id)
         .ok_or_else(|| format!("未找到启动配置：{game_id}/{profile_id}"))?;
-    let exe = profile
-        .exe
-        .as_ref()
-        .ok_or_else(|| "服务端启动配置缺少 exe。".to_string())?;
+    if profile.profile_type != "server" {
+        return Err(format!("启动配置 {game_id}/{profile_id} 不是服务端配置。"));
+    }
 
     let values = collect_profile_values(profile, config)?;
     let steam_libraries = game_detector::discover_steam_libraries();
-    let game_path = game_detector::find_installed_game_path(&adapter, &steam_libraries)
-        .ok_or_else(|| "未检测到 Terraria 安装路径，无法启动后台服务端。".to_string())?;
-    let executable = Path::new(&game_path).join(exe);
-    if !executable.exists() {
-        return Err(format!(
-            "未找到 Terraria 服务端程序：{}",
-            executable.to_string_lossy()
-        ));
-    }
+    let (executable, working_dir) =
+        resolve_profile_executable(&adapter, profile, &steam_libraries)?;
 
-    let (args, note, port) = build_terraria_server_args(&values)?;
-    let mut managed = start_hidden_process(&executable, &PathBuf::from(&game_path), &args)?;
+    let (args, note, port) = if game_id == "terraria" && profile_id == "server" {
+        build_terraria_server_args(&values)?
+    } else {
+        build_profile_server_args(
+            profile,
+            &values,
+            adapter
+                .connection_plan
+                .as_ref()
+                .and_then(|plan| plan.default_join_port)
+                .unwrap_or(7777),
+        )?
+    };
+    let mut managed = start_hidden_process(&executable, &working_dir, &args)?;
     let pid = managed.process.id();
 
     push_logs(
@@ -264,7 +268,7 @@ pub fn start_game_server_session(
             note,
             format!("PID：{pid}"),
             "已使用后台托管模式启动：不弹出白色命令框，并通过进程状态与端口监听表判断服务端是否真实可用。".to_string(),
-            "状态轮询只读取系统 TCP LISTEN 表，不再主动连接 Terraria，避免触发 127.0.0.1 is connecting 与周期性保存。".to_string(),
+            "状态轮询只读取系统 TCP LISTEN 表；UDP 游戏还需要用开房页的 UDP 端口检测或游戏内加入结果确认。".to_string(),
             "内嵌控制台当前定位为日志观察与停止托管；交互式 help/save/exit 不作为 MVP 承诺。".to_string(),
         ],
     );
@@ -282,9 +286,223 @@ pub fn start_game_server_session(
         started_at: Utc::now().to_rfc3339(),
         started_instant: Instant::now(),
     };
-    let status = status_from_session(&mut session, "Terraria 服务端已在后台启动。");
+    let status = status_from_session(
+        &mut session,
+        &format!("{} 服务端已在后台启动。", adapter.display_name),
+    );
     *current = Some(session);
     Ok(status)
+}
+
+fn preflight_check(
+    checks: &mut Vec<GenericServerPreflightCheck>,
+    id: &str,
+    level: &str,
+    label: &str,
+    detail: impl Into<String>,
+) {
+    checks.push(GenericServerPreflightCheck {
+        id: id.to_string(),
+        level: level.to_string(),
+        label: label.to_string(),
+        detail: detail.into(),
+    });
+}
+
+fn command_available(command: &str) -> bool {
+    #[cfg(target_os = "windows")]
+    let output = std::process::Command::new("where").arg(command).output();
+
+    #[cfg(not(target_os = "windows"))]
+    let output = std::process::Command::new("which").arg(command).output();
+
+    output.map(|item| item.status.success()).unwrap_or(false)
+}
+
+pub fn preflight_generic_server_session(
+    config: GenericServerLaunchConfig,
+) -> Result<GenericServerPreflightReport, String> {
+    let executable_path = config.executable_path.trim().to_string();
+    let mut checks = Vec::new();
+    let mut executable_kind = "unknown".to_string();
+    let mut working_dir_report = None;
+
+    if executable_path.is_empty() {
+        preflight_check(
+            &mut checks,
+            "server_path_missing",
+            "block",
+            "还没选择服务端文件",
+            "请选择已有的 server.exe、server.jar、bat 或 cmd。联机助手不会自动下载商业或官方服务端。",
+        );
+    } else {
+        let server_path = PathBuf::from(&executable_path);
+        if !server_path.exists() {
+            preflight_check(
+                &mut checks,
+                "server_path_not_found",
+                "block",
+                "没有找到服务端文件",
+                format!(
+                    "路径不存在：{}。请重新选择已有服务端文件或启动脚本。",
+                    server_path.to_string_lossy()
+                ),
+            );
+        } else if !server_path.is_file() {
+            preflight_check(
+                &mut checks,
+                "server_path_not_file",
+                "block",
+                "路径不是文件",
+                format!(
+                    "当前路径不是可启动文件：{}。请改选 .exe / .bat / .cmd / .jar。",
+                    server_path.to_string_lossy()
+                ),
+            );
+        } else {
+            preflight_check(
+                &mut checks,
+                "server_path_ok",
+                "ok",
+                "服务端文件存在",
+                format!("已找到：{}", server_path.to_string_lossy()),
+            );
+        }
+
+        let extension = server_path
+            .extension()
+            .and_then(|item| item.to_str())
+            .unwrap_or_default()
+            .to_ascii_lowercase();
+        executable_kind = if extension.is_empty() {
+            "unknown".to_string()
+        } else {
+            extension.clone()
+        };
+        if matches!(extension.as_str(), "exe" | "bat" | "cmd" | "jar") {
+            preflight_check(
+                &mut checks,
+                "server_extension_ok",
+                "ok",
+                "文件类型可托管",
+                "当前 MVP 允许托管 .exe / .bat / .cmd / .jar。",
+            );
+        } else {
+            preflight_check(
+                &mut checks,
+                "server_extension_unsupported",
+                "block",
+                "服务端文件类型不支持",
+                "当前 MVP 只托管 .exe / .bat / .cmd / .jar。请改选服务端程序或启动脚本。",
+            );
+        }
+
+        let working_dir = match config
+            .working_dir
+            .as_deref()
+            .map(str::trim)
+            .filter(|item| !item.is_empty())
+        {
+            Some(value) => PathBuf::from(value),
+            None => server_path
+                .parent()
+                .map(Path::to_path_buf)
+                .unwrap_or_default(),
+        };
+        working_dir_report = Some(working_dir.to_string_lossy().to_string());
+        if working_dir.exists() && working_dir.is_dir() {
+            preflight_check(
+                &mut checks,
+                "working_dir_ok",
+                "ok",
+                "工作目录可用",
+                format!("工作目录：{}", working_dir.to_string_lossy()),
+            );
+        } else {
+            preflight_check(
+                &mut checks,
+                "working_dir_invalid",
+                "block",
+                "工作目录不可用",
+                format!(
+                    "无法使用工作目录：{}。请确认服务端文件所在目录存在。",
+                    working_dir.to_string_lossy()
+                ),
+            );
+        }
+
+        if extension == "jar" {
+            if command_available("java") {
+                preflight_check(
+                    &mut checks,
+                    "java_available",
+                    "ok",
+                    "Java 可用",
+                    "已在 PATH 中找到 java。若服务端仍退出，请查看 server.jar 日志和 eula.txt。",
+                );
+            } else {
+                preflight_check(
+                    &mut checks,
+                    "java_missing",
+                    "block",
+                    "没有找到 Java",
+                    "选择 server.jar 时需要 Java。请安装 Java，或改用已经写好的 .bat/.cmd 启动脚本。",
+                );
+            }
+        }
+    }
+
+    if config.port == 0 {
+        preflight_check(
+            &mut checks,
+            "port_invalid",
+            "block",
+            "端口需要修正",
+            "端口不能为 0。请填写游戏或服务端实际使用的端口。",
+        );
+    } else if let Some(pid) = local_port_listener_pid(config.port) {
+        preflight_check(
+            &mut checks,
+            "port_already_listening",
+            "warn",
+            "端口已被占用或已有服务端监听",
+            format!("本机端口 {} 已有监听进程 PID {}。如果这是你手动启动的服务端，可以继续检测端口；如果不是，请换端口或关闭占用程序。", config.port, pid),
+        );
+    } else {
+        preflight_check(
+            &mut checks,
+            "port_free",
+            "ok",
+            "端口暂未被 TCP 监听占用",
+            format!(
+                "本机 TCP 端口 {} 暂未发现监听占用；UDP 游戏仍需以游戏内加入为准。",
+                config.port
+            ),
+        );
+    }
+
+    let can_start = !checks.iter().any(|item| item.level == "block");
+    let summary = if can_start {
+        "预检通过，可以尝试启动服务端；启动后仍需检测端口和游戏内加入。".to_string()
+    } else {
+        let first_blocker = checks
+            .iter()
+            .find(|item| item.level == "block")
+            .map(|item| item.detail.clone())
+            .unwrap_or_else(|| "仍有阻塞项需要处理。".to_string());
+        format!("预检未通过：{first_blocker}")
+    };
+
+    Ok(GenericServerPreflightReport {
+        ok: can_start,
+        can_start,
+        executable_path,
+        working_dir: working_dir_report,
+        executable_kind,
+        port: config.port,
+        summary,
+        checks,
+    })
 }
 
 pub fn start_generic_server_session(
@@ -320,7 +538,12 @@ pub fn start_generic_server_session(
         ));
     }
 
-    let working_dir = match config.working_dir.as_deref().map(str::trim).filter(|item| !item.is_empty()) {
+    let working_dir = match config
+        .working_dir
+        .as_deref()
+        .map(str::trim)
+        .filter(|item| !item.is_empty())
+    {
         Some(value) => PathBuf::from(value),
         None => server_path
             .parent()
@@ -340,7 +563,8 @@ pub fn start_generic_server_session(
         .unwrap_or_default()
         .to_ascii_lowercase();
     let is_jar = extension == "jar";
-    let is_exe = extension == "exe" || extension == "bat" || extension == "cmd" || extension == "jar";
+    let is_exe =
+        extension == "exe" || extension == "bat" || extension == "cmd" || extension == "jar";
     if !is_exe {
         return Err("通用服务端第一版仅允许启动 .exe / .bat / .cmd / .jar 文件。".to_string());
     }
@@ -356,7 +580,11 @@ pub fn start_generic_server_session(
         server_path.clone()
     };
     if let Some(extra_args) = config.args {
-        args.extend(extra_args.into_iter().filter(|item| !item.trim().is_empty()));
+        args.extend(
+            extra_args
+                .into_iter()
+                .filter(|item| !item.trim().is_empty()),
+        );
     }
     if let Some(raw_args) = config.raw_args.as_deref() {
         args.extend(parse_command_line_args(raw_args)?);
@@ -948,8 +1176,99 @@ fn is_local_port_listening(port: u16, _pid: u32) -> bool {
     TcpStream::connect_timeout(&addr, Duration::from_millis(300)).is_ok()
 }
 
+fn resolve_profile_executable(
+    adapter: &GameAdapter,
+    profile: &LaunchProfile,
+    steam_libraries: &[PathBuf],
+) -> Result<(PathBuf, PathBuf), String> {
+    let exe = profile
+        .exe
+        .as_ref()
+        .ok_or_else(|| "服务端启动配置缺少 exe。".to_string())?;
+    let requested = PathBuf::from(exe);
+
+    if requested.is_absolute() && requested.exists() {
+        let working_dir = requested
+            .parent()
+            .map(Path::to_path_buf)
+            .ok_or_else(|| "无法推断服务端工作目录。".to_string())?;
+        return Ok((requested, working_dir));
+    }
+
+    let mut checked = Vec::new();
+    if let Some(game_path) = game_detector::find_installed_game_path(adapter, steam_libraries) {
+        let candidate = Path::new(&game_path).join(exe);
+        checked.push(candidate.to_string_lossy().to_string());
+        if candidate.exists() {
+            return Ok((candidate, PathBuf::from(game_path)));
+        }
+    }
+
+    let mut names = vec![exe.to_string()];
+    for item in &adapter.executables {
+        let lowered = item.to_ascii_lowercase();
+        if lowered.contains("server") && !names.iter().any(|name| name.eq_ignore_ascii_case(item)) {
+            names.push(item.clone());
+        }
+    }
+
+    for steamapps in steam_libraries {
+        let common = steamapps.join("common");
+        if !common.exists() {
+            continue;
+        }
+        for name in &names {
+            if let Some(found) = find_file_under_limited_depth(&common, name, 5) {
+                let working_dir = found
+                    .parent()
+                    .map(Path::to_path_buf)
+                    .unwrap_or_else(|| common.clone());
+                return Ok((found, working_dir));
+            }
+        }
+    }
+
+    Err(format!(
+        "未找到服务端程序：{}。已检查：{}。如果服务端是单独安装的，请先安装对应 Dedicated Server，或在“特殊连接工具”的通用服务端中手动选择 server.exe / server.jar。",
+        exe,
+        if checked.is_empty() { "Steam common 目录".to_string() } else { checked.join("；") }
+    ))
+}
+
+fn find_file_under_limited_depth(root: &Path, name: &str, max_depth: usize) -> Option<PathBuf> {
+    if max_depth == 0 || !root.is_dir() {
+        return None;
+    }
+    let requested = Path::new(name);
+    let requested_file_name = requested.file_name()?.to_str()?;
+    let entries = fs::read_dir(root).ok()?;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_file() {
+            if path
+                .file_name()
+                .and_then(|item| item.to_str())
+                .map(|file_name| file_name.eq_ignore_ascii_case(requested_file_name))
+                .unwrap_or(false)
+            {
+                return Some(path);
+            }
+            continue;
+        }
+        if path.is_dir() {
+            if requested.components().count() > 1 && path.join(name).exists() {
+                return Some(path.join(name));
+            }
+            if let Some(found) = find_file_under_limited_depth(&path, name, max_depth - 1) {
+                return Some(found);
+            }
+        }
+    }
+    None
+}
+
 fn collect_profile_values(
-    profile: &crate::models::game::LaunchProfile,
+    profile: &LaunchProfile,
     config: Value,
 ) -> Result<HashMap<String, String>, String> {
     let mut values = HashMap::new();
@@ -983,6 +1302,14 @@ fn value_to_string(value: &Value) -> Option<String> {
         Value::Null => Some(String::new()),
         _ => None,
     }
+}
+
+fn render_template(input: &str, values: &HashMap<String, String>) -> String {
+    let mut output = input.to_string();
+    for (key, value) in values {
+        output = output.replace(&format!("{{{{{key}}}}}"), value);
+    }
+    output
 }
 
 fn build_terraria_server_args(
@@ -1051,6 +1378,36 @@ fn build_terraria_server_args(
     ))
 }
 
+fn build_profile_server_args(
+    profile: &crate::models::game::LaunchProfile,
+    values: &HashMap<String, String>,
+    default_port: u16,
+) -> Result<(Vec<String>, String, u16), String> {
+    let mut args = Vec::new();
+    if let Some(static_args) = &profile.args {
+        args.extend(static_args.iter().cloned());
+    }
+    if let Some(arg_templates) = &profile.arg_templates {
+        args.extend(
+            arg_templates
+                .iter()
+                .map(|item| render_template(item, values)),
+        );
+    }
+
+    let port = values
+        .get("port")
+        .and_then(|value| value.trim().parse::<u16>().ok())
+        .unwrap_or(default_port);
+    let note = if args.is_empty() {
+        format!("使用服务端默认启动参数；监听端口按方案记录为 {port}。")
+    } else {
+        format!("已按适配器模板填入服务端参数；监听端口按方案记录为 {port}。")
+    };
+
+    Ok((args, note, port))
+}
+
 fn discover_terraria_worlds() -> Vec<PathBuf> {
     let mut candidates = Vec::new();
     if let Ok(user_profile) = std::env::var("USERPROFILE") {
@@ -1088,4 +1445,128 @@ fn discover_terraria_worlds() -> Vec<PathBuf> {
     worlds.sort_by_key(|path| path.file_name().map(|item| item.to_os_string()));
     worlds.dedup();
     worlds
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn unique_temp_dir(label: &str) -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system time")
+            .as_nanos();
+        std::env::temp_dir().join(format!("lan-helper-{label}-{nanos}"))
+    }
+
+    #[test]
+    fn generic_server_preflight_blocks_missing_path() {
+        let report = preflight_generic_server_session(GenericServerLaunchConfig {
+            game_name: Some("Missing Server".to_string()),
+            executable_path: "Z:\\definitely-missing\\server.jar".to_string(),
+            working_dir: None,
+            port: 25565,
+            args: None,
+            raw_args: None,
+            jar_memory_mb: Some(1024),
+        })
+        .expect("preflight report");
+
+        assert!(!report.can_start);
+        assert!(report
+            .checks
+            .iter()
+            .any(|item| item.id == "server_path_not_found" && item.level == "block"));
+    }
+
+    #[test]
+    fn generic_server_preflight_accepts_existing_script() {
+        let dir = unique_temp_dir("server-preflight");
+        fs::create_dir_all(&dir).expect("temp dir");
+        let script = dir.join("server.cmd");
+        fs::write(&script, "@echo off\r\n").expect("script");
+
+        let report = preflight_generic_server_session(GenericServerLaunchConfig {
+            game_name: Some("Script Server".to_string()),
+            executable_path: script.to_string_lossy().to_string(),
+            working_dir: Some(dir.to_string_lossy().to_string()),
+            port: 39997,
+            args: None,
+            raw_args: None,
+            jar_memory_mb: None,
+        })
+        .expect("preflight report");
+
+        assert!(report
+            .checks
+            .iter()
+            .any(|item| item.id == "server_path_ok" && item.level == "ok"));
+        assert!(report
+            .checks
+            .iter()
+            .any(|item| item.id == "working_dir_ok" && item.level == "ok"));
+
+        let _ = fs::remove_file(script);
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn generic_server_session_starts_reads_and_stops_temp_script() {
+        let _ = stop_server_session();
+
+        let dir = unique_temp_dir("server-smoke");
+        fs::create_dir_all(&dir).expect("temp dir");
+        let script = dir.join("server.cmd");
+        fs::write(
+            &script,
+            "@echo off\r\necho lan-helper temporary server smoke started\r\nping -n 30 127.0.0.1 >nul\r\n",
+        )
+        .expect("script");
+
+        let config = GenericServerLaunchConfig {
+            game_name: Some("Temporary Script Server".to_string()),
+            executable_path: script.to_string_lossy().to_string(),
+            working_dir: Some(dir.to_string_lossy().to_string()),
+            port: 39998,
+            args: None,
+            raw_args: None,
+            jar_memory_mb: None,
+        };
+
+        let report = preflight_generic_server_session(config.clone()).expect("preflight report");
+        assert!(
+            report.can_start,
+            "preflight should allow temp script: {report:?}"
+        );
+
+        let started = start_generic_server_session(config).expect("start temp script");
+        assert!(
+            started.running,
+            "session should be running after start: {started:?}"
+        );
+        assert!(
+            started.pid.is_some(),
+            "session should expose managed process pid"
+        );
+
+        let refreshed = read_server_session().expect("read temp script session");
+        assert!(
+            refreshed.running,
+            "session should still be running: {refreshed:?}"
+        );
+
+        let stopped = stop_server_session().expect("stop temp script");
+        assert!(!stopped.running, "session should stop cleanly: {stopped:?}");
+
+        let after_stop = read_server_session().expect("read after stop");
+        assert!(
+            !after_stop.running,
+            "no server session should remain: {after_stop:?}"
+        );
+
+        let _ = fs::remove_file(script);
+        let _ = fs::remove_dir_all(dir);
+    }
 }

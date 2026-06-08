@@ -63,9 +63,9 @@ function syncLabel(adapter: GameAdapter, syncResult?: AdapterRegistrySyncResult 
   const item = syncResult?.items?.find((entry) => entry.game_id === adapter.game_id);
   if (item) return `${item.status}：${item.reason}`;
   if (adapter.adapter_source === 'registry') return '来自共享库';
-  if (adapter.adapter_source === 'custom') return '本地 custom，尚未确认是否发布';
+  if (adapter.adapter_source === 'custom') return '本地自建方案，尚未确认是否发布';
   if (adapter.adapter_source === 'builtin') return '内置方案';
-  if (adapter.adapter_source === 'steam_scan') return 'Steam 扫描结果，通常需要转成 custom adapter';
+  if (adapter.adapter_source === 'steam_scan') return 'Steam 扫描结果，通常需要转成自建游戏方案';
   return '未记录同步状态';
 }
 
@@ -108,7 +108,7 @@ export function auditAdapterForPublish(adapter: GameAdapter, syncResult?: Adapte
     review.push('该方案会告诉用户不要强转 LAN，发布前需确认说明足够清楚。');
   }
   if (adapter.network_type === 'local_coop_remote_play') {
-    review.push('本地同屏方案需确认不会误导用户连接虚拟 IP。');
+    review.push('本地同屏方案需确认不会误导用户连接联机地址。');
   }
   if (adapter.network_type === 'steam_relay_plugin' || adapter.network_type === 'steam_p2p_only') {
     review.push('Steam/P2P 方案通常需要人工确认插件或官方流程边界。');
@@ -125,7 +125,7 @@ export function auditAdapterForPublish(adapter: GameAdapter, syncResult?: Adapte
       state: 'registry_synced',
       label: '已在共享库',
       badgeClass: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-      summary: '该 adapter 已来自共享库，通常不需要再次提交。',
+      summary: '该游戏方案已来自共享库，通常不需要再次提交。',
       missing,
       warnings,
       review,

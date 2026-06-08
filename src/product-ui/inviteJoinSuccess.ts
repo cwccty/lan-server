@@ -50,7 +50,7 @@ export function buildInviteJoinSuccessRecord(
     supernode: cleanText(packet.supernode || context.supernode) || undefined,
     roomName: cleanText(packet.roomName || context.roomName) || undefined,
     gamePort: port,
-    joinSummary: result.detail || `n2n 已连接，请在游戏内连接 ${host || '房主虚拟 IP'}:${port}`,
+    joinSummary: result.detail || `组网已连接，请在游戏内连接 ${host || '房主联机地址'}:${port}`,
     portCheckNotes: [],
   };
 }
@@ -109,10 +109,10 @@ export function formatInviteJoinSuccessInstruction(record: InviteJoinSuccessReco
   return [
     '[联机助手游戏内连接说明]',
     `游戏：${record.gameName}${record.gameId ? ` (${record.gameId})` : ''}`,
-    `房主虚拟 IP：${record.hostVirtualIp}`,
+    `房主联机地址：${record.hostVirtualIp}`,
     `游戏端口：${record.gamePort}`,
-    record.friendVirtualIp ? `我的虚拟 IP：${record.friendVirtualIp}` : '',
-    record.supernode ? `Supernode：${record.supernode}` : '',
+    record.friendVirtualIp ? `我的联机地址：${record.friendVirtualIp}` : '',
+    record.supernode ? `中继地址：${record.supernode}` : '',
     record.roomName ? `房间名：${record.roomName}` : '',
     '',
     '游戏内操作：',

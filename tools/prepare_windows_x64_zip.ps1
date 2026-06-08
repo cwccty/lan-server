@@ -1,4 +1,4 @@
-param(
+﻿param(
   [string]$Version = "",
   [string]$OutputRoot = "release-artifacts",
   [switch]$Clean,
@@ -111,29 +111,85 @@ Copy-Item -LiteralPath (Join-Path $repoRoot "tools\n2n\README.md") -Destination 
 Copy-DirectorySafe -Source (Join-Path $repoRoot "adapter-registry") -Destination (Join-Path $outDir "adapter-registry")
 Copy-DirectorySafe -Source (Join-Path $repoRoot "adapters") -Destination (Join-Path $outDir "adapters")
 
-$readme = @(
-  "Lan Helper v$Version Windows x64",
-  "",
-  "Usage:",
-  "1. Extract the whole folder. Do not run the exe from inside the zip.",
-  "2. Run $packageName.exe.",
-  "3. Open Settings first and confirm edge.exe is detected.",
-  "4. Open Network Center and fill supernode, room name, room key, and local virtual IP.",
-  "5. Host creates an invite packet from Recommendation. Joiner pastes the packet to join.",
-  "",
-  "Boundaries:",
-  "- v$Version is an early public test build, not an all-games-one-click promise.",
-  "- Native LAN / direct IP / dedicated-server games should use the n2n virtual LAN route.",
-  "- Local couch co-op games should use Steam Remote Play or Sunshine/Moonlight routes.",
-  "- Official-server-only or Steam lobby/P2P games are not forced into LAN mode.",
-  "- Steam Relay / P2P ConnectTool compatible mode can detect and launch a user-provided helper; the helper, Steam DLLs, and Steamworks SDK are not bundled in this ZIP.",
-  "",
-  "Package notes:",
-  "- SHA256SUMS.txt can be used to verify file integrity.",
-  "- Runtime files such as tools/n2n/last_config.json, edge.log, and n2n.pid are intentionally excluded.",
-  "- If security software blocks edge.exe, verify the n2n source and file hash before allowing it."
-) -join [Environment]::NewLine
+$readme = @'
+联机助手 v__VERSION__ Windows x64
+
+使用方法：
+1. 先解压整个文件夹，不要在压缩包里直接双击 EXE。
+2. 运行 __PACKAGE_NAME__.exe。
+3. 打开“加入与组网”，填写中继地址、房间名、密钥和本机联机地址。
+4. 两台电脑的中继地址、房间名、密钥必须完全一致。
+5. 两台电脑的本机联机地址必须不同，例如房主 10.10.10.2，加入者 10.10.10.3。
+6. 先保存设置，再启动组网。组网确认后，加入者在游戏里连接房主的联机地址和游戏端口。
+
+如果一直卡住：
+- 不要只截图“启动中”。请在“加入与组网”或“诊断报告”里分别复制：完整诊断报告、手动启动命令、组网日志。
+- 显示“已配置未启动”：优先检查本机权限、组网程序文件、PID、虚拟网卡、手动启动命令是否秒退。
+- 显示“组网程序已启动，但中继尚未确认”：优先核对中继地址、房间名、密钥、联机地址是否一致/冲突，并尝试手机热点排除 UDP 被网络拦截。
+- “注册修复”无效时，不要反复点击；请复制报告、手动命令和组网日志回传。
+
+边界说明：
+- v__VERSION__ 是公开测试候选包，不代表所有游戏都已一键联机通过。
+- 原生局域网 / 直连 IP / 专用服务器类游戏优先使用通用组网路线。
+- 本地同屏游戏优先使用 Steam Remote Play 或串流路线。
+- 官方服限定或 Steam 大厅/P2P 游戏不会被强行改成局域网模式。
+- Steam Relay / P2P ConnectTool 兼容模式只会检测和启动用户自行提供的工具；本 ZIP 不包含外部 helper、Steam DLL 或 Steamworks SDK。
+
+包内文件说明：
+- SHA256SUMS.txt 可用于校验文件完整性。
+- tools/n2n/last_config.json、edge.log、n2n.pid 等运行时文件不会被打进包里。
+- 如果安全软件拦截 tools/n2n/edge.exe，请先截图并确认来源/哈希后再决定是否放行。
+- FRIEND_RETEST_GUIDE.txt 是给真实用户复测和回传问题用的步骤模板。
+'@
+$readme = $readme.Replace('__VERSION__', $Version).Replace('__PACKAGE_NAME__', $packageName)
 Set-Content -Path (Join-Path $outDir $readmeName) -Value $readme -Encoding UTF8
+
+$friendRetestGuide = @'
+联机助手 v__VERSION__ 真实组网复测说明
+================================
+
+准备：
+1. 两台电脑都使用同一个 ZIP 解压出来的 __PACKAGE_NAME__.exe。
+2. 不要覆盖旧文件夹，建议解压到新目录。
+3. 如果安全软件拦截 tools/n2n/edge.exe，请截图记录。
+
+两台电脑都要填写：
+- 中继地址：两边必须一致。
+- 房间名：两边必须一致。
+- 密钥：两边必须一致。
+- 本机联机地址：两边必须不同。例如房主 10.10.10.2，加入者 10.10.10.3。
+
+复测步骤：
+1. 打开“加入与组网”。
+2. 保存设置。
+3. 点击“启动组网”。
+4. 等待 20 秒。
+5. 如果仍不能联机，两台电脑都复制：完整诊断报告、手动启动命令、组网日志。
+
+如何判断：
+- 已配置未启动：本机组网程序没有跑起来，重点看权限、程序文件、PID、虚拟网卡、手动命令。
+- 中继尚未确认：程序已启动但没连通，重点看中继地址、房间名、密钥、联机地址冲突、UDP/网络环境。
+- 注册修复无效：不要反复点击，改为回传报告、手动命令和组网日志。
+
+每台电脑回传格式：
+【电脑身份】房主 / 加入者
+【Windows 版本】
+【网络环境】家用宽带 / 校园网 / 公司网 / 手机热点 / 其他
+【是否管理员运行联机助手】是 / 否
+【软件版本】v__VERSION__
+【页面状态】已配置未启动 / 中继尚未确认 / 已连接 / 其他
+【中继地址】
+【房间名】
+【本机联机地址】
+【对方联机地址】
+【注册修复是否有效】是 / 否 / 没点
+【复制完整诊断报告】
+【复制手动启动命令】
+【复制组网日志】
+【截图】组网页状态截图 + 诊断报告页截图
+'@
+$friendRetestGuide = $friendRetestGuide.Replace('__VERSION__', $Version).Replace('__PACKAGE_NAME__', $packageName)
+Set-Content -Path (Join-Path $outDir "FRIEND_RETEST_GUIDE.txt") -Value $friendRetestGuide -Encoding UTF8
 
 $payloadFiles = Get-ChildItem -Path $outDir -File -Recurse |
   Where-Object { $_.Name -notin @("SHA256SUMS.txt", "release-manifest.json") } |

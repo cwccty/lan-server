@@ -21,7 +21,10 @@ struct LocalAccountRecord {
 }
 
 pub fn get_account_state() -> Result<UserAccountState, String> {
-    Ok(public_state(read_account_record().ok().flatten(), "账号状态已读取。"))
+    Ok(public_state(
+        read_account_record().ok().flatten(),
+        "账号状态已读取。",
+    ))
 }
 
 pub fn create_local_account(
@@ -32,7 +35,9 @@ pub fn create_local_account(
     let nickname = normalize_nickname(&nickname)?;
     validate_password(&password)?;
     if read_account_record()?.is_some() {
-        return Err("本机已经创建过本地账号，请直接登录或先退出后联系管理员重置本机数据。".to_string());
+        return Err(
+            "本机已经创建过本地账号，请直接登录或先退出后联系管理员重置本机数据。".to_string(),
+        );
     }
     let salt = new_salt(&nickname);
     let record = LocalAccountRecord {
@@ -118,8 +123,7 @@ fn read_account_record() -> Result<Option<LocalAccountRecord>, String> {
     if !path.exists() {
         return Ok(None);
     }
-    let content = fs::read_to_string(&path)
-        .map_err(|err| format!("读取账号失败: {err}"))?;
+    let content = fs::read_to_string(&path).map_err(|err| format!("读取账号失败: {err}"))?;
     let record = serde_json::from_str::<LocalAccountRecord>(&content)
         .map_err(|err| format!("解析账号失败: {err}"))?;
     Ok(Some(record))
@@ -130,8 +134,8 @@ fn write_account_record(record: &LocalAccountRecord) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|err| format!("创建账号目录失败: {err}"))?;
     }
-    let content = serde_json::to_string_pretty(record)
-        .map_err(|err| format!("序列化账号失败: {err}"))?;
+    let content =
+        serde_json::to_string_pretty(record).map_err(|err| format!("序列化账号失败: {err}"))?;
     fs::write(path, content).map_err(|err| format!("保存账号失败: {err}"))
 }
 

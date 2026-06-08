@@ -84,31 +84,31 @@ export interface BuildHostDiagnosticContextInput {
 }
 
 function defaultTitle(source: HostDiagnosticContextSource) {
-  if (source === 'host_network_failure') return '房主启动 n2n 失败';
+  if (source === 'host_network_failure') return '房主启动组网失败';
   if (source === 'host_server_failure') return '房主服务端或游戏启动失败';
   if (source === 'host_port_failure') return '房主游戏端口未通过检测';
   if (source === 'host_advanced_tools_needed') return '当前路线需要高级连接工具';
   if (source === 'host_friend_check_failure') return '好友连接检测未通过';
-  return '房主开房参数不完整';
+  return '房主开房信息不完整';
 }
 
 function defaultDetail(source: HostDiagnosticContextSource, input: BuildHostDiagnosticContextInput) {
-  if (source === 'host_network_failure') return '房主组网启动失败，需要检查 Supernode、房间名、密钥、edge.exe 和权限。';
+  if (source === 'host_network_failure') return '房主组网启动失败，需要检查中继地址、房间名、密钥、组网程序和权限。';
   if (source === 'host_server_failure') return '房主侧服务端或游戏进程未能按推荐方案启动，需要结合端口和进程状态诊断。';
-  if (source === 'host_port_failure') return `本机 127.0.0.1:${input.gamePort} 尚未确认监听，好友即使连上 n2n 也可能进不了游戏。`;
-  if (source === 'host_advanced_tools_needed') return `${input.adapterRoute.title} 需要进入高级连接工具，预填端口代理或 UDP 广播桥参数后再自测。`;
-  if (source === 'host_friend_check_failure') return '选中好友的虚拟 IP 或游戏端口暂未连通，需要确认双方 n2n 状态和游戏端口。';
-  return '房主开房缺少完整 n2n 参数，请先补齐房间名、密钥和 Supernode。';
+  if (source === 'host_port_failure') return `本机 127.0.0.1:${input.gamePort} 尚未确认监听，好友即使完成组网也可能进不了游戏。`;
+  if (source === 'host_advanced_tools_needed') return `${input.adapterRoute.title} 需要进入高级连接工具，预填端口代理或 UDP 广播桥信息后再测试。`;
+  if (source === 'host_friend_check_failure') return '选中好友的联机地址或游戏端口暂未连通，需要确认双方组网状态和游戏端口。';
+  return '房主开房缺少完整组网信息，请先补齐房间名、密钥和中继地址。';
 }
 
 function defaultNextAction(source: HostDiagnosticContextSource, input: BuildHostDiagnosticContextInput) {
-  if (source === 'host_advanced_tools_needed') return '带当前游戏、端口和好友虚拟 IP 进入高级连接工具，启动后执行一键自测。';
-  if (source === 'host_config_missing') return '先回通用组网中心补齐 n2n 房间名、密钥和 Supernode，然后重新启动房主组网。';
-  if (source === 'host_port_failure') return '打开诊断报告，确认服务端/游戏是否监听端口；如该 adapter 需要代理或广播桥，再带参数去高级工具。';
+  if (source === 'host_advanced_tools_needed') return '带当前游戏、端口和好友联机地址进入高级连接工具，启动后测试连接。';
+  if (source === 'host_config_missing') return '先回加入与组网页补齐房间名、密钥和中继地址，然后重新启动房主组网。';
+  if (source === 'host_port_failure') return '打开诊断报告，确认服务端/游戏是否监听端口；如该游戏方案需要代理或广播桥，再带信息去高级工具。';
   if (input.adapterRoute.requiresTcpPortProxy || input.adapterRoute.requiresUdpBroadcastBridge) {
-    return '先带参数进入高级连接工具；如果自测仍失败，再把诊断报告发给管理员。';
+    return '先带信息进入高级连接工具；如果测试仍失败，再把诊断报告发给管理员。';
   }
-  return '打开诊断报告，按真实 runtime、n2n、服务端和端口证据继续修复。';
+  return '打开诊断报告，按组网、服务端和端口证据继续修复。';
 }
 
 function defaultNextActionKind(source: HostDiagnosticContextSource, input: BuildHostDiagnosticContextInput): HostDiagnosticNextActionKind {
@@ -202,14 +202,14 @@ export function formatHostDiagnosticContext(context: HostDiagnosticContext) {
     `需要 UDP 广播桥：${context.requiresUdpBroadcastBridge ? '是' : '否'}`,
     '',
     `房间名：${context.roomName || '未读取'}`,
-    `Supernode：${context.supernode || '未读取'}`,
-    `房主虚拟 IP：${context.hostVirtualIp || '未读取'}`,
+    `中继地址：${context.supernode || '未读取'}`,
+    `房主联机地址：${context.hostVirtualIp || '未读取'}`,
     `好友：${context.friendName || '未选择'} ${context.friendVirtualIp || ''}`.trim(),
     `游戏端口：${context.gamePort || '未读取'}`,
     `服务端：${context.serverRunning ? '运行中' : '未运行'}${context.serverMessage ? `｜${context.serverMessage}` : ''}`,
     `房主端口检测：${context.hostPortCheck || '未检测'}`,
     `好友检测：${context.friendCheck || '未检测'}`,
-    `当前 n2n 状态：${context.runtimeLabel || '未读取'}`,
-    context.runtimeErrors.length ? `runtime 错误：${context.runtimeErrors.join('；')}` : '',
+    `当前组网状态：${context.runtimeLabel || '未读取'}`,
+    context.runtimeErrors.length ? `运行错误：${context.runtimeErrors.join('；')}` : '',
   ].filter(Boolean).join('\n');
 }

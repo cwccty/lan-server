@@ -4,6 +4,7 @@ use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::thread;
+use std::time::Duration;
 
 use crate::core::process_util::hide_console_window;
 use crate::models::network::{
@@ -116,6 +117,7 @@ pub fn start() -> BackendRuntimeStatus {
     }
 
     let Some(executable) = find_n2n_executable() else {
+        append_edge_log("启动失败：未检测到组网程序 edge.exe / n2n.exe");
         return BackendRuntimeStatus {
             backend_id: "n2n".to_string(),
             running: false,
@@ -127,6 +129,7 @@ pub fn start() -> BackendRuntimeStatus {
     let config = match load_config() {
         Ok(config) => config,
         Err(message) => {
+            append_edge_log(&format!("启动失败：{message}"));
             return BackendRuntimeStatus {
                 backend_id: "n2n".to_string(),
                 running: false,
@@ -135,8 +138,10 @@ pub fn start() -> BackendRuntimeStatus {
             };
         }
     };
+    let manual_config = config.clone();
 
     let Some(supernode) = config.supernode else {
+        append_edge_log("启动失败：组网配置缺少中继地址");
         return BackendRuntimeStatus {
             backend_id: "n2n".to_string(),
             running: false,
@@ -154,7 +159,7 @@ pub fn start() -> BackendRuntimeStatus {
     let local_ip = config.local_ip.as_deref().and_then(normalize_edge_ip_arg);
     let tap_device = find_preferred_tap_device();
 
-    let mut command = Command::new(executable);
+    let mut command = Command::new(&executable);
     command
         .args(["-c", &community, "-k", &secret, "-l", &supernode])
         .arg("-v")
@@ -173,7 +178,21 @@ pub fn start() -> BackendRuntimeStatus {
     #[cfg(windows)]
     command.creation_flags(CREATE_NO_WINDOW);
 
-    let _ = reset_edge_log(&supernode, &community, local_ip.as_deref(), tap_device.as_deref());
+    let _ = reset_edge_log(
+        &supernode,
+        &community,
+        local_ip.as_deref(),
+        tap_device.as_deref(),
+    );
+    append_edge_log(&format!(
+        "[manager] executable_path={}",
+        executable.to_string_lossy()
+    ));
+    append_edge_log(&format!(
+        "[manager] manual_start_command={}",
+        build_n2n_manual_start_command_for_executable(Some(&manual_config), Some(&executable))
+            .unwrap_or_else(|| "未生成".to_string())
+    ));
 
     match command.spawn() {
         Ok(mut child) => {
@@ -185,6 +204,25 @@ pub fn start() -> BackendRuntimeStatus {
                 spawn_log_reader(stderr, "stderr");
             }
             append_edge_log(&format!("[manager] n2n edge started, pid={}", child.id()));
+            thread::sleep(Duration::from_millis(900));
+            if let Ok(Some(status)) = child.try_wait() {
+                let _ = fs::remove_file(pid_path());
+                append_edge_log(&format!(
+                    "[manager] n2n edge exited during startup, pid={}, status={status}",
+                    child.id()
+                ));
+                let last_problem = read_edge_log_lines(80)
+                    .into_iter()
+                    .rev()
+                    .find(|line| is_n2n_problem_log(line))
+                    .unwrap_or_else(|| format!("edge 进程启动后立即退出，退出状态：{status}"));
+                return BackendRuntimeStatus {
+                    backend_id: "n2n".to_string(),
+                    running: false,
+                    virtual_ip: find_n2n_virtual_ip(),
+                    message: format!("n2n edge 启动后立即退出：{last_problem}"),
+                };
+            }
             BackendRuntimeStatus {
                 backend_id: "n2n".to_string(),
                 running: true,
@@ -203,12 +241,15 @@ pub fn start() -> BackendRuntimeStatus {
                 ),
             }
         }
-        Err(err) => BackendRuntimeStatus {
-            backend_id: "n2n".to_string(),
-            running: false,
-            virtual_ip: None,
-            message: format!("启动 n2n edge 失败: {err}"),
-        },
+        Err(err) => {
+            append_edge_log(&format!("启动组网程序失败：{err}"));
+            BackendRuntimeStatus {
+                backend_id: "n2n".to_string(),
+                running: false,
+                virtual_ip: None,
+                message: format!("启动 n2n edge 失败: {err}"),
+            }
+        }
     }
 }
 
@@ -260,57 +301,117 @@ pub fn stop() -> BackendRuntimeStatus {
 }
 
 pub fn diagnose() -> N2nDiagnostics {
-    let running = read_recorded_pid()
-        .map(is_pid_running)
-        .unwrap_or(false);
+    let recorded_pid = read_recorded_pid();
+    let recorded_pid_running = recorded_pid.map(is_pid_running).unwrap_or(false);
     let config = load_config().ok();
+    let executable_path = find_n2n_executable();
     let supernode = config.as_ref().and_then(|item| item.supernode.clone());
     let supernode_configured = supernode
         .as_ref()
         .map(|item| !item.trim().is_empty())
         .unwrap_or(false);
-    let virtual_ip = find_n2n_virtual_ip();
-    let recent_logs = read_edge_log_lines(160);
+    diagnose_from_parts(
+        recorded_pid_running,
+        supernode_configured,
+        supernode,
+        find_n2n_virtual_ip(),
+        read_edge_log_lines(160),
+        edge_log_path().to_string_lossy().to_string(),
+        executable_path.is_some(),
+        executable_path
+            .as_ref()
+            .map(|path| path.to_string_lossy().to_string()),
+        recorded_pid,
+        build_n2n_manual_start_command_for_executable(config.as_ref(), executable_path.as_deref()),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn diagnose_from_parts(
+    running: bool,
+    supernode_configured: bool,
+    supernode: Option<String>,
+    virtual_ip: Option<String>,
+    recent_logs: Vec<String>,
+    log_path: String,
+    executable_found: bool,
+    executable_path: Option<String>,
+    recorded_pid: Option<u32>,
+    manual_start_command: Option<String>,
+) -> N2nDiagnostics {
     let joined = recent_logs.join("\n");
     let lower = joined.to_ascii_lowercase();
 
-    let ack = joined.contains("REGISTER_SUPER_ACK");
+    let ack = joined.contains("[OK] edge <<<") || joined.contains("REGISTER_SUPER_ACK");
     let pong = joined.contains("Rx PONG") || lower.contains(" pong ");
-    // ACK/PONG 来自日志，停止后日志仍保留；必须要求当前记录 PID 仍在运行，避免 UI 停止后继续显示“已连接”。
-    let ok_link = running && (joined.contains("[OK] edge <<<") || ack || pong);
-    let auth_error = lower.contains("authentication error");
-    let ip_mac_conflict = lower.contains("mac or ip address already in use")
-        || lower.contains("address already in use")
-        || lower.contains("ip address already in use");
-    let not_responding = lower.contains("supernode not responding")
-        || lower.contains("not responding")
-        || lower.contains("timeout");
-    let last_error = recent_logs
+    let last_success_index = recent_logs
         .iter()
-        .rev()
-        .find(|line| {
-            let lower = line.to_ascii_lowercase();
-            lower.contains("error")
-                || lower.contains("warning")
-                || lower.contains("not responding")
-                || lower.contains("nak")
-        })
-        .cloned();
+        .rposition(|line| is_n2n_success_log(line));
+    let mut active_problem_signals = N2nProblemSignals::default();
+    let mut last_error = None;
 
-    let summary = if auth_error || ip_mac_conflict {
-        "supernode 已返回认证/IP/MAC 冲突错误，请更换虚拟 IP 或等待旧注册释放。"
-    } else if ok_link {
-        "已从 edge 日志看到 supernode ACK/PONG，supernode 响应正常。"
-    } else if not_responding {
-        "edge 日志显示 supernode 无响应，请检查 VPS 防火墙、端口和地址。"
-    } else if running && supernode_configured {
-        "edge 已启动且 supernode 已配置，但尚未在日志中看到 ACK/PONG。"
-    } else if supernode_configured {
-        "supernode 已配置，但 edge 尚未运行。"
-    } else {
-        "尚未配置 supernode。"
+    for (index, line) in recent_logs.iter().enumerate() {
+        if last_success_index.is_some_and(|success_index| index <= success_index) {
+            continue;
+        }
+        if let Some(signals) = classify_n2n_problem_log(line) {
+            active_problem_signals.merge(signals);
+            last_error = Some(line.clone());
+        }
     }
-    .to_string();
+
+    let auth_error = active_problem_signals.auth_error;
+    let ip_mac_conflict = active_problem_signals.ip_mac_conflict;
+    let not_responding = active_problem_signals.not_responding;
+    let tap_error = active_problem_signals.tap_error;
+    let recorded_pid_running = recorded_pid.is_some() && running;
+    let ok_link =
+        running && (ack || pong) && !(auth_error || ip_mac_conflict || not_responding || tap_error);
+
+    let connection_state = if !supernode_configured {
+        "not_configured"
+    } else if auth_error {
+        "auth_error"
+    } else if ip_mac_conflict {
+        "ip_mac_conflict"
+    } else if tap_error {
+        "tap_error"
+    } else if not_responding {
+        "supernode_not_responding"
+    } else if ok_link {
+        "ready"
+    } else if recorded_pid.is_some() && !running {
+        "pid_stale_or_exited"
+    } else if running {
+        "waiting_for_ack"
+    } else {
+        "configured_not_started"
+    };
+
+    let summary = match connection_state {
+        "not_configured" => {
+            "尚未填写中继地址、房间名和密钥，请先到“加入与组网”完成设置。".to_string()
+        }
+        "auth_error" => "房间名或密钥不一致，中继拒绝加入；请确认双方填写完全一致。".to_string(),
+        "ip_mac_conflict" => {
+            "联机地址可能已被占用；请让每个人使用不同的虚拟 IP 后重新启动组网。".to_string()
+        }
+        "tap_error" => {
+            "组网网卡无法打开或未安装，请尝试管理员运行，并检查 TAP/Wintun 虚拟网卡。".to_string()
+        }
+        "supernode_not_responding" => {
+            "中继地址暂无响应；请核对地址和端口，或确认中继服务器已启动且端口放行。".to_string()
+        }
+        "ready" => "已收到中继确认，组网连接正常。".to_string(),
+        "pid_stale_or_exited" => {
+            "组网程序没有保持运行，可能启动后立即退出、权限不足或被安全软件拦截。".to_string()
+        }
+        "waiting_for_ack" => {
+            "组网程序已启动，但尚未收到中继确认；请核对中继地址、房间名、密钥和联机地址。"
+                .to_string()
+        }
+        _ => "组网信息已保存，但还没有检测到运行中的组网程序；请点击启动组网。".to_string(),
+    };
 
     N2nDiagnostics {
         running,
@@ -323,10 +424,63 @@ pub fn diagnose() -> N2nDiagnostics {
         auth_error,
         ip_mac_conflict,
         not_responding,
+        tap_error,
         last_error,
         summary,
-        log_path: edge_log_path().to_string_lossy().to_string(),
+        log_path,
         recent_logs,
+        executable_found,
+        executable_path,
+        recorded_pid,
+        recorded_pid_running,
+        connection_state: connection_state.to_string(),
+        manual_start_command,
+    }
+}
+
+fn build_n2n_manual_start_command_for_executable(
+    config: Option<&NetworkConfig>,
+    executable_path: Option<&Path>,
+) -> Option<String> {
+    let config = config?;
+    let supernode = config.supernode.as_deref()?.trim();
+    if supernode.is_empty() {
+        return None;
+    }
+    let community = config
+        .room_name
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or("lan-helper-room");
+    let local_ip = config.local_ip.as_deref().and_then(normalize_edge_ip_arg);
+    let mut parts = vec![
+        executable_path
+            .map(|path| quote_cmd_arg(&path.to_string_lossy()))
+            .unwrap_or_else(|| "edge.exe".to_string()),
+        "-c".to_string(),
+        quote_cmd_arg(community),
+        "-k".to_string(),
+        "<room-key>".to_string(),
+        "-l".to_string(),
+        quote_cmd_arg(supernode),
+        "-v".to_string(),
+    ];
+    if let Some(local_ip) = local_ip {
+        parts.push("-a".to_string());
+        parts.push(quote_cmd_arg(&local_ip));
+    }
+    Some(parts.join(" "))
+}
+
+fn quote_cmd_arg(value: &str) -> String {
+    if value
+        .chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '.' | ':' | '_' | '-' | '/'))
+    {
+        value.to_string()
+    } else {
+        format!("\"{}\"", value.replace('"', "\\\""))
     }
 }
 
@@ -341,7 +495,7 @@ fn stop_orphan_edge_processes() {
 pub fn last_config() -> Result<NetworkConfig, String> {
     load_config()
 }
- 
+
 fn find_n2n_executable() -> Option<PathBuf> {
     candidate_n2n_dirs().into_iter().find_map(|dir| {
         ["edge.exe", "n2n.exe"]
@@ -463,12 +617,9 @@ fn dedup_paths(paths: Vec<PathBuf>) -> Vec<PathBuf> {
 fn load_config() -> Result<NetworkConfig, String> {
     let path = config_path();
     let content = fs::read_to_string(&path).map_err(|_| {
-        format!(
-            "尚未保存 n2n 配置，请先填写 room、secret 和 supernode。期望配置文件：{}",
-            path.to_string_lossy()
-        )
+        "尚未保存组网服务配置，请先到“加入与组网”填写房间名、密钥和中继地址。".to_string()
     })?;
-    serde_json::from_str(&content).map_err(|err| format!("解析 n2n 配置失败: {err}"))
+    serde_json::from_str(&content).map_err(|err| format!("解析组网服务配置失败: {err}"))
 }
 
 fn normalize_edge_ip_arg(value: &str) -> Option<String> {
@@ -489,6 +640,173 @@ fn find_n2n_virtual_ip() -> Option<String> {
     windows_ip::find_ipv4_by_interface_keywords(&["n2n", "edge", "cfw", "tap"])
 }
 
+#[derive(Default)]
+struct N2nProblemSignals {
+    auth_error: bool,
+    ip_mac_conflict: bool,
+    not_responding: bool,
+    tap_error: bool,
+}
+
+impl N2nProblemSignals {
+    fn merge(&mut self, other: N2nProblemSignals) {
+        self.auth_error |= other.auth_error;
+        self.ip_mac_conflict |= other.ip_mac_conflict;
+        self.not_responding |= other.not_responding;
+        self.tap_error |= other.tap_error;
+    }
+
+    fn has_named_problem(&self) -> bool {
+        self.auth_error || self.ip_mac_conflict || self.not_responding || self.tap_error
+    }
+}
+
+fn is_n2n_problem_log(line: &str) -> bool {
+    classify_n2n_problem_log(line).is_some()
+}
+
+fn is_n2n_success_log(line: &str) -> bool {
+    let lower = line.to_ascii_lowercase();
+    line.contains("[OK] edge <<<")
+        || line.contains("REGISTER_SUPER_ACK")
+        || line.contains("Rx PONG")
+        || lower.contains(" pong ")
+}
+
+fn classify_n2n_problem_log(line: &str) -> Option<N2nProblemSignals> {
+    let lower = line.to_ascii_lowercase();
+    if lower.contains("warning: switching to aes as key was provided") {
+        return None;
+    }
+    let signals = N2nProblemSignals {
+        auth_error: lower.contains("authentication error"),
+        ip_mac_conflict: lower.contains("mac or ip address already in use")
+            || lower.contains("address already in use")
+            || lower.contains("ip address already in use"),
+        not_responding: lower.contains("supernode not responding")
+            || lower.contains("not responding")
+            || lower.contains("timeout"),
+        tap_error: lower.contains("cannot find tap device")
+            || lower.contains("unable to open tap")
+            || lower.contains("failed to open tap")
+            || lower.contains("no tap device"),
+    };
+    if signals.has_named_problem()
+        || lower.contains("error")
+        || lower.contains("warning")
+        || lower.contains("nak")
+    {
+        Some(signals)
+    } else {
+        None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn fixture(running: bool, supernode_configured: bool, logs: &[&str]) -> N2nDiagnostics {
+        diagnose_from_parts(
+            running,
+            supernode_configured,
+            supernode_configured.then(|| "1.2.3.4:7777".to_string()),
+            Some("10.10.10.2".to_string()),
+            logs.iter().map(|line| line.to_string()).collect(),
+            "tools/n2n/edge.log".to_string(),
+            true,
+            Some("tools/n2n/edge.exe".to_string()),
+            running.then_some(4242),
+            Some("edge.exe -c room -k <room-key> -l 1.2.3.4:7777 -v".to_string()),
+        )
+    }
+
+    #[test]
+    fn n2n_diagnostics_fixture_no_config() {
+        let report = fixture(false, false, &[]);
+        assert_eq!(report.connection_state, "not_configured");
+        assert!(!report.ok_link);
+        assert!(report
+            .summary
+            .contains("\u{5c1a}\u{672a}\u{586b}\u{5199}\u{4e2d}\u{7ee7}\u{5730}\u{5740}"));
+    }
+
+    #[test]
+    fn n2n_diagnostics_fixture_configured_not_started() {
+        let report = fixture(false, true, &[]);
+        assert_eq!(report.connection_state, "configured_not_started");
+        assert!(report.summary.contains("\u{8fd8}\u{6ca1}\u{6709}\u{68c0}\u{6d4b}\u{5230}\u{8fd0}\u{884c}\u{4e2d}\u{7684}\u{7ec4}\u{7f51}\u{7a0b}\u{5e8f}"));
+    }
+
+    #[test]
+    fn n2n_diagnostics_fixture_running_without_ack() {
+        let report = fixture(true, true, &["[manager] n2n edge started, pid=4242"]);
+        assert_eq!(report.connection_state, "waiting_for_ack");
+        assert!(!report.ok_link);
+        assert!(report
+            .summary
+            .contains("\u{5c1a}\u{672a}\u{6536}\u{5230}\u{4e2d}\u{7ee7}\u{786e}\u{8ba4}"));
+        assert!(report
+            .manual_start_command
+            .as_deref()
+            .unwrap_or_default()
+            .contains("<room-key>"));
+    }
+
+    #[test]
+    fn n2n_diagnostics_fixture_ack_pong_ready() {
+        let report = fixture(
+            true,
+            true,
+            &["[OK] edge <<< REGISTER_SUPER_ACK", "Rx PONG from supernode"],
+        );
+        assert_eq!(report.connection_state, "ready");
+        assert!(report.ok_link);
+        assert!(report.ack);
+        assert!(report.pong);
+    }
+
+    #[test]
+    fn n2n_diagnostics_fixture_supernode_not_responding() {
+        let report = fixture(true, true, &["supernode not responding, timeout"]);
+        assert_eq!(report.connection_state, "supernode_not_responding");
+        assert!(report.not_responding);
+        assert!(report
+            .summary
+            .contains("\u{4e2d}\u{7ee7}\u{5730}\u{5740}\u{6682}\u{65e0}\u{54cd}\u{5e94}"));
+    }
+
+    #[test]
+    fn n2n_diagnostics_fixture_tap_error() {
+        let report = fixture(true, true, &["ERROR: Cannot find TAP device"]);
+        assert_eq!(report.connection_state, "tap_error");
+        assert!(report.tap_error);
+        assert!(report
+            .summary
+            .contains("\u{7ec4}\u{7f51}\u{7f51}\u{5361}\u{65e0}\u{6cd5}\u{6253}\u{5f00}"));
+    }
+
+    #[test]
+    fn n2n_diagnostics_fixture_auth_error() {
+        let report = fixture(true, true, &["authentication error"]);
+        assert_eq!(report.connection_state, "auth_error");
+        assert!(report.auth_error);
+        assert!(report
+            .summary
+            .contains("\u{623f}\u{95f4}\u{540d}\u{6216}\u{5bc6}\u{94a5}\u{4e0d}\u{4e00}\u{81f4}"));
+    }
+
+    #[test]
+    fn n2n_diagnostics_fixture_ip_mac_conflict() {
+        let report = fixture(true, true, &["MAC or IP address already in use"]);
+        assert_eq!(report.connection_state, "ip_mac_conflict");
+        assert!(report.ip_mac_conflict);
+        assert!(report.summary.contains(
+            "\u{8054}\u{673a}\u{5730}\u{5740}\u{53ef}\u{80fd}\u{5df2}\u{88ab}\u{5360}\u{7528}"
+        ));
+    }
+}
+
 #[cfg(windows)]
 fn find_preferred_tap_device() -> Option<String> {
     let script = r#"
@@ -500,7 +818,6 @@ foreach ($name in $preferred) {
   $hit = $adapters | Where-Object { $_ -ieq $name } | Select-Object -First 1
   if ($hit) { $hit; exit }
 }
-$adapters | Select-Object -First 1
 "#;
     let mut process = Command::new("powershell");
     process.args([
@@ -518,7 +835,19 @@ $adapters | Select-Object -First 1
         .lines()
         .map(str::trim)
         .find(|line| !line.is_empty())
+        .filter(|line| is_safe_tap_device_name(line))
         .map(ToString::to_string)
+}
+
+#[cfg(windows)]
+fn is_safe_tap_device_name(name: &str) -> bool {
+    let trimmed = name.trim();
+    !trimmed.is_empty()
+        && trimmed.len() <= 64
+        && trimmed.is_ascii()
+        && trimmed
+            .chars()
+            .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | ' '))
 }
 
 #[cfg(not(windows))]

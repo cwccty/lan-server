@@ -1191,6 +1191,35 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
     }
   };
 
+  const copyDiagnosticText = async (text: string, okMessage: string) => {
+    try {
+      const clipboard = navigator.clipboard;
+      if (!clipboard || typeof clipboard.writeText !== 'function') throw new Error('剪贴板不可用');
+      await clipboard.writeText(text);
+      onTriggerToast(okMessage);
+    } catch (error) {
+      onTriggerToast(`复制失败：${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  const copyN2nManualCommand = async () => {
+    const command = runtime.snapshot?.n2n?.manual_start_command;
+    if (!command) {
+      onTriggerToast('暂无手动启动命令，请先到“加入与组网”保存配置并刷新诊断。');
+      return;
+    }
+    await copyDiagnosticText(command, '已复制组网手动启动命令。');
+  };
+
+  const copyN2nRecentLogs = async () => {
+    const logs = runtime.snapshot?.n2n?.recent_logs?.slice(-60) ?? [];
+    if (!logs.length) {
+      onTriggerToast('暂无组网日志，请先启动或刷新组网诊断。');
+      return;
+    }
+    await copyDiagnosticText(logs.join('\n'), '已复制最近组网日志。');
+  };
+
   const copyDiagnosticRepairCenterClosureAudit = async () => {
     try {
       const clipboard = navigator.clipboard;
@@ -1763,6 +1792,8 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
             <h3 className="text-sm font-bold text-slate-800">报告工具条</h3>
             <p className="mt-1 max-w-4xl text-xs leading-relaxed text-slate-500">
               先看上面的结论和下一步。需要分享给朋友或回到开房流程时，再用这里的按钮，不再让小操作面板占住整列空间。
+              如果两台电脑一台“已配置未启动”、一台“中继尚未确认”，请两边都复制报告和组网日志，对照中继地址、房间名、密钥、联机地址、PID 与最后错误。
+              关闭 Windows 防火墙仍失败时，继续检查 UDP 出站、路由器/校园网/公司网、运营商网络和安全软件拦截。
             </p>
             {record ? (
               <p className="mt-2 break-words text-[11px] text-slate-400">
@@ -1770,7 +1801,7 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
               </p>
             ) : null}
           </div>
-          <div className="grid min-w-0 gap-2 sm:grid-cols-2 lg:grid-cols-5 xl:w-auto">
+          <div className="grid min-w-0 gap-2 sm:grid-cols-2 lg:grid-cols-7 xl:w-auto" data-diagnostic-n2n-copy-actions="visible">
             <button onClick={() => runDiagnostic()} disabled={Boolean(busy)} className="inline-flex min-w-0 items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-60">
               <Search className="h-4 w-4 shrink-0" />
               重新检测
@@ -1778,6 +1809,14 @@ export function ProductDiagnosticsView({ onTriggerToast, onNavigateTab }: Produc
             <button onClick={copyReport} disabled={!record} className="inline-flex min-w-0 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
               <ClipboardCopy className="h-4 w-4 shrink-0" />
               复制报告
+            </button>
+            <button onClick={copyN2nManualCommand} className="inline-flex min-w-0 items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 hover:bg-amber-100">
+              <ClipboardCopy className="h-4 w-4 shrink-0" />
+              复制手动命令
+            </button>
+            <button onClick={copyN2nRecentLogs} className="inline-flex min-w-0 items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 hover:bg-amber-100">
+              <ClipboardCopy className="h-4 w-4 shrink-0" />
+              复制组网日志
             </button>
             <button onClick={exportReport} disabled={!record} className="inline-flex min-w-0 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
               <Download className="h-4 w-4 shrink-0" />

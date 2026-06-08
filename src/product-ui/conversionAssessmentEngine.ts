@@ -75,7 +75,7 @@ function fallbackMethodsFor(row: ConnectionCapabilityDecisionRow, route: Adapter
     .replace('wireguard', 'WireGuard')
     .replace('zerotier', 'ZeroTier')
     .replace('tailscale', 'Tailscale')
-    .replace('n2n', 'n2n'));
+    .replace('n2n', '通用组网'));
   const conversionLabels = route.kind === 'remote_coop'
     ? ['Steam Remote Play Together', 'Sunshine + Moonlight']
     : route.kind === 'steam_p2p'
@@ -91,28 +91,28 @@ function routeSpecificSteps(route: AdapterRecommendationRoute, row: ConnectionCa
     return [
       '房主启动游戏，并进入本地双人/同屏合作模式。',
       '优先用 Steam Remote Play Together 邀请好友；非 Steam 或需要更细控制时使用 Sunshine + Moonlight。',
-      '确认好友输入权限、手柄/键鼠映射、延迟和画质；不要让好友连接虚拟 IP。',
+      '确认好友输入权限、手柄/键鼠映射、延迟和画质；不要让好友连接联机地址。',
     ];
   }
   if (route.kind === 'steam_p2p') {
     return [
       '房主按游戏原生 Steam 好友邀请、Steam 大厅或 P2P 流程创建房间。',
-      '好友通过 Steam 原生入口加入；n2n 只作为未来插件/人工路线的旁路，不默认推荐。',
+      '好友通过 Steam 原生入口加入；通用组网只作为未来插件/人工路线的旁路，不默认推荐。',
       '如果要接入 Steam Relay / P2P 插件，先由管理员确认反作弊、账号和插件边界。',
     ];
   }
   if (route.kind === 'official_only') {
     return [
       '使用游戏官方服务器、官方大厅或官方账号入口。',
-      '不要生成 n2n 邀请包，也不要提示好友连接虚拟 IP。',
-      '在 adapter 中记录不能转换的证据，避免用户反复尝试错误方案。',
+      '不要生成局域网邀请包，也不要提示好友连接联机地址。',
+      '在游戏方案中记录不能转换的证据，避免用户反复尝试错误方案。',
     ];
   }
   if (route.kind === 'needs_review') {
     return [
-      '先同步共享方案库，查看是否已有同 game_id 的 adapter。',
+      '先同步共享方案库，查看是否已有同 game_id 的游戏方案。',
       '仍缺方案时，由管理员收集多人菜单、端口、日志、截图或实测步骤。',
-      '确认类型后再保存 adapter，让推荐页自动切换到正确路线。',
+      '确认类型后再保存游戏方案，让推荐页自动切换到正确路线。',
     ];
   }
   return route.steps.map((step) => `${step.title}：${step.detail}`);
@@ -124,7 +124,7 @@ function boundariesFor(row: ConnectionCapabilityDecisionRow, route: AdapterRecom
     ...(game?.multiplayer_conversion?.notes ?? []),
   ];
   if (route.kind === 'remote_coop') {
-    base.unshift('这不是把游戏改造成 LAN，而是把房主本机画面和好友输入远程传输。');
+    base.unshift('这不是把游戏改造成局域网，而是把房主本机画面和好友输入远程传输。');
   }
   if (route.kind === 'steam_p2p') {
     base.unshift('该类游戏优先保留 Steam 原生大厅/P2P，不承诺虚拟局域网可替代。');
@@ -139,12 +139,12 @@ function boundariesFor(row: ConnectionCapabilityDecisionRow, route: AdapterRecom
 }
 
 function exampleHintFor(row: ConnectionCapabilityDecisionRow, route: AdapterRecommendationRoute) {
-  if (route.kind === 'remote_coop') return '例如《茶杯头》这类只能同屏的游戏，应推荐远程同屏，而不是让好友连虚拟 IP。';
-  if (route.kind === 'udp_broadcast_bridge') return '例如只靠 LAN 大厅发现的游戏，n2n 负责互通，UDP 广播桥负责让大厅能被发现。';
+  if (route.kind === 'remote_coop') return '例如《茶杯头》这类只能同屏的游戏，应推荐远程同屏，而不是让好友连联机地址。';
+  if (route.kind === 'udp_broadcast_bridge') return '例如只靠局域网大厅发现的游戏，通用组网负责互通，UDP 广播桥负责让大厅能被发现。';
   if (route.kind === 'steam_p2p') return '例如只有 Steam 好友房间的游戏，应优先保留 Steam 流程，插件入口需要人工确认。';
   if (route.kind === 'official_only') return '例如多人完全依赖官方账号/匹配服务器的游戏，应明确提示“不建议转换”。';
-  if (row.id === 'native-lan-ip-direct') return '例如支持输入 IP 的游戏，好友加入 n2n 后直接连接房主虚拟 IP 和端口。';
-  return '该评估用于决定给用户展示 LAN 邀请包、远程同屏说明、Steam 路线说明，还是进入人工复核。';
+  if (row.id === 'native-lan-ip-direct') return '例如支持输入 IP 的游戏，好友加入组网房间后直接连接房主联机地址和端口。';
+  return '该评估用于决定给用户展示局域网邀请包、远程同屏说明、Steam 路线说明，还是进入人工复核。';
 }
 
 export function buildGameConversionAssessment(
@@ -161,7 +161,7 @@ export function buildGameConversionAssessment(
   const reason = [
     row.capability,
     route.summary,
-    methods.length ? `adapter 已标注方法：${methods.join('、')}。` : '',
+    methods.length ? `游戏方案已标注方法：${methods.join('、')}。` : '',
   ].filter(Boolean).join(' ');
 
   return {
@@ -178,7 +178,7 @@ export function buildGameConversionAssessment(
     canBecomeLan,
     playableByAnotherWay,
     userConclusion: canBecomeLan
-      ? '可以按当前方案转换成局域网/虚拟局域网联机体验。'
+      ? '可以按当前方案转换成局域网联机体验。'
       : row.verdict === 'can_connect_not_lan'
         ? '可以远程联机，但不要把它描述成真正的局域网。'
         : row.verdict === 'official_only'

@@ -62,7 +62,7 @@ const sourceLabels: Record<string, string> = {
   steam_scan: 'Steam 扫描'
 };
 
-const DEFAULT_ADAPTER_REGISTRY_URL = 'https://cwccty.github.io/lan-server/adapter-registry/index.json';
+const DEFAULT_ADAPTER_REGISTRY_URL = 'https://raw.githubusercontent.com/cwccty/lan-server/master/adapter-registry/index.json';
 const LEGACY_LOCAL_REGISTRY_URL = 'http://127.0.0.1:8088/adapter-registry/index.json';
 const REGISTRY_URL_STORAGE_KEY = 'lan-helper-adapter-registry-url';
 const REGISTRY_LAST_SYNC_STORAGE_KEY = 'lan-helper-adapter-registry-last-sync';

@@ -138,7 +138,10 @@ fn parse_libraryfolders_vdf(path: &Path) -> Vec<PathBuf> {
         .collect()
 }
 
-pub fn find_installed_game_path(adapter: &GameAdapter, steam_libraries: &[PathBuf]) -> Option<String> {
+pub fn find_installed_game_path(
+    adapter: &GameAdapter,
+    steam_libraries: &[PathBuf],
+) -> Option<String> {
     if let Some(path) = find_by_steam_appmanifest(adapter, steam_libraries) {
         return Some(path);
     }
@@ -172,7 +175,12 @@ fn find_by_steam_appmanifest(adapter: &GameAdapter, steam_libraries: &[PathBuf])
         let install_dir = parse_acf_value(&content, "installdir")?;
         let game_dir = steamapps.join("common").join(install_dir);
 
-        if adapter.executables.is_empty() || adapter.executables.iter().any(|exe| game_dir.join(exe).exists()) {
+        if adapter.executables.is_empty()
+            || adapter
+                .executables
+                .iter()
+                .any(|exe| game_dir.join(exe).exists())
+        {
             return Some(game_dir.to_string_lossy().to_string());
         }
     }
@@ -188,7 +196,10 @@ pub fn find_unknown_steam_game(game_id: &str) -> Option<GameSummary> {
 }
 
 fn append_unknown_steam_games(games: &mut Vec<GameSummary>, steam_libraries: &[PathBuf]) {
-    let known_appids: BTreeSet<String> = games.iter().filter_map(|item| item.steam_appid.clone()).collect();
+    let known_appids: BTreeSet<String> = games
+        .iter()
+        .filter_map(|item| item.steam_appid.clone())
+        .collect();
 
     for steamapps in steam_libraries {
         let Ok(entries) = fs::read_dir(steamapps) else {
@@ -217,9 +228,16 @@ fn append_unknown_steam_games(games: &mut Vec<GameSummary>, steam_libraries: &[P
             let Ok(content) = fs::read_to_string(&path) else {
                 continue;
             };
-            let display_name = parse_acf_value(&content, "name").unwrap_or_else(|| format!("Steam App {appid}"));
+            let display_name =
+                parse_acf_value(&content, "name").unwrap_or_else(|| format!("Steam App {appid}"));
             let install_dir = parse_acf_value(&content, "installdir");
-            let detected_path = install_dir.map(|dir| steamapps.join("common").join(dir).to_string_lossy().to_string());
+            let detected_path = install_dir.map(|dir| {
+                steamapps
+                    .join("common")
+                    .join(dir)
+                    .to_string_lossy()
+                    .to_string()
+            });
             games.push(GameSummary {
                 game_id: format!("steam_{appid}"),
                 display_name,

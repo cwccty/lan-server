@@ -1360,3 +1360,251 @@ Notes:
 - Public wording was changed to early public test build / game solution library / suggested follow-up validation.
 - Current GitHub v0.1.0 asset still has the older ZIP digest until the Release asset is replaced manually.
 - Download count was 0 when checked through GitHub API, so replacing the v0.1.0 asset is still acceptable; publishing v0.1.1 is safer if any user has downloaded it later.
+
+## 2026-06-06 n2n TAP device startup failure triage
+
+Observed friend-side log:
+
+~~~text
+[manager] n2n edge started
+[stdout] adding supernode = <supernode>:7777
+[stdout] WARNING: switching to AES as key was provided
+[stdout] starting n2n edge dev-31936c8
+[stdout] use manually set IP address
+[stdout] Cannot find tap device "????? 6"
+~~~
+
+Conclusion: this is not a supernode/authentication failure. The edge process started, but failed before registration because the TAP device passed to `-d` could not be found. The likely trigger was automatic selection of a localized/Chinese TAP adapter name; inside edge output the adapter name appeared as question marks, so n2n could not match the Windows adapter.
+
+Fix applied:
+
+- `src-tauri/src/network/n2n_backend.rs` no longer falls back to the first arbitrary TAP/Wintun/VPN adapter.
+- The backend only passes `-d` when the selected adapter name is safe ASCII, e.g. `cfw-tap`, `n2n`, `edge`, `tap`, `SetupVPN`.
+- If edge exits during startup, the backend removes the stale pid file and returns the decisive log line to the UI.
+- `Cannot find tap device` is classified as `tap_error`, with a diagnostic issue id `n2n_tap_device_error`.
+- Sidebar membership-style placeholder text was changed to neutral local configuration copy.
+
+Validation:
+
+- `cargo check --manifest-path src-tauri\Cargo.toml`: PASS.
+- `npm run build`: PASS.
+
+Manual retest required: install the rebuilt client on the friend's machine, start n2n again, and verify the log reaches `REGISTER_SUPER_ACK` / `Rx PONG` instead of `Cannot find tap device`.
+
+## 2026-06-06 ordinary user UI declutter
+
+Conclusion: the audit/self-check cards shown in product pages are useful for development and release verification, but they are too noisy for ordinary players.
+
+Fix applied:
+
+- Added a local setting toggle: “显示开发者验证信息”.
+- Default state is off.
+- Ordinary users no longer see final audit, closure self-check, sample validation, publish gate, real EXE validation, adapter publish audit, adapter review workbench, version conflict and backup history cards.
+- The cards are not deleted; enabling developer validation information shows them again for release QA and troubleshooting.
+
+Product rule recorded in `PRODUCT.md`: developer audit information must be hidden by default. User-facing screens should lead with next action, true status and required operations.
+
+## 2026-06-06 user main flow reorder
+
+Conclusion: ordinary users should not land on a technical dashboard. The first screen now answers whether the player wants to host or join, then shows the next three actions.
+
+Fix applied:
+
+- `src/product-ui/ProductHomeView.tsx` title changed from desktop hall to start joining/hosting flow.
+- Home first card now shows role-specific 3-step actions:
+  - host: scan game, start n2n, open host invite flow;
+  - joiner: paste invite packet, save/start n2n, enter game by host virtual IP.
+- Home topology, real checklist and duplicate host guide are kept, but hidden by default behind developer validation mode.
+- `src/product-ui/ProductSidebar.tsx` navigation is regrouped into 联机 / 游戏 / 排查.
+- Product rule recorded in `PRODUCT.md`: home and sidebar must prioritize 我要开房 / 我要加入; technical topology, internal checklist and release validation content stay out of the default user flow.
+
+Validation:
+
+- `npm.cmd run build`: PASS.
+- `cargo check --manifest-path src-tauri\Cargo.toml`: PASS.
+
+## 2026-06-06 network page main flow reorder
+
+Conclusion: the network page should not open with a full n2n parameter form. Joiners normally only need to paste the host invite packet, start n2n, then enter the game.
+
+Fix applied:
+
+- `src/product-ui/ProductNetworkView.tsx` title changed from generic network center to 加入与组网.
+- The first visible card now prioritizes:
+  - paste invite packet;
+  - save and start n2n;
+  - inspect next action / diagnostics / game connection instruction.
+- Manual n2n settings are still available through 手动设置, but they are no longer the default first screen.
+- The old duplicate invite card, n2n logs and advanced-tool relationship explanation are kept for developer validation mode instead of ordinary default UI.
+- Product rule recorded in `PRODUCT.md`: the network page must prioritize invite-based join flow; hand-written room name, key, Supernode, port checks and logs are progressive details.
+
+Validation:
+
+- `npm.cmd run build`: PASS.
+- `cargo check --manifest-path src-tauri\Cargo.toml`: PASS.
+
+## 2026-06-06 host invite page declutter
+
+Conclusion: ordinary hosts should not see adapter confidence, conversion assessment, backend/profile fields, closure audit, ACK/PONG or internal failure reason codes on the default invite page.
+
+Fix applied:
+
+- Host invite page now keeps ordinary flow focused on selecting a game, starting network/server, adding a friend and copying the invite package.
+- Technical recommendation selector, conversion assessment, raw recommendation list and host closure audit remain available in developer validation mode.
+- Host diagnostic card keeps the user action visible, while reason codes and low-level fields are hidden by default.
+- User-facing copy prefers 添加好友 / 组网 / 邀请还没准备好 over IP slot / ACK / adapter / context terms.
+- Product rule recorded in `PRODUCT.md`: host invite page should be action-first and keep recommendation confidence, conversion assessment and raw failure fields out of the ordinary default UI.
+
+Validation:
+
+- `npm.cmd run build`: PASS
+- `cargo check --manifest-path src-tauri\Cargo.toml`: PASS
+
+## 2026-06-06 host invite copy area cleanup
+
+Conclusion: the host invite page should not show raw invite package text, friend connectivity test buttons, or test summaries in the ordinary host flow. Hosts should mainly see the selected friend state and one copy action.
+
+Fix applied:
+
+- Host invite right panel title now focuses on copying to a friend, not "invite package and test".
+- Ordinary host view now shows selected friend / missing friend state and a single copy invite action.
+- Raw invite preview, friend connectivity test action, and last connectivity summary are moved under `data-recommendation-technical-details="details"`.
+- Friend list action is renamed from generating an invite package to selecting the friend, matching the actual step.
+- Product rule recorded in `PRODUCT.md`: raw invite preview and friend connectivity diagnostics are not part of the default host flow.
+
+Validation:
+
+- `npm.cmd run build`: PASS
+- `cargo check --manifest-path src-tauri\Cargo.toml`: PASS
+
+## 2026-06-06 user-facing wording cleanup
+
+Conclusion: default user paths should not expose implementation terms such as n2n, Supernode, ACK/PONG, edge, virtual IP, backend/profile/latency unless the user opens manual settings or developer troubleshooting details.
+
+Fix applied:
+
+- Global status center now converts runtime wording into user-facing terms: 组网服务, 中继地址, 联机地址, 联机确认.
+- Home join flow now says 保存并加入 / 房主联机地址 / 中继确认 instead of save/start n2n, virtual IP, Supernode or ACK/PONG.
+- Join page first card now says 保存并加入, 手动填写, 房主联机地址 and 我的联机地址.
+- Sidebar hints no longer advertise n2n/TCP/UDP implementation details in the main navigation.
+- Product rule recorded in `PRODUCT.md`: join flow defaults to 粘贴邀请包 → 保存并加入 → 进入游戏, with implementation terms reserved for manual settings and troubleshooting.
+
+Validation:
+
+- `npm.cmd run build`: PASS
+- `cargo check --manifest-path src-tauri\Cargo.toml`: PASS
+
+## 2026-06-06 auxiliary pages main flow reorder
+
+Conclusion: auxiliary pages should also be task-first. Ordinary users should not land on URL forms, adapter lists, runtime summaries, release checks, raw reports, physical paths or log directories.
+
+Fix applied:
+
+- Solution library page now opens with a normal-user action card: update shared solution library, scan games, open host invite flow, or report a missing game.
+- Diagnostic page now opens with a single "先做这一步" decision card based on the real diagnostic state and auto-next-step decision.
+- Settings page now opens with common settings: default relay address, default solution library address, save, reset and network-program check.
+- Existing maintenance views are preserved under developer validation details: shared library URL/source cards, adapter category/list, runtime summary, release checks, raw report preview, physical executable path, log directory and publish notes.
+- Product rule recorded in `PRODUCT.md`: auxiliary pages must remain task-first, with technical details progressive.
+
+Validation:
+
+- `npm.cmd run build`: PASS
+- `cargo check --manifest-path src-tauri\Cargo.toml`: PASS
+
+## 2026-06-06 advanced and dedicated-guide default declutter
+
+Conclusion: advanced tools and game-specific guide pages still exposed too much implementation detail for ordinary players. The functions are useful, but the default screen should not teach port proxy theory, method matrices, raw risk details, PID/log fields, or control-console caveats before the user has a reason to troubleshoot.
+
+Fix applied:
+
+- Added default-hidden technical selectors in `src/reference-runtime.css`:
+  - `data-advanced-connection-methods`
+  - `data-advanced-connection-matrix`
+  - `data-advanced-tool-explainer`
+  - `data-advanced-tool-risk-detail`
+  - `data-advanced-runtime-technical`
+  - `data-terraria-technical-details`
+  - `data-network-manual-technical`
+- `src/product-ui/ProductNetworkView.tsx` now uses user-facing labels in the manual area: 中继地址, 我的联机地址, 启动组网服务, 联机确认.
+- `src/product-ui/ProductAdvancedToolsView.tsx` keeps the real start/self-test operations visible, but hides the method catalog, capability matrix, long explainer, detailed risk list, runtime instance logs and generic server console by default.
+- `src/product-ui/ProductTerrariaGuideView.tsx` now defaults to “选择世界 → 启动服务端 → 复制邀请”; PID, low-level readiness fields, logs and command console move to developer troubleshooting details.
+- Product rule recorded in `PRODUCT.md`: advanced tools and dedicated guides must be operation-first by default, while technical evidence stays available behind developer validation details.
+
+Validation:
+
+- `npm.cmd run build`: PASS
+- `cargo check --manifest-path src-tauri\Cargo.toml`: PASS
+
+## 2026-06-06 game scan and header main-flow cleanup
+
+Conclusion: the game scan page and top status bar were still written like developer surfaces. Ordinary players should not see adapter/version/source/confidence/backend fields before they have selected a game and continued into the host/join flow.
+
+Fix applied:
+
+- `src/product-ui/ProductGameScanView.tsx` now defaults to:
+  - scan or rescan games;
+  - choose a game;
+  - follow the recommended next step.
+- Adapter category inventory, registry version, cache timestamp, game id, install path, adapter version, capability details, recommendation evidence, analysis result and raw recommendation preview are now behind developer validation selectors.
+- User-facing labels were shortened from `真实分析` / `推荐目标` / `game_id` to `分析详情` / `选择此游戏` / normal game search copy.
+- `src/product-ui/ProductHeader.tsx` no longer shows implementation terms like `n2n` or `真实状态` in the default top bar.
+- Placeholder notification/account icons without product behavior were removed from the top bar.
+- Product rule recorded in `PRODUCT.md`: game scan and header must remain main-flow surfaces, not adapter/debug dashboards.
+
+Validation:
+
+- `npm.cmd run build`: PASS
+- `cargo check --manifest-path src-tauri\Cargo.toml`: PASS
+
+## 2026-06-06 settings and diagnostics default declutter
+
+Conclusion: settings and diagnostics were still too close to developer consoles. Ordinary players should not see edge.exe, ACK/PONG, Supernode, runtime, release checks, real EXE validation, raw reason codes, raw report previews, or repair history by default.
+
+Fix applied:
+
+- `src/product-ui/ProductSettingsView.tsx` now uses user-facing copy in the default area:
+  - 保存设置 / 保存常用设置;
+  - 检测组网程序;
+  - 默认中继地址;
+  - 默认方案库地址;
+  - 显示排查与验证详情.
+- The real settings save/reset/load/check calls are unchanged; only the default wording and information hierarchy were simplified.
+- `src/product-ui/ProductDiagnosticsView.tsx` now presents the ordinary flow as:
+  - 先生成诊断;
+  - 查看诊断结论;
+  - 按建议修复;
+  - 复制报告给朋友.
+- Diagnostic text is simplified in visible cards: n2n/edge/Supernode/ACK/PONG/virtual IP/backend/runtime/adapter/release-check wording is converted to group networking / network program / relay address / connection confirmation / connection address / local service / current state / game solution / checks.
+- Raw reason codes, relay fields in context cards, auto-retest technical deltas, advanced-tool self-test history, fix history, and low-priority route-specific n2n fix groups are now behind developer validation selectors.
+- `src/reference-runtime.css` adds default-hidden selectors:
+  - `data-diagnostic-context-technical`
+  - `data-diagnostic-auto-retest-technical`
+  - `data-diagnostic-advanced-tool-self-test-history`
+  - `data-diagnostic-fix-history`
+  - `data-diagnostic-n2n-fixes-deprioritized`
+- Product rule recorded in `PRODUCT.md`: settings and diagnostics must not look like developer consoles in the ordinary default UI.
+
+Validation:
+
+- `npm.cmd run build`: PASS
+- `cargo check --manifest-path src-tauri\Cargo.toml`: PASS
+- `git diff --check`: PASS, only LF/CRLF working-copy warnings
+
+
+## 2026-06-06 global first-screen audit
+
+Conclusion: the product shell should answer ?what should I do next?? before exposing implementation detail. This pass keeps the real diagnostic and validation data intact, but pushes adapter/n2n/edge/Supernode/ACK/PONG/raw runtime wording into troubleshooting details or copied developer reports.
+
+Fix applied:
+
+- `PRODUCT.md` now records a global first-screen rule: first screen = identity, current status, next step, primary action; implementation terms stay in troubleshooting/developer details.
+- User-facing route, invite, diagnostic and connection-method copy now prefers: ???? / ???? / ???? / ???? / ????.
+- `src/product-ui/connectionMethodCatalog.ts`, `diagnosticConversionAdvice.ts`, `hostDiagnosticContext.ts`, `inviteDiagnosticContext.ts`, `inviteJoinSuccess.ts`, `errorActions.ts`, `conversionAssessmentEngine.ts` and related presentation helpers were cleaned so copied reports and repair cards no longer read like developer consoles by default.
+- Game scan hidden analysis placeholders were renamed from ?????/????? to ?????/?????.
+- Advanced tools first visible form now says ????????, while method matrices, risk details, logs and service-console details remain available behind developer validation.
+
+Validation to run for this pass:
+
+- `npm.cmd run build`
+- `cargo check --manifest-path src-tauri\Cargo.toml`
+- `git diff --check`

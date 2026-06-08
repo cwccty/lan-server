@@ -40,10 +40,19 @@ import {
   type AdapterRegistrySyncResult,
 } from '../api/tauri';
 import type { AdapterVerificationStatus, ConversionMethod, GameAdapter, GameCapability, GameNetworkType, MultiplayerCapability } from '../types/game';
+import type { AppTab } from '../reference-ui/types';
 import {
   getReferenceAdapterSyncResult,
   setReferenceAdapterSyncResult,
 } from '../reference-adapter/adapterSyncResult';
+import { writeAdvancedToolIntent } from './advancedToolIntent';
+import {
+  ADAPTER_CATEGORY_ROUTE_ANCHOR_EVENT,
+  buildAdapterCategoryRoute,
+  consumeAdapterCategoryRouteAnchor,
+  rememberAdapterCategoryRouteAnchor,
+  scrollToAdapterCategoryRouteAnchor,
+} from './adapterCategoryRoute';
 import {
   adapterVersionLabel,
   buildApplicabilityList,
@@ -104,12 +113,14 @@ import {
 } from './conversionEngineClosureAudit';
 
 import { ProductBusyOverlay } from './ProductBusyOverlay';
+import { ProductOneClickServerMvp } from './ProductOneClickServerMvp';
+import { gameProfileToneClass, getGameConnectionProfile } from './gameConnectionProfiles';
 
 interface ProductSolutionsViewProps {
   onTriggerToast: (msg: string) => void;
   solutionsUrl: string;
   onUpdateSolutionsUrl: (url: string) => void;
-  onNavigateTab?: (tab: 'games' | 'protocol' | 'diagnostics' | 'settings') => void;
+  onNavigateTab?: (tab: AppTab) => void;
 }
 
 interface SavedAdapterReview {
@@ -695,6 +706,7 @@ export function ProductSolutionsView({
   }, [adapters, categoryFilter, query]);
 
   const inventory = useMemo(() => summarizeAdapterInventory(adapters), [adapters]);
+  const selectedCategoryRoute = categoryFilter === 'all' ? null : buildAdapterCategoryRoute(categoryFilter);
   const publishAuditSummary = useMemo(
     () => summarizePublishAudits(adapters, syncResult),
     [adapters, syncResult],
@@ -711,6 +723,21 @@ export function ProductSolutionsView({
     }));
     return summarizeAdapterQuality(scores);
   }, [adapters, conflictByGameId]);
+
+  const openCategoryNextStep = (categoryId: AdapterCategoryId) => {
+    const route = buildAdapterCategoryRoute(categoryId);
+    if (route.intent) writeAdvancedToolIntent(route.intent);
+    rememberAdapterCategoryRouteAnchor(route);
+    if (route.targetTab === 'solutions') {
+      scrollToAdapterCategoryRouteAnchor(route.anchorSelector || '[data-solutions-method-filter="visible"]', 0);
+      onTriggerToast(route.toast);
+      return;
+    }
+    onNavigateTab?.(route.targetTab);
+    scrollToAdapterCategoryRouteAnchor(route.anchorSelector);
+    onTriggerToast(route.toast);
+  };
+
   const adapterReviewWorkbenchItems = useMemo(() => adapters.map((adapter) => {
     const conflict = conflictByGameId.get(adapter.game_id);
     const quality = buildAdapterQualityScore(adapter, {
@@ -792,6 +819,16 @@ export function ProductSolutionsView({
       onUpdateSolutionsUrl(normalized);
     }
   }, [onUpdateSolutionsUrl, solutionsUrl]);
+  useEffect(() => {
+    const pendingSelector = consumeAdapterCategoryRouteAnchor();
+    scrollToAdapterCategoryRouteAnchor(pendingSelector, 160);
+    const onAnchorUpdated = (event: Event) => {
+      const selector = event instanceof CustomEvent ? event.detail?.selector : null;
+      scrollToAdapterCategoryRouteAnchor(selector, 160);
+    };
+    window.addEventListener(ADAPTER_CATEGORY_ROUTE_ANCHOR_EVENT, onAnchorUpdated);
+    return () => window.removeEventListener(ADAPTER_CATEGORY_ROUTE_ANCHOR_EVENT, onAnchorUpdated);
+  }, []);
   const hasSharedLibrary = Boolean(syncResult?.ok);
   const solutionMainStatus = hasSharedLibrary
     ? `共享库已更新，本地已有 ${adapters.length} 个游戏方案。`
@@ -1994,54 +2031,12 @@ export function ProductSolutionsView({
         </div>
       </section>
 
-      <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm" data-one-click-server-roadmap="v020">
-        <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
-          <div className="min-w-0">
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] font-bold text-white">重点推荐 + 游戏网格</span>
-              <span className="rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-700">更多游戏马上呈现</span>
-            </div>
-            <h3 className="text-base font-bold text-slate-900">一键开服和推荐联机方式进度</h3>
-            <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-600">
-              这里先告诉普通用户每个游戏现在该怎么联机；真正的一键开服会按游戏逐步补齐，不把未完成能力伪装成已接入。
-            </p>
-            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {[
-                ['Terraria', '已接入 / 优先推荐', '可使用 Terraria 向导开服；房主先开服务端，再复制邀请给好友。', 'terraria'],
-                ['Palworld', '建议专用服务端', '需要确认 UDP 端口、防火墙和服务端配置；当前优先走方案库与手动向导。', 'palworld'],
-                ['Minecraft Java', 'Java 服务端 / TCP', '适合 TCP 25565 或自定义端口；先启动服务端，再让好友连接房主联机地址。', 'minecraft'],
-                ['Stardew Valley', '普通联机 / Steam 邀请边界', '优先使用游戏内联机或 Steam 邀请；需要组网时按方案库提示走。', 'stardew'],
-                ['Cuphead', '本地同屏更合适', '不是传统局域网开服游戏；优先 Steam Remote Play 或 Sunshine + Moonlight。', 'cuphead'],
-              ].map(([name, status, detail, key]) => (
-                <article key={key} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <h4 className="min-w-0 text-sm font-bold text-slate-900">{name}</h4>
-                    <span className="shrink-0 rounded-full bg-white px-2 py-1 text-[10px] font-bold text-slate-600">{status}</span>
-                  </div>
-                  <p className="mt-2 text-xs leading-relaxed text-slate-600">{detail}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-          <aside className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
-            <h4 className="text-sm font-bold text-slate-900">下一批一键开服计划</h4>
-            <ul className="mt-3 space-y-2 text-xs leading-relaxed text-amber-900">
-              <li>• 先补齐 Palworld / Minecraft 的服务端参数检查。</li>
-              <li>• 再补 Stardew / Cuphead 的推荐联机边界和远程同屏提示。</li>
-              <li>• 缺少游戏时请点击“反馈缺少的游戏”，管理员会按证据补方案。</li>
-            </ul>
-            <button
-              onClick={() => {
-                setContributionOpen(true);
-                onTriggerToast('已打开游戏方案反馈入口。');
-              }}
-              className="mt-4 w-full rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800"
-            >
-              反馈缺少的游戏
-            </button>
-          </aside>
-        </div>
-      </section>
+      <ProductOneClickServerMvp
+        busy={busy}
+        setBusy={setBusy}
+        onTriggerToast={onTriggerToast}
+        onNavigateTab={onNavigateTab}
+      />
 
       <section
         className="rounded-2xl border border-sky-100 bg-sky-50/80 p-5 shadow-sm"
@@ -3187,12 +3182,12 @@ export function ProductSolutionsView({
         </section>
       ) : null}
 
-      <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm" data-solutions-technical-details="advanced">
+      <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm" data-solutions-method-filter="visible">
         <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
           <div>
-            <h3 className="text-sm font-bold text-slate-800">方案分类总览</h3>
-            <p className="mt-1 text-xs text-slate-500">
-              当前库内 {inventory.total} 个方案，其中 {inventory.convertible} 个可作为局域网/直连转换候选，{inventory.registry} 个来自共享库。
+            <h3 className="text-sm font-bold text-slate-800">按联机方式找游戏</h3>
+            <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">
+              先选“开服、端口、广播、Steam/P2P、远程同屏”等路线，就能快速知道哪些游戏适合这个方式。当前库内 {inventory.total} 个方案，{inventory.registry} 个来自共享库。
             </p>
           </div>
           <button
@@ -3203,32 +3198,157 @@ export function ProductSolutionsView({
                 : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
             }`}
           >
-            查看全部
+            查看全部游戏
           </button>
         </div>
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {inventory.counts.map((category) => {
             const selected = categoryFilter === category.id;
+            const hasExamples = category.examples.length > 0;
             return (
               <button
                 key={category.id}
                 onClick={() => setCategoryFilter(category.id)}
-                className={`rounded-2xl border p-3 text-left transition ${
-                  selected ? category.panelClass : 'border-slate-100 bg-slate-50/70 hover:border-slate-200 hover:bg-white'
+                aria-pressed={selected}
+                className={`min-h-[170px] rounded-2xl border p-3 text-left transition ${
+                  selected
+                    ? category.panelClass
+                    : category.count === 0
+                      ? 'border-dashed border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50'
+                      : 'border-slate-100 bg-slate-50/70 hover:border-slate-200 hover:bg-white'
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className={`flex h-8 w-8 items-center justify-center rounded-xl text-white ${category.iconBgClass}`}>
                     {category.id === 'dedicated_server' ? <Server className="h-4 w-4" /> : category.id === 'bridge_or_proxy' ? <Wrench className="h-4 w-4" /> : category.id === 'needs_review' ? <ShieldQuestion className="h-4 w-4" /> : <Network className="h-4 w-4" />}
                   </span>
-                  <b className="text-lg text-slate-800">{category.count}</b>
+                  <div className="text-right">
+                    <b className="text-lg text-slate-800">{category.count}</b>
+                    <p className="text-[10px] font-bold text-slate-500">{category.count > 0 ? '已收录' : '待补充'}</p>
+                  </div>
                 </div>
                 <p className="mt-2 text-xs font-bold text-slate-800">{category.shortLabel}</p>
                 <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-slate-500">{category.description}</p>
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {hasExamples
+                    ? category.examples.map((example) => (
+                      <span key={example} className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-slate-600 ring-1 ring-slate-100">
+                        {example}
+                      </span>
+                    ))
+                    : (
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">
+                        暂无支持游戏示例
+                      </span>
+                    )}
+                </div>
+                <p className="mt-2 text-[10px] font-bold text-slate-700">
+                  下一步：{buildAdapterCategoryRoute(category.id).actionLabel}
+                </p>
               </button>
             );
           })}
         </div>
+        <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-xs font-bold text-slate-800">
+                {categoryFilter === 'all' ? '当前展示全部方案' : `当前筛选：${inventory.counts.find((item) => item.id === categoryFilter)?.label || '已选分类'}`}
+              </p>
+              <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
+                筛选结果 {filteredAdapters.length} 个。普通用户可先去“游戏扫描”选择游戏，管理员再进入下方详情维护具体方案。
+                {selectedCategoryRoute ? <span className="ml-1 text-slate-600">{selectedCategoryRoute.description}</span> : null}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {categoryFilter !== 'all' && selectedCategoryRoute ? (
+                <button
+                  onClick={() => openCategoryNextStep(categoryFilter)}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800"
+                >
+                  <Link2 className="h-4 w-4" />
+                  {selectedCategoryRoute.actionLabel}
+                </button>
+              ) : null}
+              <button
+                onClick={() => onNavigateTab?.('games')}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
+              >
+                <Search className="h-4 w-4" />
+                去扫描并选择游戏
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3" data-solutions-filtered-profile-results="visible">
+          {filteredAdapters.slice(0, 6).map((adapter) => {
+            const profile = getGameConnectionProfile(adapter);
+            const methods = conversionMethodsFor(adapter);
+            const category = deriveAdapterCategory(adapter);
+            return (
+              <article key={adapter.game_id} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900">{adapter.display_name}</h4>
+                    <p className="mt-1 text-[11px] text-slate-500">{category.shortLabel} · {networkTypeLabel(adapter.network_type)}</p>
+                  </div>
+                  {profile ? (
+                    <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${gameProfileToneClass(profile)}`}>
+                      {profile.verificationLabel}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {(profile?.methodTags.length ? profile.methodTags : methods).slice(0, 4).map((method) => (
+                    <span key={method} className="rounded-full bg-white px-2 py-1 text-[10px] font-bold text-slate-600 ring-1 ring-slate-100">{method}</span>
+                  ))}
+                </div>
+                <div className="mt-3 grid gap-2 text-[11px] leading-relaxed text-slate-600">
+                  <p><b className="text-slate-900">端口/准备：</b>{profile ? profile.ports.join('、') : adapter.evidence?.port_protocols?.join('、') || adapter.default_ports.join('、') || '以方案或游戏内显示为准'}</p>
+                  <p><b className="text-slate-900">房主：</b>{profile?.hostFirstStep || adapter.connection_plan?.host_role || '先按分类下一步进入对应向导。'}</p>
+                  <p><b className="text-slate-900">加入者：</b>{profile?.guestFirstStep || adapter.connection_plan?.join_role || '先加入同一组网，再按邀请地址或游戏内入口加入。'}</p>
+                </div>
+              </article>
+            );
+          })}
+          {filteredAdapters.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-5 text-sm text-slate-500 md:col-span-2 xl:col-span-3">
+              当前分类暂未收录支持游戏。可以点击“反馈缺少的游戏”或导入方案，不能把 0 数量分类伪装成已支持。
+            </div>
+          ) : null}
+        </div>
+        {inventory.total === 0 ? (
+          <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 p-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-sm font-bold text-slate-900">方案库还是空的</p>
+                <p className="mt-1 max-w-3xl text-xs leading-relaxed text-amber-900">
+                  先点“更新共享库”。成功后这里会显示哪些游戏适合开服、端口代理、广播桥、Steam/P2P 或远程同屏。
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={syncDefaultGithubRegistry}
+                  disabled={Boolean(busy)}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-60"
+                >
+                  <CloudDownload className="h-4 w-4" />
+                  更新共享库
+                </button>
+                <button
+                  onClick={() => {
+                    setContributionOpen(true);
+                    onTriggerToast('已打开游戏方案反馈入口。');
+                  }}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-200 bg-white px-4 py-2 text-xs font-bold text-amber-800 hover:bg-amber-50"
+                >
+                  <Upload className="h-4 w-4" />
+                  反馈缺少的游戏
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </section>
 
       <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm" data-adapter-quality-confidence="summary">

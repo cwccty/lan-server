@@ -39,10 +39,17 @@ export interface N2nDiagnostics {
   auth_error: boolean;
   ip_mac_conflict: boolean;
   not_responding: boolean;
+  tap_error?: boolean;
   last_error?: string | null;
   summary: string;
   log_path: string;
   recent_logs: string[];
+  executable_found?: boolean;
+  executable_path?: string | null;
+  recorded_pid?: number | null;
+  recorded_pid_running?: boolean;
+  connection_state?: string;
+  manual_start_command?: string | null;
 }
 
 export interface ConnectivityTarget {
@@ -50,6 +57,7 @@ export interface ConnectivityTarget {
   ports: number[];
   timeout_ms?: number;
   mode?: 'generic' | 'local_game_port' | 'n2n_game_port';
+  protocol?: 'tcp' | 'udp' | 'tcp_udp';
 }
 
 export interface PortCheckResult {

@@ -26,3 +26,21 @@ export interface GenericServerLaunchConfig {
   raw_args?: string | null;
   jar_memory_mb?: number | null;
 }
+
+export interface GenericServerPreflightCheck {
+  id: string;
+  level: 'ok' | 'warn' | 'block' | string;
+  label: string;
+  detail: string;
+}
+
+export interface GenericServerPreflightReport {
+  ok: boolean;
+  can_start: boolean;
+  executable_path: string;
+  working_dir?: string | null;
+  executable_kind: string;
+  port: number;
+  summary: string;
+  checks: GenericServerPreflightCheck[];
+}

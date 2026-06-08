@@ -2,7 +2,8 @@ use crate::models::network::{BackendRuntimeStatus, BackendSummary, NetworkConfig
 use crate::network::windows_ip;
 
 pub fn detect() -> BackendSummary {
-    let installed = std::path::Path::new(r"C:\Program Files (x86)\Radmin VPN\RvRvpnGui.exe").exists()
+    let installed = std::path::Path::new(r"C:\Program Files (x86)\Radmin VPN\RvRvpnGui.exe")
+        .exists()
         || std::path::Path::new(r"C:\Program Files\Radmin VPN\RvRvpnGui.exe").exists();
     let virtual_ip = find_radmin_virtual_ip();
     BackendSummary {

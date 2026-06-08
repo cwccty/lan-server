@@ -32,7 +32,6 @@ pub struct BackendRuntimeStatus {
     pub message: String,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct N2nDiagnostics {
     pub running: bool,
@@ -45,10 +44,17 @@ pub struct N2nDiagnostics {
     pub auth_error: bool,
     pub ip_mac_conflict: bool,
     pub not_responding: bool,
+    pub tap_error: bool,
     pub last_error: Option<String>,
     pub summary: String,
     pub log_path: String,
     pub recent_logs: Vec<String>,
+    pub executable_found: bool,
+    pub executable_path: Option<String>,
+    pub recorded_pid: Option<u32>,
+    pub recorded_pid_running: bool,
+    pub connection_state: String,
+    pub manual_start_command: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -57,6 +63,7 @@ pub struct ConnectivityTarget {
     pub ports: Vec<u16>,
     pub timeout_ms: Option<u64>,
     pub mode: Option<String>,
+    pub protocol: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

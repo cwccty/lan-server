@@ -77,6 +77,7 @@ pub struct SteamP2pHostRequest {
     pub target_host: String,
     pub target_port: u16,
     pub app_id: Option<String>,
+    pub connecttool_dir: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -85,6 +86,7 @@ pub struct SteamP2pGuestRequest {
     pub virtual_port: u16,
     pub guest_local_port: u16,
     pub app_id: Option<String>,
+    pub connecttool_dir: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

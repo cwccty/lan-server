@@ -108,7 +108,7 @@ export default function Sidebar({ currentTab, onChangeTab, status, onShowVersion
           <User className="w-4 h-4 text-slate-400" />
           <div className="truncate flex-1">
             <p className="text-xs font-semibold text-slate-700 truncate leading-tight">本地玩家</p>
-            <p className="text-[10px] text-slate-400">高级订阅会员</p>
+            <p className="text-[10px] text-slate-400">本地配置</p>
           </div>
         </div>
       </div>

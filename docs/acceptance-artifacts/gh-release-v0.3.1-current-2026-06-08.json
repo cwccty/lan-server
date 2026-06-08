@@ -1,0 +1,11 @@
+{
+    "generated_at":  "2026-06-08T23:05:00.1383271+08:00",
+    "repo":  "cwccty/lan-server",
+    "tag":  "v0.3.1",
+    "release_exists":  false,
+    "checked_with":  "gh release view v0.3.1 --repo cwccty/lan-server",
+    "note":  "v0.3.1 GitHub prerelease was not found. Do not publish until current candidate source/artifact state is intentionally staged.",
+    "local_zip":  "release-artifacts/LanHelper-v0.3.1-windows-x64.zip",
+    "local_zip_sha256":  "EE65491E725538DD482CCE96CD33F2A834A311A702DA6CB0691F2C5BDA9E2C96",
+    "local_exe_sha256":  "75295FDB62187E75AB4A659647530F4F4A5F4824261ACAE49AC207C226645329"
+}

@@ -1,0 +1,119 @@
+﻿ M PRODUCT.md
+ M docs/N2N_GUIDE.md
+ M docs/RELEASE_VALIDATION_LOG.md
+ M docs/STEAM_RELAY_P2P_CONNECTTOOL_MVP.md
+ M docs/V0_2_0_DELIVERY.md
+ M docs/V0_2_0_RELEASE_EXECUTION_CHECKLIST.md
+ M package-lock.json
+ M package.json
+ M src-tauri/Cargo.lock
+ M src-tauri/Cargo.toml
+ M src-tauri/src/commands.rs
+ M src-tauri/src/core/capability_engine.rs
+ M src-tauri/src/core/connectivity_tester.rs
+ M src-tauri/src/core/diagnostic_logger.rs
+ M src-tauri/src/core/game_detector.rs
+ M src-tauri/src/core/game_launcher.rs
+ M src-tauri/src/core/port_proxy.rs
+ M src-tauri/src/core/recommendation_engine.rs
+ M src-tauri/src/core/server_session.rs
+ M src-tauri/src/core/steam_relay.rs
+ M src-tauri/src/core/udp_broadcast_bridge.rs
+ M src-tauri/src/core/udp_proxy.rs
+ M src-tauri/src/lib.rs
+ M src-tauri/src/models/network.rs
+ M src-tauri/src/models/server_session.rs
+ M src-tauri/src/models/steam_relay.rs
+ M src-tauri/src/network/n2n_backend.rs
+ M src-tauri/src/network/radmin_backend.rs
+ M src-tauri/src/network/windows_ip.rs
+ M src-tauri/src/storage/account_store.rs
+ M src-tauri/src/storage/adapter_store.rs
+ M src-tauri/src/storage/friend_store.rs
+ M src-tauri/src/storage/mod.rs
+ M src-tauri/src/storage/settings_store.rs
+ M src-tauri/tauri.conf.json
+ M src/api/tauri.ts
+ M src/components/Layout.tsx
+ M src/pages/AdapterManagerPage.tsx
+ M src/pages/HomePage.tsx
+ M src/product-ui/ProductAdvancedToolsView.tsx
+ M src/product-ui/ProductBusyOverlay.tsx
+ M src/product-ui/ProductDiagnosticsView.tsx
+ M src/product-ui/ProductGameScanView.tsx
+ M src/product-ui/ProductHeader.tsx
+ M src/product-ui/ProductNetworkView.tsx
+ M src/product-ui/ProductSidebar.tsx
+ M src/product-ui/ProductSolutionsView.tsx
+ M src/product-ui/adapterContribution.ts
+ M src/product-ui/adapterPresentation.ts
+ M src/product-ui/adapterPublishAudit.ts
+ M src/product-ui/adapterQualityScore.ts
+ M src/product-ui/adapterRecommendationRoute.ts
+ M src/product-ui/adapterRegistrySubmit.ts
+ M src/product-ui/advancedToolIntent.ts
+ M src/product-ui/connectionCapabilityMatrix.ts
+ M src/product-ui/connectionMethodCatalog.ts
+ M src/product-ui/conversionAssessmentEngine.ts
+ M src/product-ui/diagnosticConversionAdvice.ts
+ M src/product-ui/errorActions.ts
+ M src/product-ui/gameScanRecommendationExplanation.ts
+ M src/product-ui/hostDiagnosticContext.ts
+ M src/product-ui/inviteDiagnosticContext.ts
+ M src/product-ui/inviteJoinFlow.ts
+ M src/product-ui/inviteJoinSuccess.ts
+ M src/product-ui/invitePacket.ts
+ M src/product-ui/productStateConsistencyAudit.ts
+ M src/product-ui/remoteCoopGuide.ts
+ M src/product-ui/statusCenter.ts
+ M src/reference-adapter/ProductActionPatcher.tsx
+ M src/reference-adapter/ProductInventoryPatcher.tsx
+ M src/reference-adapter/runtimeStore.ts
+ M src/reference-ui/components/Sidebar.tsx
+ M src/types/network.ts
+ M src/types/serverSession.ts
+ M tools/prepare_windows_x64_zip.ps1
+ M tools/release_preflight.ps1
+ M tools/verify_windows_x64_zip.ps1
+?? .lan-helper/
+?? advanced-tools-equal-layout-supervision-2026-06-08.png
+?? advanced-tools-equal-methods-760-current.png
+?? advanced-tools-equal-methods-current.png
+?? advanced-tools-user-guide-smoke.png
+?? backups/
+?? docs/DELIVERY_CHECKLIST.md
+?? docs/GOAL_RULES.md
+?? docs/ONE_CLICK_SERVER_MVP_AUDIT_2026_06_08.md
+?? docs/STEAM_RELAY_P2P_DELIVERY_AUDIT_2026_06_08.md
+?? docs/THREAD_HANDOFF.md
+?? docs/UI_AND_ONE_CLICK_SERVER_SUPERVISION_2026_06_08.md
+?? docs/V0_3_1_RELEASE_CHECKLIST.md
+?? docs/V0_3_1_RELEASE_DRAFT.md
+?? docs/acceptance-artifacts/
+?? docs/first-screen-audit-2026-06-06/
+?? docs/handoff/
+?? game-scan-categories-supervision-2026-06-08.png
+?? game-scan-method-categories-current-760.png
+?? lan-helper-advanced-equal-methods-760-2026-06-08.png
+?? lan-helper-bridge-route-linkage-2026-06-08.png
+?? lan-helper-solutions-categories-760-2026-06-08.png
+?? lan-helper-steam-route-linkage-2026-06-08.png
+?? n2n-network-diagnostic-actions-2026-06-08.png
+?? solutions-categories-supervision-2026-06-08.png
+?? solutions-method-filter-current-760.png
+?? src-tauri/target-ui-preview/
+?? src/product-ui/ProductOneClickServerMvp.tsx
+?? src/product-ui/adapterCategoryRoute.ts
+?? src/product-ui/gameConnectionProfiles.ts
+?? src/product-ui/statusCenterFixtures.ts
+?? steam-connecttool-ui.png
+?? steam-connecttool-v0.3.0-ui-final.png
+?? steam-connecttool-v0.3.0-ui.png
+?? tools/codex_first_screen_cleanup.cjs
+?? tools/run_v0_3_1_release_gate.ps1
+?? tools/triage_friend_retest_evidence.cjs
+?? tools/verify_dual_machine_regression_evidence.cjs
+?? tools/verify_network_diagnostic_ui.cjs
+?? tools/verify_status_center_fixtures.cjs
+?? tools/verify_windows_zip_launch_smoke.ps1
+?? v0.2.0-b1-home.png

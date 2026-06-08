@@ -1,0 +1,68 @@
+﻿{
+    "generated_at":  "2026-06-08T23:29:43.4638293+08:00",
+    "repo":  "E:\\Documents\\联机助手",
+    "skip_build":  false,
+    "steps":  [
+                  {
+                      "Name":  "npm build",
+                      "Status":  "PASS",
+                      "Detail":  ""
+                  },
+                  {
+                      "Name":  "cargo check",
+                      "Status":  "PASS",
+                      "Detail":  ""
+                  },
+                  {
+                      "Name":  "n2n diagnostics fixtures",
+                      "Status":  "PASS",
+                      "Detail":  ""
+                  },
+                  {
+                      "Name":  "adapter registry validation",
+                      "Status":  "PASS",
+                      "Detail":  ""
+                  },
+                  {
+                      "Name":  "dual machine regression evidence gate",
+                      "Status":  "PASS",
+                      "Detail":  ""
+                  },
+                  {
+                      "Name":  "network stuck diagnostic UI gate",
+                      "Status":  "PASS",
+                      "Detail":  ""
+                  },
+                  {
+                      "Name":  "windows release package rebuild",
+                      "Status":  "PASS",
+                      "Detail":  ""
+                  },
+                  {
+                      "Name":  "windows zip verification",
+                      "Status":  "PASS",
+                      "Detail":  ""
+                  },
+                  {
+                      "Name":  "windows zip launch smoke",
+                      "Status":  "PASS",
+                      "Detail":  ""
+                  },
+                  {
+                      "Name":  "zip sha256",
+                      "Status":  "PASS",
+                      "Detail":  "EE65491E725538DD482CCE96CD33F2A834A311A702DA6CB0691F2C5BDA9E2C96"
+                  },
+                  {
+                      "Name":  "exe sha256",
+                      "Status":  "PASS",
+                      "Detail":  "75295FDB62187E75AB4A659647530F4F4A5F4824261ACAE49AC207C226645329"
+                  },
+                  {
+                      "Name":  "zip excludes external helper files",
+                      "Status":  "PASS",
+                      "Detail":  "external_helper_matches=0"
+                  }
+              ],
+    "passed":  true
+}

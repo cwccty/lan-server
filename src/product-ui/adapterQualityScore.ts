@@ -72,7 +72,7 @@ function routeDescription(adapter: GameAdapter | GameSummary) {
   const type = adapter.network_type;
   if (type === 'official_only') return '该方案可信时表示应走官方服务器/官方大厅，不代表可以转换成 LAN。';
   if (type === 'not_supported') return '该方案可信时表示暂不建议转换，应该把限制说明给用户。';
-  if (type === 'local_coop_remote_play') return '该方案可信时表示应使用远程同屏，而不是让好友连接虚拟 IP。';
+  if (type === 'local_coop_remote_play') return '该方案可信时表示应使用远程同屏，而不是让好友连接联机地址。';
   if (type === 'steam_p2p_only' || type === 'steam_relay_plugin' || type === 'steam_lobby_direct_possible') {
     return '该方案可信时表示应优先保留 Steam 大厅/P2P 流程。';
   }
@@ -111,10 +111,10 @@ export function buildAdapterQualityScore(
       label: '低可信',
       score: 0,
       badgeClass: 'border-rose-200 bg-rose-50 text-rose-700',
-      summary: '尚未选择游戏或没有 adapter，无法判断推荐是否可靠。',
+      summary: '尚未选择游戏或没有游戏方案，无法判断推荐是否可靠。',
       strengths: [],
       risks: ['没有可评分的游戏方案'],
-      missing: ['adapter'],
+      missing: ['游戏方案'],
       canUseDirectly: false,
     };
   }
@@ -231,7 +231,7 @@ export function buildAdapterQualityScore(
     strengths.push('内置方案');
   } else if (source === 'steam_scan') {
     score -= 14;
-    risks.push('仅来自 Steam 扫描，通常需要转成 custom adapter');
+    risks.push('仅来自 Steam 扫描，通常需要转成自建游戏方案');
   } else {
     risks.push('来源不明确');
   }
@@ -279,7 +279,7 @@ export function buildAdapterQualityScore(
     risks.push(type === 'official_only' ? '官方服限定，不生成 LAN 邀请包' : '当前不建议转换');
   }
   if (nonLanOrLimited) {
-    strengths.push('不会误导用户强行走 n2n');
+    strengths.push('不会误导用户强行走通用组网');
   }
 
   const normalizedScore = clampScore(score);

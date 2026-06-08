@@ -11,7 +11,11 @@ pub fn recommend_plans(game_id: &str) -> Result<Vec<Recommendation>, String> {
     let methods = conversion
         .map(|profile| profile.methods.as_slice())
         .unwrap_or(&[]);
-    let has_method = |target: ConversionMethod| methods.iter().any(|method| std::mem::discriminant(method) == std::mem::discriminant(&target));
+    let has_method = |target: ConversionMethod| {
+        methods
+            .iter()
+            .any(|method| std::mem::discriminant(method) == std::mem::discriminant(&target))
+    };
     let network_type = analysis.network_type.as_ref();
     let conversion_capability = conversion.map(|item| &item.capability);
     let is_udp_broadcast = network_type
@@ -27,16 +31,33 @@ pub fn recommend_plans(game_id: &str) -> Result<Vec<Recommendation>, String> {
             .map(|cap| matches!(cap, MultiplayerCapability::LocalCoopRemotePlay))
             .unwrap_or(false);
     let is_steam_p2p_route = network_type
-        .map(|kind| matches!(kind, GameNetworkType::SteamP2pOnly | GameNetworkType::SteamRelayPlugin | GameNetworkType::SteamLobbyDirectPossible))
+        .map(|kind| {
+            matches!(
+                kind,
+                GameNetworkType::SteamP2pOnly
+                    | GameNetworkType::SteamRelayPlugin
+                    | GameNetworkType::SteamLobbyDirectPossible
+            )
+        })
         .unwrap_or(false)
         || conversion_capability
             .map(|cap| matches!(cap, MultiplayerCapability::SteamP2pLobby))
             .unwrap_or(false);
     let is_official_or_unsupported = network_type
-        .map(|kind| matches!(kind, GameNetworkType::OfficialOnly | GameNetworkType::NotSupported))
+        .map(|kind| {
+            matches!(
+                kind,
+                GameNetworkType::OfficialOnly | GameNetworkType::NotSupported
+            )
+        })
         .unwrap_or(false)
         || conversion_capability
-            .map(|cap| matches!(cap, MultiplayerCapability::OfficialOnly | MultiplayerCapability::Unsupported))
+            .map(|cap| {
+                matches!(
+                    cap,
+                    MultiplayerCapability::OfficialOnly | MultiplayerCapability::Unsupported
+                )
+            })
             .unwrap_or(false);
 
     if analysis
@@ -82,8 +103,7 @@ pub fn recommend_plans(game_id: &str) -> Result<Vec<Recommendation>, String> {
         });
     }
 
-    if is_tcp_port_proxy || has_method(ConversionMethod::PortProxy)
-    {
+    if is_tcp_port_proxy || has_method(ConversionMethod::PortProxy) {
         plans.push(Recommendation {
             id: "virtual_lan_port_proxy".to_string(),
             title: "n2n + TCP/UDP 端口代理".to_string(),
@@ -121,11 +141,12 @@ pub fn recommend_plans(game_id: &str) -> Result<Vec<Recommendation>, String> {
         });
     }
 
-    if analysis
-        .capabilities
-        .iter()
-        .any(|cap| matches!(cap, GameCapability::LocalCoop | GameCapability::RemotePlayTogether))
-        || is_local_coop_remote
+    if analysis.capabilities.iter().any(|cap| {
+        matches!(
+            cap,
+            GameCapability::LocalCoop | GameCapability::RemotePlayTogether
+        )
+    }) || is_local_coop_remote
         || has_method(ConversionMethod::SteamRemotePlay)
         || has_method(ConversionMethod::SunshineMoonlight)
     {
@@ -172,7 +193,8 @@ pub fn recommend_plans(game_id: &str) -> Result<Vec<Recommendation>, String> {
             estimated_latency_ms: None,
             required_actions: vec![
                 "优先使用游戏原生 Steam 好友邀请或大厅".to_string(),
-                "如果项目有插件能力，再评估 Steam Relay / Steam P2P 插件；不要承诺强制转换为 LAN".to_string(),
+                "如果项目有插件能力，再评估 Steam Relay / Steam P2P 插件；不要承诺强制转换为 LAN"
+                    .to_string(),
                 "涉及反作弊、平台账号和官方服务时保持原官方流程".to_string(),
             ],
             launch_profile_id: None,
@@ -190,14 +212,19 @@ pub fn recommend_plans(game_id: &str) -> Result<Vec<Recommendation>, String> {
             backend_id: Some("alternate_virtual_network".to_string()),
             estimated_latency_ms: None,
             required_actions: vec![
-                "n2n 仍是当前主线；如环境不适合 n2n，可按引导切换 WireGuard、ZeroTier 或 Tailscale".to_string(),
+                "n2n 仍是当前主线；如环境不适合 n2n，可按引导切换 WireGuard、ZeroTier 或 Tailscale"
+                    .to_string(),
                 "切换后仍使用同一游戏连接原则：房主虚拟 IP + 游戏端口".to_string(),
             ],
             launch_profile_id: None,
         });
     }
 
-    if analysis.launch_profiles.iter().any(|profile| profile.id == "docs") {
+    if analysis
+        .launch_profiles
+        .iter()
+        .any(|profile| profile.id == "docs")
+    {
         plans.push(Recommendation {
             id: "connection_docs".to_string(),
             title: "查看该游戏的连接说明".to_string(),
@@ -247,11 +274,15 @@ mod tests {
     fn cuphead_uses_remote_coop_route_not_virtual_lan_ip_join() {
         let plans = recommend_plans("cuphead").expect("cuphead adapter should be loadable");
         assert!(
-            plans.iter().any(|plan| plan.id == "steam_remote_play_together"),
+            plans
+                .iter()
+                .any(|plan| plan.id == "steam_remote_play_together"),
             "Cuphead should recommend Steam Remote Play Together"
         );
         assert!(
-            plans.iter().any(|plan| plan.id == "sunshine_moonlight_remote_coop"),
+            plans
+                .iter()
+                .any(|plan| plan.id == "sunshine_moonlight_remote_coop"),
             "Cuphead should expose Sunshine + Moonlight fallback"
         );
         assert!(

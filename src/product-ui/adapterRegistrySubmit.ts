@@ -58,7 +58,7 @@ function normalizeAdapterJson(adapterJson: string) {
 
 export async function buildAdapterRegistrySubmitPackage(
   adapterJson: string,
-  registryUrl = 'https://cwccty.github.io/lan-server/adapter-registry/index.json'
+  registryUrl = 'https://raw.githubusercontent.com/cwccty/lan-server/master/adapter-registry/index.json'
 ): Promise<AdapterRegistrySubmitPackage> {
   const normalizedJson = normalizeAdapterJson(adapterJson);
   const adapter = JSON.parse(normalizedJson) as GameAdapter;

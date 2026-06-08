@@ -165,6 +165,6 @@ export function buildRemoteCoopFriendGuide(options: {
     '房主检查项：',
     ...checks.map((item) => `- ${item}`),
     '',
-    '提示：这类本地同屏游戏不需要 n2n，也不需要连接房主虚拟 IP 或端口。'
+    '提示：这类本地同屏游戏不需要通用组网，也不需要连接房主联机地址或端口。'
   ].join('\n');
 }

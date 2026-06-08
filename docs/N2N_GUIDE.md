@@ -210,3 +210,28 @@ local_ip
 - 游戏服务端没有真正监听端口。
 - n2n edge 可执行文件版本不兼容。
 - supernode 不可达。
+
+### `Cannot find tap device "????? 6"`
+
+这个错误表示 `edge.exe` 已经被启动，但 n2n 没有找到启动参数里指定的 TAP / 虚拟网卡。
+
+本项目在 v0.1.0 之后修复了一个触发点：旧逻辑会从 Windows 网卡列表里自动取第一个 TAP / Wintun / VPN 类网卡，并作为 `-d` 参数传给 edge。如果朋友电脑上的网卡名称是中文、本地化名称或带特殊字符，n2n 进程里可能会变成 `????? 6`，于是 edge 报：
+
+```text
+Cannot find tap device "????? 6"
+```
+
+修复原则：
+
+- 不再把任意本地化 TAP 网卡名自动传给 edge；
+- 只在网卡名是安全 ASCII 名称时才自动传 `-d`；
+- 如果 edge 启动后立刻退出，会把最近的真实日志作为启动失败原因返回给界面；
+- 诊断页会把该类问题归类为 `n2n_tap_device_error`，而不是泛化成“Supernode 有问题”。
+
+用户侧处理建议：
+
+1. 让朋友完全退出联机助手，并停止残留的 `edge.exe`。
+2. 使用修复后的新客户端重新启动 n2n。
+3. 如果仍失败，确认 Windows 里存在 TAP / Wintun 虚拟网卡。
+4. 建议把用于 n2n 的虚拟网卡重命名为英文名称，例如 `cfw-tap`、`n2n` 或 `edge`。
+5. 房主和朋友仍然要保持相同 `community`、`secret`、`supernode`，并使用不同虚拟 IP。

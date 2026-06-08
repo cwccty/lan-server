@@ -51,9 +51,9 @@ export function ProductHeader({ onOpenDiagnostics, onTabChange, onTriggerToast }
   const actionIsStop = runtime.network.running || runtime.network.ready;
 
   return (
-    <header className="fixed top-0 right-0 w-[calc(100%-276px)] h-16 bg-white/70 backdrop-blur-lg border-b border-[#eeeef0] flex justify-between items-center px-8 z-45 shadow-sm">
-      <div className="flex items-center gap-6">
-        <nav className="flex gap-6 font-sans text-sm font-medium">
+    <header className="fixed top-0 right-0 z-45 flex h-16 w-[calc(100%-276px)] items-center justify-between gap-3 border-b border-[#eeeef0] bg-white/70 px-4 shadow-sm backdrop-blur-lg xl:px-8">
+      <div className="flex min-w-0 items-center gap-4">
+        <nav className="hidden gap-5 whitespace-nowrap font-sans text-sm font-medium xl:flex">
           <button
             onClick={() => onTabChange('home')}
             className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
@@ -69,31 +69,32 @@ export function ProductHeader({ onOpenDiagnostics, onTabChange, onTriggerToast }
         </nav>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="ml-auto flex min-w-0 items-center gap-2 xl:gap-4">
         <ProductAccountPanel compact onTriggerToast={onTriggerToast} />
 
         <button
           onClick={refreshStatus}
           disabled={busy}
-          className={`flex items-center gap-2 text-xs px-3 py-1 rounded-full border transition-colors disabled:opacity-60 ${productStatusToneClasses(status.tone)}`}
+          className={`flex shrink-0 items-center gap-2 rounded-full border px-3 py-1 text-xs transition-colors disabled:opacity-60 ${productStatusToneClasses(status.tone)}`}
           title={status.detail || runtime.network.label || '刷新状态'}
         >
           <span className={`w-1.5 h-1.5 rounded-full ${productStatusDotClasses(status.tone)}`} />
-          <span>{busy ? '处理中...' : `状态：${status.label}`}</span>
+          <span className="hidden whitespace-nowrap md:inline">{busy ? '处理中...' : `状态：${status.label}`}</span>
         </button>
 
         <button
           onClick={onOpenDiagnostics}
-          className="px-4 py-1.5 border border-slate-200 text-slate-600 rounded-lg font-sans text-xs font-medium hover:bg-slate-50 transition-colors flex items-center gap-1.5"
+          className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 font-sans text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 xl:px-4"
+          title="排查问题"
         >
           <Activity className="w-3.5 h-3.5 text-slate-400" />
-          排查问题
+          <span className="hidden whitespace-nowrap lg:inline">排查问题</span>
         </button>
 
         <button
           onClick={runNetworkAction}
           disabled={busy}
-          className={`px-4 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all duration-200 shadow-sm disabled:opacity-60 disabled:cursor-wait ${
+          className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold shadow-sm transition-all duration-200 disabled:cursor-wait disabled:opacity-60 xl:px-4 ${
             actionIsStop
               ? 'bg-rose-500 text-white hover:bg-rose-600'
               : 'bg-amber-500 text-amber-950 hover:bg-amber-400 hover:scale-[1.02]'
@@ -102,12 +103,12 @@ export function ProductHeader({ onOpenDiagnostics, onTabChange, onTriggerToast }
           {actionIsStop ? (
             <>
               <WifiOff className="w-3.5 h-3.5" />
-              停止组网
+              <span className="whitespace-nowrap">停止组网</span>
             </>
           ) : (
             <>
               <Wifi className="w-3.5 h-3.5" />
-              启动组网
+              <span className="whitespace-nowrap">启动组网</span>
             </>
           )}
         </button>

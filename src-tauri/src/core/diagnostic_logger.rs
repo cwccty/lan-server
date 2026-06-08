@@ -15,7 +15,9 @@ pub fn generate_diagnostic_report_for_game(game_id: &str) -> Result<DiagnosticRe
     generate_diagnostic_report_with_context(Some(game_id))
 }
 
-fn generate_diagnostic_report_with_context(selected_game_id: Option<&str>) -> Result<DiagnosticReport, String> {
+fn generate_diagnostic_report_with_context(
+    selected_game_id: Option<&str>,
+) -> Result<DiagnosticReport, String> {
     let adapters = adapter_store::load_game_adapters().unwrap_or_default();
     let steam_libraries = game_detector::discover_steam_libraries();
     let games = game_detector::scan_games().unwrap_or_default();
@@ -137,22 +139,18 @@ fn generate_diagnostic_report_with_context(selected_game_id: Option<&str>) -> Re
         udp_broadcast_bridge_self_test_ok,
         server_running || server_ready,
     );
-    let adapter_requirement_ok = adapter_requirement_report
-        .checks
-        .iter()
-        .all(|item| item.ok);
-    let selected_game_report = selected_game_id
-        .map(|game_id| {
-            build_selected_game_requirement_report(
-                game_id,
-                &adapters,
-                &n2n_diagnostics,
-                tcp_proxy_self_test_ok,
-                udp_proxy_self_test_ok,
-                udp_broadcast_bridge_self_test_ok,
-                server_running || server_ready,
-            )
-        });
+    let adapter_requirement_ok = adapter_requirement_report.checks.iter().all(|item| item.ok);
+    let selected_game_report = selected_game_id.map(|game_id| {
+        build_selected_game_requirement_report(
+            game_id,
+            &adapters,
+            &n2n_diagnostics,
+            tcp_proxy_self_test_ok,
+            udp_proxy_self_test_ok,
+            udp_broadcast_bridge_self_test_ok,
+            server_running || server_ready,
+        )
+    });
 
     let mut release_checks = vec![
         ReleaseCheck {
@@ -338,7 +336,8 @@ fn generate_diagnostic_report_with_context(selected_game_id: Option<&str>) -> Re
                 "检查是否有安全软件拦截本机临时 UDP 监听。".to_string(),
                 "确认没有其他程序占用大量本地 UDP 端口后重试。".to_string(),
                 "如果游戏不需要 UDP 单播端口代理，可暂时忽略该项。".to_string(),
-                "如果问题是游戏列表发现不到房间，后续应使用 UDP 广播桥而不是单播端口代理。".to_string(),
+                "如果问题是游戏列表发现不到房间，后续应使用 UDP 广播桥而不是单播端口代理。"
+                    .to_string(),
             ],
             evidence: vec![udp_proxy_detail.clone()],
         });
@@ -353,7 +352,8 @@ fn generate_diagnostic_report_with_context(selected_game_id: Option<&str>) -> Re
                 "检查是否有安全软件拦截本机临时 UDP 监听。".to_string(),
                 "确认没有其他程序占用大量本地 UDP 端口后重试。".to_string(),
                 "如果游戏支持直接 IP 加入，优先使用房主虚拟 IP，不必依赖广播桥。".to_string(),
-                "如果游戏依赖房间列表发现，广播桥失败时应把诊断报告发给开发者继续定位。".to_string(),
+                "如果游戏依赖房间列表发现，广播桥失败时应把诊断报告发给开发者继续定位。"
+                    .to_string(),
             ],
             evidence: vec![udp_broadcast_bridge_detail.clone()],
         });
@@ -377,9 +377,8 @@ fn generate_diagnostic_report_with_context(selected_game_id: Option<&str>) -> Re
                 "等待至少 30 秒后重新生成诊断报告。".to_string(),
                 "如果服务端退出，查看内嵌控制台的最后日志和 exit_code。".to_string(),
             ],
-            evidence: vec![
-                serde_json::to_string_pretty(&server).unwrap_or_else(|_| "服务端状态无法序列化".to_string()),
-            ],
+            evidence: vec![serde_json::to_string_pretty(&server)
+                .unwrap_or_else(|_| "服务端状态无法序列化".to_string())],
         });
     }
     let most_likely_cause = issues
@@ -397,11 +396,13 @@ fn generate_diagnostic_report_with_context(selected_game_id: Option<&str>) -> Re
                 .map(|action| format!("{}：{}", issue.title, action))
         })
         .collect::<Vec<_>>();
-    next_actions.extend(release_checks
-        .iter()
-        .filter(|item| item.required_for_mvp && !item.ok)
-        .map(|item| format!("处理 {}：{}", item.label, item.detail))
-        .collect::<Vec<_>>());
+    next_actions.extend(
+        release_checks
+            .iter()
+            .filter(|item| item.required_for_mvp && !item.ok)
+            .map(|item| format!("处理 {}：{}", item.label, item.detail))
+            .collect::<Vec<_>>(),
+    );
     next_actions.sort();
     next_actions.dedup();
 
@@ -515,33 +516,66 @@ fn build_adapter_requirement_report(
     let mut issues = Vec::new();
     let mut details = Vec::new();
 
-    let virtual_lan_ok = n2n_diagnostics.ok_link
-        && !n2n_diagnostics.auth_error
-        && !n2n_diagnostics.ip_mac_conflict;
+    let virtual_lan_ok =
+        n2n_diagnostics.ok_link && !n2n_diagnostics.auth_error && !n2n_diagnostics.ip_mac_conflict;
 
     let virtual_lan_games = adapters
         .iter()
-        .filter(|adapter| adapter.connection_plan.as_ref().map(|plan| plan.requires_virtual_lan).unwrap_or(false))
+        .filter(|adapter| {
+            adapter
+                .connection_plan
+                .as_ref()
+                .map(|plan| plan.requires_virtual_lan)
+                .unwrap_or(false)
+        })
         .collect::<Vec<_>>();
     let tcp_proxy_games = adapters
         .iter()
-        .filter(|adapter| adapter.connection_plan.as_ref().map(|plan| plan.requires_tcp_port_proxy).unwrap_or(false))
+        .filter(|adapter| {
+            adapter
+                .connection_plan
+                .as_ref()
+                .map(|plan| plan.requires_tcp_port_proxy)
+                .unwrap_or(false)
+        })
         .collect::<Vec<_>>();
     let udp_broadcast_games = adapters
         .iter()
-        .filter(|adapter| adapter.connection_plan.as_ref().map(|plan| plan.requires_udp_broadcast_bridge).unwrap_or(false))
+        .filter(|adapter| {
+            adapter
+                .connection_plan
+                .as_ref()
+                .map(|plan| plan.requires_udp_broadcast_bridge)
+                .unwrap_or(false)
+        })
         .collect::<Vec<_>>();
     let dedicated_server_games = adapters
         .iter()
-        .filter(|adapter| adapter.connection_plan.as_ref().map(|plan| plan.requires_dedicated_server).unwrap_or(false))
+        .filter(|adapter| {
+            adapter
+                .connection_plan
+                .as_ref()
+                .map(|plan| plan.requires_dedicated_server)
+                .unwrap_or(false)
+        })
         .collect::<Vec<_>>();
     let unknown_games = adapters
         .iter()
-        .filter(|adapter| matches!(adapter.network_type, Some(GameNetworkType::UnknownNeedReview)) || adapter.connection_plan.is_none())
+        .filter(|adapter| {
+            matches!(
+                adapter.network_type,
+                Some(GameNetworkType::UnknownNeedReview)
+            ) || adapter.connection_plan.is_none()
+        })
         .collect::<Vec<_>>();
     let udp_proxy_candidate_games = adapters
         .iter()
-        .filter(|adapter| matches!(adapter.network_type, Some(GameNetworkType::TcpPortProxyNeeded)))
+        .filter(|adapter| {
+            matches!(
+                adapter.network_type,
+                Some(GameNetworkType::TcpPortProxyNeeded)
+            )
+        })
         .collect::<Vec<_>>();
 
     push_adapter_check(
@@ -657,7 +691,10 @@ fn build_adapter_requirement_report(
         "adapter_unknown_need_review",
         "未知或未沉淀方案的适配器",
         unknown_games.is_empty(),
-        format!("{} 个适配器仍需要管理员判断或缺少 connection_plan", unknown_games.len()),
+        format!(
+            "{} 个适配器仍需要管理员判断或缺少 connection_plan",
+            unknown_games.len()
+        ),
     );
     if !unknown_games.is_empty() {
         issues.push(adapter_issue(
@@ -689,8 +726,14 @@ fn build_adapter_requirement_report(
 
     details.push(format_adapter_group("需要虚拟局域网", &virtual_lan_games));
     details.push(format_adapter_group("需要 TCP 代理", &tcp_proxy_games));
-    details.push(format_adapter_group("需要 UDP 广播桥", &udp_broadcast_games));
-    details.push(format_adapter_group("需要专用服务端", &dedicated_server_games));
+    details.push(format_adapter_group(
+        "需要 UDP 广播桥",
+        &udp_broadcast_games,
+    ));
+    details.push(format_adapter_group(
+        "需要专用服务端",
+        &dedicated_server_games,
+    ));
     details.push(format_adapter_group("未知/待判断", &unknown_games));
 
     let failed = checks.iter().filter(|item| !item.ok).count();
@@ -724,9 +767,8 @@ fn build_selected_game_requirement_report(
     let mut issues = Vec::new();
     let mut details = Vec::new();
     let selected = adapters.iter().find(|adapter| adapter.game_id == game_id);
-    let virtual_lan_ok = n2n_diagnostics.ok_link
-        && !n2n_diagnostics.auth_error
-        && !n2n_diagnostics.ip_mac_conflict;
+    let virtual_lan_ok =
+        n2n_diagnostics.ok_link && !n2n_diagnostics.auth_error && !n2n_diagnostics.ip_mac_conflict;
 
     let Some(adapter) = selected else {
         push_adapter_check(
@@ -775,11 +817,21 @@ fn build_selected_game_requirement_report(
         &mut checks,
         "selected_game_connection_plan",
         "当前游戏连接方案已沉淀",
-        plan.is_some() && !matches!(adapter.network_type, Some(GameNetworkType::UnknownNeedReview)),
-        plan.map(|item| item.summary.clone()).unwrap_or_else(|| "当前 adapter 缺少 connection_plan。".to_string()),
+        plan.is_some()
+            && !matches!(
+                adapter.network_type,
+                Some(GameNetworkType::UnknownNeedReview)
+            ),
+        plan.map(|item| item.summary.clone())
+            .unwrap_or_else(|| "当前 adapter 缺少 connection_plan。".to_string()),
     );
 
-    if plan.is_none() || matches!(adapter.network_type, Some(GameNetworkType::UnknownNeedReview)) {
+    if plan.is_none()
+        || matches!(
+            adapter.network_type,
+            Some(GameNetworkType::UnknownNeedReview)
+        )
+    {
         issues.push(adapter_issue(
             "selected_game_unknown_need_review",
             "warn",
@@ -796,17 +848,29 @@ fn build_selected_game_requirement_report(
     }
 
     let requires_virtual_lan = plan.map(|item| item.requires_virtual_lan).unwrap_or(false);
-    let requires_tcp_proxy = plan.map(|item| item.requires_tcp_port_proxy).unwrap_or(false);
-    let requires_udp_broadcast_bridge = plan.map(|item| item.requires_udp_broadcast_bridge).unwrap_or(false);
-    let requires_dedicated_server = plan.map(|item| item.requires_dedicated_server).unwrap_or(false);
-    let udp_proxy_candidate = matches!(adapter.network_type, Some(GameNetworkType::TcpPortProxyNeeded));
+    let requires_tcp_proxy = plan
+        .map(|item| item.requires_tcp_port_proxy)
+        .unwrap_or(false);
+    let requires_udp_broadcast_bridge = plan
+        .map(|item| item.requires_udp_broadcast_bridge)
+        .unwrap_or(false);
+    let requires_dedicated_server = plan
+        .map(|item| item.requires_dedicated_server)
+        .unwrap_or(false);
+    let udp_proxy_candidate = matches!(
+        adapter.network_type,
+        Some(GameNetworkType::TcpPortProxyNeeded)
+    );
 
     push_adapter_check(
         &mut checks,
         "selected_game_virtual_lan_ready",
         "当前游戏所需虚拟局域网",
         !requires_virtual_lan || virtual_lan_ok,
-        format!("requires_virtual_lan={}；n2n ACK/PONG={}", requires_virtual_lan, virtual_lan_ok),
+        format!(
+            "requires_virtual_lan={}；n2n ACK/PONG={}",
+            requires_virtual_lan, virtual_lan_ok
+        ),
     );
     if requires_virtual_lan && !virtual_lan_ok {
         issues.push(adapter_issue(
@@ -829,7 +893,10 @@ fn build_selected_game_requirement_report(
         "selected_game_tcp_proxy_ready",
         "当前游戏所需 TCP 端口代理",
         !requires_tcp_proxy || tcp_proxy_ok,
-        format!("requires_tcp_port_proxy={}；TCP 代理自测={}", requires_tcp_proxy, tcp_proxy_ok),
+        format!(
+            "requires_tcp_port_proxy={}；TCP 代理自测={}",
+            requires_tcp_proxy, tcp_proxy_ok
+        ),
     );
     if requires_tcp_proxy && !tcp_proxy_ok {
         issues.push(adapter_issue(
@@ -839,7 +906,8 @@ fn build_selected_game_requirement_report(
             "当前游戏可能只监听 127.0.0.1 或需要把虚拟 IP 端口转发到本机服务端。",
             vec![
                 "进入通用组网中心，运行“一键自测 TCP 代理”。".to_string(),
-                "房主侧启动 TCP 端口代理：虚拟 IP/0.0.0.0:游戏端口 -> 127.0.0.1:游戏端口。".to_string(),
+                "房主侧启动 TCP 端口代理：虚拟 IP/0.0.0.0:游戏端口 -> 127.0.0.1:游戏端口。"
+                    .to_string(),
                 "把代理状态写入邀请包后再发给好友。".to_string(),
             ],
             &[adapter],
@@ -852,7 +920,10 @@ fn build_selected_game_requirement_report(
         "selected_game_udp_proxy_candidate",
         "当前游戏 UDP 单播代理候选",
         !udp_proxy_candidate || udp_proxy_ok,
-        format!("udp_proxy_candidate={}；UDP 单播代理自测={}", udp_proxy_candidate, udp_proxy_ok),
+        format!(
+            "udp_proxy_candidate={}；UDP 单播代理自测={}",
+            udp_proxy_candidate, udp_proxy_ok
+        ),
     );
 
     push_adapter_check(
@@ -860,7 +931,10 @@ fn build_selected_game_requirement_report(
         "selected_game_udp_broadcast_bridge_ready",
         "当前游戏所需 UDP 广播桥",
         !requires_udp_broadcast_bridge || udp_broadcast_bridge_ok,
-        format!("requires_udp_broadcast_bridge={}；UDP 广播桥自测={}", requires_udp_broadcast_bridge, udp_broadcast_bridge_ok),
+        format!(
+            "requires_udp_broadcast_bridge={}；UDP 广播桥自测={}",
+            requires_udp_broadcast_bridge, udp_broadcast_bridge_ok
+        ),
     );
     if requires_udp_broadcast_bridge && !udp_broadcast_bridge_ok {
         issues.push(adapter_issue(
@@ -883,7 +957,10 @@ fn build_selected_game_requirement_report(
         "selected_game_dedicated_server_ready",
         "当前游戏所需专用服务端",
         !requires_dedicated_server || dedicated_server_observed,
-        format!("requires_dedicated_server={}；服务端 running/ready={}", requires_dedicated_server, dedicated_server_observed),
+        format!(
+            "requires_dedicated_server={}；服务端 running/ready={}",
+            requires_dedicated_server, dedicated_server_observed
+        ),
     );
     if requires_dedicated_server && !dedicated_server_observed {
         issues.push(adapter_issue(
@@ -947,7 +1024,13 @@ fn build_selected_game_requirement_report(
     }
 }
 
-fn push_adapter_check(checks: &mut Vec<ReleaseCheck>, id: &str, label: &str, ok: bool, detail: String) {
+fn push_adapter_check(
+    checks: &mut Vec<ReleaseCheck>,
+    id: &str,
+    label: &str,
+    ok: bool,
+    detail: String,
+) {
     checks.push(ReleaseCheck {
         id: id.to_string(),
         label: label.to_string(),
@@ -977,7 +1060,8 @@ fn adapter_issue(
                 adapter.game_id,
                 adapter.adapter_source.as_deref().unwrap_or("unknown"),
                 adapter.network_type,
-                plan.map(|item| item.summary.as_str()).unwrap_or("无 connection_plan")
+                plan.map(|item| item.summary.as_str())
+                    .unwrap_or("无 connection_plan")
             )
         })
         .collect::<Vec<_>>();
@@ -1006,23 +1090,33 @@ fn format_adapter_group(label: &str, adapters: &[&GameAdapter]) -> String {
     } else {
         String::new()
     };
-    format!("{}：{} 个{}{}", label, adapters.len(), if names.is_empty() { String::new() } else { format!("：{}", names.join("、")) }, suffix)
+    format!(
+        "{}：{} 个{}{}",
+        label,
+        adapters.len(),
+        if names.is_empty() {
+            String::new()
+        } else {
+            format!("：{}", names.join("、"))
+        },
+        suffix
+    )
 }
 
 fn classify_n2n_issues(diagnostics: &N2nDiagnostics, edge_available: bool) -> Vec<DiagnosticIssue> {
     let mut issues = Vec::new();
 
-    if !edge_available {
+    if !edge_available || !diagnostics.executable_found {
         issues.push(DiagnosticIssue {
             id: "n2n_edge_missing".to_string(),
             severity: "error".to_string(),
-            title: "未检测到 n2n edge".to_string(),
-            detail: "客户端没有找到 edge.exe / n2n.exe，无法启动内置 n2n 组网。".to_string(),
+            title: "组网程序文件缺失".to_string(),
+            detail: "没有找到组网程序 edge.exe / n2n.exe，无法启动虚拟组网。".to_string(),
             next_actions: vec![
-                "确认 tools/n2n 目录下存在官方源码编译的 edge.exe 或 n2n.exe。".to_string(),
-                "重新打开通用组网中心并刷新组网状态。".to_string(),
+                "确认安装包目录 tools/n2n 下存在 edge.exe 或 n2n.exe。".to_string(),
+                "如果是绿色包，请重新解压完整 ZIP 后再启动。".to_string(),
             ],
-            evidence: vec![diagnostics.summary.clone()],
+            evidence: diagnostic_evidence(diagnostics),
         });
     }
 
@@ -1030,28 +1124,39 @@ fn classify_n2n_issues(diagnostics: &N2nDiagnostics, edge_available: bool) -> Ve
         issues.push(DiagnosticIssue {
             id: "n2n_supernode_missing".to_string(),
             severity: "error".to_string(),
-            title: "未配置 supernode".to_string(),
-            detail: "n2n 需要 VPS 上的 supernode 地址用于异地节点发现。".to_string(),
+            title: "中继地址未配置".to_string(),
+            detail: "尚未填写中继地址，组网程序不知道要连接到哪里。".to_string(),
             next_actions: vec![
-                "在通用组网中心填写 supernode，例如 VPS_IP:7777。".to_string(),
-                "确认 VPS 上 supernode 正在监听对应端口。".to_string(),
+                "在“加入与组网”里填写中继地址，例如 VPS_IP:7777。".to_string(),
+                "确认房主和加入者使用同一个中继地址、房间名和密钥。".to_string(),
             ],
-            evidence: vec![diagnostics.summary.clone()],
+            evidence: diagnostic_evidence(diagnostics),
         });
         return issues;
     }
 
     if !diagnostics.running {
         issues.push(DiagnosticIssue {
-            id: "n2n_edge_not_running".to_string(),
+            id: if diagnostics.recorded_pid.is_some() {
+                "n2n_pid_stale_or_exited"
+            } else {
+                "n2n_edge_not_running"
+            }
+            .to_string(),
             severity: "error".to_string(),
-            title: "n2n edge 未运行".to_string(),
-            detail: "已经配置 supernode，但当前没有检测到由联机助手记录的 edge 进程。".to_string(),
+            title: if diagnostics.recorded_pid.is_some() {
+                "组网程序已退出 / PID 已过期"
+            } else {
+                "已配置未启动"
+            }
+            .to_string(),
+            detail: "已保存组网信息，但当前没有检测到运行中的组网程序。".to_string(),
             next_actions: vec![
-                "在通用组网中心点击“启动 n2n edge”。".to_string(),
-                "启动后等待 10-20 秒，再查看是否出现 ACK/PONG。".to_string(),
+                "点击“启动组网服务”重新启动。".to_string(),
+                "如果启动后又变成未启动，请复制手动启动命令和组网日志。".to_string(),
+                "必要时用管理员权限运行联机助手，并检查安全软件是否拦截组网程序。".to_string(),
             ],
-            evidence: vec![diagnostics.summary.clone()],
+            evidence: diagnostic_evidence(diagnostics),
         });
     }
 
@@ -1059,12 +1164,12 @@ fn classify_n2n_issues(diagnostics: &N2nDiagnostics, edge_available: bool) -> Ve
         issues.push(DiagnosticIssue {
             id: "n2n_auth_error".to_string(),
             severity: "error".to_string(),
-            title: "n2n 认证错误".to_string(),
-            detail: "edge 日志显示认证失败，常见原因是 community 或密钥与朋友不一致。".to_string(),
+            title: "房间名或密钥不一致".to_string(),
+            detail: "中继拒绝加入，通常是房主和加入者的房间名或密钥不一致。".to_string(),
             next_actions: vec![
-                "确认所有玩家填写相同 community。".to_string(),
-                "确认所有玩家填写相同 n2n 密钥。".to_string(),
-                "保存配置后停止并重新启动 n2n edge。".to_string(),
+                "让双方重新复制同一份邀请包或房间凭证。".to_string(),
+                "确认没有多余空格、全角字符或输入法替换。".to_string(),
+                "保存后停止组网，再重新启动。".to_string(),
             ],
             evidence: diagnostic_evidence(diagnostics),
         });
@@ -1074,12 +1179,12 @@ fn classify_n2n_issues(diagnostics: &N2nDiagnostics, edge_available: bool) -> Ve
         issues.push(DiagnosticIssue {
             id: "n2n_ip_mac_conflict".to_string(),
             severity: "error".to_string(),
-            title: "n2n IP / MAC 冲突".to_string(),
-            detail: "supernode 返回 IP 或 MAC 已被占用，通常是虚拟 IP 重复或旧注册未释放。".to_string(),
+            title: "联机地址冲突".to_string(),
+            detail: "当前联机地址可能已被其他机器占用，或旧连接尚未释放。".to_string(),
             next_actions: vec![
-                "给每台电脑分配不同虚拟 IP，例如房主 10.10.10.2，朋友 10.10.10.3。".to_string(),
-                "点击通用组网中心的候选 IP 按钮或手动更换本机虚拟 IP。".to_string(),
-                "停止 n2n edge 后重新启动；必要时等待 supernode 释放旧注册。".to_string(),
+                "给每个人分配不同的联机地址，例如 10.10.10.2、10.10.10.3。".to_string(),
+                "停止组网后等待十几秒再启动。".to_string(),
+                "如果仍冲突，请重启联机助手或电脑后再试。".to_string(),
             ],
             evidence: diagnostic_evidence(diagnostics),
         });
@@ -1089,12 +1194,29 @@ fn classify_n2n_issues(diagnostics: &N2nDiagnostics, edge_available: bool) -> Ve
         issues.push(DiagnosticIssue {
             id: "n2n_supernode_not_responding".to_string(),
             severity: "error".to_string(),
-            title: "supernode 无响应".to_string(),
-            detail: "edge 日志显示 supernode 没有响应，通常是 VPS 服务未运行、端口未放行或地址填写错误。".to_string(),
+            title: "中继地址暂无响应".to_string(),
+            detail: "组网程序已尝试连接中继，但没有收到回应。".to_string(),
             next_actions: vec![
-                "在 VPS 上确认 supernode 进程正在监听，例如 ss -lunp | grep 7777。".to_string(),
-                "确认 VPS 安全组和系统防火墙放行 UDP/TCP 7777。".to_string(),
-                "确认客户端填写的是正确的 VPS_IP:端口。".to_string(),
+                "核对中继地址和端口是否填写正确。".to_string(),
+                "确认中继服务器已启动，并且服务器/路由器放行对应端口。".to_string(),
+                "复制手动启动命令和组网日志给管理员排查。".to_string(),
+            ],
+            evidence: diagnostic_evidence(diagnostics),
+        });
+    }
+
+    if diagnostics.tap_error {
+        issues.push(DiagnosticIssue {
+            id: "n2n_tap_device_error".to_string(),
+            severity: "error".to_string(),
+            title: "虚拟网卡/组网网卡异常".to_string(),
+            detail: "组网程序无法打开 TAP/Wintun 虚拟网卡，通常和驱动、权限或安全软件有关。"
+                .to_string(),
+            next_actions: vec![
+                "尝试用管理员权限启动联机助手。".to_string(),
+                "检查系统里是否存在 TAP/Wintun 虚拟网卡。".to_string(),
+                "复制组网日志中 Cannot find TAP device / unable to open tap 等关键行。"
+                    .to_string(),
             ],
             evidence: diagnostic_evidence(diagnostics),
         });
@@ -1106,15 +1228,19 @@ fn classify_n2n_issues(diagnostics: &N2nDiagnostics, edge_available: bool) -> Ve
         && !diagnostics.auth_error
         && !diagnostics.ip_mac_conflict
         && !diagnostics.not_responding
+        && !diagnostics.tap_error
     {
         issues.push(DiagnosticIssue {
             id: "n2n_waiting_for_ack".to_string(),
             severity: "warn".to_string(),
-            title: "n2n 正在等待 ACK/PONG".to_string(),
-            detail: "edge 已运行且 supernode 已配置，但日志中尚未看到 ACK/PONG。".to_string(),
+            title: "组网程序已启动，但中继尚未确认".to_string(),
+            detail: "组网程序进程存在，但日志里还没有看到中继确认 ACK/PONG，不能只继续等待。"
+                .to_string(),
             next_actions: vec![
-                "等待 10-20 秒后刷新组网状态。".to_string(),
-                "如果仍无 ACK/PONG，检查 supernode 地址、防火墙和网络连通性。".to_string(),
+                "核对双方中继地址、房间名、密钥和联机地址是否一致。".to_string(),
+                "复制手动启动命令，在管理员终端中运行一次观察输出。".to_string(),
+                "查看并复制最近组网日志。".to_string(),
+                "即使已关闭 Windows 防火墙，也要确认路由器、校园网/公司网、运营商网络或安全软件没有拦截 UDP 出站。".to_string(),
             ],
             evidence: diagnostic_evidence(diagnostics),
         });
@@ -1124,12 +1250,12 @@ fn classify_n2n_issues(diagnostics: &N2nDiagnostics, edge_available: bool) -> Ve
         issues.push(DiagnosticIssue {
             id: "n2n_virtual_ip_missing".to_string(),
             severity: "warn".to_string(),
-            title: "未检测到 n2n 虚拟 IP".to_string(),
-            detail: "系统网卡扫描没有发现 n2n/TAP/cfw/edge 相关 10.x 虚拟地址。".to_string(),
+            title: "联机地址未读取到".to_string(),
+            detail: "系统里暂时没有读取到 n2n/TAP/cfw/edge 对应的联机地址。".to_string(),
             next_actions: vec![
-                "确认 TAP 驱动或 n2n 虚拟网卡已经创建。".to_string(),
-                "启动 n2n edge 后重新刷新状态。".to_string(),
-                "如果虚拟 IP 被分配到其他网卡名称，请生成诊断报告发给开发者。".to_string(),
+                "等待组网程序收到中继确认后刷新状态。".to_string(),
+                "检查虚拟网卡是否被禁用。".to_string(),
+                "手动填写本机联机地址后再生成邀请包。".to_string(),
             ],
             evidence: diagnostic_evidence(diagnostics),
         });
@@ -1141,8 +1267,46 @@ fn classify_n2n_issues(diagnostics: &N2nDiagnostics, edge_available: bool) -> Ve
 fn diagnostic_evidence(diagnostics: &N2nDiagnostics) -> Vec<String> {
     let mut evidence = vec![
         diagnostics.summary.clone(),
+        format!("connection_state={}", diagnostics.connection_state),
+        format!("executable_found={}", diagnostics.executable_found),
+        format!(
+            "executable_path={}",
+            diagnostics
+                .executable_path
+                .clone()
+                .unwrap_or_else(|| "none".to_string())
+        ),
+        format!(
+            "recorded_pid={}",
+            diagnostics
+                .recorded_pid
+                .map(|pid| pid.to_string())
+                .unwrap_or_else(|| "none".to_string())
+        ),
+        format!("recorded_pid_running={}", diagnostics.recorded_pid_running),
+        format!("running={}", diagnostics.running),
+        format!("ok_link={}", diagnostics.ok_link),
+        format!("ack={}", diagnostics.ack),
+        format!("pong={}", diagnostics.pong),
+        format!(
+            "supernode={}",
+            diagnostics
+                .supernode
+                .clone()
+                .unwrap_or_else(|| "none".to_string())
+        ),
+        format!(
+            "virtual_ip={}",
+            diagnostics
+                .virtual_ip
+                .clone()
+                .unwrap_or_else(|| "none".to_string())
+        ),
         format!("log_path={}", diagnostics.log_path),
     ];
+    if let Some(command) = &diagnostics.manual_start_command {
+        evidence.push(format!("manual_start_command={command}"));
+    }
     if let Some(error) = &diagnostics.last_error {
         evidence.push(format!("last_error={error}"));
     }

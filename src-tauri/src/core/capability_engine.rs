@@ -38,7 +38,9 @@ pub fn analyze_game(game_id: &str) -> Result<GameAnalysis, String> {
             connection_plan: game.connection_plan,
             applicability: game.applicability,
             evidence: game.evidence,
-            adapter_source: game.adapter_source.or_else(|| Some("steam_scan".to_string())),
+            adapter_source: game
+                .adapter_source
+                .or_else(|| Some("steam_scan".to_string())),
             confidence: "low".to_string(),
             notes: vec![
                 "该游戏来自 Steam appmanifest 自动扫描，但尚未进入联机助手适配库。".to_string(),
@@ -82,12 +84,15 @@ fn infer_multiplayer_conversion(capabilities: &[GameCapability]) -> MultiplayerC
     let has_dedicated_server = capabilities
         .iter()
         .any(|cap| matches!(cap, GameCapability::DedicatedServer));
-    let has_local_coop = capabilities
-        .iter()
-        .any(|cap| matches!(cap, GameCapability::LocalCoop | GameCapability::RemotePlayTogether));
-    let has_steam_lobby = capabilities.iter().any(|cap| {
-        matches!(cap, GameCapability::SteamLobby | GameCapability::SteamP2p)
+    let has_local_coop = capabilities.iter().any(|cap| {
+        matches!(
+            cap,
+            GameCapability::LocalCoop | GameCapability::RemotePlayTogether
+        )
     });
+    let has_steam_lobby = capabilities
+        .iter()
+        .any(|cap| matches!(cap, GameCapability::SteamLobby | GameCapability::SteamP2p));
     let has_official_only = capabilities.iter().any(|cap| {
         matches!(
             cap,
@@ -107,7 +112,8 @@ fn infer_multiplayer_conversion(capabilities: &[GameCapability]) -> MultiplayerC
             risk_level: "low".to_string(),
             notes: vec![
                 "该游戏主要是本地同屏/本地合作，不应该强行包装成 LAN。".to_string(),
-                "推荐使用 Steam Remote Play Together 或 Sunshine + Moonlight 进行远程同屏。".to_string(),
+                "推荐使用 Steam Remote Play Together 或 Sunshine + Moonlight 进行远程同屏。"
+                    .to_string(),
             ],
             required_components: vec![
                 "Steam Remote Play Together 或 Sunshine + Moonlight".to_string(),
@@ -160,7 +166,10 @@ fn infer_multiplayer_conversion(capabilities: &[GameCapability]) -> MultiplayerC
                 "该游戏主要依赖 Steam Lobby/P2P。".to_string(),
                 "优先保留平台大厅；未来可研究 Steam Relay 或插件方案。".to_string(),
             ],
-            required_components: vec!["Steam 大厅/好友邀请".to_string(), "可选 Steam Relay 插件".to_string()],
+            required_components: vec![
+                "Steam 大厅/好友邀请".to_string(),
+                "可选 Steam Relay 插件".to_string(),
+            ],
         };
     }
 

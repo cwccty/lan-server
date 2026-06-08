@@ -1,11 +1,15 @@
 import type { ReferenceAdvancedProxyKind } from '../reference-adapter/actions';
 
 export const ADVANCED_TOOL_INTENT_KEY = 'lan-helper.advancedToolIntent';
+export const ADVANCED_TOOL_INTENT_UPDATED_EVENT = 'lan-helper:advanced-tool-intent-updated';
+
+export type AdvancedConnectionCardId = 'steam_relay' | 'tcp_proxy' | 'udp_broadcast_bridge' | 'generic_server';
 
 export interface AdvancedToolIntent {
   source: 'diagnostics' | 'recommendation' | 'manual';
-  reason: 'udp_broadcast_bridge' | 'port_proxy' | 'manual';
+  reason: 'udp_broadcast_bridge' | 'port_proxy' | 'bridge_or_proxy_choice' | 'steam_relay_p2p' | 'generic_server' | 'manual';
   kind: ReferenceAdvancedProxyKind;
+  preferred_card?: AdvancedConnectionCardId;
   game_id?: string;
   display_name?: string;
   listen_port?: number | null;
@@ -21,8 +25,30 @@ function normalizeKind(value: unknown): ReferenceAdvancedProxyKind {
 }
 
 function normalizeReason(value: unknown): AdvancedToolIntent['reason'] {
-  if (value === 'udp_broadcast_bridge' || value === 'port_proxy' || value === 'manual') return value;
+  if (
+    value === 'udp_broadcast_bridge'
+    || value === 'port_proxy'
+    || value === 'bridge_or_proxy_choice'
+    || value === 'steam_relay_p2p'
+    || value === 'generic_server'
+    || value === 'manual'
+  ) return value;
   return 'manual';
+}
+
+function normalizePreferredCard(value: unknown, reason: AdvancedToolIntent['reason'], kind: ReferenceAdvancedProxyKind): AdvancedConnectionCardId | undefined {
+  if (
+    value === 'steam_relay'
+    || value === 'tcp_proxy'
+    || value === 'udp_broadcast_bridge'
+    || value === 'generic_server'
+  ) return value;
+  if (reason === 'steam_relay_p2p') return 'steam_relay';
+  if (reason === 'generic_server') return 'generic_server';
+  if (reason === 'bridge_or_proxy_choice') return undefined;
+  if (reason === 'udp_broadcast_bridge' || kind === 'bridge') return 'udp_broadcast_bridge';
+  if (reason === 'port_proxy') return 'tcp_proxy';
+  return undefined;
 }
 
 function normalizeSource(value: unknown): AdvancedToolIntent['source'] {
@@ -42,10 +68,13 @@ function normalizeStringList(value: unknown): string[] {
 function normalizeIntent(value: unknown): AdvancedToolIntent | null {
   if (!value || typeof value !== 'object') return null;
   const record = value as Partial<AdvancedToolIntent>;
+  const reason = normalizeReason(record.reason);
+  const kind = normalizeKind(record.kind);
   return {
     source: normalizeSource(record.source),
-    reason: normalizeReason(record.reason),
-    kind: normalizeKind(record.kind),
+    reason,
+    kind,
+    preferred_card: normalizePreferredCard(record.preferred_card, reason, kind),
     game_id: record.game_id ? String(record.game_id) : undefined,
     display_name: record.display_name ? String(record.display_name) : undefined,
     listen_port: normalizePort(record.listen_port),
@@ -57,6 +86,11 @@ function normalizeIntent(value: unknown): AdvancedToolIntent | null {
   };
 }
 
+export function connectionCardFromAdvancedToolIntent(intent?: AdvancedToolIntent | null): AdvancedConnectionCardId | undefined {
+  if (!intent) return undefined;
+  return normalizePreferredCard(intent.preferred_card, intent.reason, intent.kind);
+}
+
 export function writeAdvancedToolIntent(intent: Omit<AdvancedToolIntent, 'created_at'> & { created_at?: string }) {
   const next = normalizeIntent({
     ...intent,
@@ -64,6 +98,7 @@ export function writeAdvancedToolIntent(intent: Omit<AdvancedToolIntent, 'create
   });
   if (!next) return;
   window.localStorage.setItem(ADVANCED_TOOL_INTENT_KEY, JSON.stringify(next));
+  window.dispatchEvent(new CustomEvent(ADVANCED_TOOL_INTENT_UPDATED_EVENT, { detail: next }));
 }
 
 export function readAdvancedToolIntent(): AdvancedToolIntent | null {
@@ -78,4 +113,5 @@ export function readAdvancedToolIntent(): AdvancedToolIntent | null {
 
 export function clearAdvancedToolIntent() {
   window.localStorage.removeItem(ADVANCED_TOOL_INTENT_KEY);
+  window.dispatchEvent(new CustomEvent(ADVANCED_TOOL_INTENT_UPDATED_EVENT, { detail: null }));
 }

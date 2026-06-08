@@ -12,7 +12,7 @@ import type {
   SetupResult
 } from '../types/network';
 import type { LaunchConfig, LaunchResult, Recommendation } from '../types/recommendation';
-import type { GenericServerLaunchConfig, ServerSessionStatus } from '../types/serverSession';
+import type { GenericServerLaunchConfig, GenericServerPreflightReport, ServerSessionStatus } from '../types/serverSession';
 import type { AppSettings, EdgePathCheck, UserAccountState } from '../types/settings';
 import type { PortProxyConfig, PortProxySelfTestReport, PortProxyStatus } from '../types/portProxy';
 import type {
@@ -294,6 +294,7 @@ export interface SteamP2pHostRequest {
   target_host: string;
   target_port: number;
   app_id?: string | null;
+  connecttool_dir?: string | null;
 }
 
 export interface SteamP2pGuestRequest {
@@ -301,6 +302,7 @@ export interface SteamP2pGuestRequest {
   virtual_port: number;
   guest_local_port: number;
   app_id?: string | null;
+  connecttool_dir?: string | null;
 }
 
 export interface SteamP2pSessionStatus {
@@ -356,6 +358,8 @@ export const startGameServerSession = (gameId: string, profileId: string, config
   invoke<ServerSessionStatus>('start_game_server_session', { gameId, profileId, config });
 export const startGenericServerSession = (config: GenericServerLaunchConfig) =>
   invoke<ServerSessionStatus>('start_generic_server_session', { config });
+export const preflightGenericServerSession = (config: GenericServerLaunchConfig) =>
+  invoke<GenericServerPreflightReport>('preflight_generic_server_session', { config });
 export const readServerSession = () => invoke<ServerSessionStatus>('read_server_session');
 export const stopServerSession = () => invoke<ServerSessionStatus>('stop_server_session');
 export const sendServerCommand = (command: string) => invoke<ServerSessionStatus>('send_server_command', { command });

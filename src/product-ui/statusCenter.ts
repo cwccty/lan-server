@@ -1,6 +1,7 @@
 ﻿import type { ReferenceRuntimeSnapshot } from '../reference-adapter/types';
 import type { NetworkConfig } from '../types/network';
 import type { ServerSessionStatus } from '../types/serverSession';
+import { toProductSafeMessage } from './productSafeMessage';
 
 export type ProductConnectionStage =
   | 'not_configured'
@@ -52,14 +53,70 @@ function configured(input: ProductStatusCenterInput) {
   );
 }
 
-export function resolveProductStatusCenter(input: ProductStatusCenterInput): ProductStatusCenter {
-  const label = input.network.label || input.snapshot?.n2n?.summary || '';
-  const evidence = [
-    label,
-    input.network.virtualIp ? `虚拟 IP：${input.network.virtualIp}` : '',
-    input.network.supernode ? `Supernode：${input.network.supernode}` : '',
-    ...(input.errors ?? [])
+function userFacingRuntimeText(text?: string | null) {
+  return toProductSafeMessage(text || '');
+}
+
+function n2nConnectionState(input: ProductStatusCenterInput) {
+  return input.snapshot?.n2n?.connection_state || '';
+}
+
+function hasActiveN2nProblem(input: ProductStatusCenterInput) {
+  const n2n = input.snapshot?.n2n ?? null;
+  const state = n2nConnectionState(input);
+  const ready = Boolean(input.network.ready || n2n?.ok_link);
+  if (ready) return false;
+  return Boolean(
+    n2n?.auth_error ||
+    n2n?.ip_mac_conflict ||
+    n2n?.tap_error ||
+    n2n?.not_responding ||
+    n2n?.last_error ||
+    ['auth_error', 'ip_mac_conflict', 'tap_error', 'supernode_not_responding', 'pid_stale_or_exited'].includes(state)
+  );
+}
+
+function activeN2nProblemDetail(input: ProductStatusCenterInput) {
+  const n2n = input.snapshot?.n2n ?? null;
+  const state = n2nConnectionState(input);
+  if (n2n?.auth_error || state === 'auth_error') {
+    return '房间名或密钥不一致，中继拒绝加入；请确认双方填写完全一致。';
+  }
+  if (n2n?.ip_mac_conflict || state === 'ip_mac_conflict') {
+    return '联机地址可能已被占用；请让每个人使用不同的联机地址后重新启动组网。';
+  }
+  if (n2n?.tap_error || state === 'tap_error') {
+    return '虚拟网卡/组网网卡无法打开或未安装；请尝试管理员运行，并检查 TAP/Wintun 网卡。';
+  }
+  if (n2n?.not_responding || state === 'supernode_not_responding') {
+    return '中继地址暂无响应；请核对地址和端口，确认中继服务器已启动且端口已放行，并检查当前网络是否拦截 UDP 出站。';
+  }
+  if (state === 'pid_stale_or_exited') {
+    return '组网程序没有保持运行，可能启动后立即退出、权限不足或被安全软件拦截。';
+  }
+  return userFacingRuntimeText(n2n?.last_error || input.errors?.[0] || input.network.label || n2n?.summary || '检测到组网异常。');
+}
+
+function buildEvidence(input: ProductStatusCenterInput) {
+  const n2n = input.snapshot?.n2n ?? null;
+  return [
+    input.network.label || n2n?.summary || '',
+    n2n?.connection_state ? `连接状态：${n2n.connection_state}` : '',
+    typeof n2n?.executable_found === 'boolean' ? `组网程序文件：${n2n.executable_found ? '已找到' : '未找到'}` : '',
+    n2n?.executable_path ? `组网程序路径：${n2n.executable_path}` : '',
+    typeof n2n?.recorded_pid === 'number' ? `记录 PID：${n2n.recorded_pid}` : '',
+    typeof n2n?.recorded_pid_running === 'boolean' ? `PID 存活：${n2n.recorded_pid_running ? '是' : '否'}` : '',
+    input.network.virtualIp ? `联机地址：${input.network.virtualIp}` : '',
+    input.network.supernode ? `中继地址：${input.network.supernode}` : '',
+    n2n?.log_path ? `日志路径：${n2n.log_path}` : '',
+    ...(input.errors ?? []),
   ].filter(Boolean);
+}
+
+export function resolveProductStatusCenter(input: ProductStatusCenterInput): ProductStatusCenter {
+  const evidence = buildEvidence(input);
+  const n2n = input.snapshot?.n2n ?? null;
+  const label = input.network.label || n2n?.summary || '';
 
   if (input.busy) {
     return {
@@ -70,7 +127,7 @@ export function resolveProductStatusCenter(input: ProductStatusCenterInput): Pro
       canInvite: false,
       needsNetwork: true,
       needsServer: Boolean(input.requiresServer),
-      nextAction: '等待操作完成后刷新状态。',
+      nextAction: '等待操作完成后刷新状态；如果长时间无变化，请复制诊断报告和日志。',
       evidence
     };
   }
@@ -89,22 +146,17 @@ export function resolveProductStatusCenter(input: ProductStatusCenterInput): Pro
     };
   }
 
-  const n2n = input.snapshot?.n2n ?? null;
-  const hasRuntimeError = Boolean(input.network.hasError || input.errors?.length || n2n?.auth_error || n2n?.ip_mac_conflict || n2n?.not_responding || n2n?.last_error);
+  const hasRuntimeError = Boolean(input.network.hasError || input.errors?.length || hasActiveN2nProblem(input));
   if (hasRuntimeError) {
-    const problem = n2n?.auth_error ? '房间密钥或认证不通过。'
-      : n2n?.ip_mac_conflict ? '虚拟 IP 或 MAC 可能已被占用。'
-        : n2n?.not_responding ? 'Supernode 暂无响应。'
-          : input.errors?.[0] || n2n?.last_error || label || '检测到运行异常。';
     return {
       stage: 'has_problem',
       label: '存在问题',
-      detail: problem,
+      detail: activeN2nProblemDetail(input),
       tone: 'danger',
       canInvite: false,
       needsNetwork: true,
       needsServer: Boolean(input.requiresServer && !input.server?.running),
-      nextAction: '打开诊断报告，按建议修复后重新启动组网。',
+      nextAction: '打开诊断报告，复制完整报告或手动启动命令；核对中继地址、房间名、密钥、联机地址，查看日志后重新启动组网。',
       evidence
     };
   }
@@ -113,26 +165,30 @@ export function resolveProductStatusCenter(input: ProductStatusCenterInput): Pro
     return {
       stage: 'not_configured',
       label: '未配置',
-      detail: '还没有完整的房间名、密钥或 Supernode。',
+      detail: '还没有完整的组网信息。',
       tone: 'idle',
       canInvite: false,
       needsNetwork: true,
       needsServer: Boolean(input.requiresServer),
-      nextAction: '先在通用组网中心保存 n2n 参数。',
+      nextAction: '先到“加入与组网”填写中继地址、房间名、密钥和本机联机地址。',
       evidence
     };
   }
 
   if (!input.network.running && !input.network.ready) {
+    const state = n2nConnectionState(input);
+    const stalePid = state === 'pid_stale_or_exited' || (typeof n2n?.recorded_pid === 'number' && n2n.recorded_pid_running === false);
     return {
       stage: 'configured_not_started',
       label: '已配置未启动',
-      detail: 'n2n 参数已保存，但当前没有运行中的 edge。',
+      detail: stalePid
+        ? '组网信息已保存，但上次记录的组网程序已经退出或 PID 过期。'
+        : '组网信息已保存，但当前没有检测到组网程序在运行。',
       tone: 'warn',
       canInvite: false,
       needsNetwork: true,
       needsServer: Boolean(input.requiresServer),
-      nextAction: '点击启动 n2n，等待 ACK/PONG 后再邀请好友。',
+      nextAction: '点击启动组网；如果启动后仍显示未启动，请复制完整诊断报告、手动启动命令和组网日志，确认程序是否启动后退出或权限不足。',
       evidence
     };
   }
@@ -140,13 +196,13 @@ export function resolveProductStatusCenter(input: ProductStatusCenterInput): Pro
   if (input.network.running && !input.network.ready) {
     return {
       stage: 'starting',
-      label: '启动中',
-      detail: label || 'edge 已启动，正在等待 Supernode 确认。',
+      label: '组网程序已启动，但中继尚未确认',
+      detail: label || '组网程序已启动，但还没有收到中继确认；这还不等于好友已经能游戏内加入。',
       tone: 'warn',
       canInvite: false,
       needsNetwork: true,
       needsServer: Boolean(input.requiresServer),
-      nextAction: '等待 10 到 20 秒后刷新状态。',
+      nextAction: '不要只等待：请核对双方中继地址、房间名、密钥和联机地址；复制手动启动命令与组网日志，必要时用管理员权限重新运行；关闭防火墙仍失败时继续检查 UDP 出站、校园网/公司网、路由器和安全软件。',
       evidence
     };
   }
@@ -184,13 +240,13 @@ export function resolveProductStatusCenter(input: ProductStatusCenterInput): Pro
     stage: 'network_ready',
     label: '已连接',
     detail: friendSlotMissing
-      ? 'n2n 已收到 ACK/PONG，但还没有给好友分配虚拟 IP。'
-      : 'n2n 已收到 ACK/PONG，虚拟局域网基础链路可用。',
+      ? '组网已连接，还需要添加好友。'
+      : '组网已连接，可以继续生成邀请。',
     tone: 'good',
     canInvite: !friendSlotMissing,
     needsNetwork: false,
     needsServer: false,
-    nextAction: friendSlotMissing ? '先分配好友虚拟 IP，再复制邀请包。' : '复制邀请包。',
+    nextAction: friendSlotMissing ? '先添加好友，再复制邀请包。' : '复制邀请包。',
     evidence
   };
 }

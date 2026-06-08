@@ -13,7 +13,13 @@ fn find_by_get_net_ip_address(keywords: &[&str]) -> Option<String> {
         keyword_regex
     );
     let mut process = Command::new("powershell");
-    process.args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", &command]);
+    process.args([
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        &command,
+    ]);
     let output = hide_console_window(&mut process).output().ok()?;
     if !output.status.success() {
         return None;

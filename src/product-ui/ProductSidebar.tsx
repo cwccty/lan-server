@@ -37,37 +37,28 @@ interface ProductMenuGroup {
 
 const menuGroups: readonly ProductMenuGroup[] = [
   {
-    title: '开始',
-    items: [{ id: 'home', label: '首页', hint: '桌面大厅', icon: Home }],
-  },
-  {
-    title: '准备',
+    title: '联机',
     items: [
-      { id: 'solutions', label: '方案库', hint: '共享适配', icon: Library },
-      { id: 'games', label: '游戏扫描', hint: '本机游戏', icon: Target },
+      { id: 'home', label: '开始联机', hint: '开房 / 加入', icon: Home },
+      { id: 'protocol', label: '开房邀请', hint: '选游戏 / 发邀请', icon: ShieldCheck },
+      { id: 'network', label: '加入与组网', hint: '邀请包 / 状态', icon: Globe },
     ],
   },
   {
-    title: '执行',
+    title: '游戏',
     items: [
-      { id: 'protocol', label: '推荐方案', hint: '连接路径', icon: ShieldCheck },
-      { id: 'network', label: '通用组网中心', hint: 'n2n / 代理', icon: Globe },
+      { id: 'games', label: '游戏扫描', hint: '本机游戏', icon: Target },
+      { id: 'solutions', label: '方案库', hint: '共享方案', icon: Library },
       { id: 'terraria', label: 'Terraria 向导', hint: '开服 / 加入', icon: Wand2, badge: 'New' },
     ],
   },
   {
-    title: '高级工具',
-    items: [
-      { id: 'advanced_tools', label: '高级连接工具', hint: 'TCP / UDP / 广播桥', icon: Sliders },
-    ],
-  },
-  {
     title: '排查',
-    items: [{ id: 'diagnostics', label: '诊断报告', hint: '链路性能', icon: Activity, alert: true }],
-  },
-  {
-    title: '系统',
-    items: [{ id: 'settings', label: '设置与帮助', hint: '路径 / 默认值', icon: Settings }],
+    items: [
+      { id: 'diagnostics', label: '诊断报告', hint: '修复问题', icon: Activity },
+      { id: 'advanced_tools', label: '特殊连接工具', hint: '需要时使用', icon: Sliders },
+      { id: 'settings', label: '设置与帮助', hint: '默认值 / 帮助', icon: Settings },
+    ],
   },
 ];
 
@@ -80,7 +71,7 @@ export function ProductSidebar({ currentTab, onChangeTab, onShowVersion }: Produ
         </div>
         <div>
           <h1 className="font-heading text-lg font-bold leading-none tracking-tight text-slate-800">联机助手</h1>
-          <p className="mt-1 font-sans text-xs text-slate-400">高级局域网联机工具</p>
+          <p className="mt-1 font-sans text-xs text-slate-400">和朋友一起联机</p>
         </div>
       </div>
 
@@ -150,7 +141,7 @@ export function ProductSidebar({ currentTab, onChangeTab, onShowVersion }: Produ
           <User className="h-4 w-4 text-slate-400" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-semibold leading-tight text-slate-700">本地玩家</p>
-            <p className="text-[10px] text-slate-400">高级订阅会员</p>
+            <p className="text-[10px] text-slate-400">本地配置</p>
           </div>
         </div>
       </div>

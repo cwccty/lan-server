@@ -52,8 +52,8 @@ pub fn start_udp_proxy(config: UdpProxyConfig) -> Result<UdpProxyStatus, String>
 
     stop_udp_proxy(&id).ok();
 
-    let socket = UdpSocket::bind(&listen)
-        .map_err(|err| format!("启动 UDP 代理监听失败 {listen}: {err}"))?;
+    let socket =
+        UdpSocket::bind(&listen).map_err(|err| format!("启动 UDP 代理监听失败 {listen}: {err}"))?;
     socket
         .set_nonblocking(true)
         .map_err(|err| format!("设置 UDP 代理非阻塞监听失败: {err}"))?;
@@ -79,7 +79,10 @@ pub fn start_udp_proxy(config: UdpProxyConfig) -> Result<UdpProxyStatus, String>
         logs: Arc::new(Mutex::new(Vec::new())),
     });
 
-    push_log(&runtime, format!("UDP 端口代理启动：{listen} -> {target_label}"));
+    push_log(
+        &runtime,
+        format!("UDP 端口代理启动：{listen} -> {target_label}"),
+    );
     if config.listen_host.trim() == "0.0.0.0" {
         push_log(
             &runtime,
@@ -157,8 +160,8 @@ pub fn get_udp_proxy_status(id: &str) -> Result<UdpProxyStatus, String> {
 }
 
 pub fn self_test_udp_proxy() -> Result<UdpProxySelfTestReport, String> {
-    let echo_socket =
-        UdpSocket::bind(("127.0.0.1", 0)).map_err(|err| format!("启动临时 UDP Echo 服务失败: {err}"))?;
+    let echo_socket = UdpSocket::bind(("127.0.0.1", 0))
+        .map_err(|err| format!("启动临时 UDP Echo 服务失败: {err}"))?;
     let target_port = echo_socket
         .local_addr()
         .map_err(|err| format!("读取临时 UDP Echo 端口失败: {err}"))?
@@ -213,8 +216,8 @@ pub fn self_test_udp_proxy() -> Result<UdpProxySelfTestReport, String> {
 
     thread::sleep(Duration::from_millis(80));
     let sent = "hello udp proxy";
-    let client =
-        UdpSocket::bind(("127.0.0.1", 0)).map_err(|err| format!("创建 UDP 自测客户端失败: {err}"))?;
+    let client = UdpSocket::bind(("127.0.0.1", 0))
+        .map_err(|err| format!("创建 UDP 自测客户端失败: {err}"))?;
     client
         .set_read_timeout(Some(Duration::from_secs(3)))
         .map_err(|err| format!("设置 UDP 自测读取超时失败: {err}"))?;
@@ -234,7 +237,11 @@ pub fn self_test_udp_proxy() -> Result<UdpProxySelfTestReport, String> {
     let received = String::from_utf8_lossy(&buffer[..size]).to_string();
     thread::sleep(Duration::from_millis(120));
     let status = get_udp_proxy_status(&proxy_id).unwrap_or(start_status);
-    let ok = received == sent && status.packets_in >= 1 && status.packets_out >= 1 && status.bytes_in > 0 && status.bytes_out > 0;
+    let ok = received == sent
+        && status.packets_in >= 1
+        && status.packets_out >= 1
+        && status.bytes_in > 0
+        && status.bytes_out > 0;
     let report = UdpProxySelfTestReport {
         ok,
         listen: format!("127.0.0.1:{proxy_port}"),
@@ -275,7 +282,10 @@ fn udp_loop(runtime: Arc<UdpProxyRuntime>, socket: UdpSocket) {
                             runtime.packets_out.fetch_add(1, Ordering::SeqCst);
                             runtime.bytes_out.fetch_add(sent as u64, Ordering::SeqCst);
                         }
-                        Err(err) => set_error(&runtime, format!("UDP 转发到目标失败 {}: {err}", runtime.target_label)),
+                        Err(err) => set_error(
+                            &runtime,
+                            format!("UDP 转发到目标失败 {}: {err}", runtime.target_label),
+                        ),
                     }
                 }
             }
@@ -298,7 +308,10 @@ fn forward_target_reply(runtime: &Arc<UdpProxyRuntime>, socket: &UdpSocket, payl
         .map(|guard| guard.keys().cloned().collect::<Vec<_>>())
         .unwrap_or_default();
     if clients.is_empty() {
-        push_log(runtime, "收到目标 UDP 回包，但当前没有活跃客户端映射，已丢弃。".to_string());
+        push_log(
+            runtime,
+            "收到目标 UDP 回包，但当前没有活跃客户端映射，已丢弃。".to_string(),
+        );
         return;
     }
 
@@ -337,13 +350,21 @@ fn status_from_runtime(runtime: &Arc<UdpProxyRuntime>) -> UdpProxyStatus {
         running: !runtime.stop.load(Ordering::SeqCst),
         listen: runtime.listen.clone(),
         target: runtime.target_label.clone(),
-        active_clients: runtime.clients.lock().map(|item| item.len() as u32).unwrap_or(0),
+        active_clients: runtime
+            .clients
+            .lock()
+            .map(|item| item.len() as u32)
+            .unwrap_or(0),
         packets_in: runtime.packets_in.load(Ordering::SeqCst),
         packets_out: runtime.packets_out.load(Ordering::SeqCst),
         bytes_in: runtime.bytes_in.load(Ordering::SeqCst),
         bytes_out: runtime.bytes_out.load(Ordering::SeqCst),
         last_error: runtime.last_error.lock().ok().and_then(|item| item.clone()),
-        logs: runtime.logs.lock().map(|item| item.clone()).unwrap_or_default(),
+        logs: runtime
+            .logs
+            .lock()
+            .map(|item| item.clone())
+            .unwrap_or_default(),
     }
 }
 
@@ -384,6 +405,25 @@ fn free_local_udp_port() -> Result<u16, String> {
 mod tests {
     use super::*;
 
+    fn wait_for_udp_proxy_counters(
+        proxy_id: &str,
+        min_packets_in: u64,
+        min_packets_out: u64,
+    ) -> UdpProxyStatus {
+        let deadline = Instant::now() + Duration::from_secs(3);
+        let mut last_status = get_udp_proxy_status(proxy_id).expect("read udp proxy status");
+        while Instant::now() < deadline {
+            if last_status.packets_in >= min_packets_in
+                && last_status.packets_out >= min_packets_out
+            {
+                return last_status;
+            }
+            thread::sleep(Duration::from_millis(20));
+            last_status = get_udp_proxy_status(proxy_id).expect("read udp proxy status");
+        }
+        last_status
+    }
+
     #[test]
     fn udp_proxy_forwards_datagrams_end_to_end() {
         let echo_socket = UdpSocket::bind(("127.0.0.1", 0)).expect("bind udp target");
@@ -423,7 +463,7 @@ mod tests {
         let (size, _) = client.recv_from(&mut response).expect("read udp echo");
         assert_eq!(&response[..size], b"hello-udp-proxy");
 
-        let status = get_udp_proxy_status(&proxy_id).expect("read udp proxy status");
+        let status = wait_for_udp_proxy_counters(&proxy_id, 1, 2);
         assert!(status.packets_in >= 1);
         assert!(status.packets_out >= 2);
 

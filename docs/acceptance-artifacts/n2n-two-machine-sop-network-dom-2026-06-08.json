@@ -1,0 +1,15 @@
+{
+  "generated_at": "2026-06-08T13:08:07.163Z",
+  "url": "http://127.0.0.1:4175/?ts=1780923400",
+  "hasNetworkPage": true,
+  "hasTwoMachineSop": true,
+  "hasBothCopyReports": true,
+  "hasCompareAddress": true,
+  "hasConfiguredNotStartedAdvice": true,
+  "hasRelayNotConfirmedAdvice": true,
+  "hasCopyReport": true,
+  "hasCopyManual": true,
+  "hasCopyLogs": true,
+  "hasOldWait": false,
+  "hasPlainStarting": false
+}

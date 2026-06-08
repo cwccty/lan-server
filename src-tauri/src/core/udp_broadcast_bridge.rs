@@ -1,4 +1,4 @@
-use std::collections::{HashMap, hash_map::DefaultHasher};
+use std::collections::{hash_map::DefaultHasher, HashMap};
 use std::hash::{Hash, Hasher};
 use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -62,7 +62,10 @@ pub fn start_udp_broadcast_bridge(
     target_labels.sort();
     target_labels.dedup();
     if target_labels.is_empty() {
-        return Err("UDP 广播桥至少需要一个转发目标，例如 10.10.10.3:7777 或 255.255.255.255:7777。".to_string());
+        return Err(
+            "UDP 广播桥至少需要一个转发目标，例如 10.10.10.3:7777 或 255.255.255.255:7777。"
+                .to_string(),
+        );
     }
 
     let mut forward_targets = Vec::new();
@@ -185,8 +188,8 @@ pub fn get_udp_broadcast_bridge_status(id: &str) -> Result<UdpBroadcastBridgeSta
 }
 
 pub fn self_test_udp_broadcast_bridge() -> Result<UdpBroadcastBridgeSelfTestReport, String> {
-    let collector =
-        UdpSocket::bind(("127.0.0.1", 0)).map_err(|err| format!("启动 UDP 发现包接收器失败: {err}"))?;
+    let collector = UdpSocket::bind(("127.0.0.1", 0))
+        .map_err(|err| format!("启动 UDP 发现包接收器失败: {err}"))?;
     let collector_port = collector
         .local_addr()
         .map_err(|err| format!("读取 UDP 发现包接收器端口失败: {err}"))?
@@ -218,8 +221,8 @@ pub fn self_test_udp_broadcast_bridge() -> Result<UdpBroadcastBridgeSelfTestRepo
 
     thread::sleep(Duration::from_millis(80));
     let sent = "hello udp broadcast bridge";
-    let sender =
-        UdpSocket::bind(("127.0.0.1", 0)).map_err(|err| format!("创建 UDP 发现包发送器失败: {err}"))?;
+    let sender = UdpSocket::bind(("127.0.0.1", 0))
+        .map_err(|err| format!("创建 UDP 发现包发送器失败: {err}"))?;
     if let Err(err) = sender.send_to(sent.as_bytes(), ("127.0.0.1", bridge_port)) {
         let _ = stop_udp_broadcast_bridge(&bridge_id);
         return Err(format!("发送 UDP 广播桥自测发现包失败: {err}"));
@@ -291,7 +294,9 @@ fn bridge_loop(runtime: Arc<UdpBroadcastBridgeRuntime>, socket: UdpSocket) {
                             runtime.forwarded_packets.fetch_add(1, Ordering::SeqCst);
                             runtime.bytes_out.fetch_add(sent as u64, Ordering::SeqCst);
                         }
-                        Err(err) => set_error(&runtime, format!("UDP 广播桥转发到 {target} 失败: {err}")),
+                        Err(err) => {
+                            set_error(&runtime, format!("UDP 广播桥转发到 {target} 失败: {err}"))
+                        }
                     }
                 }
             }
@@ -320,7 +325,11 @@ fn status_from_runtime(runtime: &Arc<UdpBroadcastBridgeRuntime>) -> UdpBroadcast
         bytes_in: runtime.bytes_in.load(Ordering::SeqCst),
         bytes_out: runtime.bytes_out.load(Ordering::SeqCst),
         last_error: runtime.last_error.lock().ok().and_then(|item| item.clone()),
-        logs: runtime.logs.lock().map(|item| item.clone()).unwrap_or_default(),
+        logs: runtime
+            .logs
+            .lock()
+            .map(|item| item.clone())
+            .unwrap_or_default(),
     }
 }
 
@@ -388,6 +397,25 @@ fn free_local_udp_port() -> Result<u16, String> {
 mod tests {
     use super::*;
 
+    fn wait_for_udp_broadcast_bridge_counters(
+        bridge_id: &str,
+        min_received_packets: u64,
+        min_forwarded_packets: u64,
+    ) -> UdpBroadcastBridgeStatus {
+        let deadline = Instant::now() + Duration::from_secs(3);
+        let mut last_status = get_udp_broadcast_bridge_status(bridge_id).expect("bridge status");
+        while Instant::now() < deadline {
+            if last_status.received_packets >= min_received_packets
+                && last_status.forwarded_packets >= min_forwarded_packets
+            {
+                return last_status;
+            }
+            thread::sleep(Duration::from_millis(20));
+            last_status = get_udp_broadcast_bridge_status(bridge_id).expect("bridge status");
+        }
+        last_status
+    }
+
     #[test]
     fn udp_broadcast_bridge_forwards_discovery_packet() {
         let collector = UdpSocket::bind(("127.0.0.1", 0)).expect("bind collector");
@@ -417,10 +445,12 @@ mod tests {
             .expect("send discovery");
 
         let mut response = [0_u8; 512];
-        let (size, _) = collector.recv_from(&mut response).expect("read forwarded discovery");
+        let (size, _) = collector
+            .recv_from(&mut response)
+            .expect("read forwarded discovery");
         assert_eq!(&response[..size], b"discover-lan-room");
 
-        let status = get_udp_broadcast_bridge_status(&bridge_id).expect("bridge status");
+        let status = wait_for_udp_broadcast_bridge_counters(&bridge_id, 1, 1);
         assert!(status.received_packets >= 1);
         assert!(status.forwarded_packets >= 1);
 

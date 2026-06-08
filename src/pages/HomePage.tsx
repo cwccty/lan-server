@@ -13,13 +13,13 @@ const scenarios: Record<Scenario, { title: string; desc: string; route: Page; ac
 const readiness = [
   ['方案库', '先更新共享方案，让客户端知道更多游戏怎么连。'],
   ['游戏', '扫描本机游戏，选择本次要联机的目标。'],
-  ['组网', '双方使用同一 room、secret、supernode。'],
+  ['组网', '双方使用同一房间名、密钥和中继地址。'],
   ['端口', '房主启动游戏房间或服务端，再检查端口。']
 ];
 
-const hostSteps = ['更新方案库', '扫描游戏', '启动 n2n', '启动服务端/房间', '复制邀请包'];
-const joinerSteps = ['接收邀请', '填写相同组网信息', '使用不同虚拟 IP', '启动 n2n', '连接房主虚拟 IP'];
-const checklist = ['虚拟局域网网卡', 'supernode 节点就绪', '游戏端口待检测', '邀请包可生成'];
+const hostSteps = ['更新方案库', '扫描游戏', '启动组网服务', '启动服务端/房间', '复制邀请包'];
+const joinerSteps = ['接收邀请', '填写相同组网信息', '使用不同联机地址', '启动组网服务', '连接房主联机地址'];
+const checklist = ['虚拟局域网网卡', '中继节点就绪', '游戏端口待检测', '邀请包可生成'];
 
 export function HomePage({ onNavigate }: { onNavigate: (page: Page) => void }) {
   const [role, setRole] = useState<Role>('host');
@@ -68,7 +68,7 @@ export function HomePage({ onNavigate }: { onNavigate: (page: Page) => void }) {
         </div>
         <div className="network-map lobby-network-map" aria-label="网络拓扑状态">
           <div className="map-node host-node">本机（主机）<br /><span>10.10.10.2</span></div>
-          <div className="map-line"><span>supernode</span></div>
+          <div className="map-line"><span>中继节点</span></div>
           <div className="map-node friend-node">联机好友群组<br /><span>待加入...</span></div>
         </div>
         <div className="scenario-pill-row" aria-label="联机场景">
@@ -119,7 +119,7 @@ export function HomePage({ onNavigate }: { onNavigate: (page: Page) => void }) {
     <article className="diagnostic-strip">
       <div>
         <h3>不确定哪里失败？</h3>
-        <p>生成诊断报告，按 n2n、supernode、虚拟 IP、端口和当前游戏逐项定位。</p>
+        <p>生成诊断报告，按组网服务、中继地址、联机地址、端口和当前游戏逐项定位。</p>
       </div>
       <button onClick={() => onNavigate('diagnostics')}>生成诊断报告</button>
     </article>

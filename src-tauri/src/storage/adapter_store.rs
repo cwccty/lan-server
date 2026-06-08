@@ -8,6 +8,13 @@ use chrono::Local;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+const DEFAULT_ADAPTER_REGISTRY_URL: &str =
+    "https://raw.githubusercontent.com/cwccty/lan-server/master/adapter-registry/index.json";
+const LEGACY_GITHUB_PAGES_PREFIX: &str = "https://cwccty.github.io/lan-server/";
+const GITHUB_BLOB_PREFIX: &str = "https://github.com/cwccty/lan-server/blob/master/";
+const DEFAULT_GITHUB_RAW_PREFIX: &str =
+    "https://raw.githubusercontent.com/cwccty/lan-server/master/";
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdapterRegistryIndex {
     pub version: Option<u32>,
@@ -191,13 +198,15 @@ pub fn list_game_adapters() -> Result<Vec<GameAdapter>, String> {
     load_game_adapters()
 }
 
-
 pub fn list_adapter_conflicts() -> Result<Vec<AdapterConflictReport>, String> {
     let entries = load_adapter_variant_entries()?;
     let mut grouped: BTreeMap<String, Vec<(GameAdapter, AdapterVariantInfo)>> = BTreeMap::new();
 
     for entry in entries {
-        grouped.entry(entry.0.game_id.clone()).or_default().push(entry);
+        grouped
+            .entry(entry.0.game_id.clone())
+            .or_default()
+            .push(entry);
     }
 
     let mut reports = Vec::new();
@@ -217,16 +226,24 @@ pub fn list_adapter_conflicts() -> Result<Vec<AdapterConflictReport>, String> {
         let active_path = active.1.path.clone();
         let display_name = active.0.display_name.clone();
 
-        let fingerprints: HashSet<String> = group.iter().map(|(_, variant)| variant.fingerprint.clone()).collect();
+        let fingerprints: HashSet<String> = group
+            .iter()
+            .map(|(_, variant)| variant.fingerprint.clone())
+            .collect();
         let has_conflict = group.len() > 1 && fingerprints.len() > 1;
-        let sources: Vec<String> = group.iter().map(|(_, variant)| variant.source.clone()).collect();
+        let sources: Vec<String> = group
+            .iter()
+            .map(|(_, variant)| variant.source.clone())
+            .collect();
         let has_custom = sources.iter().any(|source| source == "custom");
         let has_registry = sources.iter().any(|source| source == "registry");
 
         let mut variants: Vec<AdapterVariantInfo> = group
             .into_iter()
             .map(|(_, mut variant)| {
-                variant.is_active = variant.fingerprint == active_fingerprint && variant.source == active_source && variant.path == active_path;
+                variant.is_active = variant.fingerprint == active_fingerprint
+                    && variant.source == active_source
+                    && variant.path == active_path;
                 variant
             })
             .collect();
@@ -260,7 +277,8 @@ pub fn list_adapter_conflicts() -> Result<Vec<AdapterConflictReport>, String> {
         } else if has_conflict {
             "多个本地来源不一致。建议导出备份后，只保留管理员确认过的版本。".to_string()
         } else if variants.len() > 1 {
-            "多个来源已一致，无需处理；后续同步仍会按 custom > registry > builtin 优先级选择。".to_string()
+            "多个来源已一致，无需处理；后续同步仍会按 custom > registry > builtin 优先级选择。"
+                .to_string()
         } else {
             "暂无版本冲突。".to_string()
         };
@@ -326,7 +344,8 @@ pub fn save_game_adapter(mut adapter: GameAdapter) -> Result<GameAdapter, String
 }
 
 pub fn import_game_adapter_json(content: String) -> Result<GameAdapter, String> {
-    let adapter: GameAdapter = serde_json::from_str(&content).map_err(|err| format!("parse adapter JSON failed: {err}"))?;
+    let adapter: GameAdapter = serde_json::from_str(&content)
+        .map_err(|err| format!("parse adapter JSON failed: {err}"))?;
     save_game_adapter(adapter)
 }
 
@@ -338,7 +357,9 @@ pub fn export_game_adapter_json(game_id: String) -> Result<String, String> {
     serde_json::to_string_pretty(&adapter).map_err(|err| format!("export adapter failed: {err}"))
 }
 
-pub fn publish_adapters_to_local_registry(game_ids: Vec<String>) -> Result<AdapterRegistryLocalPublishResult, String> {
+pub fn publish_adapters_to_local_registry(
+    game_ids: Vec<String>,
+) -> Result<AdapterRegistryLocalPublishResult, String> {
     let mut normalized_ids = Vec::new();
     for game_id in game_ids {
         let trimmed = game_id.trim().to_string();
@@ -352,7 +373,8 @@ pub fn publish_adapters_to_local_registry(game_ids: Vec<String>) -> Result<Adapt
 
     let root = locate_local_registry_dir()?;
     let games_dir = root.join("games");
-    fs::create_dir_all(&games_dir).map_err(|err| format!("create local registry games dir failed: {err}"))?;
+    fs::create_dir_all(&games_dir)
+        .map_err(|err| format!("create local registry games dir failed: {err}"))?;
 
     let adapters = load_game_adapters()?;
     let mut adapter_by_id: BTreeMap<String, GameAdapter> = BTreeMap::new();
@@ -384,20 +406,26 @@ pub fn publish_adapters_to_local_registry(game_ids: Vec<String>) -> Result<Adapt
         let sha256 = sha256_hex(content.as_bytes());
 
         let status = if adapter_path.exists() {
-            let previous = fs::read_to_string(&adapter_path)
-                .map_err(|err| format!("read existing registry adapter {:?} failed: {err}", adapter_path))?;
+            let previous = fs::read_to_string(&adapter_path).map_err(|err| {
+                format!(
+                    "read existing registry adapter {:?} failed: {err}",
+                    adapter_path
+                )
+            })?;
             if previous == content {
                 unchanged += 1;
                 "unchanged"
             } else {
-                fs::write(&adapter_path, content.as_bytes())
-                    .map_err(|err| format!("write registry adapter {:?} failed: {err}", adapter_path))?;
+                fs::write(&adapter_path, content.as_bytes()).map_err(|err| {
+                    format!("write registry adapter {:?} failed: {err}", adapter_path)
+                })?;
                 updated += 1;
                 "updated"
             }
         } else {
-            fs::write(&adapter_path, content.as_bytes())
-                .map_err(|err| format!("write registry adapter {:?} failed: {err}", adapter_path))?;
+            fs::write(&adapter_path, content.as_bytes()).map_err(|err| {
+                format!("write registry adapter {:?} failed: {err}", adapter_path)
+            })?;
             created += 1;
             "created"
         };
@@ -415,7 +443,10 @@ pub fn publish_adapters_to_local_registry(game_ids: Vec<String>) -> Result<Adapt
 
     let index_games = rebuild_local_adapter_registry_index(&root)?;
     let verify_messages = verify_local_adapter_registry_index(&root)?;
-    messages.push(format!("rebuilt adapter-registry/index.json with {} entries", index_games.len()));
+    messages.push(format!(
+        "rebuilt adapter-registry/index.json with {} entries",
+        index_games.len()
+    ));
     messages.extend(verify_messages);
 
     let written = created + updated;
@@ -453,12 +484,17 @@ pub fn list_adapter_backups() -> Result<Vec<AdapterBackupEntry>, String> {
         if !is_meta {
             continue;
         }
-        let content = fs::read_to_string(&path).map_err(|err| format!("read backup metadata {:?} failed: {err}", path))?;
-        let backup: AdapterBackupEntry =
-            serde_json::from_str(&content).map_err(|err| format!("parse backup metadata {:?} failed: {err}", path))?;
+        let content = fs::read_to_string(&path)
+            .map_err(|err| format!("read backup metadata {:?} failed: {err}", path))?;
+        let backup: AdapterBackupEntry = serde_json::from_str(&content)
+            .map_err(|err| format!("parse backup metadata {:?} failed: {err}", path))?;
         backups.push(backup);
     }
-    backups.sort_by(|a, b| b.created_at.cmp(&a.created_at).then_with(|| b.id.cmp(&a.id)));
+    backups.sort_by(|a, b| {
+        b.created_at
+            .cmp(&a.created_at)
+            .then_with(|| b.id.cmp(&a.id))
+    });
     Ok(backups)
 }
 
@@ -486,33 +522,28 @@ pub fn restore_adapter_backup(backup_id: String) -> Result<GameAdapter, String> 
 
     let restored_text = fs::read_to_string(&original_path)
         .map_err(|err| format!("read restored adapter failed: {err}"))?;
-    let mut adapter: GameAdapter =
-        serde_json::from_str(&restored_text).map_err(|err| format!("parse restored adapter failed: {err}"))?;
+    let mut adapter: GameAdapter = serde_json::from_str(&restored_text)
+        .map_err(|err| format!("parse restored adapter failed: {err}"))?;
     adapter.adapter_source = Some(adapter_file_source(&original_path).to_string());
     Ok(adapter)
 }
 
-pub fn preview_adapter_registry_sync(registry_url: String) -> Result<AdapterRegistrySyncPreview, String> {
-    let registry_url = registry_url.trim().to_string();
-    if registry_url.is_empty() {
+pub fn preview_adapter_registry_sync(
+    registry_url: String,
+) -> Result<AdapterRegistrySyncPreview, String> {
+    let requested_registry_url = registry_url.trim().to_string();
+    if requested_registry_url.is_empty() {
         return Err("registry_url is required".to_string());
     }
+    let registry_url = normalize_known_registry_url(&requested_registry_url);
 
     let client = reqwest::blocking::Client::builder()
         .timeout(std::time::Duration::from_secs(20))
         .build()
         .map_err(|err| format!("create HTTP client failed: {err}"))?;
 
-    let index_text = client
-        .get(&registry_url)
-        .send()
-        .and_then(|response| response.error_for_status())
-        .map_err(|err| format!("fetch registry index failed: {err}"))?
-        .text()
-        .map_err(|err| format!("read registry index failed: {err}"))?;
-
-    let index: AdapterRegistryIndex =
-        serde_json::from_str(&index_text).map_err(|err| format!("parse registry index failed: {err}"))?;
+    let (adapter_registry_url, index, source_messages) =
+        resolve_registry_index_source(&client, &registry_url)?;
     let registry_version = index.version;
     let registry_updated_at = index.updated_at.clone();
     let local_by_game = group_adapter_entries_by_game(load_adapter_variant_entries()?);
@@ -520,13 +551,21 @@ pub fn preview_adapter_registry_sync(registry_url: String) -> Result<AdapterRegi
 
     let total = index.games.len();
     let mut items = Vec::new();
-    let mut messages = Vec::new();
+    let mut messages = source_messages;
+    if requested_registry_url != registry_url {
+        messages.push(format!(
+            "normalized registry url from {requested_registry_url} to {registry_url}"
+        ));
+    }
 
     for game in index.games {
-        let adapter_url = match resolve_registry_url(&registry_url, &game.adapter_url) {
+        let adapter_url = match resolve_registry_url(&adapter_registry_url, &game.adapter_url) {
             Ok(url) => url,
             Err(err) => {
-                messages.push(format!("preview skip {}: invalid adapter url: {err}", game.game_id));
+                messages.push(format!(
+                    "preview skip {}: invalid adapter url: {err}",
+                    game.game_id
+                ));
                 items.push(preview_item(
                     &game.game_id,
                     None,
@@ -549,16 +588,17 @@ pub fn preview_adapter_registry_sync(registry_url: String) -> Result<AdapterRegi
             }
         };
 
-        let adapter_text = match client
-            .get(&adapter_url)
-            .send()
-            .and_then(|response| response.error_for_status())
-        {
-            Ok(response) => response
-                .text()
-                .map_err(|err| format!("read adapter {adapter_url} failed: {err}"))?,
+        let adapter_text = match read_registry_resource_text(
+            &client,
+            &adapter_url,
+            &format!("adapter {adapter_url}"),
+        ) {
+            Ok(text) => text,
             Err(err) => {
-                messages.push(format!("preview skip {}: fetch failed: {err}", game.game_id));
+                messages.push(format!(
+                    "preview skip {}: fetch failed: {err}",
+                    game.game_id
+                ));
                 items.push(preview_item(
                     &game.game_id,
                     None,
@@ -582,7 +622,11 @@ pub fn preview_adapter_registry_sync(registry_url: String) -> Result<AdapterRegi
         };
 
         let actual_hash = sha256_hex(adapter_text.as_bytes());
-        if let Some(expected_hash) = game.sha256.as_ref().filter(|value| !value.trim().is_empty()) {
+        if let Some(expected_hash) = game
+            .sha256
+            .as_ref()
+            .filter(|value| !value.trim().is_empty())
+        {
             if !actual_hash.eq_ignore_ascii_case(expected_hash.trim()) {
                 messages.push(format!("preview skip {}: sha256 mismatch", game.game_id));
                 items.push(preview_item(
@@ -610,7 +654,10 @@ pub fn preview_adapter_registry_sync(registry_url: String) -> Result<AdapterRegi
         let adapter: GameAdapter = match serde_json::from_str(&adapter_text) {
             Ok(adapter) => adapter,
             Err(err) => {
-                messages.push(format!("preview skip {}: parse failed: {err}", game.game_id));
+                messages.push(format!(
+                    "preview skip {}: parse failed: {err}",
+                    game.game_id
+                ));
                 items.push(preview_item(
                     &game.game_id,
                     None,
@@ -634,7 +681,10 @@ pub fn preview_adapter_registry_sync(registry_url: String) -> Result<AdapterRegi
         };
 
         if let Err(err) = validate_adapter(&adapter) {
-            messages.push(format!("preview skip {}: validation failed: {err}", game.game_id));
+            messages.push(format!(
+                "preview skip {}: validation failed: {err}",
+                game.game_id
+            ));
             items.push(preview_item(
                 &game.game_id,
                 Some(&adapter.display_name),
@@ -657,16 +707,20 @@ pub fn preview_adapter_registry_sync(registry_url: String) -> Result<AdapterRegi
         }
 
         let remote_fingerprint = adapter_fingerprint(&adapter)?;
-        let local_entries = local_by_game.get(&adapter.game_id).cloned().unwrap_or_default();
-        let variants: Vec<AdapterVariantInfo> = local_entries.iter().map(|(_, variant)| variant.clone()).collect();
-        let active = local_entries
+        let local_entries = local_by_game
+            .get(&adapter.game_id)
+            .cloned()
+            .unwrap_or_default();
+        let variants: Vec<AdapterVariantInfo> = local_entries
             .iter()
-            .max_by(|a, b| {
-                a.1.priority
-                    .cmp(&b.1.priority)
-                    .then_with(|| b.1.source.cmp(&a.1.source))
-                    .then_with(|| b.1.path.cmp(&a.1.path))
-            });
+            .map(|(_, variant)| variant.clone())
+            .collect();
+        let active = local_entries.iter().max_by(|a, b| {
+            a.1.priority
+                .cmp(&b.1.priority)
+                .then_with(|| b.1.source.cmp(&a.1.source))
+                .then_with(|| b.1.path.cmp(&a.1.path))
+        });
         let active_source = active.map(|(_, variant)| variant.source.clone());
         let active_adapter = active.map(|(local_adapter, _)| local_adapter);
         let local_sources = sorted_unique_sources(&variants);
@@ -682,9 +736,12 @@ pub fn preview_adapter_registry_sync(registry_url: String) -> Result<AdapterRegi
         let would_write_registry = registry_changed;
         let would_affect_active = would_write_registry && !has_custom;
         let saved_path = Some(
-            dir.join(format!("registry_{}.json", sanitize_file_stem(&adapter.game_id)))
-                .to_string_lossy()
-                .to_string(),
+            dir.join(format!(
+                "registry_{}.json",
+                sanitize_file_stem(&adapter.game_id)
+            ))
+            .to_string_lossy()
+            .to_string(),
         );
         let diff_fields = adapter_change_diff_fields(active_adapter, &adapter)?;
 
@@ -717,7 +774,10 @@ pub fn preview_adapter_registry_sync(registry_url: String) -> Result<AdapterRegi
                 "共享库与现有 registry 一致，且 custom 仍保持优先。".to_string(),
             )
         } else {
-            ("unchanged_registry", "本地 registry 已是同一版本。".to_string())
+            (
+                "unchanged_registry",
+                "本地 registry 已是同一版本。".to_string(),
+            )
         };
 
         items.push(preview_item(
@@ -740,13 +800,28 @@ pub fn preview_adapter_registry_sync(registry_url: String) -> Result<AdapterRegi
         ));
     }
 
-    let will_create = items.iter().filter(|item| item.status == "will_create_registry").count();
-    let will_update = items.iter().filter(|item| item.status == "will_update_registry").count();
-    let unchanged = items.iter().filter(|item| item.status == "unchanged_registry" || item.status == "custom_protected").count();
+    let will_create = items
+        .iter()
+        .filter(|item| item.status == "will_create_registry")
+        .count();
+    let will_update = items
+        .iter()
+        .filter(|item| item.status == "will_update_registry")
+        .count();
+    let unchanged = items
+        .iter()
+        .filter(|item| item.status == "unchanged_registry" || item.status == "custom_protected")
+        .count();
     let custom_protected = items.iter().filter(|item| item.has_custom).count();
     let would_affect_active = items.iter().filter(|item| item.would_affect_active).count();
-    let possible_conflicts = items.iter().filter(|item| item.conflict_with_custom).count();
-    let skipped = items.iter().filter(|item| item.status.starts_with("skipped_")).count();
+    let possible_conflicts = items
+        .iter()
+        .filter(|item| item.conflict_with_custom)
+        .count();
+    let skipped = items
+        .iter()
+        .filter(|item| item.status.starts_with("skipped_"))
+        .count();
 
     Ok(AdapterRegistrySyncPreview {
         ok: skipped == 0,
@@ -767,26 +842,19 @@ pub fn preview_adapter_registry_sync(registry_url: String) -> Result<AdapterRegi
 }
 
 pub fn sync_adapter_registry(registry_url: String) -> Result<AdapterRegistrySyncResult, String> {
-    let registry_url = registry_url.trim().to_string();
-    if registry_url.is_empty() {
+    let requested_registry_url = registry_url.trim().to_string();
+    if requested_registry_url.is_empty() {
         return Err("registry_url is required".to_string());
     }
+    let registry_url = normalize_known_registry_url(&requested_registry_url);
 
     let client = reqwest::blocking::Client::builder()
         .timeout(std::time::Duration::from_secs(20))
         .build()
         .map_err(|err| format!("create HTTP client failed: {err}"))?;
 
-    let index_text = client
-        .get(&registry_url)
-        .send()
-        .and_then(|response| response.error_for_status())
-        .map_err(|err| format!("fetch registry index failed: {err}"))?
-        .text()
-        .map_err(|err| format!("read registry index failed: {err}"))?;
-
-    let index: AdapterRegistryIndex =
-        serde_json::from_str(&index_text).map_err(|err| format!("parse registry index failed: {err}"))?;
+    let (adapter_registry_url, index, source_messages) =
+        resolve_registry_index_source(&client, &registry_url)?;
     let registry_version = index.version;
     let registry_updated_at = index.updated_at.clone();
     let dir = writable_adapter_dir()?;
@@ -796,11 +864,16 @@ pub fn sync_adapter_registry(registry_url: String) -> Result<AdapterRegistrySync
     let mut created = 0usize;
     let mut updated = 0usize;
     let mut skipped = 0usize;
-    let mut messages = Vec::new();
+    let mut messages = source_messages;
+    if requested_registry_url != registry_url {
+        messages.push(format!(
+            "normalized registry url from {requested_registry_url} to {registry_url}"
+        ));
+    }
     let mut items = Vec::new();
 
     for game in index.games {
-        let adapter_url = match resolve_registry_url(&registry_url, &game.adapter_url) {
+        let adapter_url = match resolve_registry_url(&adapter_registry_url, &game.adapter_url) {
             Ok(url) => url,
             Err(err) => {
                 skipped += 1;
@@ -818,14 +891,12 @@ pub fn sync_adapter_registry(registry_url: String) -> Result<AdapterRegistrySync
                 continue;
             }
         };
-        let adapter_text = match client
-            .get(&adapter_url)
-            .send()
-            .and_then(|response| response.error_for_status())
-        {
-            Ok(response) => response
-                .text()
-                .map_err(|err| format!("read adapter {adapter_url} failed: {err}"))?,
+        let adapter_text = match read_registry_resource_text(
+            &client,
+            &adapter_url,
+            &format!("adapter {adapter_url}"),
+        ) {
+            Ok(text) => text,
             Err(err) => {
                 skipped += 1;
                 messages.push(format!("skip {}: fetch failed: {err}", game.game_id));
@@ -844,7 +915,11 @@ pub fn sync_adapter_registry(registry_url: String) -> Result<AdapterRegistrySync
         };
 
         let actual_hash = sha256_hex(adapter_text.as_bytes());
-        if let Some(expected_hash) = game.sha256.as_ref().filter(|value| !value.trim().is_empty()) {
+        if let Some(expected_hash) = game
+            .sha256
+            .as_ref()
+            .filter(|value| !value.trim().is_empty())
+        {
             if !actual_hash.eq_ignore_ascii_case(expected_hash.trim()) {
                 skipped += 1;
                 messages.push(format!("skip {}: sha256 mismatch", game.game_id));
@@ -944,11 +1019,26 @@ pub fn sync_adapter_registry(registry_url: String) -> Result<AdapterRegistrySync
         }
     }
 
-    let hash_failed = items.iter().filter(|item| item.status == "skipped_hash_failed").count();
-    let parse_failed = items.iter().filter(|item| item.status == "skipped_parse_failed").count();
-    let fetch_failed = items.iter().filter(|item| item.status == "skipped_fetch_failed").count();
-    let validation_failed = items.iter().filter(|item| item.status == "skipped_validation_failed").count();
-    let write_failed = items.iter().filter(|item| item.status == "skipped_write_failed").count();
+    let hash_failed = items
+        .iter()
+        .filter(|item| item.status == "skipped_hash_failed")
+        .count();
+    let parse_failed = items
+        .iter()
+        .filter(|item| item.status == "skipped_parse_failed")
+        .count();
+    let fetch_failed = items
+        .iter()
+        .filter(|item| item.status == "skipped_fetch_failed")
+        .count();
+    let validation_failed = items
+        .iter()
+        .filter(|item| item.status == "skipped_validation_failed")
+        .count();
+    let write_failed = items
+        .iter()
+        .filter(|item| item.status == "skipped_write_failed")
+        .count();
 
     Ok(AdapterRegistrySyncResult {
         ok: skipped == 0,
@@ -969,7 +1059,6 @@ pub fn sync_adapter_registry(registry_url: String) -> Result<AdapterRegistrySync
     })
 }
 
-
 pub fn sync_local_adapter_registry_example() -> Result<AdapterRegistrySyncResult, String> {
     let root = locate_local_registry_dir()?;
     sync_adapter_registry_from_dir(root)
@@ -977,9 +1066,10 @@ pub fn sync_local_adapter_registry_example() -> Result<AdapterRegistrySyncResult
 
 pub fn sync_adapter_registry_from_dir(root: PathBuf) -> Result<AdapterRegistrySyncResult, String> {
     let index_path = root.join("index.json");
-    let index_text = fs::read_to_string(&index_path).map_err(|err| format!("read {:?} failed: {err}", index_path))?;
-    let index: AdapterRegistryIndex =
-        serde_json::from_str(&index_text).map_err(|err| format!("parse {:?} failed: {err}", index_path))?;
+    let index_text = fs::read_to_string(&index_path)
+        .map_err(|err| format!("read {:?} failed: {err}", index_path))?;
+    let index: AdapterRegistryIndex = serde_json::from_str(&index_text)
+        .map_err(|err| format!("parse {:?} failed: {err}", index_path))?;
     let registry_version = index.version;
     let registry_updated_at = index.updated_at.clone();
     let dir = writable_adapter_dir()?;
@@ -1015,7 +1105,11 @@ pub fn sync_adapter_registry_from_dir(root: PathBuf) -> Result<AdapterRegistrySy
         };
 
         let actual_hash = sha256_hex(adapter_text.as_bytes());
-        if let Some(expected_hash) = game.sha256.as_ref().filter(|value| !value.trim().is_empty()) {
+        if let Some(expected_hash) = game
+            .sha256
+            .as_ref()
+            .filter(|value| !value.trim().is_empty())
+        {
             if !actual_hash.eq_ignore_ascii_case(expected_hash.trim()) {
                 skipped += 1;
                 messages.push(format!("skip {}: sha256 mismatch", game.game_id));
@@ -1114,11 +1208,26 @@ pub fn sync_adapter_registry_from_dir(root: PathBuf) -> Result<AdapterRegistrySy
         }
     }
 
-    let hash_failed = items.iter().filter(|item| item.status == "skipped_hash_failed").count();
-    let parse_failed = items.iter().filter(|item| item.status == "skipped_parse_failed").count();
-    let fetch_failed = items.iter().filter(|item| item.status == "skipped_fetch_failed").count();
-    let validation_failed = items.iter().filter(|item| item.status == "skipped_validation_failed").count();
-    let write_failed = items.iter().filter(|item| item.status == "skipped_write_failed").count();
+    let hash_failed = items
+        .iter()
+        .filter(|item| item.status == "skipped_hash_failed")
+        .count();
+    let parse_failed = items
+        .iter()
+        .filter(|item| item.status == "skipped_parse_failed")
+        .count();
+    let fetch_failed = items
+        .iter()
+        .filter(|item| item.status == "skipped_fetch_failed")
+        .count();
+    let validation_failed = items
+        .iter()
+        .filter(|item| item.status == "skipped_validation_failed")
+        .count();
+    let write_failed = items
+        .iter()
+        .filter(|item| item.status == "skipped_write_failed")
+        .count();
 
     Ok(AdapterRegistrySyncResult {
         ok: skipped == 0,
@@ -1139,7 +1248,6 @@ pub fn sync_adapter_registry_from_dir(root: PathBuf) -> Result<AdapterRegistrySy
     })
 }
 
-
 fn load_adapter_variant_entries() -> Result<Vec<(GameAdapter, AdapterVariantInfo)>, String> {
     for dir in candidate_adapter_dirs() {
         if dir.exists() {
@@ -1159,7 +1267,9 @@ fn load_adapter_variant_entries() -> Result<Vec<(GameAdapter, AdapterVariantInfo
     Ok(variants)
 }
 
-fn load_adapter_variant_entries_from_dir(dir: &Path) -> Result<Vec<(GameAdapter, AdapterVariantInfo)>, String> {
+fn load_adapter_variant_entries_from_dir(
+    dir: &Path,
+) -> Result<Vec<(GameAdapter, AdapterVariantInfo)>, String> {
     let mut paths = Vec::new();
     for entry in fs::read_dir(dir).map_err(|err| err.to_string())? {
         let path = entry.map_err(|err| err.to_string())?.path();
@@ -1171,15 +1281,17 @@ fn load_adapter_variant_entries_from_dir(dir: &Path) -> Result<Vec<(GameAdapter,
 
     let mut variants = Vec::new();
     for path in paths {
-        let content = fs::read_to_string(&path).map_err(|err| format!("read {:?} failed: {err}", path))?;
-        let mut adapter: GameAdapter =
-            serde_json::from_str(&content).map_err(|err| format!("parse {:?} failed: {err}", path))?;
+        let content =
+            fs::read_to_string(&path).map_err(|err| format!("read {:?} failed: {err}", path))?;
+        let mut adapter: GameAdapter = serde_json::from_str(&content)
+            .map_err(|err| format!("parse {:?} failed: {err}", path))?;
         let source = adapter_file_source(&path).to_string();
         let priority = adapter_file_priority(&path);
         adapter.adapter_source = Some(source.clone());
         let modified_at = file_modified_at(&path);
         let path_text = path.to_string_lossy().to_string();
-        let variant = build_adapter_variant_info(&adapter, &source, &path_text, priority, modified_at)?;
+        let variant =
+            build_adapter_variant_info(&adapter, &source, &path_text, priority, modified_at)?;
         variants.push((adapter, variant));
     }
     Ok(variants)
@@ -1212,7 +1324,8 @@ fn build_adapter_variant_info(
 fn adapter_fingerprint(adapter: &GameAdapter) -> Result<String, String> {
     let mut canonical = adapter.clone();
     canonical.adapter_source = None;
-    let bytes = serde_json::to_vec(&canonical).map_err(|err| format!("hash adapter failed: {err}"))?;
+    let bytes =
+        serde_json::to_vec(&canonical).map_err(|err| format!("hash adapter failed: {err}"))?;
     Ok(sha256_hex(&bytes))
 }
 
@@ -1242,26 +1355,35 @@ fn source_display_label(source: &str) -> &'static str {
     }
 }
 
-fn backup_existing_adapter_if_changed(path: &Path, next_adapter: &GameAdapter, reason: &str) -> Result<Option<AdapterBackupEntry>, String> {
+fn backup_existing_adapter_if_changed(
+    path: &Path,
+    next_adapter: &GameAdapter,
+    reason: &str,
+) -> Result<Option<AdapterBackupEntry>, String> {
     if !path.exists() {
         return Ok(None);
     }
-    let current_text = fs::read_to_string(path).map_err(|err| format!("read current adapter for backup failed: {err}"))?;
-    let current_adapter: GameAdapter =
-        serde_json::from_str(&current_text).map_err(|err| format!("parse current adapter for backup failed: {err}"))?;
+    let current_text = fs::read_to_string(path)
+        .map_err(|err| format!("read current adapter for backup failed: {err}"))?;
+    let current_adapter: GameAdapter = serde_json::from_str(&current_text)
+        .map_err(|err| format!("parse current adapter for backup failed: {err}"))?;
     if adapter_fingerprint(&current_adapter)? == adapter_fingerprint(next_adapter)? {
         return Ok(None);
     }
     backup_existing_adapter_file(path, reason)
 }
 
-fn backup_existing_adapter_file(path: &Path, reason: &str) -> Result<Option<AdapterBackupEntry>, String> {
+fn backup_existing_adapter_file(
+    path: &Path,
+    reason: &str,
+) -> Result<Option<AdapterBackupEntry>, String> {
     if !path.exists() {
         return Ok(None);
     }
-    let content = fs::read_to_string(path).map_err(|err| format!("read adapter before backup failed: {err}"))?;
-    let mut adapter: GameAdapter =
-        serde_json::from_str(&content).map_err(|err| format!("parse adapter before backup failed: {err}"))?;
+    let content = fs::read_to_string(path)
+        .map_err(|err| format!("read adapter before backup failed: {err}"))?;
+    let mut adapter: GameAdapter = serde_json::from_str(&content)
+        .map_err(|err| format!("parse adapter before backup failed: {err}"))?;
     let source = adapter_file_source(path).to_string();
     adapter.adapter_source = Some(source.clone());
     let fingerprint = adapter_fingerprint(&adapter)?;
@@ -1282,7 +1404,8 @@ fn backup_existing_adapter_file(path: &Path, reason: &str) -> Result<Option<Adap
     fs::create_dir_all(&dir).map_err(|err| format!("create adapter backup dir failed: {err}"))?;
     let backup_path = dir.join(format!("{id}.json"));
     let metadata_path = dir.join(format!("{id}.meta.json"));
-    fs::write(&backup_path, &content).map_err(|err| format!("write adapter backup failed: {err}"))?;
+    fs::write(&backup_path, &content)
+        .map_err(|err| format!("write adapter backup failed: {err}"))?;
 
     let entry = AdapterBackupEntry {
         id,
@@ -1298,8 +1421,10 @@ fn backup_existing_adapter_file(path: &Path, reason: &str) -> Result<Option<Adap
         short_fingerprint,
         size_bytes: content.len() as u64,
     };
-    let metadata = serde_json::to_string_pretty(&entry).map_err(|err| format!("serialize adapter backup metadata failed: {err}"))?;
-    fs::write(&metadata_path, format!("{metadata}\n")).map_err(|err| format!("write adapter backup metadata failed: {err}"))?;
+    let metadata = serde_json::to_string_pretty(&entry)
+        .map_err(|err| format!("serialize adapter backup metadata failed: {err}"))?;
+    fs::write(&metadata_path, format!("{metadata}\n"))
+        .map_err(|err| format!("write adapter backup metadata failed: {err}"))?;
     Ok(Some(entry))
 }
 
@@ -1315,17 +1440,22 @@ fn ensure_adapter_target_path(target: &Path) -> Result<(), String> {
     let parent = target
         .parent()
         .ok_or_else(|| format!("invalid restore target: {:?}", target))?;
-    let parent_canonical = fs::canonicalize(parent).map_err(|err| format!("restore target parent is not accessible: {err}"))?;
+    let parent_canonical = fs::canonicalize(parent)
+        .map_err(|err| format!("restore target parent is not accessible: {err}"))?;
     for dir in candidate_adapter_dirs() {
         if !dir.exists() {
             continue;
         }
-        let dir_canonical = fs::canonicalize(&dir).map_err(|err| format!("canonicalize adapter dir {:?} failed: {err}", dir))?;
+        let dir_canonical = fs::canonicalize(&dir)
+            .map_err(|err| format!("canonicalize adapter dir {:?} failed: {err}", dir))?;
         if parent_canonical == dir_canonical {
             return Ok(());
         }
     }
-    Err(format!("restore target is outside adapter dirs: {:?}", target))
+    Err(format!(
+        "restore target is outside adapter dirs: {:?}",
+        target
+    ))
 }
 
 fn current_unix_timestamp() -> String {
@@ -1335,35 +1465,153 @@ fn current_unix_timestamp() -> String {
         .unwrap_or_else(|_| "0".to_string())
 }
 
-fn group_adapter_entries_by_game(entries: Vec<(GameAdapter, AdapterVariantInfo)>) -> BTreeMap<String, Vec<(GameAdapter, AdapterVariantInfo)>> {
+fn group_adapter_entries_by_game(
+    entries: Vec<(GameAdapter, AdapterVariantInfo)>,
+) -> BTreeMap<String, Vec<(GameAdapter, AdapterVariantInfo)>> {
     let mut grouped: BTreeMap<String, Vec<(GameAdapter, AdapterVariantInfo)>> = BTreeMap::new();
     for (adapter, variant) in entries {
-        grouped.entry(adapter.game_id.clone()).or_default().push((adapter, variant));
+        grouped
+            .entry(adapter.game_id.clone())
+            .or_default()
+            .push((adapter, variant));
     }
     grouped
 }
 
-fn adapter_change_diff_fields(before: Option<&GameAdapter>, after: &GameAdapter) -> Result<Vec<AdapterChangeDiffField>, String> {
+fn adapter_change_diff_fields(
+    before: Option<&GameAdapter>,
+    after: &GameAdapter,
+) -> Result<Vec<AdapterChangeDiffField>, String> {
     let before_missing = "无本地方案".to_string();
     let fields = vec![
-        diff_field("network_type", "联机类型", before.and_then(network_type_string).unwrap_or_else(|| before_missing.clone()), network_type_string(after).unwrap_or_else(|| "未标注".to_string()), true),
-        diff_field("default_ports", "默认端口", before.map(format_ports).unwrap_or_else(|| before_missing.clone()), format_ports(after), true),
-        diff_field("capabilities", "游戏能力", before.map(format_capabilities).unwrap_or_else(|| before_missing.clone()), format_capabilities(after), true),
-        diff_field("conversion_capability", "多人能力", before.map(format_conversion_capability).unwrap_or_else(|| before_missing.clone()), format_conversion_capability(after), true),
-        diff_field("conversion_methods", "转换方式", before.map(format_conversion_methods).unwrap_or_else(|| before_missing.clone()), format_conversion_methods(after), true),
-        diff_field("can_convert_to_lan", "是否可转局域网体验", before.map(format_can_convert).unwrap_or_else(|| before_missing.clone()), format_can_convert(after), true),
-        diff_field("connection_summary", "方案摘要", before.map(format_plan_summary).unwrap_or_else(|| before_missing.clone()), format_plan_summary(after), false),
-        diff_field("host_role", "房主步骤", before.map(format_host_role).unwrap_or_else(|| before_missing.clone()), format_host_role(after), false),
-        diff_field("join_role", "加入者步骤", before.map(format_join_role).unwrap_or_else(|| before_missing.clone()), format_join_role(after), false),
-        diff_field("default_join_port", "默认加入端口", before.map(format_default_join_port).unwrap_or_else(|| before_missing.clone()), format_default_join_port(after), true),
-        diff_field("route_flags", "路线开关", before.map(format_route_flags).unwrap_or_else(|| before_missing.clone()), format_route_flags(after), true),
-        diff_field("applicability", "适用条件", before.map(format_applicability).unwrap_or_else(|| before_missing.clone()), format_applicability(after), true),
-        diff_field("evidence", "验证证据", before.map(format_evidence).unwrap_or_else(|| before_missing.clone()), format_evidence(after), true),
+        diff_field(
+            "network_type",
+            "联机类型",
+            before
+                .and_then(network_type_string)
+                .unwrap_or_else(|| before_missing.clone()),
+            network_type_string(after).unwrap_or_else(|| "未标注".to_string()),
+            true,
+        ),
+        diff_field(
+            "default_ports",
+            "默认端口",
+            before
+                .map(format_ports)
+                .unwrap_or_else(|| before_missing.clone()),
+            format_ports(after),
+            true,
+        ),
+        diff_field(
+            "capabilities",
+            "游戏能力",
+            before
+                .map(format_capabilities)
+                .unwrap_or_else(|| before_missing.clone()),
+            format_capabilities(after),
+            true,
+        ),
+        diff_field(
+            "conversion_capability",
+            "多人能力",
+            before
+                .map(format_conversion_capability)
+                .unwrap_or_else(|| before_missing.clone()),
+            format_conversion_capability(after),
+            true,
+        ),
+        diff_field(
+            "conversion_methods",
+            "转换方式",
+            before
+                .map(format_conversion_methods)
+                .unwrap_or_else(|| before_missing.clone()),
+            format_conversion_methods(after),
+            true,
+        ),
+        diff_field(
+            "can_convert_to_lan",
+            "是否可转局域网体验",
+            before
+                .map(format_can_convert)
+                .unwrap_or_else(|| before_missing.clone()),
+            format_can_convert(after),
+            true,
+        ),
+        diff_field(
+            "connection_summary",
+            "方案摘要",
+            before
+                .map(format_plan_summary)
+                .unwrap_or_else(|| before_missing.clone()),
+            format_plan_summary(after),
+            false,
+        ),
+        diff_field(
+            "host_role",
+            "房主步骤",
+            before
+                .map(format_host_role)
+                .unwrap_or_else(|| before_missing.clone()),
+            format_host_role(after),
+            false,
+        ),
+        diff_field(
+            "join_role",
+            "加入者步骤",
+            before
+                .map(format_join_role)
+                .unwrap_or_else(|| before_missing.clone()),
+            format_join_role(after),
+            false,
+        ),
+        diff_field(
+            "default_join_port",
+            "默认加入端口",
+            before
+                .map(format_default_join_port)
+                .unwrap_or_else(|| before_missing.clone()),
+            format_default_join_port(after),
+            true,
+        ),
+        diff_field(
+            "route_flags",
+            "路线开关",
+            before
+                .map(format_route_flags)
+                .unwrap_or_else(|| before_missing.clone()),
+            format_route_flags(after),
+            true,
+        ),
+        diff_field(
+            "applicability",
+            "适用条件",
+            before
+                .map(format_applicability)
+                .unwrap_or_else(|| before_missing.clone()),
+            format_applicability(after),
+            true,
+        ),
+        diff_field(
+            "evidence",
+            "验证证据",
+            before
+                .map(format_evidence)
+                .unwrap_or_else(|| before_missing.clone()),
+            format_evidence(after),
+            true,
+        ),
     ];
     Ok(fields)
 }
 
-fn diff_field(field: &str, label: &str, before: String, after: String, affects_recommendation: bool) -> AdapterChangeDiffField {
+fn diff_field(
+    field: &str,
+    label: &str,
+    before: String,
+    after: String,
+    affects_recommendation: bool,
+) -> AdapterChangeDiffField {
     let changed = before != after;
     AdapterChangeDiffField {
         field: field.to_string(),
@@ -1379,7 +1627,12 @@ fn format_ports(adapter: &GameAdapter) -> String {
     if adapter.default_ports.is_empty() {
         "未设置".to_string()
     } else {
-        adapter.default_ports.iter().map(|port| port.to_string()).collect::<Vec<_>>().join(", ")
+        adapter
+            .default_ports
+            .iter()
+            .map(|port| port.to_string())
+            .collect::<Vec<_>>()
+            .join(", ")
     }
 }
 
@@ -1387,9 +1640,14 @@ fn format_capabilities(adapter: &GameAdapter) -> String {
     if adapter.capabilities.is_empty() {
         "未标注".to_string()
     } else {
-        adapter.capabilities
+        adapter
+            .capabilities
             .iter()
-            .filter_map(|item| serde_json::to_value(item).ok().and_then(|value| value.as_str().map(|text| text.to_string())))
+            .filter_map(|item| {
+                serde_json::to_value(item)
+                    .ok()
+                    .and_then(|value| value.as_str().map(|text| text.to_string()))
+            })
             .collect::<Vec<_>>()
             .join(", ")
     }
@@ -1412,7 +1670,11 @@ fn format_conversion_methods(adapter: &GameAdapter) -> String {
             profile
                 .methods
                 .iter()
-                .filter_map(|item| serde_json::to_value(item).ok().and_then(|value| value.as_str().map(|text| text.to_string())))
+                .filter_map(|item| {
+                    serde_json::to_value(item)
+                        .ok()
+                        .and_then(|value| value.as_str().map(|text| text.to_string()))
+                })
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default();
@@ -1427,7 +1689,14 @@ fn format_can_convert(adapter: &GameAdapter) -> String {
     adapter
         .multiplayer_conversion
         .as_ref()
-        .map(|profile| if profile.can_convert_to_lan { "是" } else { "否" }.to_string())
+        .map(|profile| {
+            if profile.can_convert_to_lan {
+                "是"
+            } else {
+                "否"
+            }
+            .to_string()
+        })
         .unwrap_or_else(|| "未标注".to_string())
 }
 
@@ -1518,7 +1787,13 @@ fn format_evidence(adapter: &GameAdapter) -> String {
                 format!("ports={}", join_or_dash(&evidence.port_protocols)),
                 format!("proof={}", join_or_dash(&evidence.proof_items)),
                 format!("steps={}", join_or_dash(&evidence.test_steps)),
-                format!("last_verified={}", evidence.last_verified_at.clone().unwrap_or_else(|| "-".to_string())),
+                format!(
+                    "last_verified={}",
+                    evidence
+                        .last_verified_at
+                        .clone()
+                        .unwrap_or_else(|| "-".to_string())
+                ),
             ]
             .join(", ")
         })
@@ -1526,7 +1801,10 @@ fn format_evidence(adapter: &GameAdapter) -> String {
 }
 
 fn sorted_unique_sources(variants: &[AdapterVariantInfo]) -> Vec<String> {
-    let mut sources: Vec<String> = variants.iter().map(|variant| variant.source.clone()).collect();
+    let mut sources: Vec<String> = variants
+        .iter()
+        .map(|variant| variant.source.clone())
+        .collect();
     sources.sort();
     sources.dedup();
     sources
@@ -1595,7 +1873,10 @@ fn sync_item(
 fn rebuild_local_adapter_registry_index(root: &Path) -> Result<Vec<AdapterRegistryGame>, String> {
     let games_dir = root.join("games");
     if !games_dir.exists() {
-        return Err(format!("local registry games dir not found: {:?}", games_dir));
+        return Err(format!(
+            "local registry games dir not found: {:?}",
+            games_dir
+        ));
     }
 
     let index_path = root.join("index.json");
@@ -1608,7 +1889,9 @@ fn rebuild_local_adapter_registry_index(root: &Path) -> Result<Vec<AdapterRegist
     };
 
     let mut files = Vec::new();
-    for entry in fs::read_dir(&games_dir).map_err(|err| format!("read local registry games dir failed: {err}"))? {
+    for entry in fs::read_dir(&games_dir)
+        .map_err(|err| format!("read local registry games dir failed: {err}"))?
+    {
         let path = entry.map_err(|err| err.to_string())?.path();
         if path.extension().and_then(|item| item.to_str()) == Some("json") {
             files.push(path);
@@ -1667,16 +1950,30 @@ fn verify_local_adapter_registry_index(root: &Path) -> Result<Vec<String>, Strin
 
     for game in &index.games {
         if game.adapter_url.starts_with("http://") || game.adapter_url.starts_with("https://") {
-            return Err(format!("local registry adapter_url must be relative: {}", game.adapter_url));
+            return Err(format!(
+                "local registry adapter_url must be relative: {}",
+                game.adapter_url
+            ));
         }
         let adapter_path = root.join(&game.adapter_url);
         if !adapter_path.exists() {
-            return Err(format!("local registry adapter missing: {:?}", adapter_path));
+            return Err(format!(
+                "local registry adapter missing: {:?}",
+                adapter_path
+            ));
         }
-        let content = fs::read_to_string(&adapter_path)
-            .map_err(|err| format!("read local registry adapter {:?} failed: {err}", adapter_path))?;
+        let content = fs::read_to_string(&adapter_path).map_err(|err| {
+            format!(
+                "read local registry adapter {:?} failed: {err}",
+                adapter_path
+            )
+        })?;
         let actual_hash = sha256_hex(content.as_bytes());
-        if let Some(expected_hash) = game.sha256.as_ref().filter(|value| !value.trim().is_empty()) {
+        if let Some(expected_hash) = game
+            .sha256
+            .as_ref()
+            .filter(|value| !value.trim().is_empty())
+        {
             if !actual_hash.eq_ignore_ascii_case(expected_hash.trim()) {
                 return Err(format!(
                     "local registry sha256 mismatch for {}: expected {}, actual {}",
@@ -1684,8 +1981,12 @@ fn verify_local_adapter_registry_index(root: &Path) -> Result<Vec<String>, Strin
                 ));
             }
         }
-        let adapter: GameAdapter = serde_json::from_str(&content)
-            .map_err(|err| format!("parse local registry adapter {:?} failed: {err}", adapter_path))?;
+        let adapter: GameAdapter = serde_json::from_str(&content).map_err(|err| {
+            format!(
+                "parse local registry adapter {:?} failed: {err}",
+                adapter_path
+            )
+        })?;
         validate_adapter(&adapter)?;
         if adapter.game_id != game.game_id {
             return Err(format!(
@@ -1695,7 +1996,10 @@ fn verify_local_adapter_registry_index(root: &Path) -> Result<Vec<String>, Strin
         }
     }
 
-    messages.push(format!("verified adapter-registry/index.json: {} entries", index.games.len()));
+    messages.push(format!(
+        "verified adapter-registry/index.json: {} entries",
+        index.games.len()
+    ));
     Ok(messages)
 }
 
@@ -1737,7 +2041,8 @@ fn validate_adapter(adapter: &GameAdapter) -> Result<(), String> {
 fn write_adapter(path: &Path, adapter: &GameAdapter) -> Result<(), String> {
     let mut persisted = adapter.clone();
     persisted.adapter_source = None;
-    let content = serde_json::to_string_pretty(&persisted).map_err(|err| format!("serialize adapter failed: {err}"))?;
+    let content = serde_json::to_string_pretty(&persisted)
+        .map_err(|err| format!("serialize adapter failed: {err}"))?;
     fs::write(path, format!("{content}\n")).map_err(|err| format!("write {:?} failed: {err}", path))
 }
 
@@ -1781,9 +2086,10 @@ fn load_game_adapters_from_dir(dir: &Path) -> Result<Vec<GameAdapter>, String> {
 
     let mut adapters: Vec<(GameAdapter, u8)> = Vec::new();
     for path in paths {
-        let content = fs::read_to_string(&path).map_err(|err| format!("read {:?} failed: {err}", path))?;
-        let mut adapter: GameAdapter =
-            serde_json::from_str(&content).map_err(|err| format!("parse {:?} failed: {err}", path))?;
+        let content =
+            fs::read_to_string(&path).map_err(|err| format!("read {:?} failed: {err}", path))?;
+        let mut adapter: GameAdapter = serde_json::from_str(&content)
+            .map_err(|err| format!("parse {:?} failed: {err}", path))?;
         let priority = adapter_file_priority(&path);
         adapter.adapter_source = Some(adapter_file_source(&path).to_string());
 
@@ -1835,10 +2141,101 @@ fn resolve_registry_url(index_url: &str, adapter_url: &str) -> Result<String, St
     if adapter_url.starts_with("http://") || adapter_url.starts_with("https://") {
         return Ok(adapter_url.to_string());
     }
-    let base = reqwest::Url::parse(index_url).map_err(|err| format!("invalid registry URL: {err}"))?;
+    let base =
+        reqwest::Url::parse(index_url).map_err(|err| format!("invalid registry URL: {err}"))?;
     base.join(adapter_url)
         .map(|url| url.to_string())
         .map_err(|err| format!("invalid adapter URL {adapter_url}: {err}"))
+}
+
+fn normalize_known_registry_url(raw_url: &str) -> String {
+    let trimmed = raw_url.trim();
+    if trimmed.is_empty() {
+        return DEFAULT_ADAPTER_REGISTRY_URL.to_string();
+    }
+    if let Some(path) = trimmed.strip_prefix(LEGACY_GITHUB_PAGES_PREFIX) {
+        return format!("{DEFAULT_GITHUB_RAW_PREFIX}{path}");
+    }
+    if let Some(path) = trimmed.strip_prefix(GITHUB_BLOB_PREFIX) {
+        return format!("{DEFAULT_GITHUB_RAW_PREFIX}{path}");
+    }
+    trimmed.to_string()
+}
+
+fn resolve_registry_index_source(
+    client: &reqwest::blocking::Client,
+    registry_url: &str,
+) -> Result<(String, AdapterRegistryIndex, Vec<String>), String> {
+    let index_text = read_registry_resource_text(client, registry_url, "registry index")?;
+    let remote_index: AdapterRegistryIndex = serde_json::from_str(&index_text)
+        .map_err(|err| format!("parse registry index failed: {err}"))?;
+
+    if registry_url == DEFAULT_ADAPTER_REGISTRY_URL {
+        if let Ok((local_registry_url, local_index)) = load_packaged_registry_index_source() {
+            let remote_version = remote_index.version.unwrap_or(0);
+            let local_version = local_index.version.unwrap_or(0);
+            if local_version > remote_version {
+                return Ok((
+                    local_registry_url,
+                    local_index,
+                    vec![format!(
+                        "默认共享库远程版本 {remote_version} 低于随包方案库版本 {local_version}，本次使用随包方案库，避免回退已优化联机方案。"
+                    )],
+                ));
+            }
+        }
+    }
+
+    Ok((registry_url.to_string(), remote_index, Vec::new()))
+}
+
+fn load_packaged_registry_index_source() -> Result<(String, AdapterRegistryIndex), String> {
+    let root = locate_local_registry_dir()?;
+    let index_path = root.join("index.json");
+    let index_text = fs::read_to_string(&index_path).map_err(|err| {
+        format!(
+            "read packaged registry index {:?} failed: {err}",
+            index_path
+        )
+    })?;
+    let index: AdapterRegistryIndex = serde_json::from_str(&index_text).map_err(|err| {
+        format!(
+            "parse packaged registry index {:?} failed: {err}",
+            index_path
+        )
+    })?;
+    let index_url = reqwest::Url::from_file_path(&index_path)
+        .map_err(|_| {
+            format!(
+                "convert packaged registry index path to file URL failed: {:?}",
+                index_path
+            )
+        })?
+        .to_string();
+    Ok((index_url, index))
+}
+
+fn read_registry_resource_text(
+    client: &reqwest::blocking::Client,
+    url: &str,
+    label: &str,
+) -> Result<String, String> {
+    if url.starts_with("file://") {
+        let parsed = reqwest::Url::parse(url)
+            .map_err(|err| format!("parse {label} file URL failed: {err}"))?;
+        let path = parsed
+            .to_file_path()
+            .map_err(|_| format!("convert {label} file URL to path failed: {url}"))?;
+        return fs::read_to_string(&path).map_err(|err| format!("read {label} failed: {err}"));
+    }
+
+    client
+        .get(url)
+        .send()
+        .and_then(|response| response.error_for_status())
+        .map_err(|err| format!("fetch {label} failed: {err}"))?
+        .text()
+        .map_err(|err| format!("read {label} failed: {err}"))
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {
@@ -1891,8 +2288,8 @@ fn load_builtin_game_adapters() -> Result<Vec<GameAdapter>, String> {
     builtin
         .into_iter()
         .map(|content| {
-            let mut adapter: GameAdapter =
-                serde_json::from_str(content).map_err(|err| format!("parse builtin adapter failed: {err}"))?;
+            let mut adapter: GameAdapter = serde_json::from_str(content)
+                .map_err(|err| format!("parse builtin adapter failed: {err}"))?;
             adapter.adapter_source = Some("builtin".to_string());
             Ok(adapter)
         })

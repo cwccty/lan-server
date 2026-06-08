@@ -1,0 +1,112 @@
+{
+  "registry_version": 3,
+  "updated_at": "2026-06-07",
+  "total": 5,
+  "registry_entries": 5,
+  "summary": [
+    {
+      "id": "native_lan",
+      "label": "virtual_lan_or_ip_join",
+      "count": 1,
+      "examples": [
+        "stardew_valley"
+      ]
+    },
+    {
+      "id": "dedicated_server",
+      "label": "dedicated_server",
+      "count": 3,
+      "examples": [
+        "minecraft_java",
+        "palworld",
+        "terraria"
+      ]
+    },
+    {
+      "id": "bridge_or_proxy",
+      "label": "bridge_or_port_proxy",
+      "count": 0,
+      "examples": []
+    },
+    {
+      "id": "remote_coop",
+      "label": "remote_coop",
+      "count": 1,
+      "examples": [
+        "cuphead"
+      ]
+    },
+    {
+      "id": "steam_or_remote",
+      "label": "steam_p2p_or_remote",
+      "count": 0,
+      "examples": []
+    },
+    {
+      "id": "official_or_limited",
+      "label": "official_or_limited",
+      "count": 0,
+      "examples": []
+    },
+    {
+      "id": "needs_review",
+      "label": "needs_review",
+      "count": 0,
+      "examples": []
+    }
+  ],
+  "rows": [
+    {
+      "game_id": "cuphead",
+      "display_name": "Cuphead / 茶杯头",
+      "category": "remote_coop",
+      "network_type": "local_coop_remote_play",
+      "methods": [
+        "steam_remote_play",
+        "sunshine_moonlight",
+        "manual_guide"
+      ]
+    },
+    {
+      "game_id": "minecraft_java",
+      "display_name": "Minecraft Java Edition",
+      "category": "dedicated_server",
+      "network_type": "lan_ip_direct",
+      "methods": [
+        "virtual_lan",
+        "manual_guide"
+      ]
+    },
+    {
+      "game_id": "palworld",
+      "display_name": "Palworld / 幻兽帕鲁",
+      "category": "dedicated_server",
+      "network_type": "dedicated_server",
+      "methods": [
+        "virtual_lan",
+        "dedicated_server_launcher",
+        "manual_guide"
+      ]
+    },
+    {
+      "game_id": "stardew_valley",
+      "display_name": "Stardew Valley",
+      "category": "native_lan",
+      "network_type": "lan_ip_direct",
+      "methods": [
+        "virtual_lan",
+        "manual_guide"
+      ]
+    },
+    {
+      "game_id": "terraria",
+      "display_name": "Terraria",
+      "category": "dedicated_server",
+      "network_type": "dedicated_server",
+      "methods": [
+        "virtual_lan",
+        "dedicated_server_launcher"
+      ]
+    }
+  ]
+}

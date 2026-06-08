@@ -1,0 +1,44 @@
+﻿{
+  "generated_at": "2026-06-08T22:06:00+08:00",
+  "package": "LanHelper-v0.3.1-windows-x64.zip",
+  "zip_sha256": "D2DE11EE1B1FA355D706DFE047CCC81F7652E58A8C2D7C8F9F6CAC4EC925E808",
+  "exe_sha256": "C6459104E18ECB7A470AEB8F480D1BAEDDF05EE6624C9761FE69A08A89A70CA9",
+  "required_from_each_machine": [
+    "role_host_or_joiner",
+    "windows_version",
+    "network_environment",
+    "run_as_admin",
+    "visible_status",
+    "supernode",
+    "room_name",
+    "local_lan_ip",
+    "peer_lan_ip",
+    "register_repair_result",
+    "full_diagnostic_report",
+    "manual_start_command",
+    "network_logs",
+    "network_page_screenshot",
+    "diagnostics_page_screenshot"
+  ],
+  "triage_rules": {
+    "configured_not_started": [
+      "check_executable_found",
+      "check_recorded_pid_running",
+      "check_last_error",
+      "run_manual_start_command_as_admin",
+      "check_tap_wintun_or_virtual_adapter"
+    ],
+    "relay_not_confirmed": [
+      "compare_supernode_room_key",
+      "compare_unique_lan_ip",
+      "check_network_logs_timeout_or_reject",
+      "try_mobile_hotspot_to_rule_out_udp_block"
+    ]
+  },
+  "minimum_acceptance": [
+    "no_plain_starting_dead_end",
+    "state_splits_configured_not_started_vs_relay_not_confirmed",
+    "both_machines_can_copy_report_command_logs",
+    "if_connected_then_game_uses_host_lan_ip_and_port"
+  ]
+}

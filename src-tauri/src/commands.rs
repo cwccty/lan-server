@@ -1,6 +1,7 @@
 use crate::core::{
     capability_engine, connectivity_tester, diagnostic_logger, game_detector, game_launcher,
-    port_proxy, recommendation_engine, server_session, steam_relay, udp_broadcast_bridge, udp_proxy,
+    port_proxy, recommendation_engine, server_session, steam_relay, udp_broadcast_bridge,
+    udp_proxy,
 };
 use crate::models::diagnostics::DiagnosticReport;
 use crate::models::friend::{FriendAllocation, FriendAllocationInput, FriendCheckInput};
@@ -10,22 +11,23 @@ use crate::models::network::{
     NetworkConfig, SetupResult,
 };
 use crate::models::port_proxy::{PortProxyConfig, PortProxySelfTestReport, PortProxyStatus};
-use crate::models::udp_broadcast_bridge::{
-    UdpBroadcastBridgeConfig, UdpBroadcastBridgeSelfTestReport, UdpBroadcastBridgeStatus,
-};
-use crate::models::udp_proxy::{UdpProxyConfig, UdpProxySelfTestReport, UdpProxyStatus};
 use crate::models::recommendation::{LaunchResult, Recommendation};
-use crate::models::server_session::{GenericServerLaunchConfig, ServerSessionStatus};
+use crate::models::server_session::{
+    GenericServerLaunchConfig, GenericServerPreflightReport, ServerSessionStatus,
+};
 use crate::models::settings::{AppSettings, EdgePathCheck, UserAccountState};
 use crate::models::steam_relay::{
     ConnectToolLaunchRequest, SteamP2pGuestRequest, SteamP2pHostRequest, SteamP2pSessionStatus,
     SteamRelayStatus,
 };
+use crate::models::udp_broadcast_bridge::{
+    UdpBroadcastBridgeConfig, UdpBroadcastBridgeSelfTestReport, UdpBroadcastBridgeStatus,
+};
+use crate::models::udp_proxy::{UdpProxyConfig, UdpProxySelfTestReport, UdpProxyStatus};
 use crate::network::{manual_lan_backend, n2n_backend, radmin_backend};
 use crate::storage::adapter_store::{
     self, AdapterBackupEntry, AdapterConflictReport, AdapterRegistryLocalPublishResult,
-    AdapterRegistrySyncPreview,
-    AdapterRegistrySyncResult,
+    AdapterRegistrySyncPreview, AdapterRegistrySyncResult,
 };
 use crate::storage::friend_store;
 use crate::storage::{account_store, settings_store};
@@ -47,7 +49,9 @@ pub fn list_game_adapters() -> Result<Vec<GameAdapter>, String> {
 }
 
 #[tauri::command]
-pub fn preview_adapter_registry_sync(registry_url: String) -> Result<AdapterRegistrySyncPreview, String> {
+pub fn preview_adapter_registry_sync(
+    registry_url: String,
+) -> Result<AdapterRegistrySyncPreview, String> {
     adapter_store::preview_adapter_registry_sync(registry_url)
 }
 
@@ -102,7 +106,9 @@ pub fn sync_local_adapter_registry_example() -> Result<AdapterRegistrySyncResult
 }
 
 #[tauri::command]
-pub fn publish_adapters_to_local_registry(game_ids: Vec<String>) -> Result<AdapterRegistryLocalPublishResult, String> {
+pub fn publish_adapters_to_local_registry(
+    game_ids: Vec<String>,
+) -> Result<AdapterRegistryLocalPublishResult, String> {
     adapter_store::publish_adapters_to_local_registry(game_ids)
 }
 
@@ -170,17 +176,23 @@ pub fn get_steam_relay_status() -> Result<SteamRelayStatus, String> {
 }
 
 #[tauri::command]
-pub fn get_steam_relay_status_for_dir(connecttool_dir: Option<String>) -> Result<SteamRelayStatus, String> {
+pub fn get_steam_relay_status_for_dir(
+    connecttool_dir: Option<String>,
+) -> Result<SteamRelayStatus, String> {
     Ok(steam_relay::get_steam_relay_status_for_dir(connecttool_dir))
 }
 
 #[tauri::command]
-pub fn start_connecttool_helper(input: ConnectToolLaunchRequest) -> Result<SteamRelayStatus, String> {
+pub fn start_connecttool_helper(
+    input: ConnectToolLaunchRequest,
+) -> Result<SteamRelayStatus, String> {
     steam_relay::start_connecttool_helper(input)
 }
 
 #[tauri::command]
-pub fn stop_connecttool_helper(input: ConnectToolLaunchRequest) -> Result<SteamRelayStatus, String> {
+pub fn stop_connecttool_helper(
+    input: ConnectToolLaunchRequest,
+) -> Result<SteamRelayStatus, String> {
     steam_relay::stop_connecttool_helper(input)
 }
 
@@ -220,7 +232,10 @@ pub fn select_friend_allocation(input: FriendAllocationInput) -> Result<FriendAl
 }
 
 #[tauri::command]
-pub fn remove_friend_allocation(name: String, ip: Option<String>) -> Result<FriendAllocation, String> {
+pub fn remove_friend_allocation(
+    name: String,
+    ip: Option<String>,
+) -> Result<FriendAllocation, String> {
     friend_store::remove_friend_allocation(name, ip)
 }
 
@@ -321,6 +336,13 @@ pub fn start_generic_server_session(
     config: GenericServerLaunchConfig,
 ) -> Result<ServerSessionStatus, String> {
     server_session::start_generic_server_session(config)
+}
+
+#[tauri::command]
+pub fn preflight_generic_server_session(
+    config: GenericServerLaunchConfig,
+) -> Result<GenericServerPreflightReport, String> {
+    server_session::preflight_generic_server_session(config)
 }
 
 #[tauri::command]

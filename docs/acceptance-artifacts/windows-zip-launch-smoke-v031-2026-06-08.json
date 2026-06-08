@@ -1,0 +1,15 @@
+﻿{
+    "generated_at":  "2026-06-08T23:29:42.8658222+08:00",
+    "package":  "LanHelper-v0.3.1-windows-x64",
+    "zip_path":  "release-artifacts\\LanHelper-v0.3.1-windows-x64.zip",
+    "zip_sha256":  "EE65491E725538DD482CCE96CD33F2A834A311A702DA6CB0691F2C5BDA9E2C96",
+    "extracted_exe":  "docs\\acceptance-artifacts\\v031-zip-launch-smoke\\extracted\\LanHelper-v0.3.1-windows-x64\\LanHelper-v0.3.1-windows-x64.exe",
+    "extracted_exe_sha256":  "75295FDB62187E75AB4A659647530F4F4A5F4824261ACAE49AC207C226645329",
+    "process_id":  38540,
+    "timeout_seconds":  10,
+    "started":  true,
+    "still_running_after_timeout":  true,
+    "exit_code":  null,
+    "error":  null,
+    "passed":  true
+}

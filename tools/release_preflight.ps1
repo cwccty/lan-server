@@ -125,6 +125,7 @@ Write-Host "FullBuild: $FullBuild  RunCargoTests: $RunCargoTests  SkipTauriBuild
   "tools\update_github_release_v0_1.ps1",
   "tools\run_v0_1_release_gate.ps1",
   "tools\validate_adapter_registry.ps1",
+  "tools\verify_dual_machine_regression_evidence.cjs",
   "tools\check_reference_runtime_css.ps1",
   "tools\check_reference_ui_fidelity.ps1",
   "tools\update_adapter_registry_index.ps1"
@@ -1832,6 +1833,14 @@ if (Test-Path "tools\validate_adapter_registry.ps1") {
   }
 } else {
   Fail-Check "adapter registry schema validation" "missing tools\validate_adapter_registry.ps1"
+}
+
+if (Test-Path "tools\verify_dual_machine_regression_evidence.cjs") {
+  Invoke-Step "dual machine regression evidence gate" {
+    node "tools\verify_dual_machine_regression_evidence.cjs"
+  }
+} else {
+  Fail-Check "dual machine regression evidence gate" "missing tools\verify_dual_machine_regression_evidence.cjs"
 }
 
 # Release exe existence. FullBuild can regenerate it.

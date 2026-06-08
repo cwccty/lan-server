@@ -1,0 +1,19 @@
+{
+  "generated_at": "2026-06-08T15:30:39.133Z",
+  "evidence_file": "docs/acceptance-artifacts/dual-machine-regression-evidence-v031-2026-06-08.json",
+  "required_games": [
+    "palworld",
+    "minecraft_java",
+    "stardew_valley",
+    "cuphead"
+  ],
+  "passed_games": [],
+  "pending_or_not_passed_games": [
+    "palworld",
+    "minecraft_java",
+    "stardew_valley",
+    "cuphead"
+  ],
+  "can_claim_real_dual_machine_passed": false,
+  "issues": []
+}

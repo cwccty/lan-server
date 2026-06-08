@@ -1,0 +1,13 @@
+{
+  "generated_at": "2026-06-08T12:54:01.958Z",
+  "url": "http://127.0.0.1:4175/",
+  "hasNetworkPage": true,
+  "hasDiagnosticActions": true,
+  "hasStuckAdvice": true,
+  "hasCopyReport": true,
+  "hasCopyManual": true,
+  "hasCopyLogs": true,
+  "hasOldWait": false,
+  "hasOldPlainStarting": false,
+  "hasOldAckPongStatusRefresh": false
+}

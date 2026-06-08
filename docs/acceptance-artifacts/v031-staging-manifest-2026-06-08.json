@@ -1,0 +1,947 @@
+﻿{
+    "generated_at":  "2026-06-08T23:32:25.2406975+08:00",
+    "mode":  "apply",
+    "warning":  "Do not use git add . for v0.3.1. Review this manifest before applying.",
+    "include_count":  128,
+    "tracked_modified_included_count":  128,
+    "untracked_included_count":  0,
+    "excluded_count":  6476,
+    "include":  [
+                    "docs/acceptance-artifacts/adapter-registry-method-category-nonempty-v0.3.1-2026-06-08.json",
+                    "docs/acceptance-artifacts/diagnostics-n2n-copy-actions-network-log-dom-2026-06-08.json",
+                    "docs/acceptance-artifacts/dual-machine-regression-evidence-v031-2026-06-08.json",
+                    "docs/acceptance-artifacts/dual-machine-regression-evidence-verification-2026-06-08.json",
+                    "docs/acceptance-artifacts/dual-machine-regression-plan-v031-2026-06-08.md",
+                    "docs/acceptance-artifacts/friend-retest-template-v031-2026-06-08.json",
+                    "docs/acceptance-artifacts/friend-retest-template-v031-2026-06-08.md",
+                    "docs/acceptance-artifacts/friend-retest-triage-rules-v031-2026-06-08.md",
+                    "docs/acceptance-artifacts/friend-stuck-supervision-audit-2026-06-08.md",
+                    "docs/acceptance-artifacts/gh-release-v0.3.1-current-2026-06-08.json",
+                    "docs/acceptance-artifacts/git-status-v031-current-2026-06-08.txt",
+                    "docs/acceptance-artifacts/git-status-v031-current-codex-review-2026-06-08.txt",
+                    "docs/acceptance-artifacts/n2n-network-diagnostic-actions-dom-2026-06-08.json",
+                    "docs/acceptance-artifacts/n2n-two-machine-sop-network-dom-2026-06-08.json",
+                    "docs/acceptance-artifacts/n2n-two-machine-troubleshooting-sop-2026-06-08.md",
+                    "docs/acceptance-artifacts/network-diagnostic-closure-dom-2026-06-08.json",
+                    "docs/acceptance-artifacts/network-diagnostic-ui-gate-2026-06-08.json",
+                    "docs/acceptance-artifacts/status-center-n2n-fixtures-2026-06-08.json",
+                    "docs/acceptance-artifacts/supervision-dual-machine-evidence-gate-2026-06-08.md",
+                    "docs/acceptance-artifacts/supervision-n2n-stuck-fix-release-gate-2026-06-08.md",
+                    "docs/acceptance-artifacts/supervision-n2n-stuck-starting-fix-2026-06-08.md",
+                    "docs/acceptance-artifacts/supervision-n2n-two-machine-sop-release-gate-2026-06-08.md",
+                    "docs/acceptance-artifacts/supervision-n2n-user-stuck-followup-2026-06-08.md",
+                    "docs/acceptance-artifacts/supervision-v0.3.1-release-gate-2026-06-08.md",
+                    "docs/acceptance-artifacts/supervision-v031-network-runtime-ui-gate-2026-06-08.md",
+                    "docs/acceptance-artifacts/supervision-v031-network-ui-gate-2026-06-08.md",
+                    "docs/acceptance-artifacts/supervision-v031-release-docs-mojibake-fix-2026-06-08.md",
+                    "docs/acceptance-artifacts/supervision-v031-release-gate-integration-2026-06-08.md",
+                    "docs/acceptance-artifacts/supervision-v031-stale-artifact-rebuild-gate-2026-06-08.md",
+                    "docs/acceptance-artifacts/supervision-v031-zip-embedded-retest-guide-2026-06-08.md",
+                    "docs/acceptance-artifacts/supervision-v031-zip-launch-smoke-2026-06-08.md",
+                    "docs/acceptance-artifacts/v031-post-gate-sha-sync-2026-06-08.md",
+                    "docs/acceptance-artifacts/v031-release-candidate-gate-2026-06-08.json",
+                    "docs/acceptance-artifacts/v031-staged-files-after-apply-2026-06-08.txt",
+                    "docs/acceptance-artifacts/v031-staging-add-draft-codex-2026-06-08.md",
+                    "docs/acceptance-artifacts/v031-staging-candidate-files-codex-2026-06-08.txt",
+                    "docs/acceptance-artifacts/v031-staging-manifest-2026-06-08.json",
+                    "docs/acceptance-artifacts/v031-staging-manifest-supervision-review-2026-06-08.md",
+                    "docs/acceptance-artifacts/v031-staging-plan-2026-06-08.md",
+                    "docs/acceptance-artifacts/windows-zip-launch-smoke-v031-2026-06-08.json",
+                    "docs/N2N_GUIDE.md",
+                    "docs/RELEASE_VALIDATION_LOG.md",
+                    "docs/STEAM_RELAY_P2P_CONNECTTOOL_MVP.md",
+                    "docs/V0_3_1_RELEASE_CHECKLIST.md",
+                    "docs/V0_3_1_RELEASE_DRAFT.md",
+                    "package.json",
+                    "package-lock.json",
+                    "PRODUCT.md",
+                    "src/api/tauri.ts",
+                    "src/components/Layout.tsx",
+                    "src/pages/AdapterManagerPage.tsx",
+                    "src/pages/HomePage.tsx",
+                    "src/product-ui/adapterCategoryRoute.ts",
+                    "src/product-ui/adapterContribution.ts",
+                    "src/product-ui/adapterPresentation.ts",
+                    "src/product-ui/adapterPublishAudit.ts",
+                    "src/product-ui/adapterQualityScore.ts",
+                    "src/product-ui/adapterRecommendationRoute.ts",
+                    "src/product-ui/adapterRegistrySubmit.ts",
+                    "src/product-ui/advancedToolIntent.ts",
+                    "src/product-ui/connectionCapabilityMatrix.ts",
+                    "src/product-ui/connectionMethodCatalog.ts",
+                    "src/product-ui/conversionAssessmentEngine.ts",
+                    "src/product-ui/diagnosticConversionAdvice.ts",
+                    "src/product-ui/errorActions.ts",
+                    "src/product-ui/gameConnectionProfiles.ts",
+                    "src/product-ui/gameScanRecommendationExplanation.ts",
+                    "src/product-ui/hostDiagnosticContext.ts",
+                    "src/product-ui/inviteDiagnosticContext.ts",
+                    "src/product-ui/inviteJoinFlow.ts",
+                    "src/product-ui/inviteJoinSuccess.ts",
+                    "src/product-ui/invitePacket.ts",
+                    "src/product-ui/ProductAdvancedToolsView.tsx",
+                    "src/product-ui/ProductBusyOverlay.tsx",
+                    "src/product-ui/ProductDiagnosticsView.tsx",
+                    "src/product-ui/ProductGameScanView.tsx",
+                    "src/product-ui/ProductHeader.tsx",
+                    "src/product-ui/ProductNetworkView.tsx",
+                    "src/product-ui/ProductOneClickServerMvp.tsx",
+                    "src/product-ui/ProductSidebar.tsx",
+                    "src/product-ui/ProductSolutionsView.tsx",
+                    "src/product-ui/productStateConsistencyAudit.ts",
+                    "src/product-ui/remoteCoopGuide.ts",
+                    "src/product-ui/statusCenter.ts",
+                    "src/product-ui/statusCenterFixtures.ts",
+                    "src/reference-adapter/ProductActionPatcher.tsx",
+                    "src/reference-adapter/ProductInventoryPatcher.tsx",
+                    "src/reference-adapter/runtimeStore.ts",
+                    "src/reference-ui/components/Sidebar.tsx",
+                    "src/types/network.ts",
+                    "src/types/serverSession.ts",
+                    "src-tauri/Cargo.lock",
+                    "src-tauri/Cargo.toml",
+                    "src-tauri/src/commands.rs",
+                    "src-tauri/src/core/capability_engine.rs",
+                    "src-tauri/src/core/connectivity_tester.rs",
+                    "src-tauri/src/core/diagnostic_logger.rs",
+                    "src-tauri/src/core/game_detector.rs",
+                    "src-tauri/src/core/game_launcher.rs",
+                    "src-tauri/src/core/port_proxy.rs",
+                    "src-tauri/src/core/recommendation_engine.rs",
+                    "src-tauri/src/core/server_session.rs",
+                    "src-tauri/src/core/steam_relay.rs",
+                    "src-tauri/src/core/udp_broadcast_bridge.rs",
+                    "src-tauri/src/core/udp_proxy.rs",
+                    "src-tauri/src/lib.rs",
+                    "src-tauri/src/models/network.rs",
+                    "src-tauri/src/models/server_session.rs",
+                    "src-tauri/src/models/steam_relay.rs",
+                    "src-tauri/src/network/n2n_backend.rs",
+                    "src-tauri/src/network/radmin_backend.rs",
+                    "src-tauri/src/network/windows_ip.rs",
+                    "src-tauri/src/storage/account_store.rs",
+                    "src-tauri/src/storage/adapter_store.rs",
+                    "src-tauri/src/storage/friend_store.rs",
+                    "src-tauri/src/storage/mod.rs",
+                    "src-tauri/src/storage/settings_store.rs",
+                    "src-tauri/tauri.conf.json",
+                    "tools/prepare_windows_x64_zip.ps1",
+                    "tools/release_preflight.ps1",
+                    "tools/run_v0_3_1_release_gate.ps1",
+                    "tools/stage_v0_3_1_candidate.ps1",
+                    "tools/triage_friend_retest_evidence.cjs",
+                    "tools/verify_dual_machine_regression_evidence.cjs",
+                    "tools/verify_network_diagnostic_ui.cjs",
+                    "tools/verify_status_center_fixtures.cjs",
+                    "tools/verify_windows_x64_zip.ps1",
+                    "tools/verify_windows_zip_launch_smoke.ps1"
+                ],
+    "excluded_sample_limit":  200,
+    "excluded_sample":  [
+                            {
+                                "path":  "docs/V0_2_0_DELIVERY.md",
+                                "reason":  "tracked path matched v0.3.1 exclude policy; review manually before staging"
+                            },
+                            {
+                                "path":  "docs/V0_2_0_RELEASE_EXECUTION_CHECKLIST.md",
+                                "reason":  "tracked path matched v0.3.1 exclude policy; review manually before staging"
+                            },
+                            {
+                                "path":  ".lan-helper/issue-1-evidence-template.md",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/issue-v0.3.0-steam-p2p-regression.md",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/preview.pid",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/release-exe-cdp-evidence.cjs",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/release-notes-v0.3.0-with-issue.md",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/release-notes-v0.3.0.md",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/settings.json",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/ui-regression-cdp.cjs",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/CrashpadMetrics-active.pma",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Last Version",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Local State",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Variations",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Crashpad/metadata",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Crashpad/settings.dat",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Account Web Data",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Account Web Data-journal",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Affiliation Database",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Affiliation Database-journal",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Favicons",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Favicons-journal",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/History",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/History-journal",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/LOCK",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/LOG",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Login Data",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Login Data For Account",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Login Data For Account-journal",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Login Data-journal",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/README",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/ServerCertificate",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/ServerCertificate-journal",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Top Sites",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Top Sites-journal",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Web Data",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Web Data-journal",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Cache/Cache_Data/data_0",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Cache/Cache_Data/data_1",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Cache/Cache_Data/data_2",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Cache/Cache_Data/data_3",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Cache/Cache_Data/index",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Cache/No_Vary_Search/journal.baj",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Cache/No_Vary_Search/snapshot.baf",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/chrome_cart_db/LOCK",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/chrome_cart_db/LOG",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/ClientCertificates/LOCK",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/ClientCertificates/LOG",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Code Cache/js/index",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Code Cache/js/index-dir/the-real-index",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Code Cache/wasm/index",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Code Cache/wasm/index-dir/the-real-index",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/commerce_subscription_db/LOCK",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/commerce_subscription_db/LOG",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/DawnGraphiteCache/data_0",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/DawnGraphiteCache/data_1",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/DawnGraphiteCache/data_2",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/DawnGraphiteCache/data_3",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/DawnGraphiteCache/index",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/DawnWebGPUCache/data_0",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/DawnWebGPUCache/data_1",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/DawnWebGPUCache/data_2",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/DawnWebGPUCache/data_3",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/DawnWebGPUCache/index",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/discounts_db/LOCK",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/discounts_db/LOG",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/discount_infos_db/LOCK",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/discount_infos_db/LOG",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Extension Rules/000003.log",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Extension Rules/CURRENT",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Extension Rules/LOCK",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Extension Rules/LOG",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Extension Rules/MANIFEST-000001",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Extension Scripts/000003.log",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Extension Scripts/CURRENT",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Extension Scripts/LOCK",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Extension Scripts/LOG",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Extension Scripts/MANIFEST-000001",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Extension State/LOCK",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Extension State/LOG",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Extension State/MANIFEST-000001",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/GPUCache/data_0",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/GPUCache/data_1",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/GPUCache/data_2",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/GPUCache/data_3",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/GPUCache/index",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Network/Cookies",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Network/Cookies-journal",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Network/Device Bound Sessions",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Network/Device Bound Sessions-journal",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Network/NetworkDataMigrated",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Network/Reporting and NEL",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Network/Reporting and NEL-journal",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Network/Trust Tokens",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Network/Trust Tokens-journal",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/parcel_tracking_db/LOCK",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/parcel_tracking_db/LOG",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/PersistentOriginTrials/LOCK",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/PersistentOriginTrials/LOG",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Safe Browsing Network/NetworkDataMigrated",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Safe Browsing Network/Safe Browsing Cookies",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Safe Browsing Network/Safe Browsing Cookies-journal",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Segmentation Platform/SegmentInfoDB/LOCK",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Segmentation Platform/SegmentInfoDB/LOG",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Segmentation Platform/SignalDB/LOCK",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Segmentation Platform/SignalDB/LOG",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Segmentation Platform/SignalStorageConfigDB/LOCK",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Segmentation Platform/SignalStorageConfigDB/LOG",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Shared Dictionary/db",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Shared Dictionary/db-journal",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Shared Dictionary/cache/index",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Shared Dictionary/cache/index-dir/the-real-index",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/shared_proto_db/000003.log",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/shared_proto_db/CURRENT",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/shared_proto_db/LOCK",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/shared_proto_db/LOG",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/shared_proto_db/MANIFEST-000001",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/shared_proto_db/metadata/000003.log",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/shared_proto_db/metadata/CURRENT",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/shared_proto_db/metadata/LOCK",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/shared_proto_db/metadata/LOG",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/shared_proto_db/metadata/MANIFEST-000001",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Site Characteristics Database/000003.log",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Site Characteristics Database/CURRENT",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Site Characteristics Database/LOCK",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Site Characteristics Database/LOG",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Site Characteristics Database/MANIFEST-000001",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Sync Data/LevelDB/000003.log",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Sync Data/LevelDB/CURRENT",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Sync Data/LevelDB/LOCK",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Sync Data/LevelDB/LOG",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/Sync Data/LevelDB/MANIFEST-000001",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/WebStorage/QuotaManager",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/Default/WebStorage/QuotaManager-journal",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/segmentation_platform/ukm_db",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/segmentation_platform/ukm_db-wal",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/ShaderCache/data_0",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/ShaderCache/data_1",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/ShaderCache/data_2",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/ShaderCache/data_3",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-10178/ShaderCache/index",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/CrashpadMetrics-active.pma",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/CrashpadMetrics.pma",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Last Version",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Local State",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Variations",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Crashpad/metadata",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Crashpad/settings.dat",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Crashpad/reports/7d55ee86-0162-46ba-8b83-7f83e3bdb80d.dmp",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Crashpad/reports/b3929a17-2ebb-4027-938c-fb6d10c9bf09.dmp",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/Account Web Data",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/Account Web Data-journal",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/Affiliation Database",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/Affiliation Database-journal",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/Favicons",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/Favicons-journal",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/History",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/History-journal",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/LOCK",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/LOG",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/LOG.old",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/Login Data",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/Login Data For Account",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/Login Data For Account-journal",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/Login Data-journal",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/README",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/ServerCertificate",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/ServerCertificate-journal",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/Top Sites",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/Top Sites-journal",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/Web Data",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/Web Data-journal",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/Cache/Cache_Data/data_0",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/Cache/Cache_Data/data_1",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/Cache/Cache_Data/data_2",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/Cache/Cache_Data/data_3",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/Cache/Cache_Data/index",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/Cache/No_Vary_Search/journal.baj",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/Cache/No_Vary_Search/snapshot.baf",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/chrome_cart_db/LOCK",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/chrome_cart_db/LOG",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/chrome_cart_db/LOG.old",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/ClientCertificates/LOCK",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/ClientCertificates/LOG",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/ClientCertificates/LOG.old",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/Code Cache/js/index",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/Code Cache/js/index-dir/the-real-index",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/Code Cache/wasm/index",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/Code Cache/wasm/index-dir/the-real-index",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/commerce_subscription_db/LOCK",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/commerce_subscription_db/LOG",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/commerce_subscription_db/LOG.old",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/DawnGraphiteCache/data_0",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/DawnGraphiteCache/data_1",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/DawnGraphiteCache/data_2",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/DawnGraphiteCache/data_3",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/DawnGraphiteCache/index",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/DawnWebGPUCache/data_0",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/DawnWebGPUCache/data_1",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            },
+                            {
+                                "path":  ".lan-helper/chrome-cdp-9335/Default/DawnWebGPUCache/data_2",
+                                "reason":  "untracked file excluded by v0.3.1 staging policy"
+                            }
+                        ],
+    "suggested_commands":  [
+                               "powershell -ExecutionPolicy Bypass -File tools/stage_v0_3_1_candidate.ps1 -Apply",
+                               "git diff --cached --check",
+                               "npm.cmd run release:gate:v031"
+                           ]
+}

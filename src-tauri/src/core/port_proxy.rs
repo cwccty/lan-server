@@ -164,12 +164,13 @@ pub fn test_port_proxy(id: &str) -> Result<ConnectivityReport, String> {
         ports: vec![port],
         timeout_ms: Some(1200),
         mode: Some("generic".to_string()),
+        protocol: None,
     })
 }
 
 pub fn self_test_port_proxy() -> Result<PortProxySelfTestReport, String> {
-    let target_listener =
-        TcpListener::bind(("127.0.0.1", 0)).map_err(|err| format!("启动临时 Echo 服务失败: {err}"))?;
+    let target_listener = TcpListener::bind(("127.0.0.1", 0))
+        .map_err(|err| format!("启动临时 Echo 服务失败: {err}"))?;
     let target_port = target_listener
         .local_addr()
         .map_err(|err| format!("读取临时 Echo 服务端口失败: {err}"))?
@@ -259,7 +260,10 @@ pub fn self_test_port_proxy() -> Result<PortProxySelfTestReport, String> {
     let received = String::from_utf8_lossy(&buffer[..size]).to_string();
     thread::sleep(Duration::from_millis(120));
     let status = get_port_proxy_status(&proxy_id).unwrap_or(start_status);
-    let ok = received == sent && status.total_connections >= 1 && status.bytes_in > 0 && status.bytes_out > 0;
+    let ok = received == sent
+        && status.total_connections >= 1
+        && status.bytes_in > 0
+        && status.bytes_out > 0;
     let report = PortProxySelfTestReport {
         ok,
         listen: format!("127.0.0.1:{proxy_port}"),
@@ -444,7 +448,9 @@ mod tests {
                 if size == 0 {
                     continue;
                 }
-                stream.write_all(&buffer[..size]).expect("echo proxied data");
+                stream
+                    .write_all(&buffer[..size])
+                    .expect("echo proxied data");
                 break;
             }
         });

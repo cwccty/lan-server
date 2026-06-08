@@ -11,7 +11,7 @@ interface ProductBusyOverlayProps {
 export function ProductBusyOverlay({
   visible,
   label = '正在处理',
-  detail = '请稍候，客户端正在执行真实后端操作。',
+  detail = '请稍候，客户端正在处理当前操作。',
   delayMs = 280,
 }: ProductBusyOverlayProps) {
   const [shouldShow, setShouldShow] = useState(false);
@@ -42,7 +42,7 @@ export function ProductBusyOverlay({
         <p className="text-base font-black text-slate-900">{label}</p>
         <p className="mt-2 text-xs leading-relaxed text-slate-500">{detail}</p>
         <p className="mt-4 rounded-full bg-slate-100 px-3 py-2 text-[11px] font-bold text-slate-600">
-          正在等待真实状态返回，请不要重复点击按钮
+          正在等待状态返回，请不要重复点击按钮
         </p>
       </div>
     </div>

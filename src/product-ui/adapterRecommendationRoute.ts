@@ -61,6 +61,25 @@ export function buildAdapterRecommendationRoute(game: GameSummary | null): Adapt
   const methods = game?.multiplayer_conversion?.methods ?? [];
   const methodLabels = methods.map(conversionMethodLabel);
   const typeLabel = networkTypeLabel(type);
+  const explicitlyNeedsBroadcastBridge = Boolean(
+    type === 'udp_broadcast_needed'
+    || plan?.requires_udp_broadcast_bridge
+    || capability === 'lan_discovery_broadcast'
+    || (!type && hasMethod(game, 'broadcast_bridge'))
+  );
+  const explicitlyNeedsPortProxy = Boolean(
+    type === 'tcp_port_proxy_needed'
+    || plan?.requires_tcp_port_proxy
+    || capability === 'tcp_udp_proxy_possible'
+    || (!type && hasMethod(game, 'port_proxy'))
+  );
+  const explicitlyNeedsDedicatedServer = Boolean(
+    type === 'dedicated_server'
+    || plan?.requires_dedicated_server
+    || capability === 'hidden_dedicated_server'
+    || (!type && hasCapability(game, 'dedicated_server'))
+    || (!type && hasMethod(game, 'dedicated_server_launcher'))
+  );
   const hasLanOrServerRoute = Boolean(
     type === 'lan_ip_direct'
     || type === 'dedicated_server'
@@ -89,7 +108,7 @@ export function buildAdapterRecommendationRoute(game: GameSummary | null): Adapt
       title: '待人工确认方案',
       badge: '待确认',
       summary: game
-        ? `${game.display_name} 尚未沉淀可靠联机方案。请先确认它属于 LAN、服务端、广播发现、同屏远程、Steam P2P 还是官方服限定。`
+        ? `${game.display_name} 尚未沉淀可靠联机方案。请先确认它属于局域网、服务端、房间发现、同屏远程、Steam 邀请还是官方服限定。`
         : '尚未选择游戏，无法判断联机方式。',
       primaryAction: '去方案库确认',
       inviteLabel: '复制人工确认说明',
@@ -103,9 +122,9 @@ export function buildAdapterRecommendationRoute(game: GameSummary | null): Adapt
       supported: false,
       tools: ['方案库', '诊断报告', '端口/日志分析'],
       steps: [
-        { id: 'sync', title: '同步共享库', detail: '先从共享库查找是否已有同款游戏 adapter。' },
-        { id: 'review', title: '管理员确认', detail: '确认游戏原生多人能力、端口、是否需要服务端或远程同屏。' },
-        { id: 'save', title: '保存 adapter', detail: '保存后推荐页会自动套用对应联机路线。' },
+        { id: 'sync', title: '同步共享库', detail: '先从共享库查找是否已有同款游戏方案。' },
+        { id: 'review', title: '确认游戏类型', detail: '确认游戏原生多人能力、端口、是否需要服务端或远程同屏。' },
+        { id: 'save', title: '保存方案', detail: '保存后推荐页会自动套用对应联机路线。' },
       ],
     };
   }
@@ -121,7 +140,7 @@ export function buildAdapterRecommendationRoute(game: GameSummary | null): Adapt
       kind: 'official_only',
       title: type === 'not_supported' || capability === 'unsupported' ? '暂不建议转换' : '官方服限定路线',
       badge: '受限',
-      summary: '当前 adapter 认为该游戏应保留官方服务器/官方大厅入口，不建议强行转换为局域网。',
+      summary: '当前方案认为该游戏应保留官方服务器/官方大厅入口，不建议强行转换为局域网。',
       primaryAction: '查看原因',
       inviteLabel: '复制官方路线说明',
       canCreateLanInvite: false,
@@ -135,8 +154,8 @@ export function buildAdapterRecommendationRoute(game: GameSummary | null): Adapt
       tools: routeTools(game, ['官方服务器', '官方账号/大厅']),
       steps: [
         { id: 'official', title: '使用官方入口', detail: '优先走官方服务器、官方大厅或官方好友邀请。' },
-        { id: 'avoid', title: '不要强转 LAN', detail: '避免误导用户配置 n2n 后仍无法联机。' },
-        { id: 'record', title: '记录限制', detail: '可在 adapter 说明中记录为什么不建议转换。' },
+        { id: 'avoid', title: '不要强转局域网', detail: '避免误导用户配置通用组网后仍无法联机。' },
+        { id: 'record', title: '记录限制', detail: '可在方案说明中记录为什么不建议转换。' },
       ],
     };
   }
@@ -155,7 +174,7 @@ export function buildAdapterRecommendationRoute(game: GameSummary | null): Adapt
       kind: 'remote_coop',
       title: '本地同屏远程联机',
       badge: '远程同屏',
-      summary: '该游戏主要是本地同屏/本地合作，不强行转换为 LAN；推荐 Steam Remote Play，备用 Sunshine + Moonlight。',
+      summary: '该游戏主要是本地同屏/本地合作，不强行转换为局域网；推荐 Steam Remote Play，备用 Sunshine + Moonlight。',
       primaryAction: '复制远程同屏说明',
       inviteLabel: '复制远程同屏说明',
       canCreateLanInvite: false,
@@ -188,7 +207,7 @@ export function buildAdapterRecommendationRoute(game: GameSummary | null): Adapt
       kind: 'steam_p2p',
       title: 'Steam 大厅 / P2P 路线',
       badge: 'Steam',
-      summary: '该游戏依赖 Steam 大厅、P2P 或可选 Steam Relay 插件；默认不把 n2n 当作主方案。',
+      summary: '该游戏依赖 Steam 大厅、P2P 或可选 Steam Relay 插件；默认不把通用组网当作主方案。',
       primaryAction: '复制 Steam 方案说明',
       inviteLabel: '复制 Steam 方案说明',
       canCreateLanInvite: false,
@@ -208,14 +227,14 @@ export function buildAdapterRecommendationRoute(game: GameSummary | null): Adapt
     };
   }
 
-  if (type === 'udp_broadcast_needed' || plan?.requires_udp_broadcast_bridge || hasMethod(game, 'broadcast_bridge')) {
+  if (explicitlyNeedsBroadcastBridge) {
     return {
       kind: 'udp_broadcast_bridge',
-      title: 'n2n + UDP 广播桥',
+      title: '通用组网 + UDP 广播桥',
       badge: '广播桥',
-      summary: `${typeLabel}：先建立虚拟局域网，再用 UDP 广播桥补齐局域网大厅发现。`,
+      summary: `${typeLabel}：先建立联机房间，再用 UDP 广播桥补齐局域网大厅发现。`,
       primaryAction: '打开高级工具',
-      inviteLabel: '复制 LAN 邀请包',
+      inviteLabel: '复制局域网邀请包',
       canCreateLanInvite: true,
       requiresVirtualLan: true,
       requiresDedicatedServer: Boolean(plan?.requires_dedicated_server || hasCapability(game, 'dedicated_server')),
@@ -224,23 +243,23 @@ export function buildAdapterRecommendationRoute(game: GameSummary | null): Adapt
       usesRemotePlay: false,
       usesSteamFlow: false,
       supported: true,
-      tools: routeTools(game, ['n2n edge', 'UDP 广播桥']),
+      tools: routeTools(game, ['组网服务', 'UDP 广播桥']),
       steps: [
-        { id: 'n2n', title: '启动 n2n', detail: '双方进入同一虚拟局域网并确认 ACK/PONG。' },
+        { id: 'n2n', title: '启动组网', detail: '双方进入同一联机房间并等待状态确认。' },
         { id: 'bridge', title: '启用 UDP 广播桥', detail: '在高级连接工具中配置游戏大厅发现所需 UDP 端口。' },
-        { id: 'join', title: '进游戏大厅', detail: '好友在游戏内刷新局域网大厅或连接房主虚拟 IP。' },
+        { id: 'join', title: '进游戏大厅', detail: '好友在游戏内刷新局域网大厅或连接房主联机地址。' },
       ],
     };
   }
 
-  if (type === 'tcp_port_proxy_needed' || plan?.requires_tcp_port_proxy || hasMethod(game, 'port_proxy')) {
+  if (explicitlyNeedsPortProxy) {
     return {
       kind: 'tcp_port_proxy',
-      title: 'n2n + 端口代理',
+      title: '通用组网 + 端口代理',
       badge: '端口代理',
-      summary: `${typeLabel}：先建立虚拟局域网，再按端口代理规则把游戏端口暴露给虚拟网。`,
+      summary: `${typeLabel}：先建立联机房间，再按端口代理规则开放游戏端口。`,
       primaryAction: '打开高级工具',
-      inviteLabel: '复制 LAN 邀请包',
+      inviteLabel: '复制局域网邀请包',
       canCreateLanInvite: true,
       requiresVirtualLan: true,
       requiresDedicatedServer: Boolean(plan?.requires_dedicated_server || hasCapability(game, 'dedicated_server')),
@@ -249,29 +268,25 @@ export function buildAdapterRecommendationRoute(game: GameSummary | null): Adapt
       usesRemotePlay: false,
       usesSteamFlow: false,
       supported: true,
-      tools: routeTools(game, ['n2n edge', 'TCP/UDP 端口代理']),
+      tools: routeTools(game, ['组网服务', 'TCP/UDP 端口代理']),
       steps: [
-        { id: 'n2n', title: '启动 n2n', detail: '双方进入同一虚拟局域网并确认 ACK/PONG。' },
-        { id: 'proxy', title: '启用端口代理', detail: '在高级连接工具里把游戏监听端口代理到虚拟 IP。' },
-        { id: 'test', title: '检测端口', detail: '检测房主虚拟 IP 和游戏端口是否可达。' },
+        { id: 'n2n', title: '启动组网', detail: '双方进入同一联机房间并等待状态确认。' },
+        { id: 'proxy', title: '启用端口代理', detail: '在高级连接工具里开放游戏监听端口。' },
+        { id: 'test', title: '检测端口', detail: '检测房主联机地址和游戏端口是否可达。' },
       ],
     };
   }
 
   if (
-    type === 'dedicated_server'
-    || plan?.requires_dedicated_server
-    || hasCapability(game, 'dedicated_server')
-    || capability === 'hidden_dedicated_server'
-    || hasMethod(game, 'dedicated_server_launcher')
+    explicitlyNeedsDedicatedServer
   ) {
     return {
       kind: 'dedicated_server',
-      title: 'n2n + 专用服务端',
+      title: '通用组网 + 专用服务端',
       badge: '服务端',
-      summary: '房主需要启动游戏服务端，并让好友通过虚拟 IP 和端口加入。',
+      summary: '房主需要启动游戏服务端，并让好友通过联机地址和端口加入。',
       primaryAction: '启动服务端',
-      inviteLabel: '复制 LAN 邀请包',
+      inviteLabel: '复制局域网邀请包',
       canCreateLanInvite: true,
       requiresVirtualLan: true,
       requiresDedicatedServer: true,
@@ -280,24 +295,24 @@ export function buildAdapterRecommendationRoute(game: GameSummary | null): Adapt
       usesRemotePlay: false,
       usesSteamFlow: false,
       supported: true,
-      tools: routeTools(game, ['n2n edge', '游戏服务端']),
+      tools: routeTools(game, ['组网服务', '游戏服务端']),
       steps: [
-        { id: 'n2n', title: '启动 n2n', detail: '双方进入同一虚拟局域网。' },
+        { id: 'n2n', title: '启动组网', detail: '双方进入同一联机房间。' },
         { id: 'server', title: '启动服务端', detail: '房主启动专用服务端并保持窗口运行。' },
-        { id: 'join', title: '好友加入', detail: '好友在游戏内连接房主虚拟 IP 和端口。' },
+        { id: 'join', title: '好友加入', detail: '好友在游戏内连接房主联机地址和端口。' },
       ],
     };
   }
 
   return {
     kind: 'virtual_lan',
-    title: 'n2n 虚拟局域网',
-    badge: 'LAN',
+    title: '通用局域网联机',
+    badge: '局域网',
     summary: methodLabels.length
-      ? `适配器推荐：${methodLabels.join('、')}。组好虚拟局域网后用房主虚拟 IP 加入。`
-      : '游戏支持 LAN 或 IP 直连，组好虚拟局域网后用房主虚拟 IP 加入。',
-    primaryAction: '启动 n2n',
-    inviteLabel: '复制 LAN 邀请包',
+      ? `方案推荐：${methodLabels.join('、')}。组好联机房间后用房主联机地址加入。`
+      : '游戏支持局域网或 IP 直连，组好联机房间后用房主联机地址加入。',
+    primaryAction: '启动组网',
+    inviteLabel: '复制局域网邀请包',
     canCreateLanInvite: true,
     requiresVirtualLan: true,
     requiresDedicatedServer: false,
@@ -306,11 +321,11 @@ export function buildAdapterRecommendationRoute(game: GameSummary | null): Adapt
     usesRemotePlay: false,
     usesSteamFlow: false,
     supported: true,
-    tools: routeTools(game, ['n2n edge', '虚拟网卡']),
+    tools: routeTools(game, ['组网服务', '虚拟网卡']),
     steps: [
-      { id: 'n2n', title: '启动 n2n', detail: '双方进入同一房间并确认 ACK/PONG。' },
+      { id: 'n2n', title: '启动组网', detail: '双方进入同一房间并等待状态确认。' },
       { id: 'host', title: '房主开房', detail: '房主启动游戏或局域网房间。' },
-      { id: 'join', title: '好友直连', detail: '好友连接房主虚拟 IP 和默认端口。' },
+      { id: 'join', title: '好友直连', detail: '好友连接房主联机地址和默认端口。' },
     ],
   };
 }
@@ -335,11 +350,11 @@ export function buildNonLanRouteInvite(route: AdapterRecommendationRoute, game: 
     ...route.steps.map((step, index) => `${index + 1}. ${step.title}：${step.detail}`),
     '',
     route.kind === 'remote_coop'
-      ? '提示：这类本地同屏游戏不需要 n2n，也不需要连接房主虚拟 IP 或端口。'
+      ? '提示：这类本地同屏游戏不需要通用组网，也不需要连接房主联机地址或端口。'
       : route.kind === 'steam_p2p'
         ? '提示：优先使用游戏原生 Steam 好友邀请/大厅；插件方案需要后续人工确认。'
         : route.kind === 'official_only'
           ? '提示：当前不建议强制转换为局域网，请使用官方入口。'
-          : '提示：该游戏需要先完善 adapter 后再生成可执行邀请包。'
+          : '提示：该游戏需要先完善方案后再生成可执行邀请包。'
   ].join('\n');
 }

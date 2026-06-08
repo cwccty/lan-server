@@ -1,0 +1,177 @@
+{
+  "generated_at": "2026-06-08T15:25:15.589Z",
+  "mode": "source-and-runtime-ui-contract",
+  "passed": true,
+  "checks": [
+    {
+      "id": "status-running-without-ready-label",
+      "passed": true,
+      "detail": "running && !ready 必须显示“组网程序已启动，但中继尚未确认”，不能退回单纯“启动中”。"
+    },
+    {
+      "id": "status-running-without-ready-actions",
+      "passed": true,
+      "detail": "无中继确认时，普通用户下一步必须包含核对参数、复制命令/日志、管理员运行和非防火墙网络排查。"
+    },
+    {
+      "id": "status-prioritizes-specific-n2n-problems",
+      "passed": true,
+      "detail": "密钥错误、IP 冲突、虚拟网卡、中继无响应和 PID 失效必须优先显示明确问题。"
+    },
+    {
+      "id": "network-page-user-actions-and-sop",
+      "passed": true,
+      "detail": "加入与组网页必须有三类复制入口、两机 SOP 和注册修复无效后的下一步。"
+    },
+    {
+      "id": "network-page-observability-fields-visible",
+      "passed": true,
+      "detail": "组网页排查卡必须显示程序文件路径、PID、ACK/PONG、日志路径等可观测字段。"
+    },
+    {
+      "id": "network-full-report-fields",
+      "passed": true,
+      "detail": "完整诊断报告文本必须包含区分未启动/中继未确认的关键字段、两机对照步骤和 UDP/网络排查。"
+    },
+    {
+      "id": "diagnostics-page-copy-actions",
+      "passed": true,
+      "detail": "诊断报告页必须有同等级复制入口，普通按钮文案使用“组网日志”。"
+    },
+    {
+      "id": "backend-observability-fields",
+      "passed": true,
+      "detail": "后端和前端类型必须暴露程序文件路径、PID、连接状态、手动命令、TAP 错误等字段。"
+    },
+    {
+      "id": "gate-integrated",
+      "passed": true,
+      "detail": "v0.3.1 专用门禁必须执行该 UI 防回退检查。"
+    },
+    {
+      "id": "no-old-wait-only-copy",
+      "passed": true,
+      "detail": "普通用户主路径不能继续只建议等待刷新或复制 edge 日志。"
+    },
+    {
+      "id": "runtime-network-page-clicked",
+      "passed": true,
+      "detail": "运行时能进入“加入与组网”页面。"
+    },
+    {
+      "id": "runtime-network-page-visible",
+      "passed": true,
+      "detail": "运行时组网页可见。"
+    },
+    {
+      "id": "runtime-network-user-actions-visible",
+      "passed": true,
+      "detail": "运行时组网页显示用户诊断操作。"
+    },
+    {
+      "id": "runtime-network-two-machine-sop-visible",
+      "passed": true,
+      "detail": "运行时组网页显示两机对照 SOP。"
+    },
+    {
+      "id": "runtime-network-copy-actions",
+      "passed": true,
+      "detail": "运行时组网页有报告、手动命令、组网日志三类复制入口。"
+    },
+    {
+      "id": "runtime-network-key-hints",
+      "passed": true,
+      "detail": "运行时组网页能区分两机报告、联机地址、已配置未启动和中继未确认。"
+    },
+    {
+      "id": "runtime-network-observability-fields",
+      "passed": true,
+      "detail": "运行时组网页显示程序文件路径、PID、ACK/PONG、日志路径。"
+    },
+    {
+      "id": "runtime-network-register-repair-fallback",
+      "passed": true,
+      "detail": "运行时组网页显示注册修复无效后的管理员权限提示。"
+    },
+    {
+      "id": "runtime-network-udp-non-firewall-hint",
+      "passed": true,
+      "detail": "运行时组网页提示关闭防火墙后仍需检查 UDP 出站、校园网/公司网和安全软件。"
+    },
+    {
+      "id": "runtime-network-no-old-copy",
+      "passed": true,
+      "detail": "运行时组网页不出现旧 edge 日志、等待刷新和纯“启动中”。"
+    },
+    {
+      "id": "runtime-diagnostics-page-clicked",
+      "passed": true,
+      "detail": "运行时能进入诊断报告页。"
+    },
+    {
+      "id": "runtime-diagnostics-page-visible",
+      "passed": true,
+      "detail": "运行时诊断报告页可见。"
+    },
+    {
+      "id": "runtime-diagnostics-copy-actions",
+      "passed": true,
+      "detail": "运行时诊断页有报告、手动命令、组网日志复制入口。"
+    },
+    {
+      "id": "runtime-diagnostics-udp-non-firewall-hint",
+      "passed": true,
+      "detail": "运行时诊断页提示关闭防火墙后仍需检查 UDP 出站、校园网/公司网和安全软件。"
+    },
+    {
+      "id": "runtime-diagnostics-no-old-copy",
+      "passed": true,
+      "detail": "运行时诊断页不出现旧 edge 日志、等待刷新和纯“启动中”。"
+    }
+  ],
+  "runtime": {
+    "preview_url": "http://127.0.0.1:4175",
+    "preview_started_by_script": false,
+    "networkDom": {
+      "clicked": true,
+      "hasNetworkPage": true,
+      "hasUserDiagnosticActions": true,
+      "hasTwoMachineSop": true,
+      "hasCopyReport": true,
+      "hasCopyManualCommand": true,
+      "hasCopyNetworkLogs": true,
+      "hasTwoMachineReportStep": true,
+      "hasDifferentLanIpHint": true,
+      "hasConfiguredNotStartedHint": true,
+      "hasRelayNotConfirmedHint": true,
+      "hasExecutableField": true,
+      "hasExecutablePathField": true,
+      "hasPidField": true,
+      "hasAckPongField": true,
+      "hasLogPathField": true,
+      "hasRegisterRepairFallback": true,
+      "hasUdpNonFirewallHint": true,
+      "hasOldEdgeLogCopy": false,
+      "hasOldWaitingRefresh": false,
+      "hasPlainStartingLabel": false,
+      "plainStartingElements": []
+    },
+    "diagnosticsDom": {
+      "clicked": true,
+      "hasDiagnosticsPage": true,
+      "hasToolbarActions": true,
+      "hasCopyReport": true,
+      "hasCopyManualCommand": true,
+      "hasCopyNetworkLogs": true,
+      "hasUdpNonFirewallHint": true,
+      "hasOldEdgeLogCopy": false,
+      "hasOldWaitingRefresh": false,
+      "hasPlainStartingLabel": false,
+      "plainStartingElements": []
+    },
+    "screenshots": [
+      "docs/acceptance-artifacts/network-diagnostic-closure-actions-2026-06-08.png",
+      "docs/acceptance-artifacts/diagnostics-n2n-copy-actions-2026-06-08.png"
+    ]
+  }
+}

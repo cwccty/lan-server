@@ -1,0 +1,150 @@
+{
+  "generated_at": "2026-06-08T15:15:54.796Z",
+  "scenario_count": 6,
+  "passed": true,
+  "results": [
+    {
+      "id": "configured_not_started",
+      "passed": true,
+      "expected": {
+        "stage": "configured_not_started",
+        "labelIncludes": "已配置未启动"
+      },
+      "actual": {
+        "stage": "configured_not_started",
+        "label": "已配置未启动",
+        "detail": "组网信息已保存，但当前没有检测到组网程序在运行。",
+        "nextAction": "点击启动组网；如果启动后仍显示未启动，请复制完整诊断报告、手动启动命令和组网日志，确认程序是否启动后退出或权限不足。",
+        "evidence": [
+          "组网信息已保存，但还没有检测到运行中的组网程序；请点击启动组网。",
+          "连接状态：configured_not_started",
+          "组网程序文件：已找到",
+          "PID 存活：否",
+          "联机地址：10.10.10.2",
+          "中继地址：203.0.113.10:7777",
+          "日志路径：tools/n2n/edge.log"
+        ]
+      }
+    },
+    {
+      "id": "running_without_ack",
+      "passed": true,
+      "expected": {
+        "stage": "starting",
+        "labelIncludes": "中继尚未确认"
+      },
+      "actual": {
+        "stage": "starting",
+        "label": "组网程序已启动，但中继尚未确认",
+        "detail": "组网程序已启动，但尚未收到中继确认；请核对中继地址、房间名、密钥和联机地址。",
+        "nextAction": "不要只等待：请核对双方中继地址、房间名、密钥和联机地址；复制手动启动命令与组网日志，必要时用管理员权限重新运行；关闭防火墙仍失败时继续检查 UDP 出站、校园网/公司网、路由器和安全软件。",
+        "evidence": [
+          "组网程序已启动，但尚未收到中继确认；请核对中继地址、房间名、密钥和联机地址。",
+          "连接状态：waiting_for_ack",
+          "组网程序文件：已找到",
+          "记录 PID：4242",
+          "PID 存活：是",
+          "联机地址：10.10.10.2",
+          "中继地址：203.0.113.10:7777",
+          "日志路径：tools/n2n/edge.log"
+        ]
+      }
+    },
+    {
+      "id": "supernode_not_responding",
+      "passed": true,
+      "expected": {
+        "stage": "has_problem",
+        "detailIncludes": "中继地址暂无响应"
+      },
+      "actual": {
+        "stage": "has_problem",
+        "label": "存在问题",
+        "detail": "中继地址暂无响应；请核对地址和端口，确认中继服务器已启动且端口已放行，并检查当前网络是否拦截 UDP 出站。",
+        "nextAction": "打开诊断报告，复制完整报告或手动启动命令；核对中继地址、房间名、密钥、联机地址，查看日志后重新启动组网。",
+        "evidence": [
+          "中继地址暂无响应；请核对地址和端口，或确认中继服务器已启动且端口放行。",
+          "连接状态：supernode_not_responding",
+          "组网程序文件：已找到",
+          "记录 PID：4242",
+          "PID 存活：是",
+          "联机地址：10.10.10.2",
+          "中继地址：203.0.113.10:7777",
+          "日志路径：tools/n2n/edge.log"
+        ]
+      }
+    },
+    {
+      "id": "tap_error",
+      "passed": true,
+      "expected": {
+        "stage": "has_problem",
+        "detailIncludes": "虚拟网卡"
+      },
+      "actual": {
+        "stage": "has_problem",
+        "label": "存在问题",
+        "detail": "虚拟网卡/组网网卡无法打开或未安装；请尝试管理员运行，并检查 TAP/Wintun 网卡。",
+        "nextAction": "打开诊断报告，复制完整报告或手动启动命令；核对中继地址、房间名、密钥、联机地址，查看日志后重新启动组网。",
+        "evidence": [
+          "组网网卡无法打开或未安装，请尝试管理员运行，并检查 TAP/Wintun 虚拟网卡。",
+          "连接状态：tap_error",
+          "组网程序文件：已找到",
+          "记录 PID：4242",
+          "PID 存活：是",
+          "联机地址：10.10.10.2",
+          "中继地址：203.0.113.10:7777",
+          "日志路径：tools/n2n/edge.log"
+        ]
+      }
+    },
+    {
+      "id": "auth_error",
+      "passed": true,
+      "expected": {
+        "stage": "has_problem",
+        "detailIncludes": "房间名或密钥"
+      },
+      "actual": {
+        "stage": "has_problem",
+        "label": "存在问题",
+        "detail": "房间名或密钥不一致，中继拒绝加入；请确认双方填写完全一致。",
+        "nextAction": "打开诊断报告，复制完整报告或手动启动命令；核对中继地址、房间名、密钥、联机地址，查看日志后重新启动组网。",
+        "evidence": [
+          "房间名或密钥不一致，中继拒绝加入；请确认双方填写完全一致。",
+          "连接状态：auth_error",
+          "组网程序文件：已找到",
+          "记录 PID：4242",
+          "PID 存活：是",
+          "联机地址：10.10.10.2",
+          "中继地址：203.0.113.10:7777",
+          "日志路径：tools/n2n/edge.log"
+        ]
+      }
+    },
+    {
+      "id": "ip_mac_conflict",
+      "passed": true,
+      "expected": {
+        "stage": "has_problem",
+        "detailIncludes": "联机地址"
+      },
+      "actual": {
+        "stage": "has_problem",
+        "label": "存在问题",
+        "detail": "联机地址可能已被占用；请让每个人使用不同的联机地址后重新启动组网。",
+        "nextAction": "打开诊断报告，复制完整报告或手动启动命令；核对中继地址、房间名、密钥、联机地址，查看日志后重新启动组网。",
+        "evidence": [
+          "联机地址可能已被占用；请让每个人使用不同的虚拟 IP 后重新启动组网。",
+          "连接状态：ip_mac_conflict",
+          "组网程序文件：已找到",
+          "记录 PID：4242",
+          "PID 存活：是",
+          "联机地址：10.10.10.2",
+          "中继地址：203.0.113.10:7777",
+          "日志路径：tools/n2n/edge.log"
+        ]
+      }
+    }
+  ]
+}

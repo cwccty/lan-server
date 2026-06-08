@@ -18,6 +18,7 @@ import {
 } from './adapterSyncResult';
 import { getReferenceSelectedGame, setReferenceSelectedGame, subscribeReferenceSelectedGame, type ReferenceSelectedGame } from './selectedGame';
 import { useReferenceProductMode } from './useReferenceProductMode';
+import { toProductSafeMessage } from '../product-ui/productSafeMessage';
 
 const PANEL_ATTR = 'data-lan-helper-product-inventory-panel';
 const HINT_ATTR = 'data-lan-helper-product-inventory-hint';
@@ -87,6 +88,10 @@ function escapeHtml(value: string) {
     .replace(/'/g, '&#039;');
 }
 
+function safeErrorText(value: string) {
+  return toProductSafeMessage(value);
+}
+
 function badge(text: string, tone = 'slate') {
   const palette: Record<string, string> = {
     slate: 'bg-slate-100 text-slate-600 border-slate-200',
@@ -129,10 +134,10 @@ function insertHint(root: Element, page: PageKind) {
   if (root.querySelector(`[${HINT_ATTR}]`)) return;
   const targetText =
     page === 'games'
-      ? '下面仍保留参考设计里的演示卡片；Product Mode 以“真实后端扫描结果”为准。'
+      ? '下面仍保留参考设计里的演示卡片；产品模式以“本机扫描结果”为准。'
       : page === 'solutions'
-        ? '下面仍保留参考设计里的演示同步列表；Product Mode 以“真实本地适配器”为准。'
-        : '下面仍保留参考设计里的策略演示；Product Mode 以真实推荐结果、n2n 配置和服务端状态为准。';
+        ? '下面仍保留参考设计里的演示同步列表；产品模式以“本机游戏方案”为准。'
+        : '下面仍保留参考设计里的策略演示；产品模式以推荐结果、组网设置和服务端状态为准。';
   const hint = document.createElement('div');
   hint.setAttribute(HINT_ATTR, page);
   hint.className = 'rounded-2xl border border-slate-200 bg-white/80 p-3 text-[11px] text-slate-500 shadow-sm';
@@ -174,8 +179,8 @@ function renderGames(state: InventoryState) {
   return `
     <div class="mb-4 flex items-center justify-between gap-3">
       <div>
-        <div class="font-heading text-sm font-bold text-slate-800">真实后端扫描结果</div>
-        <div class="mt-1 text-[11px] text-slate-500">来自 scan_games 与 list_game_adapters。可在这里直接选择真实推荐目标，不再依赖下方参考演示卡片。</div>
+        <div class="font-heading text-sm font-bold text-slate-800">本机扫描结果</div>
+        <div class="mt-1 text-[11px] text-slate-500">可在这里直接选择要联机的游戏，不再依赖下方演示卡片。</div>
       </div>
       <div class="flex flex-wrap justify-end gap-1.5">
         ${state.selectedGame ? badge(`目标: ${state.selectedGame.display_name}`, 'green') : badge('未选推荐目标', 'amber')}
@@ -184,7 +189,7 @@ function renderGames(state: InventoryState) {
     </div>
     ${
       state.games.length === 0
-        ? '<div class="rounded-xl border border-dashed border-amber-200 bg-white/70 p-3 text-[11px] text-slate-500">后端暂未扫描到游戏。请点击“手动重扫以刷新缓存”触发真实扫描。</div>'
+        ? '<div class="rounded-xl border border-dashed border-amber-200 bg-white/70 p-3 text-[11px] text-slate-500">本机暂未扫描到游戏。请点击“重新扫描”刷新。</div>'
         : `<div class="grid grid-cols-1 gap-3 md:grid-cols-2">${rows.join('')}</div>`
     }
   `;
@@ -230,7 +235,7 @@ function renderSolutions(state: InventoryState) {
     <div class="mb-4 rounded-xl border border-slate-100 bg-white/75 p-3">
       <div class="mb-3 flex items-start justify-between gap-3">
         <div>
-          <div class="font-heading text-sm font-bold text-slate-800">最近一次真实同步详情</div>
+          <div class="font-heading text-sm font-bold text-slate-800">最近一次同步详情</div>
           <div class="mt-1 text-[11px] text-slate-500">
             来源：${sync.source === 'local' ? '本地示例目录' : '远程方案库'} · ${escapeHtml(new Date(sync.saved_at).toLocaleString())}
           </div>
@@ -265,14 +270,14 @@ function renderSolutions(state: InventoryState) {
     </div>
   ` : `
     <div class="mb-4 rounded-xl border border-dashed border-amber-200 bg-white/70 p-3 text-[11px] text-slate-500">
-      尚未记录真实同步详情。点击“恢复默认”或“一键更新共享方案”后，这里会展示每个 adapter 的 created/updated/skipped/失败原因。
+      尚未记录同步详情。点击“恢复默认”或“一键更新共享方案”后，这里会展示每个方案的处理结果。
     </div>
   `;
   const semanticsPanel = `
     <div class="mb-4 rounded-xl border border-indigo-100 bg-indigo-50/60 p-3 text-[11px] text-slate-600">
       <div class="mb-2 font-heading text-sm font-bold text-slate-800">方案库按钮语义</div>
       <div class="grid grid-cols-1 gap-2 md:grid-cols-3">
-        <div class="rounded-lg bg-white/75 p-2"><strong>一键更新共享方案</strong><br/>访问当前 registry URL，下载并写入真实 adapter，同步结果会记录到下方详情。</div>
+        <div class="rounded-lg bg-white/75 p-2"><strong>一键更新共享方案</strong><br/>访问当前共享库地址，下载并写入游戏方案，同步结果会记录到下方详情。</div>
         <div class="rounded-lg bg-white/75 p-2"><strong>恢复默认</strong><br/>使用项目内本地示例 registry 作为默认源同步一次，适合恢复可用基线。</div>
         <div class="rounded-lg bg-white/75 p-2"><strong>手动强制刷新</strong><br/>只重新读取本地 adapter 列表和最近同步结果，不访问远程、不覆盖方案。</div>
       </div>
@@ -282,10 +287,10 @@ function renderSolutions(state: InventoryState) {
   return `
     <div class="mb-4 flex items-center justify-between gap-3">
       <div>
-        <div class="font-heading text-sm font-bold text-slate-800">真实本地共享方案</div>
-        <div class="mt-1 text-[11px] text-slate-500">来自 list_game_adapters；最近一次同步明细来自 sync_adapter_registry / sync_local_adapter_registry_example。</div>
+        <div class="font-heading text-sm font-bold text-slate-800">本地共享方案</div>
+        <div class="mt-1 text-[11px] text-slate-500">这里显示当前客户端已经可用的游戏方案和最近一次同步结果。</div>
       </div>
-      ${badge(`${state.adapters.length} 个真实方案`, 'amber')}
+      ${badge(`${state.adapters.length} 个方案`, 'amber')}
     </div>
     ${semanticsPanel}
     ${syncPanel}
@@ -308,11 +313,11 @@ function renderRecommendation(state: InventoryState) {
   const config = state.n2nConfig;
   const selectedFriend = state.friends.find((item) => item.status === 'selected') ?? state.friends[state.friends.length - 1];
   const invite = [
-    '[联机助手真实邀请摘要]',
+    '[联机助手邀请摘要]',
     `游戏: ${game?.display_name ?? '未选择'}`,
-    `房主虚拟 IP: ${config?.local_ip ?? '未读取'}`,
-    selectedFriend ? `好友预留 IP: ${selectedFriend.ip} (${selectedFriend.name})` : '好友预留 IP: 未分配',
-    `Supernode: ${config?.supernode ?? '未读取'}`,
+    `房主联机地址: ${config?.local_ip ?? '未读取'}`,
+    selectedFriend ? `好友预留地址: ${selectedFriend.ip} (${selectedFriend.name})` : '好友预留地址: 未分配',
+    `中继地址: ${config?.supernode ?? '未读取'}`,
     `房间名: ${config?.room_name ?? '未读取'}`,
     `默认端口: ${game?.connection_plan?.default_join_port ?? game?.connection_plan?.default_join_host ?? '待按方案确认'}`,
     `好友检测: ${selectedFriend?.last_check_summary ?? '未检测'}`,
@@ -347,8 +352,8 @@ function renderRecommendation(state: InventoryState) {
   return `
     <div class="mb-4 flex items-center justify-between gap-3">
       <div>
-        <div class="font-heading text-sm font-bold text-slate-800">真实推荐与邀请摘要</div>
-        <div class="mt-1 text-[11px] text-slate-500">来自 scan_games、recommend_plans、get_n2n_last_config、read_server_session。优先使用游戏扫描页刚选中的真实游戏。</div>
+        <div class="font-heading text-sm font-bold text-slate-800">推荐与邀请摘要</div>
+        <div class="mt-1 text-[11px] text-slate-500">优先使用游戏扫描页刚选中的游戏，生成更贴近当前房间的邀请信息。</div>
       </div>
       <div class="flex flex-wrap justify-end gap-1.5">
         ${badge(game?.display_name ?? '未扫描游戏', game ? 'amber' : 'red')}
@@ -356,23 +361,23 @@ function renderRecommendation(state: InventoryState) {
       </div>
     </div>
     <div class="mb-3 rounded-xl border border-indigo-100 bg-indigo-50/60 p-3 text-[11px] text-slate-600">
-      <div class="mb-2 flex items-center justify-between gap-2">
-        <div class="font-heading text-sm font-bold text-slate-800">真实推荐目标</div>
+          <div class="mb-2 flex items-center justify-between gap-2">
+        <div class="font-heading text-sm font-bold text-slate-800">推荐目标</div>
         ${game ? actionButton('analyze-game', '重新分析当前目标', game.game_id) : ''}
       </div>
       ${
         targetRows.length
           ? `<div class="grid grid-cols-1 gap-1.5 md:grid-cols-2">${targetRows.join('')}</div>`
-          : '<div class="rounded-lg border border-dashed border-indigo-200 bg-white/70 p-2 text-slate-500">暂无真实扫描游戏。请先在游戏扫描页触发真实扫描。</div>'
+          : '<div class="rounded-lg border border-dashed border-indigo-200 bg-white/70 p-2 text-slate-500">暂无扫描游戏。请先在游戏扫描页重新扫描。</div>'
       }
     </div>
     <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
-      <div class="space-y-2">${recommendationRows.length > 0 ? recommendationRows.join('') : '<div class="rounded-xl border border-dashed border-amber-200 bg-white/70 p-3 text-[11px] text-slate-500">暂无真实推荐结果。请先扫描游戏或选择有适配器的游戏。</div>'}</div>
+      <div class="space-y-2">${recommendationRows.length > 0 ? recommendationRows.join('') : '<div class="rounded-xl border border-dashed border-amber-200 bg-white/70 p-3 text-[11px] text-slate-500">暂无推荐结果。请先扫描游戏或选择有方案的游戏。</div>'}</div>
       <div class="space-y-2">
         <pre class="max-h-64 overflow-auto rounded-xl border border-slate-800 bg-slate-950 p-3 font-mono text-[11px] leading-relaxed text-amber-100">${escapeHtml(invite)}</pre>
         <div class="rounded-xl border border-slate-100 bg-white/80 p-3 text-[11px] text-slate-600">
           <div class="mb-2 flex items-center justify-between gap-2">
-            <span class="font-bold text-slate-800">Product Mode 好友席位</span>
+            <span class="font-bold text-slate-800">好友席位</span>
             ${badge(`${state.friends.length} 个持久席位`, state.friends.length ? 'green' : 'slate')}
           </div>
           ${
@@ -382,7 +387,7 @@ function renderRecommendation(state: InventoryState) {
                   <span><strong>${escapeHtml(friend.name)}</strong> <span class="font-mono">${escapeHtml(friend.ip)}</span></span>
                   <span class="text-[10px] text-slate-400">${escapeHtml(friend.last_check_summary || friend.status)}</span>
                 </div>`).join('')}</div>`
-              : '<div class="text-slate-400">尚未通过 Product Mode 保存好友席位。点击“分配并生成推荐信”后会持久保存。</div>'
+              : '<div class="text-slate-400">尚未保存好友席位。点击“分配并生成推荐信”后会持久保存。</div>'
           }
         </div>
       </div>
@@ -391,8 +396,8 @@ function renderRecommendation(state: InventoryState) {
 }
 
 function renderPanel(page: PageKind, state: InventoryState) {
-  const loading = state.loading ? '<div class="mb-3 text-[11px] font-bold text-amber-700">正在读取真实后端数据...</div>' : '';
-  const error = state.error ? `<div class="mb-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-[11px] text-rose-700">${escapeHtml(state.error)}</div>` : '';
+  const loading = state.loading ? '<div class="mb-3 text-[11px] font-bold text-amber-700">正在读取本机数据...</div>' : '';
+  const error = state.error ? `<div class="mb-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-[11px] text-rose-700">${escapeHtml(safeErrorText(state.error))}</div>` : '';
   const body = page === 'games' ? renderGames(state) : page === 'solutions' ? renderSolutions(state) : renderRecommendation(state);
   return `${loading}${error}${body}`;
 }
@@ -410,7 +415,7 @@ async function loadInventory(page: PageKind): Promise<InventoryState> {
   const [games, adapters, n2nConfig, server] = await Promise.all([
     collect('扫描游戏', scanGames, []),
     collect('读取方案', listGameAdapters, []),
-    collect('读取 n2n 配置', getN2nLastConfig, null),
+    collect('读取组网配置', getN2nLastConfig, null),
     collect('读取服务端状态', readServerSession, null)
   ]);
   const selectedGame = getReferenceSelectedGame();
@@ -433,8 +438,8 @@ async function loadInventory(page: PageKind): Promise<InventoryState> {
     friends,
     adapterSync,
     error: disconnected
-      ? '当前页面没有连接到 Tauri 后端。请用打包后的 lan-helper.exe 打开，普通浏览器预览只能验证界面，不能读取真实扫描/方案/推荐数据。'
-      : errors.slice(0, 3).join('；')
+      ? safeErrorText('当前页面没有连接到 Tauri 后端。请用打包后的 lan-helper.exe 打开，普通浏览器预览只能验证界面，不能读取真实扫描/方案/推荐数据。')
+      : safeErrorText(errors.slice(0, 3).join('；'))
   };
 }
 
@@ -519,13 +524,13 @@ export function ReferenceProductInventoryPatcher() {
       const original = button.textContent ?? '';
       button.textContent = '处理中...';
       try {
-        if (!game) throw new Error(gameId ? `真实后端列表中没有找到游戏：${gameId}` : '缺少游戏 ID。');
+        if (!game) throw new Error(gameId ? `本机列表中没有找到游戏：${gameId}` : '缺少游戏 ID。');
         if (action === 'select-game') {
           const selected = setReferenceSelectedGame(game);
           setLoadedKey('');
           setSelectedGameKey(selected.game_id);
           setState((prev) => ({ ...prev, selectedGame: selected }));
-          dispatchProductAction('选择真实推荐目标', true, `已将 ${selected.display_name} 设为推荐目标。`, selected);
+          dispatchProductAction('选择推荐目标', true, `已将 ${selected.display_name} 设为推荐目标。`, selected);
           return;
         }
         if (action === 'analyze-game') {
@@ -534,12 +539,12 @@ export function ReferenceProductInventoryPatcher() {
           setLoadedKey('');
           setSelectedGameKey(selected.game_id);
           setState((prev) => ({ ...prev, selectedGame: selected }));
-          dispatchProductAction('真实分析游戏联机能力', true, `已完成 ${selected.display_name} 的真实联机能力分析。`, analysis);
+          dispatchProductAction('分析游戏联机能力', true, `已完成 ${selected.display_name} 的联机能力分析。`, analysis);
           return;
         }
-        throw new Error(`未知真实库存动作：${action}`);
+        throw new Error(`未知操作：${action}`);
       } catch (error) {
-        dispatchProductAction(action || '真实库存动作', false, error instanceof Error ? error.message : String(error || '操作失败'));
+        dispatchProductAction(action || '库存动作', false, safeErrorText(error instanceof Error ? error.message : String(error || '操作失败')));
       } finally {
         button.disabled = false;
         button.textContent = original;
@@ -560,7 +565,7 @@ export function ReferenceProductInventoryPatcher() {
         setState({
           ...emptyState(),
           loading: false,
-          error: error instanceof Error ? error.message : String(error || '读取真实后端数据失败')
+          error: safeErrorText(error instanceof Error ? error.message : String(error || '读取本机数据失败'))
         })
       );
     return () => panel?.removeEventListener('click', handleInventoryAction, true);

@@ -207,7 +207,7 @@ export function buildAdapterContributionText(
   warnings: string[] = [],
 ) {
   return [
-    '[联机助手 Adapter 用户贡献包]',
+    '[联机助手游戏方案用户贡献包]',
     `schema：${pkg.schema}`,
     `生成时间：${pkg.created_at}`,
     `贡献 ID：${pkg.contribution_id}`,
@@ -276,8 +276,8 @@ export function auditAdapterContributionPackage(pkg: AdapterContributionPackage)
     ? 'accept_as_draft'
     : 'needs_more_evidence';
   const summary = recommendedDecision === 'accept_as_draft'
-    ? '关键证据基本完整，可以转为 adapter 草稿，但保存前仍需管理员复核。'
-    : '证据不足或类型不确定，建议先要求用户补充，再转正式 adapter。';
+    ? '关键证据基本完整，可以转为游戏方案草稿，但保存前仍需管理员复核。'
+    : '证据不足或类型不确定，建议先要求用户补充，再转正式游戏方案。';
   return {
     ok: recommendedDecision === 'accept_as_draft',
     missing,
@@ -317,7 +317,7 @@ function buildContributionReviewText(
   summary: string,
 ) {
   return [
-    '[联机助手 Adapter 贡献包审核意见]',
+    '[联机助手游戏方案贡献包审核意见]',
     `贡献 ID：${pkg.contribution_id}`,
     `游戏：${pkg.game.display_name} (${pkg.game.game_id})`,
     `用户判断类型：${pkg.observed_multiplayer.network_type_label} (${pkg.observed_multiplayer.network_type})`,
@@ -455,10 +455,10 @@ function isContributionNetworkType(value: unknown): value is GameNetworkType {
 
 function suggestedAdminRoute(type: GameNetworkType) {
   const map: Record<GameNetworkType, string> = {
-    lan_ip_direct: '按原生 LAN / IP 直连建立 adapter，默认走 n2n 或其他虚拟局域网。',
-    dedicated_server: '确认服务端启动方式与端口，建立专用服务端 adapter。',
+    lan_ip_direct: '按原生局域网 / IP 直连建立游戏方案，默认走通用组网或其他联机方式。',
+    dedicated_server: '确认服务端启动方式与端口，建立专用服务端游戏方案。',
     tcp_port_proxy_needed: '确认固定端口与协议，优先评估 TCP/UDP 端口代理。',
-    udp_broadcast_needed: '确认是否依赖局域网广播发现，评估 n2n + UDP 广播桥。',
+    udp_broadcast_needed: '确认是否依赖局域网广播发现，评估通用组网 + UDP 广播桥。',
     steam_lobby_direct_possible: '保留 Steam 大厅原生流程，必要时仅提供说明。',
     steam_relay_plugin: '进入 Steam Relay / 插件方案复核，不直接生成 LAN 邀请包。',
     local_coop_remote_play: '按本地同屏远程联机处理，推荐 Steam Remote Play 或 Sunshine + Moonlight。',
@@ -466,7 +466,7 @@ function suggestedAdminRoute(type: GameNetworkType) {
     mod_required: '需要社区 Mod 或补丁，先复核安全性和版本边界。',
     official_only: '标记为官方服务器限定，不建议转换。',
     not_supported: '标记暂不支持，并给出原因说明。',
-    unknown_need_review: '先由管理员复核游戏类型，再决定是否创建 adapter。',
+    unknown_need_review: '先由管理员复核游戏类型，再决定是否创建游戏方案。',
   };
   return map[type] ?? '先由管理员复核游戏类型。';
 }
@@ -486,10 +486,10 @@ function requiredAdminChecks(type: GameNetworkType) {
     return [...base, '确认端口协议、防火墙条件和至少一次好友实测。'];
   }
   if (type === 'steam_p2p_only' || type === 'steam_lobby_direct_possible' || type === 'steam_relay_plugin') {
-    return [...base, '确认是否依赖 Steam 好友/大厅/P2P，避免误生成虚拟 IP 邀请包。'];
+    return [...base, '确认是否依赖 Steam 好友/大厅/P2P，避免误生成局域网邀请包。'];
   }
   if (type === 'official_only' || type === 'not_supported') {
     return [...base, '确认是否存在官方限制、反作弊或账号服务器依赖，并写清不建议转换原因。'];
   }
-  return [...base, '根据能力矩阵选择正确路线后，再生成正式 adapter。'];
+  return [...base, '根据能力矩阵选择正确路线后，再生成正式游戏方案。'];
 }
