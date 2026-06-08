@@ -7,7 +7,7 @@
 ## 1. 当前可发布资产
 
 - tag：`v0.3.0`
-- commit：`7b42f900dbd09fda1287a28830e1b31d29fb65a4`
+- commit：以 `git rev-parse "v0.3.0^{commit}"` 的输出为准
 - ZIP：`release-artifacts\LanHelper-v0.3.0-windows-x64.zip`
 - ZIP SHA256：`97525924f16bb8abafa772abca288f7eaaae026688ae4f7408d7e8a2a27abb7e`
 - Release 草稿：`docs\GITHUB_RELEASE_DRAFT.md`
@@ -30,7 +30,7 @@ npm.cmd run release:zip:verify
 
 预期：
 
-- `origin/master` 指向 `7b42f900dbd09fda1287a28830e1b31d29fb65a4`；
+- `origin/master` 指向计划发布提交；
 - `refs/tags/v0.3.0^{}` 指向同一提交；
 - `release:zip:verify` 输出 `PASS`；
 - ZIP SHA256 等于本文第 1 节记录值；
